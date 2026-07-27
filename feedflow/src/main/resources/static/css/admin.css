@@ -1,0 +1,129 @@
+:root {
+    --ff-sidebar-width: 240px;
+    --ff-navy: #16324f;
+    --ff-navy-dark: #102338;
+    --ff-green: #2f855a;
+}
+
+body {
+    background-color: #f4f6f9;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif;
+}
+
+/* ------------------------------ Sidebar ------------------------------ */
+.ff-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--ff-sidebar-width);
+    height: 100vh;
+    padding: 1.25rem 0.75rem;
+    background: linear-gradient(180deg, var(--ff-navy) 0%, var(--ff-navy-dark) 100%);
+    color: #fff;
+    overflow-y: auto;
+}
+
+.ff-brand {
+    padding: 0.5rem 0.75rem 1.25rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    border-bottom: 1px solid rgba(255, 255, 255, .15);
+    margin-bottom: 1rem;
+}
+
+.ff-brand small {
+    font-size: .72rem;
+    font-weight: 400;
+    margin-top: .15rem;
+}
+
+.ff-nav .nav-link {
+    color: rgba(255, 255, 255, .78);
+    border-radius: .5rem;
+    padding: .6rem .75rem;
+    margin-bottom: .25rem;
+}
+
+.ff-nav .nav-link:hover {
+    background-color: rgba(255, 255, 255, .1);
+    color: #fff;
+}
+
+.ff-nav .nav-link.active {
+    background-color: var(--ff-green);
+    color: #fff;
+    font-weight: 600;
+}
+
+.ff-nav .nav-link.disabled {
+    color: rgba(255, 255, 255, .4);
+}
+
+/* ------------------------------ Content ------------------------------ */
+.ff-content {
+    margin-left: var(--ff-sidebar-width);
+    min-height: 100vh;
+}
+
+.ff-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fff;
+    border-bottom: 1px solid #e3e6ea;
+    padding: .9rem 1.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.ff-main {
+    padding: 1.5rem;
+}
+
+/* ------------------------------ Cards ------------------------------ */
+.ff-card {
+    border: none;
+    border-radius: .75rem;
+    box-shadow: 0 1px 3px rgba(16, 35, 56, .08);
+}
+
+.ff-stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.ff-stat-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: .75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.ff-admin-only {
+    border-left: 4px solid var(--ff-green);
+}
+
+.table > :not(caption) > * > * {
+    vertical-align: middle;
+}
+
+/* ------------------------------ Login ------------------------------ */
+.ff-login-wrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--ff-navy) 0%, var(--ff-navy-dark) 100%);
+}
+
+.ff-login-card {
+    width: 100%;
+    max-width: 420px;
+    border-radius: 1rem;
+    border: none;
+}

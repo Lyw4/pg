@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/layout :: head('로그인')}"></head>
+
+<body>
+
+<div class="ff-login-wrap">
+    <div class="card ff-login-card shadow-lg">
+        <div class="card-body p-4 p-md-5">
+
+            <div class="text-center mb-4">
+                <div class="display-6 text-success mb-2"><i class="bi bi-box-seam"></i></div>
+                <h4 class="fw-bold mb-1">FeedFlow 관리자</h4>
+                <p class="text-muted small mb-0">배합사료 유통 관리 플랫폼 · 사원 전용</p>
+            </div>
+
+            <div th:if="${param.error}" class="alert alert-danger py-2 small">
+                <i class="bi bi-exclamation-circle me-1"></i>이메일 또는 비밀번호가 올바르지 않습니다.
+            </div>
+            <div th:if="${param.logout}" class="alert alert-secondary py-2 small">
+                <i class="bi bi-check-circle me-1"></i>정상적으로 로그아웃되었습니다.
+            </div>
+
+            <form th:action="@{/login}" method="post">
+                <div class="mb-3">
+                    <label for="email" class="form-label small fw-semibold">이메일</label>
+                    <input type="email" id="email" name="email" class="form-control"
+                           placeholder="admin@feedflow.co.kr" required autofocus>
+                </div>
+
+                <div class="mb-4">
+                    <label for="password" class="form-label small fw-semibold">비밀번호</label>
+                    <input type="password" id="password" name="password" class="form-control"
+                           placeholder="비밀번호" required>
+                </div>
+
+                <button type="submit" class="btn btn-success w-100 py-2 fw-semibold">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>로그인
+                </button>
+            </form>
+
+            <hr class="my-4">
+
+            <div class="small text-muted">
+                <div class="fw-semibold mb-1">테스트 계정 (초기 데이터)</div>
+                <ul class="mb-0 ps-3">
+                    <li>책임자: <code>admin@feedflow.co.kr</code> / <code>admin123</code></li>
+                    <li>사원: <code>staff@feedflow.co.kr</code> / <code>staff123</code></li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{fragments/layout :: scripts}"></div>
+
+</body>
+</html>

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/layout :: head('대시보드')}"></head>
+
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="ff-content">
+
+    <div th:replace="~{fragments/layout :: topbar('대시보드')}"></div>
+
+    <main class="ff-main">
+
+        <p class="text-muted small mb-3">
+            <i class="bi bi-calendar3 me-1"></i>
+            <span th:text="${#temporals.format(today, 'yyyy년 M월 d일')}">2026-01-01</span> 기준
+        </p>
+
+        <!-- ==========================================================
+             1. 오늘의 할 일 (STAFF / ADMIN 공통)
+             ========================================================== -->
+        <h6 class="fw-bold text-secondary mb-2">
+            <i class="bi bi-check2-square me-1"></i>오늘의 할 일
+        </h6>
+
+        <div class="row g-3 mb-4">
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">신규 주문</div>
+                            <div class="ff-stat-value text-primary"
+                                 th:text="${#numbers.formatInteger(todayTask.newOrderCount, 1, 'COMMA')} + '건'">0건
+                            </div>
+                        </div>
+                        <div class="ff-stat-icon bg-primary-subtle text-primary">
+                            <i class="bi bi-receipt"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">출고 대기</div>
+                            <div class="ff-stat-value text-warning"
+                                 th:text="${#numbers.formatInteger(todayTask.readyToShipCount, 1, 'COMMA')} + '건'">0건
+                            </div>
+                        </div>
+                        <div class="ff-stat-icon bg-warning-subtle text-warning">
+                            <i class="bi bi-truck"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">안전재고 미달</div>
+                            <div class="ff-stat-value text-danger"
+                                 th:text="${#numbers.formatInteger(todayTask.safetyStockAlertCount, 1, 'COMMA')} + '건'">0건
+                            </div>
+                        </div>
+                        <div class="ff-stat-icon bg-danger-subtle text-danger">
+                            <i class="bi bi-exclamation-triangle"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">유통기한 임박</div>
+                            <div class="ff-stat-value text-dark"
+                                 th:text="${#numbers.formatInteger(todayTask.expiringLotCount, 1, 'COMMA')} + '건'">0건
+                            </div>
+                        </div>
+                        <div class="ff-stat-icon bg-secondary-subtle text-secondary">
+                            <i class="bi bi-calendar-x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================================
+             2. 매출 통계 + 차트 (ADMIN 전용 / DOM 자체가 렌더링되지 않음)
+             ========================================================== -->
+        <div sec:authorize="hasRole('ADMIN')">
+            <h6 class="fw-bold text-secondary mb-2">
+                <i class="bi bi-graph-up-arrow me-1"></i>매출 통계
+                <span class="badge bg-danger ms-1">책임자 전용</span>
+            </h6>
+
+            <div class="row g-3 mb-4">
+                <div class="col-12 col-lg-4">
+                    <div class="card ff-card ff-admin-only h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">오늘 매출액</div>
+                            <div class="ff-stat-value text-success"
+                                 th:text="${#numbers.formatInteger(salesSummary.todaySales, 1, 'COMMA')} + '원'">0원
+                            </div>
+                            <div class="text-muted small mt-2">
+                                주문 <span th:text="${salesSummary.todayOrderCount}">0</span>건 ·
+                                평균
+                                <span th:text="${#numbers.formatInteger(salesSummary.todayAverageOrderAmount, 1, 'COMMA')} + '원'">0원</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-4">
+                    <div class="card ff-card ff-admin-only h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">이번 달 누적 매출액</div>
+                            <div class="ff-stat-value text-success"
+                                 th:text="${#numbers.formatInteger(salesSummary.monthSales, 1, 'COMMA')} + '원'">0원
+                            </div>
+                            <div class="text-muted small mt-2">
+                                <span th:text="${#temporals.format(today, 'yyyy년 M월')}">2026년 1월</span> 1일 ~ 오늘
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-4">
+                    <div class="card ff-card ff-admin-only h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">최근 7일 매출액</div>
+                            <div class="ff-stat-value text-success" id="weeklyTotal">-</div>
+                            <div class="text-muted small mt-2">/api/admin/chart 비동기 조회</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card ff-card mb-4">
+                <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold">최근 7일 일별 매출 추이</span>
+                    <span class="text-muted small">단위: 원</span>
+                </div>
+                <div class="card-body">
+                    <div id="chartError" class="alert alert-warning d-none mb-3"></div>
+                    <div style="height: 300px;">
+                        <canvas id="salesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================================
+             3. 안전재고 알림 (STAFF / ADMIN 공통)
+             ========================================================== -->
+        <div class="row g-3">
+            <div class="col-12 col-xl-6">
+                <div class="card ff-card h-100">
+                    <div class="card-header bg-white border-0 pt-3">
+                        <span class="fw-bold text-danger">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>안전재고 알림
+                        </span>
+                        <span class="text-muted small ms-1">전체 재고 &lt; 안전 재고</span>
+                    </div>
+                    <div class="card-body pt-2">
+                        <div th:if="${#lists.isEmpty(safetyStockAlerts)}" class="text-muted small py-3 text-center">
+                            안전재고 미달 상품이 없습니다. 👍
+                        </div>
+
+                        <div th:unless="${#lists.isEmpty(safetyStockAlerts)}" class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="table-light">
+                                <tr>
+                                    <th>상품명</th>
+                                    <th class="text-center">축종</th>
+                                    <th class="text-end">현재고</th>
+                                    <th class="text-end">안전재고</th>
+                                    <th class="text-end">부족</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="item : ${safetyStockAlerts}">
+                                    <td>
+                                        <span th:text="${item.name}">상품명</span>
+                                        <small class="text-muted" th:text="'(' + ${item.weightKg} + 'kg)'">(25kg)</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-light text-dark" th:text="${item.animalType}">소</span>
+                                    </td>
+                                    <td class="text-end fw-semibold text-danger"
+                                        th:text="${#numbers.formatInteger(item.totalStock, 1, 'COMMA')}">0
+                                    </td>
+                                    <td class="text-end text-muted"
+                                        th:text="${#numbers.formatInteger(item.safetyStock, 1, 'COMMA')}">0
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="badge bg-danger"
+                                              th:text="'-' + ${#numbers.formatInteger(item.shortage, 1, 'COMMA')}">-0</span>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ======================================================
+                 4. 유통기한 임박 알림 (STAFF / ADMIN 공통)
+                 ====================================================== -->
+            <div class="col-12 col-xl-6">
+                <div class="card ff-card h-100">
+                    <div class="card-header bg-white border-0 pt-3">
+                        <span class="fw-bold text-warning-emphasis">
+                            <i class="bi bi-calendar-x-fill me-1"></i>유통기한 임박 알림
+                        </span>
+                        <span class="text-muted small ms-1">30일 이내 만료</span>
+                    </div>
+                    <div class="card-body pt-2">
+                        <div th:if="${#lists.isEmpty(expiringLots)}" class="text-muted small py-3 text-center">
+                            30일 이내 만료 예정 로트가 없습니다. 👍
+                        </div>
+
+                        <div th:unless="${#lists.isEmpty(expiringLots)}" class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="table-light">
+                                <tr>
+                                    <th>로트번호</th>
+                                    <th>상품명</th>
+                                    <th class="text-center">유통기한</th>
+                                    <th class="text-end">수량</th>
+                                    <th class="text-center">잔여</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="lot : ${expiringLots}">
+                                    <td><code th:text="${lot.lotNo}">LOT-001</code></td>
+                                    <td th:text="${lot.productName}">상품명</td>
+                                    <td class="text-center"
+                                        th:text="${#temporals.format(lot.expirationDate, 'yyyy-MM-dd')}">2026-01-01
+                                    </td>
+                                    <td class="text-end"
+                                        th:text="${#numbers.formatInteger(lot.lotQuantity, 1, 'COMMA')}">0
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge" th:classappend="${lot.badgeClass}"
+                                              th:text="'D-' + ${lot.remainingDays}">D-0</span>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<div th:replace="~{fragments/layout :: scripts}"></div>
+
+<!-- Chart.js: ADMIN 에게만 로드된다 -->
+<script sec:authorize="hasRole('ADMIN')"
+        src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+<script sec:authorize="hasRole('ADMIN')" th:inline="none">
+    document.addEventListener('DOMContentLoaded', function () {
+        var errorBox = document.getElementById('chartError');
+
+        fetch('/api/admin/chart?days=7', {
+            headers: {'Accept': 'application/json'}
+        })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error('매출 데이터 조회 실패 (HTTP ' + response.status + ')');
+                }
+                return response.json();
+            })
+            .then(function (data) {
+                var totalBox = document.getElementById('weeklyTotal');
+                if (totalBox) {
+                    totalBox.textContent = data.totalSales.toLocaleString('ko-KR') + '원';
+                }
+
+                new Chart(document.getElementById('salesChart'), {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: '일별 매출액',
+                            data: data.sales,
+                            borderColor: '#2f855a',
+                            backgroundColor: 'rgba(47, 133, 90, 0.15)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#2f855a'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {display: false},
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        return context.parsed.y.toLocaleString('ko-KR') + '원';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function (value) {
+                                        return (value / 10000).toLocaleString('ko-KR') + '만';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(function (error) {
+                if (errorBox) {
+                    errorBox.textContent = error.message;
+                    errorBox.classList.remove('d-none');
+                }
+            });
+    });
+</script>
+
+</body>
+</html>
