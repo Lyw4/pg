@@ -26,7 +26,8 @@ INSERT INTO users (userId, email, password, name, phone, role, createdAt) VALUES
 INSERT INTO products (productId, productCode, name, animalType, weightKg, price, totalStock, safetyStock, shelfLifeDays, active, imageUrl, description) VALUES
 (1,  'FD-CT-001', '프리미엄 육성우 배합사료', '소',   25, 32000,  40,  50, 180, TRUE,  '/images/feed-cattle.png',  '육성기 한우의 골격 형성을 돕는 고단백 배합사료입니다.'),
 (2,  'FD-PG-001', '자돈용 배합사료',         '돼지', 20, 28000, 300, 100, 180, TRUE,  '/images/feed-pig.png',     '이유 후 자돈의 소화 흡수율을 높인 프리스타터 사료입니다.'),
-(3,  'FD-CK-001', '산란계 전용 배합사료',     '닭',   25, 24000,  80, 120,  90, TRUE,  '/images/feed-chicken.png', '산란율 향상을 위한 칼슘 강화 배합사료입니다.'),
+-- productId 3 : 정상 로트 80 + 만료 로트 20 = 100 (안전재고 120 미달 유지)
+(3,  'FD-CK-001', '산란계 전용 배합사료',     '닭',   25, 24000, 100, 120,  90, TRUE,  '/images/feed-chicken.png', '산란율 향상을 위한 칼슘 강화 배합사료입니다.'),
 (4,  'FD-CT-002', '번식우 유지 배합사료',     '소',   25, 30000, 220,  80, 180, TRUE,  NULL, NULL),
 (5,  'FD-CT-003', '비육후기 고에너지 사료',   '소',   25, 34000, 150,  60, 150, TRUE,  NULL, NULL),
 (6,  'FD-PG-002', '육성돈 배합사료',         '돼지', 25, 26000, 260,  90, 180, TRUE,  NULL, NULL),
@@ -50,6 +51,8 @@ INSERT INTO productLots (lotId, productId, lotNo, manufacturedDate, expirationDa
 (3, 2, 'LOT-PG-2611', DATEADD('DAY',  -20, CURRENT_DATE), DATEADD('DAY', 160, CURRENT_DATE), 150),
 (4, 2, 'LOT-PG-2612', DATEADD('DAY',  -10, CURRENT_DATE), DATEADD('DAY', 170, CURRENT_DATE), 150),
 (5, 3, 'LOT-CK-2621', DATEADD('DAY',  -72, CURRENT_DATE), DATEADD('DAY',  18, CURRENT_DATE),  80),
+-- 이미 유통기한이 지난 로트 (대시보드 '만료' 경고 + 출고 대상 제외 확인용)
+(15, 3, 'LOT-CK-2620', DATEADD('DAY', -95, CURRENT_DATE), DATEADD('DAY',  -5, CURRENT_DATE),  20),
 -- 품목 4~12 의 로트 (products.totalStock 과 수량을 일치시킨다)
 (6,  4, 'LOT-CT-2603', DATEADD('DAY',  -60, CURRENT_DATE), DATEADD('DAY', 120, CURRENT_DATE), 220),
 (7,  5, 'LOT-CT-2604', DATEADD('DAY',  -50, CURRENT_DATE), DATEADD('DAY', 100, CURRENT_DATE), 150),
@@ -145,7 +148,9 @@ INSERT INTO inventories (inventoryId, lotId, binId, quantity, updatedAt) VALUES
 (13, 11, 4, 190, DATEADD('DAY', -20, CURRENT_TIMESTAMP)),
 (14, 12, 8,  90, DATEADD('DAY', -30, CURRENT_TIMESTAMP)),
 (15, 13, 8,  70, DATEADD('DAY', -20, CURRENT_TIMESTAMP)),
-(16, 14, 7,  10, DATEADD('DAY', -140, CURRENT_TIMESTAMP));
+(16, 14, 7,  10, DATEADD('DAY', -140, CURRENT_TIMESTAMP)),
+-- 만료된 로트의 재고 (출고 가능 재고에는 포함되지 않는다)
+(17, 15, 3,  20, DATEADD('DAY',  -95, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
 -- 8. 입고 이력 7건 (위 재고와 1:1 대응)
@@ -166,7 +171,8 @@ INSERT INTO stockMovements (movementId, movementType, productId, lotId, binId, q
 (13, 'INBOUND', 9, 11, 4, 190, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -20, CURRENT_TIMESTAMP)),
 (14, 'INBOUND', 10, 12, 8,  90, '저온 구역 입고', 2, '이사원', DATEADD('DAY', -30, CURRENT_TIMESTAMP)),
 (15, 'INBOUND', 11, 13, 8,  70, '저온 구역 입고', 2, '이사원', DATEADD('DAY', -20, CURRENT_TIMESTAMP)),
-(16, 'INBOUND', 12, 14, 7,  10, '단종 품목 잔여 재고', 1, '김책임', DATEADD('DAY', -140, CURRENT_TIMESTAMP));
+(16, 'INBOUND', 12, 14, 7,  10, '단종 품목 잔여 재고', 1, '김책임', DATEADD('DAY', -140, CURRENT_TIMESTAMP)),
+(17, 'INBOUND',  3, 15, 3,  20, '유통기한 경과 재고(폐기 대기)', 2, '이사원', DATEADD('DAY', -95, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
 -- 9. IDENTITY 시퀀스 재시작
@@ -174,9 +180,9 @@ INSERT INTO stockMovements (movementId, movementType, productId, lotId, binId, q
 -- ---------------------------------------------------------------------
 ALTER TABLE users ALTER COLUMN userId RESTART WITH 6;
 ALTER TABLE products ALTER COLUMN productId RESTART WITH 13;
-ALTER TABLE productLots ALTER COLUMN lotId RESTART WITH 15;
+ALTER TABLE productLots ALTER COLUMN lotId RESTART WITH 16;
 ALTER TABLE orders ALTER COLUMN orderId RESTART WITH 16;
 ALTER TABLE orderItems ALTER COLUMN orderItemId RESTART WITH 17;
 ALTER TABLE warehouseBins ALTER COLUMN binId RESTART WITH 10;
-ALTER TABLE inventories ALTER COLUMN inventoryId RESTART WITH 17;
-ALTER TABLE stockMovements ALTER COLUMN movementId RESTART WITH 17;
+ALTER TABLE inventories ALTER COLUMN inventoryId RESTART WITH 18;
+ALTER TABLE stockMovements ALTER COLUMN movementId RESTART WITH 18;

@@ -20,6 +20,9 @@ public class SafetyStockAlertDto {
     private final Integer totalStock;
     private final Integer safetyStock;
 
+    /** 품목 코드 */
+    private final String productCode;
+
     /** 안전재고까지 부족한 수량 */
     private final Integer shortage;
 
@@ -33,6 +36,7 @@ public class SafetyStockAlertDto {
 
         return SafetyStockAlertDto.builder()
                 .productId(product.getProductId())
+                .productCode(product.getProductCode())
                 .name(product.getName())
                 .animalType(product.getAnimalType())
                 .weightKg(product.getWeightKg())

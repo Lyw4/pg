@@ -62,30 +62,40 @@ public interface ProductLotRepository extends JpaRepository<ProductLot, Long> {
      * ------------------------------------------------------------------ */
 
     /**
-     * 유통기한 임박 로트 조회.
+     * 유통기한 경고 대상 로트 조회.
+     * <p>
+     * <b>유통기한이 기준일 이내로 남은 로트 + 이미 지난(만료된) 로트</b>를 모두 포함한다.
+     * 하한이 없으므로 만료된 로트도 결과에 들어오며, 가장 위험한(오래 지난) 로트가 먼저 나온다.
+     * 잔여 수량이 0인 로트는 조치할 것이 없으므로 제외한다.
      * 상품명을 함께 보여줘야 하므로 fetch join 으로 N+1 을 방지한다.
      *
-     * @param from 조회 시작일 (오늘)
-     * @param to   조회 종료일 (오늘 + 알림 기준일)
+     * @param limitDate 경고 기준일 (오늘 + 알림 기준일수)
      */
     @Query("""
             select l
             from ProductLot l
             join fetch l.product p
-            where l.expirationDate between :from and :to
+            where l.expirationDate <= :limitDate
               and l.lotQuantity > 0
             order by l.expirationDate asc
             """)
-    List<ProductLot> findExpiringLots(@Param("from") LocalDate from,
-                                     @Param("to") LocalDate to);
+    List<ProductLot> findExpiringLots(@Param("limitDate") LocalDate limitDate);
 
-    /** 유통기한 임박 로트 건수 */
+    /** 유통기한 경고 대상 로트 건수 (임박 + 만료) */
     @Query("""
             select count(l)
             from ProductLot l
-            where l.expirationDate between :from and :to
+            where l.expirationDate <= :limitDate
               and l.lotQuantity > 0
             """)
-    long countExpiringLots(@Param("from") LocalDate from,
-                           @Param("to") LocalDate to);
+    long countExpiringLots(@Param("limitDate") LocalDate limitDate);
+
+    /** 이미 유통기한이 지난 로트 건수 (출고 불가 재고) */
+    @Query("""
+            select count(l)
+            from ProductLot l
+            where l.expirationDate < :today
+              and l.lotQuantity > 0
+            """)
+    long countExpiredLots(@Param("today") LocalDate today);
 }
