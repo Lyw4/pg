@@ -50,6 +50,14 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+tasks.withType(JavaCompile).configureEach {
+    // 한글 소스/리소스가 있으므로 인코딩 고정
+    options.encoding = 'UTF-8'
+    // 메서드 파라미터 이름을 클래스 파일에 보존
+    // (Spring Data 의 :파라미터, @RequestParam 등에서 이름 추론에 사용)
+    options.compilerArgs << '-parameters'
+}
+
 tasks.named('test') {
     useJUnitPlatform()
 }

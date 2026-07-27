@@ -76,8 +76,8 @@ public class AdminController {
      */
     @PostMapping("/employees/{userId}/role")
     @PreAuthorize("hasRole('ADMIN')")
-    public String changeRole(@PathVariable Long userId,
-                             @RequestParam Role role,
+    public String changeRole(@PathVariable("userId") Long userId,
+                             @RequestParam("role") Role role,
                              @AuthenticationPrincipal LoginUser loginUser,
                              RedirectAttributes redirectAttributes) {
 
