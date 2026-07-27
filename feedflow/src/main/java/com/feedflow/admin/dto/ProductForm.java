@@ -55,6 +55,12 @@ public class ProductForm {
     @Min(value = 0, message = "안전 재고 수량은 0 이상이어야 합니다.")
     private Integer safetyStock;
 
+    /** 유통기한 일수 (제조일자 + 이 일수 = 유통기한) */
+    @NotNull(message = "유통기한 일수를 입력하세요.")
+    @Min(value = 1, message = "유통기한 일수는 1일 이상이어야 합니다.")
+    @Max(value = 3650, message = "유통기한 일수는 3650일 이하로 입력하세요.")
+    private Integer shelfLifeDays = 180;
+
     /** 사용 여부 (등록 시 기본 true) */
     private boolean active = true;
 
@@ -69,6 +75,7 @@ public class ProductForm {
         form.price = product.getPrice();
         form.totalStock = product.getTotalStock();
         form.safetyStock = product.getSafetyStock();
+        form.shelfLifeDays = product.getShelfLifeDays();
         form.active = product.isActive();
         return form;
     }

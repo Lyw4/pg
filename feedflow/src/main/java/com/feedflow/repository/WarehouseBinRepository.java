@@ -38,6 +38,9 @@ public interface WarehouseBinRepository extends JpaRepository<WarehouseBin, Long
     @Query("select distinct b.zone from WarehouseBin b order by b.zone asc")
     List<String> findDistinctZones();
 
+    /** 입고 등 업무 화면의 선택 목록용 (사용 중인 구역만) */
+    List<WarehouseBin> findByActiveTrueOrderByBinCodeAsc();
+
     /** 사용 중인 구역 수 */
     long countByActive(boolean active);
 }

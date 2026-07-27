@@ -5,7 +5,6 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 
 /**
  * 유통기한 임박 로트 목록 행.
@@ -40,7 +39,7 @@ public class ExpiringLotDto {
                 .manufacturedDate(lot.getManufacturedDate())
                 .expirationDate(lot.getExpirationDate())
                 .lotQuantity(lot.getLotQuantity())
-                .remainingDays(ChronoUnit.DAYS.between(today, lot.getExpirationDate()))
+                .remainingDays(lot.daysUntilExpiration(today))
                 .build();
     }
 

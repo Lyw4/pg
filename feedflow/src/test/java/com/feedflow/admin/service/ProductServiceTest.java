@@ -68,6 +68,7 @@ class ProductServiceTest {
         assertThat(saved.getPrice()).isEqualTo(32000L);
         assertThat(saved.getTotalStock()).isEqualTo(100);
         assertThat(saved.getSafetyStock()).isEqualTo(50);
+        assertThat(saved.getShelfLifeDays()).isEqualTo(180);
         assertThat(saved.isActive()).isTrue();
     }
 
@@ -250,6 +251,7 @@ class ProductServiceTest {
         form.setPrice(32000L);
         form.setTotalStock(100);
         form.setSafetyStock(50);
+        form.setShelfLifeDays(180);
         form.setActive(true);
         return form;
     }
@@ -264,6 +266,7 @@ class ProductServiceTest {
                 .price(32000L)
                 .totalStock(100)
                 .safetyStock(50)
+                .shelfLifeDays(180)
                 .active(true)
                 .build();
     }

@@ -20,6 +20,7 @@ public class ProductDto {
     private final Long price;
     private final Integer totalStock;
     private final Integer safetyStock;
+    private final Integer shelfLifeDays;
     private final boolean active;
     private final boolean belowSafetyStock;
     private final Integer shortage;
@@ -34,6 +35,7 @@ public class ProductDto {
                 .price(product.getPrice())
                 .totalStock(product.getTotalStock())
                 .safetyStock(product.getSafetyStock())
+                .shelfLifeDays(product.getShelfLifeDays())
                 .active(product.isActive())
                 .belowSafetyStock(product.isBelowSafetyStock())
                 .shortage(product.shortageQuantity())

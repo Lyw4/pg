@@ -89,6 +89,16 @@
                             <div class="invalid-feedback" th:errors="*{safetyStock}">오류</div>
                         </div>
 
+                        <!-- 유통기한 일수 -->
+                        <div class="col-6 col-md-4">
+                            <label for="shelfLifeDays" class="form-label ff-required">유통기한 일수</label>
+                            <input type="number" id="shelfLifeDays" th:field="*{shelfLifeDays}" class="form-control"
+                                   th:classappend="${#fields.hasErrors('shelfLifeDays')} ? 'is-invalid'"
+                                   min="1" max="3650">
+                            <div class="invalid-feedback" th:errors="*{shelfLifeDays}">오류</div>
+                            <div class="form-text">입고 시 <strong>제조일자 + 이 일수</strong>로 유통기한이 계산됩니다.</div>
+                        </div>
+
                         <!-- 재고 수량 : 등록 시에만 입력 가능 -->
                         <div class="col-6 col-md-4">
                             <label for="totalStock" class="form-label ff-required">

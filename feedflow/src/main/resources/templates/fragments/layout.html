@@ -54,6 +54,29 @@
             </a>
         </li>
 
+        <!-- 재고 관리 : STAFF, ADMIN 공통 -->
+        <li class="nav-item mt-3">
+            <span class="ff-nav-title">재고 관리</span>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/inventory}"
+               th:classappend="${menu == 'inventory' and subMenu == 'list'} ? 'active'">
+                <i class="bi bi-stack me-2"></i>재고 현황
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/inventory/inbound}"
+               th:classappend="${menu == 'inventory' and subMenu == 'inbound'} ? 'active'">
+                <i class="bi bi-box-arrow-in-down me-2"></i>입고 등록
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/inventory/movements}"
+               th:classappend="${menu == 'inventory' and subMenu == 'movements'} ? 'active'">
+                <i class="bi bi-clock-history me-2"></i>입출고 이력
+            </a>
+        </li>
+
         <!-- 사원 관리: ADMIN 에게만 렌더링 (DOM 에서 제거) -->
         <li class="nav-item mt-3" sec:authorize="hasRole('ADMIN')">
             <span class="ff-nav-title">시스템 관리</span>
@@ -67,7 +90,7 @@
 
         <li class="nav-item mt-3">
             <span class="nav-link disabled small">
-                <i class="bi bi-hourglass-split me-2"></i>입고/출고 관리 (준비중)
+                <i class="bi bi-hourglass-split me-2"></i>출고/피킹 관리 (준비중)
             </span>
         </li>
     </ul>

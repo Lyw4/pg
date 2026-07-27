@@ -90,6 +90,7 @@
                             <th>품목명</th>
                             <th class="text-center" style="width: 80px;">축종</th>
                             <th class="text-center" style="width: 80px;">규격</th>
+                            <th class="text-center" style="width: 90px;">유통기한</th>
                             <th class="text-end" style="width: 100px;">단가</th>
                             <th class="text-end" style="width: 90px;">현재고</th>
                             <th class="text-end" style="width: 90px;">안전재고</th>
@@ -99,7 +100,7 @@
                         </thead>
                         <tbody>
                         <tr th:if="${products.empty}">
-                            <td colspan="9" class="text-center text-muted py-4">
+                            <td colspan="10" class="text-center text-muted py-4">
                                 조회된 품목이 없습니다.
                             </td>
                         </tr>
@@ -112,6 +113,8 @@
                                 <span class="badge bg-light text-dark border" th:text="${item.animalType}">소</span>
                             </td>
                             <td class="text-center" th:text="${item.weightKg} + 'kg'">25kg</td>
+                            <td class="text-center small text-muted"
+                                th:text="${item.shelfLifeDays} + '일'">180일</td>
                             <td class="text-end"
                                 th:text="${#numbers.formatInteger(item.price, 1, 'COMMA')}">0</td>
                             <td class="text-end">

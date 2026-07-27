@@ -40,6 +40,13 @@ public class WarehouseBinService {
         return warehouseBinRepository.findDistinctZones();
     }
 
+    /** 입고 화면 등의 구역 선택 목록 (사용 중인 구역만) */
+    public List<WarehouseBinDto> getActiveBins() {
+        return warehouseBinRepository.findByActiveTrueOrderByBinCodeAsc().stream()
+                .map(WarehouseBinDto::from)
+                .toList();
+    }
+
     public long countActiveBins() {
         return warehouseBinRepository.countByActive(true);
     }

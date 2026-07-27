@@ -54,6 +54,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("select distinct p.animalType from Product p order by p.animalType asc")
     List<String> findDistinctAnimalTypes();
 
+    /** 입고 등 업무 화면의 선택 목록용 (사용 중인 품목만) */
+    List<Product> findByActiveTrueOrderByProductCodeAsc();
+
     /* ------------------------------------------------------------------
      * 대시보드 - 안전재고 알림 (사용 중인 품목만 대상)
      * ------------------------------------------------------------------ */

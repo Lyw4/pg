@@ -54,6 +54,13 @@ public class ProductService {
         return productRepository.findDistinctAnimalTypes();
     }
 
+    /** 입고 화면 등의 품목 선택 목록 (사용 중인 품목만) */
+    public List<ProductDto> getActiveProducts() {
+        return productRepository.findByActiveTrueOrderByProductCodeAsc().stream()
+                .map(ProductDto::from)
+                .toList();
+    }
+
     /* ------------------------------------------------------------------
      * 등록 / 수정
      * ------------------------------------------------------------------ */
@@ -80,6 +87,7 @@ public class ProductService {
                 .price(form.getPrice())
                 .totalStock(form.getTotalStock())
                 .safetyStock(form.getSafetyStock())
+                .shelfLifeDays(form.getShelfLifeDays())
                 .active(form.isActive())
                 .build();
 
@@ -108,7 +116,8 @@ public class ProductService {
                 trim(form.getAnimalType()),
                 form.getWeightKg(),
                 form.getPrice(),
-                form.getSafetyStock());
+                form.getSafetyStock(),
+                form.getShelfLifeDays());
         product.changeActive(form.isActive());
     }
 
