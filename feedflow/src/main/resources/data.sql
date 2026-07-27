@@ -49,7 +49,17 @@ INSERT INTO productLots (lotId, productId, lotNo, manufacturedDate, expirationDa
 (2, 1, 'LOT-CT-2602', DATEADD('DAY', -155, CURRENT_DATE), DATEADD('DAY',  25, CURRENT_DATE),  20),
 (3, 2, 'LOT-PG-2611', DATEADD('DAY',  -20, CURRENT_DATE), DATEADD('DAY', 160, CURRENT_DATE), 150),
 (4, 2, 'LOT-PG-2612', DATEADD('DAY',  -10, CURRENT_DATE), DATEADD('DAY', 170, CURRENT_DATE), 150),
-(5, 3, 'LOT-CK-2621', DATEADD('DAY',  -72, CURRENT_DATE), DATEADD('DAY',  18, CURRENT_DATE),  80);
+(5, 3, 'LOT-CK-2621', DATEADD('DAY',  -72, CURRENT_DATE), DATEADD('DAY',  18, CURRENT_DATE),  80),
+-- 품목 4~12 의 로트 (products.totalStock 과 수량을 일치시킨다)
+(6,  4, 'LOT-CT-2603', DATEADD('DAY',  -60, CURRENT_DATE), DATEADD('DAY', 120, CURRENT_DATE), 220),
+(7,  5, 'LOT-CT-2604', DATEADD('DAY',  -50, CURRENT_DATE), DATEADD('DAY', 100, CURRENT_DATE), 150),
+(8,  6, 'LOT-PG-2613', DATEADD('DAY',  -40, CURRENT_DATE), DATEADD('DAY', 140, CURRENT_DATE), 260),
+(9,  7, 'LOT-PG-2614', DATEADD('DAY',  -30, CURRENT_DATE), DATEADD('DAY', 150, CURRENT_DATE), 180),
+(10, 8, 'LOT-CK-2622', DATEADD('DAY',  -30, CURRENT_DATE), DATEADD('DAY',  60, CURRENT_DATE), 140),
+(11, 9, 'LOT-CK-2623', DATEADD('DAY',  -20, CURRENT_DATE), DATEADD('DAY',  70, CURRENT_DATE), 190),
+(12, 10, 'LOT-DK-2631', DATEADD('DAY', -30, CURRENT_DATE), DATEADD('DAY',  90, CURRENT_DATE),  90),
+(13, 11, 'LOT-GT-2641', DATEADD('DAY', -20, CURRENT_DATE), DATEADD('DAY', 100, CURRENT_DATE),  70),
+(14, 12, 'LOT-CT-2699', DATEADD('DAY', -140, CURRENT_DATE), DATEADD('DAY', 40, CURRENT_DATE),  10);
 
 -- ---------------------------------------------------------------------
 -- 4. 최근 7일치 주문 15건
@@ -111,19 +121,31 @@ INSERT INTO warehouseBins (binId, binCode, zone, rack, binLevel, maxCapacity, ac
 (9, 'A-03-01', 'A',    '03', 1, 400, FALSE, '천장 누수 보수 중 사용 중지', DATEADD('DAY', -90, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
--- 7. 재고 (로트 × 구역) 7건
---    · lotQuantity 와 구역별 보관 수량 합계가 일치해야 한다
---      lot1=20, lot2=20, lot3=150, lot4=150, lot5=80
---    · products.totalStock 과도 일치 (product1=40, product2=300, product3=80)
+-- 7. 재고 (로트 × 구역) 16건
+--    ★ 정합성 규칙 (반드시 지켜야 함)
+--      · products.totalStock = 해당 품목 모든 로트의 inventories.quantity 합계
+--      · productLots.lotQuantity = 해당 로트의 inventories.quantity 합계
+--      이 값이 어긋나면 "전체 재고는 있는데 출고 가능 재고가 부족"한 현상이 발생한다.
+--    · 각 구역의 합계는 warehouseBins.maxCapacity 를 넘지 않아야 한다
 -- ---------------------------------------------------------------------
 INSERT INTO inventories (inventoryId, lotId, binId, quantity, updatedAt) VALUES
-(1, 1, 1,  20, DATEADD('DAY', -50, CURRENT_TIMESTAMP)),
-(2, 2, 2,  20, DATEADD('DAY', -20, CURRENT_TIMESTAMP)),
-(3, 3, 5, 100, DATEADD('DAY', -10, CURRENT_TIMESTAMP)),
-(4, 3, 6,  50, DATEADD('DAY', -10, CURRENT_TIMESTAMP)),
-(5, 4, 7, 150, DATEADD('DAY',  -5, CURRENT_TIMESTAMP)),
-(6, 5, 3,  50, DATEADD('DAY', -35, CURRENT_TIMESTAMP)),
-(7, 5, 4,  30, DATEADD('DAY', -35, CURRENT_TIMESTAMP));
+(1,  1,  1,  20, DATEADD('DAY', -50, CURRENT_TIMESTAMP)),
+(2,  2,  2,  20, DATEADD('DAY', -20, CURRENT_TIMESTAMP)),
+(3,  3,  5, 100, DATEADD('DAY', -10, CURRENT_TIMESTAMP)),
+(4,  3,  6,  50, DATEADD('DAY', -10, CURRENT_TIMESTAMP)),
+(5,  4,  7, 150, DATEADD('DAY',  -5, CURRENT_TIMESTAMP)),
+(6,  5,  3,  50, DATEADD('DAY', -35, CURRENT_TIMESTAMP)),
+(7,  5,  4,  30, DATEADD('DAY', -35, CURRENT_TIMESTAMP)),
+-- 품목 4~12 의 구역 재고
+(8,  6,  1, 220, DATEADD('DAY', -60, CURRENT_TIMESTAMP)),
+(9,  7,  2, 150, DATEADD('DAY', -50, CURRENT_TIMESTAMP)),
+(10, 8,  5, 260, DATEADD('DAY', -40, CURRENT_TIMESTAMP)),
+(11, 9,  6, 180, DATEADD('DAY', -30, CURRENT_TIMESTAMP)),
+(12, 10, 3, 140, DATEADD('DAY', -30, CURRENT_TIMESTAMP)),
+(13, 11, 4, 190, DATEADD('DAY', -20, CURRENT_TIMESTAMP)),
+(14, 12, 8,  90, DATEADD('DAY', -30, CURRENT_TIMESTAMP)),
+(15, 13, 8,  70, DATEADD('DAY', -20, CURRENT_TIMESTAMP)),
+(16, 14, 7,  10, DATEADD('DAY', -140, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
 -- 8. 입고 이력 7건 (위 재고와 1:1 대응)
@@ -135,7 +157,16 @@ INSERT INTO stockMovements (movementId, movementType, productId, lotId, binId, q
 (4, 'INBOUND', 2, 3, 6,  50, '대량 발주 입고(2/2)',  2, '이사원', DATEADD('DAY', -10, CURRENT_TIMESTAMP)),
 (5, 'INBOUND', 2, 4, 7, 150, '신규 로트 입고',       1, '김책임', DATEADD('DAY',  -5, CURRENT_TIMESTAMP)),
 (6, 'INBOUND', 3, 5, 3,  50, '산란계 사료 입고(1/2)', 2, '이사원', DATEADD('DAY', -35, CURRENT_TIMESTAMP)),
-(7, 'INBOUND', 3, 5, 4,  30, '산란계 사료 입고(2/2)', 2, '이사원', DATEADD('DAY', -35, CURRENT_TIMESTAMP));
+(7,  'INBOUND', 3, 5,  4,  30, '산란계 사료 입고(2/2)', 2, '이사원', DATEADD('DAY', -35, CURRENT_TIMESTAMP)),
+(8,  'INBOUND', 4,  6, 1, 220, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -60, CURRENT_TIMESTAMP)),
+(9,  'INBOUND', 5,  7, 2, 150, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -50, CURRENT_TIMESTAMP)),
+(10, 'INBOUND', 6,  8, 5, 260, '대량 발주 입고', 1, '김책임', DATEADD('DAY', -40, CURRENT_TIMESTAMP)),
+(11, 'INBOUND', 7,  9, 6, 180, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -30, CURRENT_TIMESTAMP)),
+(12, 'INBOUND', 8, 10, 3, 140, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -30, CURRENT_TIMESTAMP)),
+(13, 'INBOUND', 9, 11, 4, 190, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -20, CURRENT_TIMESTAMP)),
+(14, 'INBOUND', 10, 12, 8,  90, '저온 구역 입고', 2, '이사원', DATEADD('DAY', -30, CURRENT_TIMESTAMP)),
+(15, 'INBOUND', 11, 13, 8,  70, '저온 구역 입고', 2, '이사원', DATEADD('DAY', -20, CURRENT_TIMESTAMP)),
+(16, 'INBOUND', 12, 14, 7,  10, '단종 품목 잔여 재고', 1, '김책임', DATEADD('DAY', -140, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
 -- 9. IDENTITY 시퀀스 재시작
@@ -143,9 +174,9 @@ INSERT INTO stockMovements (movementId, movementType, productId, lotId, binId, q
 -- ---------------------------------------------------------------------
 ALTER TABLE users ALTER COLUMN userId RESTART WITH 6;
 ALTER TABLE products ALTER COLUMN productId RESTART WITH 13;
-ALTER TABLE productLots ALTER COLUMN lotId RESTART WITH 6;
+ALTER TABLE productLots ALTER COLUMN lotId RESTART WITH 15;
 ALTER TABLE orders ALTER COLUMN orderId RESTART WITH 16;
 ALTER TABLE orderItems ALTER COLUMN orderItemId RESTART WITH 17;
 ALTER TABLE warehouseBins ALTER COLUMN binId RESTART WITH 10;
-ALTER TABLE inventories ALTER COLUMN inventoryId RESTART WITH 8;
-ALTER TABLE stockMovements ALTER COLUMN movementId RESTART WITH 8;
+ALTER TABLE inventories ALTER COLUMN inventoryId RESTART WITH 17;
+ALTER TABLE stockMovements ALTER COLUMN movementId RESTART WITH 17;

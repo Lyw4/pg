@@ -195,6 +195,14 @@
                             </tr>
                             </tbody>
                         </table>
+
+                        <!-- 만료 로트 경고 : 출고 대상에서 제외되므로 반드시 알려준다 -->
+                        <div th:if="${inboundResult.expiredLot}" class="alert alert-danger mt-3 mb-0 small">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            <strong>이 로트는 이미 유통기한이 지났습니다.</strong><br>
+                            만료된 로트는 <strong>출고 대상에서 제외</strong>되므로, 재고 수량은 늘어나지만
+                            출고 가능 재고에는 포함되지 않습니다. 제조일자를 다시 확인하세요.
+                        </div>
                     </div>
                 </div>
 

@@ -15,7 +15,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  */
 @RestControllerAdvice(assignableTypes = {
         AdminRestController.class,
-        BarcodeApiController.class
+        BarcodeApiController.class,
+        OutboundApiController.class
 })
 public class AdminApiExceptionHandler {
 

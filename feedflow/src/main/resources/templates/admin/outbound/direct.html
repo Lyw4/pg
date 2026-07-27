@@ -51,6 +51,11 @@
                                     </option>
                                 </select>
                                 <div class="invalid-feedback" th:errors="*{productId}">오류</div>
+                                <div class="form-text">
+                                    괄호 안은 <strong>품목 전체 재고</strong>입니다.
+                                    유통기한이 지난 로트와 사용 중지된 구역의 재고는 출고 대상에서 제외되므로
+                                    실제 <strong>출고 가능 재고</strong>는 오른쪽 미리보기에서 확인하세요.
+                                </div>
                             </div>
 
                             <div class="mb-3">
@@ -146,6 +151,21 @@
                     </div>
                 </div>
 
+                <!-- 실시간 FEFO 할당 미리보기 -->
+                <div class="card ff-card mb-3">
+                    <div class="card-header bg-white border-0 pt-3">
+                        <span class="fw-bold">
+                            <i class="bi bi-eye me-1"></i>출고 가능 재고 / 차감 예정 로트
+                        </span>
+                        <span class="text-muted small ms-2">실시간 미리보기</span>
+                    </div>
+                    <div class="card-body pt-2" id="outboundPreview">
+                        <p class="text-muted small mb-0">
+                            품목과 수량을 입력하면 출고 가능 재고와 차감 예정 로트가 표시됩니다.
+                        </p>
+                    </div>
+                </div>
+
                 <div class="card ff-card" th:if="${outboundResult == null}">
                     <div class="card-body small text-muted">
                         <p class="fw-bold mb-2">
@@ -168,6 +188,7 @@
 </div>
 
 <div th:replace="~{fragments/layout :: scripts}"></div>
+<script th:src="@{/js/outbound-preview.js}"></script>
 
 </body>
 </html>

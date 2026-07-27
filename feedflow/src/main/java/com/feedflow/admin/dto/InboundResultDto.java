@@ -41,6 +41,12 @@ public class InboundResultDto {
     /** 신규 구역 재고 생성 여부 (false = 기존 구역 재고에 합산) */
     private final boolean newInventory;
 
+    /**
+     * 입고된 로트가 이미 유통기한이 지났는지 여부.
+     * 만료 로트는 출고 대상에서 제외되므로 화면에서 경고해야 한다.
+     */
+    private final boolean expiredLot;
+
     /** 화면 안내 메시지 */
     public String getSummaryMessage() {
         return "[" + lotNo + "] 로트를 " + binCode + " 구역에 " + quantity + "개 입고했습니다."

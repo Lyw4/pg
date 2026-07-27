@@ -142,6 +142,7 @@ public class InventoryService {
                 .productTotalStock(product.getTotalStock())
                 .newLot(newLot)
                 .newInventory(newInventory)
+                .expiredLot(lot.isExpired(LocalDate.now()))
                 .build();
     }
 
