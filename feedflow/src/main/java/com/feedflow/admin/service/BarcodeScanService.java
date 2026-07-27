@@ -1,5 +1,12 @@
 package com.feedflow.admin.service;
 
+import com.feedflow.admin.dto.BarcodeLabelDto;
+import com.feedflow.admin.dto.InboundForm;
+import com.feedflow.admin.dto.InboundResultDto;
+import com.feedflow.admin.dto.OutboundForm;
+import com.feedflow.admin.dto.OutboundResultDto;
+import com.feedflow.admin.dto.ScanInboundRequest;
+import com.feedflow.admin.dto.ScanOutboundRequest;
 import com.feedflow.admin.dto.ScanResultDto;
 import com.feedflow.common.exception.BusinessRuleException;
 import com.feedflow.common.exception.ResourceNotFoundException;
@@ -37,6 +44,10 @@ public class BarcodeScanService {
     private final ProductLotRepository productLotRepository;
     private final InventoryRepository inventoryRepository;
 
+    /** 스캔 후 즉시 입출고를 위해 검증된 기존 로직을 그대로 재사용한다 */
+    private final InventoryService inventoryService;
+    private final OutboundService outboundService;
+
     /**
      * 스캔된 코드를 조회한다.
      *
@@ -63,6 +74,105 @@ public class BarcodeScanService {
 
         List<Inventory> inventories = inventoryRepository.search(product.getProductId(), null, null);
         return ScanResultDto.ofProduct(product, inventories, today);
+    }
+
+    /* ==================================================================
+     * 스캔 후 즉시 입출고 (현장 작업 흐름)
+     * ================================================================== */
+
+    /**
+     * 스캔한 코드로 바로 입고 처리.
+     * <ul>
+     *     <li>로트번호를 스캔한 경우 : 해당 로트에 수량을 합산 (제조일자는 기존 로트 값 사용)</li>
+     *     <li>품목코드를 스캔한 경우 : 로트번호를 자동 부여해 새 로트를 생성</li>
+     * </ul>
+     */
+    @Transactional
+    public InboundResultDto receiveByCode(ScanInboundRequest request, Long userId, String userName) {
+        String code = normalize(request.getCode());
+
+        InboundForm form = new InboundForm();
+        form.setBinId(request.getBinId());
+        form.setQuantity(request.getQuantity());
+        form.setMemo(defaultMemo(request.getMemo(), "바코드 스캔 입고"));
+
+        List<ProductLot> lots = productLotRepository.findAllByLotNo(code);
+        if (!lots.isEmpty()) {
+            ProductLot lot = lots.get(0);
+            form.setProductId(lot.getProduct().getProductId());
+            form.setLotNo(lot.getLotNo());
+            form.setManufacturedDate(lot.getManufacturedDate());
+        } else {
+            Product product = findProductByCode(code);
+            form.setProductId(product.getProductId());
+            form.setLotNo(null);   // 자동 부여
+            form.setManufacturedDate(
+                    request.getManufacturedDate() == null ? LocalDate.now() : request.getManufacturedDate());
+        }
+
+        return inventoryService.receive(form, userId, userName);
+    }
+
+    /**
+     * 스캔한 코드로 바로 출고 처리.
+     * <p>
+     * 출고 로트는 지정하지 않고 <b>유통기한이 임박한 로트부터 자동 차감(FEFO)</b>한다.
+     * 따라서 특정 로트를 스캔했더라도 더 먼저 만료되는 다른 로트가 차감될 수 있으며,
+     * 실제 차감된 로트는 응답의 lines 로 확인할 수 있다.
+     */
+    @Transactional
+    public OutboundResultDto dispatchByCode(ScanOutboundRequest request, Long userId, String userName) {
+        String code = normalize(request.getCode());
+        Product product = resolveProduct(code);
+
+        OutboundForm form = new OutboundForm();
+        form.setProductId(product.getProductId());
+        form.setQuantity(request.getQuantity());
+        form.setMemo(defaultMemo(request.getMemo(), "바코드 스캔 출고"));
+
+        return outboundService.dispatch(form, userId, userName);
+    }
+
+    /* ==================================================================
+     * 라벨 (테스트/현장 부착용)
+     * ================================================================== */
+
+    /** 전체 로트 라벨 (QR 코드로 렌더링) */
+    public List<BarcodeLabelDto> getLotLabels() {
+        LocalDate today = LocalDate.now();
+        return productLotRepository.findAllWithProduct().stream()
+                .map(lot -> BarcodeLabelDto.ofLot(lot, today))
+                .toList();
+    }
+
+    /** 사용 중인 품목 라벨 */
+    public List<BarcodeLabelDto> getProductLabels() {
+        return productRepository.findByActiveTrueOrderByProductCodeAsc().stream()
+                .map(BarcodeLabelDto::ofProduct)
+                .toList();
+    }
+
+    /* ==================================================================
+     * 내부 헬퍼
+     * ================================================================== */
+
+    /** 코드(로트번호 또는 품목코드)로 품목을 찾는다 */
+    private Product resolveProduct(String code) {
+        List<ProductLot> lots = productLotRepository.findAllByLotNo(code);
+        if (!lots.isEmpty()) {
+            return lots.get(0).getProduct();
+        }
+        return findProductByCode(code);
+    }
+
+    private Product findProductByCode(String code) {
+        return productRepository.findByProductCode(code)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "등록되지 않은 바코드입니다. 로트번호 또는 품목코드를 확인하세요. (스캔값: " + code + ")"));
+    }
+
+    private String defaultMemo(String memo, String defaultValue) {
+        return (memo == null || memo.isBlank()) ? defaultValue : memo.trim();
     }
 
     /** 스캔 값 정규화 : 앞뒤 공백 제거 + 대문자 변환 */

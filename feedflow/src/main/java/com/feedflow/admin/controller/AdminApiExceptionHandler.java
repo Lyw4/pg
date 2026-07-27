@@ -5,9 +5,13 @@ import com.feedflow.common.exception.BusinessRuleException;
 import com.feedflow.common.exception.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.Objects;
 
 /**
  * 관리자 JSON API 전용 예외 처리.
@@ -16,7 +20,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice(assignableTypes = {
         AdminRestController.class,
         BarcodeApiController.class,
-        OutboundApiController.class
+        OutboundApiController.class,
+        ScanActionApiController.class
 })
 public class AdminApiExceptionHandler {
 
@@ -41,5 +46,18 @@ public class AdminApiExceptionHandler {
         return ResponseEntity.badRequest()
                 .body(ApiErrorResponse.of(HttpStatus.BAD_REQUEST,
                         "필수 파라미터가 누락되었습니다: " + e.getParameterName()));
+    }
+
+    /** 요청 본문 검증 실패 → 400 (첫 번째 오류 메시지를 그대로 전달) */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiErrorResponse> handleValidation(MethodArgumentNotValidException e) {
+        String message = e.getBindingResult().getFieldErrors().stream()
+                .map(FieldError::getDefaultMessage)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse("입력값이 올바르지 않습니다.");
+
+        return ResponseEntity.badRequest()
+                .body(ApiErrorResponse.of(HttpStatus.BAD_REQUEST, message));
     }
 }

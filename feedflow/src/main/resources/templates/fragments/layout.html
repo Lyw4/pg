@@ -9,6 +9,9 @@
 <head th:fragment="head(pageTitle)">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- fetch 로 POST 요청을 보낼 때 사용하는 CSRF 토큰 -->
+    <meta name="_csrf" th:content="${_csrf?.token}">
+    <meta name="_csrf_header" th:content="${_csrf?.headerName}">
     <title th:text="|FeedFlow Admin · ${pageTitle}|">FeedFlow Admin</title>
     <link rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
@@ -91,8 +94,14 @@
         </li>
         <li class="nav-item">
             <a class="nav-link" th:href="@{/admin/scan}"
-               th:classappend="${menu == 'scan'} ? 'active'">
+               th:classappend="${menu == 'scan' and subMenu == 'scan'} ? 'active'">
                 <i class="bi bi-upc-scan me-2"></i>바코드 스캔
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/scan/labels}"
+               th:classappend="${menu == 'scan' and subMenu == 'labels'} ? 'active'">
+                <i class="bi bi-qr-code me-2"></i>QR 라벨 출력
             </a>
         </li>
 

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/layout :: head('QR 라벨 출력')}"></head>
+
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="ff-content">
+
+    <div th:replace="~{fragments/layout :: topbar('현장 작업 · QR 라벨 출력')}"></div>
+
+    <main class="ff-main">
+
+        <div class="alert alert-info d-print-none">
+            <i class="bi bi-info-circle-fill me-1"></i>
+            <strong>모바일 스캔 테스트 방법</strong><br>
+            이 화면을 PC 모니터에 띄운 뒤, 휴대폰에서
+            <a th:href="@{/admin/scan}" class="fw-semibold">바코드 스캔</a> 화면을 열고
+            아래 QR 코드를 비추면 됩니다. 인쇄해서 실제 파렛트에 부착해도 됩니다.
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3 d-print-none">
+            <div>
+                <span class="fw-bold"><i class="bi bi-qr-code me-1"></i>QR 라벨</span>
+                <span class="text-muted small ms-2">
+                    로트 <span th:text="${#lists.size(lotLabels)}">0</span>건 ·
+                    품목 <span th:text="${#lists.size(productLabels)}">0</span>건
+                </span>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-dark" onclick="window.print();">
+                <i class="bi bi-printer me-1"></i>인쇄
+            </button>
+        </div>
+
+        <!-- ============================================================
+             로트 라벨 (실무에서 파렛트/포대에 부착하는 라벨)
+             ============================================================ -->
+        <h6 class="fw-bold text-secondary mb-2">
+            <i class="bi bi-tag-fill me-1"></i>로트 라벨
+            <span class="text-muted small fw-normal ms-1">스캔하면 로트 + 구역별 재고가 조회됩니다</span>
+        </h6>
+
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-4 col-xl-3" th:each="label : ${lotLabels}">
+                <div class="card ff-card ff-label-card h-100">
+                    <div class="card-body text-center p-3">
+                        <div class="ff-label-qr mx-auto mb-2"
+                             th:attr="data-qr=${label.code}"></div>
+
+                        <div class="ff-code fw-bold small text-break" th:text="${label.code}">LOT</div>
+
+                        <div class="small text-muted mt-1 text-break" th:text="${label.productName}">품목명</div>
+                        <div class="small">
+                            <span class="ff-code" th:text="${label.productCode}">CODE</span>
+                            <span class="text-muted" th:text="'· ' + ${label.weightKg} + 'kg'">· 25kg</span>
+                        </div>
+
+                        <div class="mt-2 small">
+                            <div class="text-muted" style="font-size: .72rem;">
+                                유통기한 <span th:text="${#temporals.format(label.expirationDate, 'yyyy-MM-dd')}">-</span>
+                            </div>
+                            <span class="badge mt-1" th:classappend="${label.dDayBadgeClass}"
+                                  th:text="${label.dDayLabel}">D-0</span>
+                            <span class="badge bg-light text-dark border mt-1"
+                                  th:text="'잔여 ' + ${label.lotQuantity}">잔여 0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             품목 라벨 (신규 로트 입고 시 사용)
+             ============================================================ -->
+        <h6 class="fw-bold text-secondary mb-2">
+            <i class="bi bi-box2-fill me-1"></i>품목 라벨
+            <span class="text-muted small fw-normal ms-1">스캔 후 입고하면 새 로트가 자동 생성됩니다</span>
+        </h6>
+
+        <div class="row g-3">
+            <div class="col-6 col-md-4 col-xl-3" th:each="label : ${productLabels}">
+                <div class="card ff-card ff-label-card h-100">
+                    <div class="card-body text-center p-3">
+                        <div class="ff-label-qr mx-auto mb-2"
+                             th:attr="data-qr=${label.code}"></div>
+
+                        <div class="ff-code fw-bold small" th:text="${label.code}">CODE</div>
+                        <div class="small text-muted mt-1 text-break" th:text="${label.productName}">품목명</div>
+                        <div class="small text-muted" style="font-size: .72rem;">
+                            <span th:text="${label.animalType}">소</span> ·
+                            <span th:text="${label.weightKg} + 'kg'">25kg</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<div th:replace="~{fragments/layout :: scripts}"></div>
+
+<!-- ZXing-js : QR 코드 생성(Writer)도 같은 라이브러리로 처리한다 -->
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script th:src="@{/js/barcode-labels.js}"></script>
+
+</body>
+</html>

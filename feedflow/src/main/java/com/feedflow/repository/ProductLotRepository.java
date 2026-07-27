@@ -38,6 +38,15 @@ public interface ProductLotRepository extends JpaRepository<ProductLot, Long> {
             """)
     List<ProductLot> findAllByLotNo(@Param("lotNo") String lotNo);
 
+    /** 전체 로트 (라벨 출력용) - 품목코드 → 유통기한 순 */
+    @Query("""
+            select l
+            from ProductLot l
+            join fetch l.product p
+            order by p.productCode asc, l.expirationDate asc
+            """)
+    List<ProductLot> findAllWithProduct();
+
     /** 특정 품목의 로트 목록 (유통기한 임박 순) */
     @Query("""
             select l

@@ -26,12 +26,30 @@
         manualCode: document.getElementById('manualCode')
     };
 
+    var quick = {
+        panel: document.getElementById('quickActions'),
+        codeLabel: document.getElementById('qaCodeLabel'),
+        message: document.getElementById('qaMessage'),
+        binId: document.getElementById('qaBinId'),
+        mfgRow: document.getElementById('qaMfgRow'),
+        lotNoticeRow: document.getElementById('qaLotNoticeRow'),
+        manufacturedDate: document.getElementById('qaManufacturedDate'),
+        inQuantity: document.getElementById('qaInQuantity'),
+        inMemo: document.getElementById('qaInMemo'),
+        inboundBtn: document.getElementById('qaInboundBtn'),
+        outQuantity: document.getElementById('qaOutQuantity'),
+        outMemo: document.getElementById('qaOutMemo'),
+        outboundBtn: document.getElementById('qaOutboundBtn')
+    };
+
     var state = {
         reader: null,
         scanning: false,
         lastCode: null,
         lastAt: 0,
-        recent: []
+        recent: [],
+        currentCode: null,
+        currentScanType: null
     };
 
     /* ------------------------------------------------------------------
@@ -225,6 +243,7 @@
             .then(function (payload) {
                 if (payload.ok) {
                     renderResult(payload.body);
+                    showQuickActions(payload.body);
                     addRecent(trimmed, true);
                     setStatus(state.scanning ? '스캔 중' : '조회 완료', state.scanning ? 'bg-success' : 'bg-secondary');
                 } else {
@@ -232,6 +251,7 @@
                         ? payload.body.message
                         : ('조회 실패 (HTTP ' + payload.status + ')');
                     renderError(trimmed, payload.status, message);
+                    hideQuickActions();
                     addRecent(trimmed, false);
                     setStatus(state.scanning ? '스캔 중' : '대기', state.scanning ? 'bg-success' : 'bg-secondary');
                 }
@@ -424,6 +444,197 @@
     }
 
     /* ------------------------------------------------------------------
+     * 스캔 즉시 입출고
+     * ------------------------------------------------------------------ */
+
+    function hideQuickActions() {
+        if (quick.panel) {
+            quick.panel.classList.add('d-none');
+        }
+        state.currentCode = null;
+        state.currentScanType = null;
+    }
+
+    function showQuickActions(data) {
+        if (!quick.panel) {
+            return;
+        }
+
+        // 다른 코드를 스캔했을 때만 이전 처리 결과 메시지를 지운다
+        // (입출고 처리 후 재조회로 갱신되는 경우에는 결과 메시지를 유지)
+        var codeChanged = (state.currentCode !== data.code);
+
+        state.currentCode = data.code;
+        state.currentScanType = data.scanType;
+
+        quick.codeLabel.textContent = data.code;
+        quick.panel.classList.remove('d-none');
+
+        if (codeChanged) {
+            setQuickMessage(null);
+        }
+
+        // 품목코드를 스캔하면 새 로트를 만들어야 하므로 제조일자를 입력받는다
+        var isProduct = (data.scanType === 'PRODUCT');
+        quick.mfgRow.classList.toggle('d-none', !isProduct);
+        quick.lotNoticeRow.classList.toggle('d-none', isProduct);
+    }
+
+    function setQuickMessage(html, type) {
+        if (!quick.message) {
+            return;
+        }
+        if (!html) {
+            quick.message.classList.add('d-none');
+            quick.message.innerHTML = '';
+            return;
+        }
+        quick.message.className = 'alert alert-' + (type || 'success') + ' py-2 small';
+        quick.message.innerHTML = html;
+    }
+
+    function csrfHeaders() {
+        var headers = {'Content-Type': 'application/json', 'Accept': 'application/json'};
+        var token = document.querySelector('meta[name="_csrf"]');
+        var headerName = document.querySelector('meta[name="_csrf_header"]');
+        if (token && headerName && token.content && headerName.content) {
+            headers[headerName.content] = token.content;
+        }
+        return headers;
+    }
+
+    function positiveQuantity(input) {
+        var value = parseInt(input.value, 10);
+        if (isNaN(value) || value < 1) {
+            return null;
+        }
+        return value;
+    }
+
+    function submitAction(url, body, button, onSuccess) {
+        button.disabled = true;
+
+        fetch(url, {
+            method: 'POST',
+            headers: csrfHeaders(),
+            body: JSON.stringify(body)
+        })
+            .then(function (response) {
+                return response.json()
+                    .catch(function () {
+                        return {};
+                    })
+                    .then(function (json) {
+                        return {ok: response.ok, status: response.status, body: json};
+                    });
+            })
+            .then(function (payload) {
+                if (payload.ok) {
+                    onSuccess(payload.body);
+                    // 처리 후 최신 재고로 화면 갱신
+                    lookup(state.currentCode);
+                } else {
+                    var message = payload.body && payload.body.message
+                        ? payload.body.message
+                        : ('처리 실패 (HTTP ' + payload.status + ')');
+                    setQuickMessage('<i class="bi bi-exclamation-triangle-fill me-1"></i>'
+                        + escapeHtml(message), 'danger');
+                }
+            })
+            .catch(function (error) {
+                setQuickMessage('<i class="bi bi-exclamation-triangle-fill me-1"></i>네트워크 오류: '
+                    + escapeHtml(error.message), 'danger');
+            })
+            .finally(function () {
+                button.disabled = false;
+            });
+    }
+
+    function doInbound() {
+        if (!state.currentCode) {
+            return;
+        }
+        if (!quick.binId.value) {
+            setQuickMessage('입고할 구역을 선택하세요.', 'warning');
+            return;
+        }
+
+        var quantity = positiveQuantity(quick.inQuantity);
+        if (quantity === null) {
+            setQuickMessage('입고 수량을 1 이상으로 입력하세요.', 'warning');
+            return;
+        }
+
+        var body = {
+            code: state.currentCode,
+            binId: Number(quick.binId.value),
+            quantity: quantity,
+            memo: quick.inMemo.value
+        };
+        if (state.currentScanType === 'PRODUCT' && quick.manufacturedDate.value) {
+            body.manufacturedDate = quick.manufacturedDate.value;
+        }
+
+        submitAction('/api/admin/scan/inbound', body, quick.inboundBtn, function (result) {
+            var html = '<i class="bi bi-check-circle-fill me-1"></i>'
+                + '<strong>입고 완료</strong><br>'
+                + '로트 <span class="ff-code">' + escapeHtml(result.lotNo) + '</span>'
+                + (result.newLot ? ' (신규 로트)' : ' (기존 로트 합산)')
+                + ' · 구역 ' + escapeHtml(result.binCode)
+                + ' · +' + number(result.quantity)
+                + '<br>유통기한 ' + escapeHtml(result.expirationDate)
+                + ' · 구역 보관 ' + number(result.binQuantity)
+                + ' · 품목 전체 재고 ' + number(result.productTotalStock);
+
+            if (result.expiredLot) {
+                html += '<br><span class="text-danger fw-semibold">'
+                    + '주의: 이 로트는 이미 유통기한이 지나 출고 대상에서 제외됩니다.</span>';
+            }
+
+            setQuickMessage(html, 'success');
+            quick.inQuantity.value = '';
+        });
+    }
+
+    function doOutbound() {
+        if (!state.currentCode) {
+            return;
+        }
+
+        var quantity = positiveQuantity(quick.outQuantity);
+        if (quantity === null) {
+            setQuickMessage('출고 수량을 1 이상으로 입력하세요.', 'warning');
+            return;
+        }
+
+        var body = {
+            code: state.currentCode,
+            quantity: quantity,
+            memo: quick.outMemo.value
+        };
+
+        submitAction('/api/admin/scan/outbound', body, quick.outboundBtn, function (result) {
+            var html = '<i class="bi bi-check-circle-fill me-1"></i>'
+                + '<strong>출고 완료</strong> (선입선출 FEFO)<br>'
+                + escapeHtml(result.productCode) + ' · -' + number(result.quantity)
+                + ' · 품목 잔여 재고 ' + number(result.productTotalStock)
+                + '<br><span class="text-muted">차감된 로트</span><ul class="mb-0 ps-3">';
+
+            (result.lines || []).forEach(function (line) {
+                html += '<li><span class="ff-code">' + escapeHtml(line.lotNo) + '</span>'
+                    + ' (' + escapeHtml(line.binCode) + ', D-' + line.remainingDays + ')'
+                    + ' -' + number(line.allocatedQuantity)
+                    + (line.depleted ? ' <span class="badge bg-dark">전량 소진</span>' : '')
+                    + '</li>';
+            });
+            html += '</ul>';
+
+            setQuickMessage(html, 'success');
+            quick.outQuantity.value = '';
+        });
+    }
+
+    /* ------------------------------------------------------------------
      * 초기화
      * ------------------------------------------------------------------ */
 
@@ -449,6 +660,14 @@
                 lookup(code);
             });
         });
+
+        // 스캔 즉시 입출고 버튼
+        if (quick.inboundBtn) {
+            quick.inboundBtn.addEventListener('click', doInbound);
+        }
+        if (quick.outboundBtn) {
+            quick.outboundBtn.addEventListener('click', doOutbound);
+        }
 
         // 페이지 이탈 시 카메라 자원 해제
         window.addEventListener('beforeunload', function () {
