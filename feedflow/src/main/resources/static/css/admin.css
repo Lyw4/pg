@@ -165,3 +165,62 @@ body {
     font-weight: 600;
     color: #5f6368;
 }
+
+
+/* ------------------------------ Barcode scanner ------------------------------ */
+.ff-scanner-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: #0d1117;
+    border-radius: .75rem;
+    overflow: hidden;
+}
+
+.ff-scanner-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* 조준 가이드 */
+.ff-scanner-guide {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 78%;
+    height: 42%;
+    border: 3px solid rgba(47, 133, 90, .9);
+    border-radius: .5rem;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, .28);
+    pointer-events: none;
+}
+
+.ff-scanner-idle {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    color: rgba(255, 255, 255, .6);
+    background: #0d1117;
+}
+
+.ff-scanner-idle i {
+    font-size: 2.5rem;
+}
+
+/* 모바일에서는 카메라 영역을 더 크게 */
+@media (max-width: 575.98px) {
+    .ff-scanner-wrap {
+        aspect-ratio: 3 / 4;
+    }
+
+    .ff-main {
+        padding: 1rem .75rem;
+    }
+}

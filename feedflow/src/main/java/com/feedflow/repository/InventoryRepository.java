@@ -24,6 +24,19 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     @Query("select sum(i.quantity) from Inventory i where i.bin.binId = :binId")
     Long sumQuantityByBinId(@Param("binId") Long binId);
 
+    /** 특정 로트의 구역별 재고 (바코드 스캔 결과 표시용) */
+    @Query("""
+            select i
+            from Inventory i
+            join fetch i.lot l
+            join fetch l.product p
+            join fetch i.bin b
+            where l.lotId = :lotId
+              and i.quantity > 0
+            order by b.binCode asc
+            """)
+    List<Inventory> findByLotIdWithBin(@Param("lotId") Long lotId);
+
     /** 특정 로트의 구역별 보관 수량 합계 */
     @Query("select sum(i.quantity) from Inventory i where i.lot.lotId = :lotId")
     Long sumQuantityByLotId(@Param("lotId") Long lotId);

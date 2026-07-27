@@ -77,6 +77,17 @@
             </a>
         </li>
 
+        <!-- 현장 작업 : STAFF, ADMIN 공통 -->
+        <li class="nav-item mt-3">
+            <span class="ff-nav-title">현장 작업</span>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/scan}"
+               th:classappend="${menu == 'scan'} ? 'active'">
+                <i class="bi bi-upc-scan me-2"></i>바코드 스캔
+            </a>
+        </li>
+
         <!-- 사원 관리: ADMIN 에게만 렌더링 (DOM 에서 제거) -->
         <li class="nav-item mt-3" sec:authorize="hasRole('ADMIN')">
             <span class="ff-nav-title">시스템 관리</span>
