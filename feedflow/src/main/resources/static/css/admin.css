@@ -224,3 +224,110 @@ body {
         padding: 1rem .75rem;
     }
 }
+
+
+/* ==================================================================
+   반응형 레이아웃
+   · 데스크톱(>=992px) : 사이드바 고정 노출
+   · 모바일/태블릿      : 사이드바를 드로어로 숨기고 햄버거 버튼으로 열기
+   ================================================================== */
+
+/* 상단바 - 제목이 좁은 화면에서 세로로 쪼개지지 않도록 처리 */
+.ff-topbar-left {
+    min-width: 0;          /* flex 자식이 줄어들 수 있게 (text-overflow 동작 조건) */
+    flex: 1 1 auto;
+}
+
+.ff-topbar-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 배경 오버레이 : 기본(데스크톱)에서는 사용하지 않음 */
+.ff-sidebar-backdrop {
+    display: none;
+}
+
+@media (max-width: 991.98px) {
+
+    /* 사이드바를 화면 밖으로 밀어두고, 열릴 때만 슬라이드 인 */
+    .ff-sidebar {
+        width: 264px;
+        max-width: 84vw;
+        transform: translateX(-100%);
+        transition: transform .25s ease-out;
+        z-index: 1045;
+    }
+
+    .ff-sidebar.show {
+        transform: translateX(0);
+        box-shadow: 0 0 28px rgba(0, 0, 0, .45);
+    }
+
+    /* 본문이 전체 폭을 사용 */
+    .ff-content {
+        margin-left: 0;
+    }
+
+    .ff-sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, .5);
+        z-index: 1040;
+    }
+
+    .ff-sidebar-backdrop.show {
+        display: block;
+    }
+
+    /* 사이드바가 열린 동안 본문 스크롤 잠금 */
+    body.ff-sidebar-open {
+        overflow: hidden;
+    }
+
+    .ff-topbar {
+        padding: .7rem .85rem;
+    }
+
+    .ff-topbar-title {
+        font-size: .95rem;
+    }
+
+    .ff-main {
+        padding: 1rem .85rem;
+    }
+
+    .ff-stat-value {
+        font-size: 1.4rem;
+    }
+
+    /* 데이터 표는 줄바꿈 대신 가로 스크롤 (가독성 유지) */
+    .table-responsive > .table {
+        white-space: nowrap;
+    }
+
+    /* 폼 카드가 화면 폭을 다 쓰도록 */
+    .ff-form-card {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 575.98px) {
+
+    /* 좁은 화면에서는 상단바에 권한 뱃지만 남긴다 */
+    .ff-topbar-user .fw-semibold {
+        display: none;
+    }
+
+    .card-header,
+    .card-body {
+        padding-left: .9rem;
+        padding-right: .9rem;
+    }
+
+    /* 터치 조작을 위해 표 안의 버튼을 조금 키움 */
+    .table .btn-sm {
+        padding: .35rem .6rem;
+    }
+}
