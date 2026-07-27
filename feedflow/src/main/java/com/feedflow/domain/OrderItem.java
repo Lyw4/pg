@@ -17,9 +17,11 @@ import lombok.NoArgsConstructor;
 
 /**
  * 주문 상세 항목.
+ * <p>
+ * 테이블/컬럼명은 카멜 표기법으로 선언한다.
  */
 @Entity
-@Table(name = "order_items")
+@Table(name = "orderItems")
 @Getter
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -28,26 +30,26 @@ public class OrderItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "order_item_id")
+    @Column(name = "orderItemId")
     private Long orderItemId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "order_id", nullable = false)
+    @JoinColumn(name = "orderId", nullable = false)
     private Order order;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "product_id", nullable = false)
+    @JoinColumn(name = "productId", nullable = false)
     private Product product;
 
     /** 출고된 로트 (미출고 상태에서는 null 가능) */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "lot_id")
+    @JoinColumn(name = "lotId")
     private ProductLot lot;
 
-    @Column(nullable = false)
+    @Column(name = "quantity", nullable = false)
     private Integer quantity;
 
     /** 주문 당시 단가(원) */
-    @Column(name = "order_price", nullable = false)
+    @Column(name = "orderPrice", nullable = false)
     private Long orderPrice;
 }

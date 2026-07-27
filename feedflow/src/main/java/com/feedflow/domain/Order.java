@@ -25,7 +25,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 주문. ORDER 는 H2/SQL 예약어이므로 테이블명을 orders 로 지정한다.
+ * 주문.
+ * <p>
+ * 테이블/컬럼명은 카멜 표기법으로 선언한다.
+ * (ORDER 는 SQL 예약어이므로 테이블명은 orders)
  */
 @Entity
 @Table(name = "orders")
@@ -37,35 +40,35 @@ public class Order {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "order_id")
+    @Column(name = "orderId")
     private Long orderId;
 
-    /** 주문한 고객 (users.user_id 참조) */
+    /** 주문한 고객 (users.userId 참조) */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "userId", nullable = false)
     private User user;
 
     /** 할인 전 주문 금액 */
-    @Column(name = "total_price", nullable = false)
+    @Column(name = "totalPrice", nullable = false)
     private Long totalPrice;
 
     /** 할인 금액 */
-    @Column(name = "discount_price", nullable = false)
+    @Column(name = "discountPrice", nullable = false)
     private Long discountPrice;
 
     /** 실제 결제 금액 (매출 집계 기준) */
-    @Column(name = "final_price", nullable = false)
+    @Column(name = "finalPrice", nullable = false)
     private Long finalPrice;
 
     /** 배송지 주소 */
-    @Column(name = "shipping_address", nullable = false, length = 300)
+    @Column(name = "shippingAddress", nullable = false, length = 300)
     private String shippingAddress;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(name = "status", nullable = false, length = 20)
     private OrderStatus status;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "createdAt", nullable = false)
     private LocalDateTime createdAt;
 
     @Builder.Default

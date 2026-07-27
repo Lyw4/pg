@@ -20,6 +20,8 @@ import java.time.LocalDateTime;
 /**
  * 사용자(고객 + 사원 공통 테이블).
  * B2C 쇼핑몰과 WMS 가 함께 사용하는 통합 테이블이다.
+ * <p>
+ * 테이블/컬럼명은 카멜 표기법으로 선언한다. (USER 는 예약어이므로 테이블명은 users)
  */
 @Entity
 @Table(name = "users")
@@ -31,27 +33,27 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_id")
+    @Column(name = "userId")
     private Long userId;
 
-    @Column(nullable = false, unique = true, length = 100)
+    @Column(name = "email", nullable = false, unique = true, length = 100)
     private String email;
 
-    @Column(nullable = false, length = 100)
+    @Column(name = "password", nullable = false, length = 100)
     private String password;
 
-    @Column(nullable = false, length = 50)
+    @Column(name = "name", nullable = false, length = 50)
     private String name;
 
     /** 연락처 */
-    @Column(length = 20)
+    @Column(name = "phone", length = 20)
     private String phone;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(name = "role", nullable = false, length = 20)
     private Role role;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "createdAt", nullable = false)
     private LocalDateTime createdAt;
 
     @PrePersist

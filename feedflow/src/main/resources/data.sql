@@ -1,6 +1,8 @@
 -- =====================================================================
 -- FeedFlow 초기 데이터 (H2 In-Memory)
 --  · 서버 시작 시 자동 실행 (spring.jpa.defer-datasource-initialization=true)
+--  · 테이블/컬럼명은 카멜 표기법(camelCase)으로 선언한다.
+--    (H2 는 따옴표 없는 식별자를 대문자로 저장하므로 대소문자 구분 없이 조회된다)
 --  · 비밀번호는 DelegatingPasswordEncoder 의 {noop}(평문) prefix 사용
 --    → 실제 운영/회원가입 시에는 {bcrypt} 해시가 저장된다.
 -- =====================================================================
@@ -8,7 +10,7 @@
 -- ---------------------------------------------------------------------
 -- 1. 사용자 : 사원(ADMIN 1, STAFF 1) + 고객(USER 3)
 -- ---------------------------------------------------------------------
-INSERT INTO users (user_id, email, password, name, phone, role, created_at) VALUES
+INSERT INTO users (userId, email, password, name, phone, role, createdAt) VALUES
 (1, 'admin@feedflow.co.kr', '{noop}admin123', '김책임', '010-1111-1001', 'ADMIN', DATEADD('DAY', -400, CURRENT_TIMESTAMP)),
 (2, 'staff@feedflow.co.kr', '{noop}staff123', '이사원', '010-2222-2002', 'STAFF', DATEADD('DAY', -180, CURRENT_TIMESTAMP)),
 (3, 'farm1@example.com',    '{noop}user123',  '정한우목장', '010-3333-3003', 'USER', DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
@@ -17,11 +19,11 @@ INSERT INTO users (user_id, email, password, name, phone, role, created_at) VALU
 
 -- ---------------------------------------------------------------------
 -- 2. 품목(사료) 12종  ※ 기준 정보(Master Data)
---    · product_id 1, 3 은 안전재고 미달 → 대시보드 '안전재고 알림' 노출
---    · product_id 12 는 사용 중지(단종) → 미달이지만 알림에서 제외
+--    · productId 1, 3 은 안전재고 미달 → 대시보드 '안전재고 알림' 노출
+--    · productId 12 는 사용 중지(단종) → 미달이지만 알림에서 제외
 --    · 10건 초과라서 품목 목록 화면의 페이징을 바로 확인할 수 있다
 -- ---------------------------------------------------------------------
-INSERT INTO products (product_id, product_code, name, animal_type, weight_kg, price, total_stock, safety_stock, active, image_url, description) VALUES
+INSERT INTO products (productId, productCode, name, animalType, weightKg, price, totalStock, safetyStock, active, imageUrl, description) VALUES
 (1,  'FD-CT-001', '프리미엄 육성우 배합사료', '소',   25, 32000,  40,  50, TRUE,  '/images/feed-cattle.png',  '육성기 한우의 골격 형성을 돕는 고단백 배합사료입니다.'),
 (2,  'FD-PG-001', '자돈용 배합사료',         '돼지', 20, 28000, 300, 100, TRUE,  '/images/feed-pig.png',     '이유 후 자돈의 소화 흡수율을 높인 프리스타터 사료입니다.'),
 (3,  'FD-CK-001', '산란계 전용 배합사료',     '닭',   25, 24000,  80, 120, TRUE,  '/images/feed-chicken.png', '산란율 향상을 위한 칼슘 강화 배합사료입니다.'),
@@ -38,9 +40,9 @@ INSERT INTO products (product_id, product_code, name, animal_type, weight_kg, pr
 
 -- ---------------------------------------------------------------------
 -- 3. 로트 5건
---    lot 1(D-5), lot 5(D-18) → 대시보드 '유통기한 임박 알림'(30일 이내) 노출
+--    lotId 1(D-5), 2(D-25), 5(D-18) → 대시보드 '유통기한 임박 알림'(30일 이내) 노출
 -- ---------------------------------------------------------------------
-INSERT INTO product_lots (lot_id, product_id, lot_no, manufactured_date, expiration_date, lot_quantity) VALUES
+INSERT INTO productLots (lotId, productId, lotNo, manufacturedDate, expirationDate, lotQuantity) VALUES
 (1, 1, 'LOT-CT-2601', DATEADD('DAY', -50, CURRENT_DATE), DATEADD('DAY',   5, CURRENT_DATE),  20),
 (2, 1, 'LOT-CT-2602', DATEADD('DAY', -20, CURRENT_DATE), DATEADD('DAY',  25, CURRENT_DATE),  20),
 (3, 2, 'LOT-PG-2611', DATEADD('DAY', -10, CURRENT_DATE), DATEADD('DAY', 160, CURRENT_DATE), 150),
@@ -53,7 +55,7 @@ INSERT INTO product_lots (lot_id, product_id, lot_no, manufactured_date, expirat
 --    · READY(2건)       → '출고 대기'
 --    · CANCELED(1건)    → 매출 집계에서 제외됨
 -- ---------------------------------------------------------------------
-INSERT INTO orders (order_id, user_id, total_price, discount_price, final_price, shipping_address, status, created_at) VALUES
+INSERT INTO orders (orderId, userId, totalPrice, discountPrice, finalPrice, shippingAddress, status, createdAt) VALUES
 (1,  3, 320000,     0, 320000, '경북 상주시 낙동면 목장길 12',   'PAID',      DATEADD('HOUR', -2, CURRENT_TIMESTAMP)),
 (2,  4, 560000, 20000, 540000, '충남 홍성군 갈산면 양돈로 45',   'PAID',      DATEADD('HOUR', -5, CURRENT_TIMESTAMP)),
 (3,  5, 240000,     0, 240000, '전북 김제시 금산면 계사길 8',    'READY',     DATEADD('HOUR', -8, CURRENT_TIMESTAMP)),
@@ -71,9 +73,9 @@ INSERT INTO orders (order_id, user_id, total_price, discount_price, final_price,
 (15, 5, 320000,     0, 320000, '전북 김제시 금산면 계사길 8',    'DELIVERED', DATEADD('DAY',  -6, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
--- 5. 주문 상세 (order_price = 주문 당시 단가)
+-- 5. 주문 상세 (orderPrice = 주문 당시 단가)
 -- ---------------------------------------------------------------------
-INSERT INTO order_items (order_item_id, order_id, product_id, lot_id, quantity, order_price) VALUES
+INSERT INTO orderItems (orderItemId, orderId, productId, lotId, quantity, orderPrice) VALUES
 (1,   1, 1, 1, 10, 32000),
 (2,   2, 2, 3, 20, 28000),
 (3,   3, 3, 5, 10, 24000),
@@ -93,9 +95,9 @@ INSERT INTO order_items (order_item_id, order_id, product_id, lot_id, quantity, 
 
 -- ---------------------------------------------------------------------
 -- 6. 창고 구역(Bin) 9건  ※ 기준 정보(Master Data)
---    · A / B / COLD 3개 구역, bin_id 9 는 사용 중지 상태
+--    · A / B / COLD 3개 구역, binId 9 는 사용 중지 상태
 -- ---------------------------------------------------------------------
-INSERT INTO warehouse_bins (bin_id, bin_code, zone, rack, bin_level, max_capacity, active, memo, created_at) VALUES
+INSERT INTO warehouseBins (binId, binCode, zone, rack, binLevel, maxCapacity, active, memo, createdAt) VALUES
 (1, 'A-01-01', 'A',    '01', 1, 500, TRUE,  '입고 대기 우선 구역',   DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
 (2, 'A-01-02', 'A',    '01', 2, 500, TRUE,  NULL,                    DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
 (3, 'A-02-01', 'A',    '02', 1, 400, TRUE,  NULL,                    DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
@@ -110,9 +112,9 @@ INSERT INTO warehouse_bins (bin_id, bin_code, zone, rack, bin_level, max_capacit
 -- 7. IDENTITY 시퀀스 재시작
 --    (명시적 ID 로 INSERT 했으므로, 이후 JPA 저장 시 PK 충돌을 막는다)
 -- ---------------------------------------------------------------------
-ALTER TABLE users ALTER COLUMN user_id RESTART WITH 6;
-ALTER TABLE products ALTER COLUMN product_id RESTART WITH 13;
-ALTER TABLE product_lots ALTER COLUMN lot_id RESTART WITH 6;
-ALTER TABLE orders ALTER COLUMN order_id RESTART WITH 16;
-ALTER TABLE order_items ALTER COLUMN order_item_id RESTART WITH 17;
-ALTER TABLE warehouse_bins ALTER COLUMN bin_id RESTART WITH 10;
+ALTER TABLE users ALTER COLUMN userId RESTART WITH 6;
+ALTER TABLE products ALTER COLUMN productId RESTART WITH 13;
+ALTER TABLE productLots ALTER COLUMN lotId RESTART WITH 6;
+ALTER TABLE orders ALTER COLUMN orderId RESTART WITH 16;
+ALTER TABLE orderItems ALTER COLUMN orderItemId RESTART WITH 17;
+ALTER TABLE warehouseBins ALTER COLUMN binId RESTART WITH 10;

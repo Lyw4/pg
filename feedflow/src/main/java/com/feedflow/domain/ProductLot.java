@@ -19,9 +19,11 @@ import java.time.LocalDate;
 
 /**
  * 상품 로트(생산 단위). 유통기한 관리의 기준이 된다.
+ * <p>
+ * 테이블/컬럼명은 카멜 표기법으로 선언한다.
  */
 @Entity
-@Table(name = "product_lots")
+@Table(name = "productLots")
 @Getter
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -30,26 +32,26 @@ public class ProductLot {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "lot_id")
+    @Column(name = "lotId")
     private Long lotId;
 
-    /** products.product_id 참조 */
+    /** products.productId 참조 */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "product_id", nullable = false)
+    @JoinColumn(name = "productId", nullable = false)
     private Product product;
 
-    @Column(name = "lot_no", nullable = false, length = 50)
+    @Column(name = "lotNo", nullable = false, length = 50)
     private String lotNo;
 
     /** 제조일자 */
-    @Column(name = "manufactured_date", nullable = false)
+    @Column(name = "manufacturedDate", nullable = false)
     private LocalDate manufacturedDate;
 
     /** 유통기한 */
-    @Column(name = "expiration_date", nullable = false)
+    @Column(name = "expirationDate", nullable = false)
     private LocalDate expirationDate;
 
     /** 해당 로트의 잔여 수량 */
-    @Column(name = "lot_quantity", nullable = false)
+    @Column(name = "lotQuantity", nullable = false)
     private Integer lotQuantity;
 }
