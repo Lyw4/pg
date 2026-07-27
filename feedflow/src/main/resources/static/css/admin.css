@@ -388,3 +388,93 @@ body {
         background: #fff;
     }
 }
+
+
+/* ------------------------------ 스캔 인식 피드백 ------------------------------ */
+
+/* 인식 순간 카메라 화면 전체가 깜빡인다 */
+.ff-scan-flash {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    background: #ffffff;
+}
+
+.ff-scan-flash.flash-success {
+    animation: ffFlashSuccess .45s ease-out;
+}
+
+.ff-scan-flash.flash-error {
+    animation: ffFlashError .45s ease-out;
+}
+
+@keyframes ffFlashSuccess {
+    0% {
+        opacity: .85;
+        background: #2f855a;
+    }
+    100% {
+        opacity: 0;
+        background: #2f855a;
+    }
+}
+
+@keyframes ffFlashError {
+    0% {
+        opacity: .85;
+        background: #dc3545;
+    }
+    100% {
+        opacity: 0;
+        background: #dc3545;
+    }
+}
+
+/* 인식 성공 시 조준 가이드 강조 */
+.ff-scanner-guide.detected {
+    border-color: #ffc107;
+    border-width: 5px;
+    transition: border-color .1s ease-in;
+}
+
+/* 인식 결과 라이브 바 */
+.ff-scan-live {
+    border-radius: .6rem;
+    padding: .7rem .85rem;
+    border: 2px solid #ced4da;
+    background: #f8f9fa;
+}
+
+.ff-scan-live.state-loading {
+    border-color: #0d6efd;
+    background: #e7f1ff;
+}
+
+.ff-scan-live.state-success {
+    border-color: #2f855a;
+    background: #e8f5ee;
+}
+
+.ff-scan-live.state-error {
+    border-color: #dc3545;
+    background: #fdeaec;
+}
+
+.min-width-0 {
+    min-width: 0;
+}
+
+/* 스캔 결과 영역으로 이동했을 때 잠깐 강조 */
+.ff-highlight {
+    animation: ffHighlight 1.2s ease-out;
+}
+
+@keyframes ffHighlight {
+    0% {
+        box-shadow: 0 0 0 4px rgba(47, 133, 90, .55);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(47, 133, 90, 0);
+    }
+}

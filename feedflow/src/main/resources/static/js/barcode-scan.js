@@ -16,6 +16,17 @@
         preview: document.getElementById('scanPreview'),
         idle: document.getElementById('scannerIdle'),
         status: document.getElementById('scanStatus'),
+        guide: document.getElementById('scannerGuide'),
+        flash: document.getElementById('scanFlash'),
+        live: document.getElementById('scanLive'),
+        liveIcon: document.getElementById('scanLiveIcon'),
+        liveCode: document.getElementById('scanLiveCode'),
+        liveText: document.getElementById('scanLiveText'),
+        liveGoBtn: document.getElementById('scanLiveGoBtn'),
+        resultColumn: document.getElementById('resultColumn'),
+        soundToggle: document.getElementById('scanSoundToggle'),
+        vibrateToggle: document.getElementById('scanVibrateToggle'),
+        autoScrollToggle: document.getElementById('scanAutoScrollToggle'),
         cameraSelect: document.getElementById('cameraSelect'),
         startBtn: document.getElementById('startScanBtn'),
         stopBtn: document.getElementById('stopScanBtn'),
@@ -78,6 +89,149 @@
     function setStatus(text, badgeClass) {
         elements.status.textContent = text;
         elements.status.className = 'badge ' + badgeClass;
+    }
+
+    /* ------------------------------------------------------------------
+     * 인식 피드백 (소리 / 진동 / 화면 플래시 / 라이브 상태 바)
+     *  · 현장에서는 화면을 계속 볼 수 없으므로 즉각적인 피드백이 중요하다
+     * ------------------------------------------------------------------ */
+
+    var audioContext = null;
+
+    function isOn(toggle) {
+        return !toggle || toggle.checked;
+    }
+
+    /** 오디오는 사용자 조작(스캔 시작 클릭) 시점에 초기화해야 브라우저 정책에 걸리지 않는다 */
+    function initAudio() {
+        try {
+            var AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) {
+                return;
+            }
+            if (!audioContext) {
+                audioContext = new AudioCtx();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        } catch (error) {
+            audioContext = null;
+        }
+    }
+
+    function beep(frequency, durationMs) {
+        if (!audioContext || !isOn(elements.soundToggle)) {
+            return;
+        }
+        try {
+            var oscillator = audioContext.createOscillator();
+            var gain = audioContext.createGain();
+
+            oscillator.type = 'square';
+            oscillator.frequency.value = frequency;
+            gain.gain.setValueAtTime(0.08, audioContext.currentTime);
+
+            oscillator.connect(gain);
+            gain.connect(audioContext.destination);
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + (durationMs / 1000));
+        } catch (error) {
+            /* 소리 실패는 무시 */
+        }
+    }
+
+    function vibrate(pattern) {
+        if (!isOn(elements.vibrateToggle)) {
+            return;
+        }
+        if (navigator.vibrate) {
+            try {
+                navigator.vibrate(pattern);
+            } catch (error) {
+                /* 무시 */
+            }
+        }
+    }
+
+    function flash(type) {
+        if (!elements.flash) {
+            return;
+        }
+        var className = (type === 'error') ? 'flash-error' : 'flash-success';
+        elements.flash.classList.remove('flash-success', 'flash-error');
+        // 애니메이션 재시작을 위한 리플로우
+        void elements.flash.offsetWidth;
+        elements.flash.classList.add(className);
+
+        if (elements.guide) {
+            elements.guide.classList.add('detected');
+            setTimeout(function () {
+                elements.guide.classList.remove('detected');
+            }, 450);
+        }
+    }
+
+    /** 코드가 인식된 순간 (API 응답 전) */
+    function feedbackDetected() {
+        beep(1200, 90);
+        vibrate(60);
+        flash('detect');
+    }
+
+    function feedbackSuccess() {
+        beep(1800, 110);
+        vibrate([40, 50, 60]);
+    }
+
+    function feedbackError() {
+        beep(320, 260);
+        vibrate([80, 60, 80]);
+        flash('error');
+    }
+
+    /** 라이브 상태 바 갱신 */
+    function setLive(state, code, text, showGoButton) {
+        if (!elements.live) {
+            return;
+        }
+
+        elements.live.classList.remove('d-none', 'state-loading', 'state-success', 'state-error');
+        elements.live.classList.add('state-' + state);
+
+        elements.liveCode.textContent = code || '-';
+        elements.liveText.textContent = text || '';
+
+        var iconClass = 'bi fs-4 flex-shrink-0 ';
+        if (state === 'success') {
+            iconClass += 'bi-check-circle-fill text-success';
+        } else if (state === 'error') {
+            iconClass += 'bi-x-circle-fill text-danger';
+        } else {
+            iconClass += 'bi-hourglass-split text-primary';
+        }
+        elements.liveIcon.className = iconClass;
+
+        elements.liveGoBtn.classList.toggle('d-none', !showGoButton);
+    }
+
+    /** 결과 영역으로 스크롤 (모바일에서 결과가 화면 밖에 있을 때) */
+    function scrollToResult(force) {
+        if (!elements.resultColumn) {
+            return;
+        }
+        if (!force && !isOn(elements.autoScrollToggle)) {
+            return;
+        }
+        // 데스크톱은 좌우 2단이라 이미 보이므로 이동하지 않는다
+        if (!force && window.innerWidth >= 992) {
+            return;
+        }
+
+        elements.resultColumn.scrollIntoView({behavior: 'smooth', block: 'start'});
+        elements.resultColumn.classList.remove('ff-highlight');
+        void elements.resultColumn.offsetWidth;
+        elements.resultColumn.classList.add('ff-highlight');
     }
 
     function showMessage(text, type) {
@@ -173,6 +327,9 @@
             return;
         }
 
+        // 사용자 조작 시점에 오디오 컨텍스트를 초기화해야 비프음이 재생된다
+        initAudio();
+
         var deviceId = elements.cameraSelect.value || null;
 
         getReader().decodeFromVideoDevice(deviceId, elements.preview, function (result, error) {
@@ -212,10 +369,18 @@
     function handleCode(code) {
         var now = Date.now();
         if (code === state.lastCode && (now - state.lastAt) < DUPLICATE_IGNORE_MS) {
-            return;   // 같은 코드 연속 인식 방지
+            // 같은 코드 연속 인식 방지. 다만 사용자가 인식 여부를 알 수 있도록 표시는 한다.
+            if (elements.liveText) {
+                elements.liveText.textContent = '같은 코드입니다. 이미 조회되었습니다.';
+            }
+            return;
         }
         state.lastCode = code;
         state.lastAt = now;
+
+        // 카메라가 코드를 읽은 즉시 피드백 (API 응답을 기다리지 않는다)
+        feedbackDetected();
+        setLive('loading', code, '인식됨 · 조회 중...', false);
 
         lookup(code);
     }
@@ -227,6 +392,9 @@
         }
 
         setStatus('조회 중', 'bg-primary');
+        if (elements.live && elements.live.classList.contains('d-none')) {
+            setLive('loading', trimmed, '조회 중...', false);
+        }
 
         fetch(SCAN_API + '?code=' + encodeURIComponent(trimmed), {
             headers: {'Accept': 'application/json'}
@@ -246,6 +414,15 @@
                     showQuickActions(payload.body);
                     addRecent(trimmed, true);
                     setStatus(state.scanning ? '스캔 중' : '조회 완료', state.scanning ? 'bg-success' : 'bg-secondary');
+
+                    // 인식 성공 : 품목명과 재고를 라이브 바에 바로 표시하고 결과로 이동
+                    var product = payload.body.product || {};
+                    var summary = (product.name || '')
+                        + ' · ' + (payload.body.scanType === 'LOT' ? '로트 재고 ' : '전체 재고 ')
+                        + number(payload.body.totalQuantity);
+                    setLive('success', payload.body.code, summary, true);
+                    feedbackSuccess();
+                    scrollToResult(false);
                 } else {
                     var message = payload.body && payload.body.message
                         ? payload.body.message
@@ -254,10 +431,16 @@
                     hideQuickActions();
                     addRecent(trimmed, false);
                     setStatus(state.scanning ? '스캔 중' : '대기', state.scanning ? 'bg-success' : 'bg-secondary');
+
+                    setLive('error', trimmed,
+                        payload.status === 404 ? '등록되지 않은 코드입니다' : message, false);
+                    feedbackError();
                 }
             })
             .catch(function (error) {
                 renderError(trimmed, 0, '네트워크 오류: ' + error.message);
+                setLive('error', trimmed, '네트워크 오류: ' + error.message, false);
+                feedbackError();
                 setStatus('오류', 'bg-danger');
             });
     }
@@ -646,7 +829,9 @@
 
         elements.manualForm.addEventListener('submit', function (event) {
             event.preventDefault();
+            initAudio();
             var code = elements.manualCode.value;
+            setLive('loading', code, '조회 중...', false);
             lookup(code);
             elements.manualCode.select();
         });
@@ -655,11 +840,20 @@
         var sampleButtons = document.querySelectorAll('.ff-sample-code');
         Array.prototype.forEach.call(sampleButtons, function (button) {
             button.addEventListener('click', function () {
+                initAudio();
                 var code = button.getAttribute('data-code');
                 elements.manualCode.value = code;
+                setLive('loading', code, '조회 중...', false);
                 lookup(code);
             });
         });
+
+        // 라이브 바의 '결과' 버튼 - 결과 영역으로 즉시 이동
+        if (elements.liveGoBtn) {
+            elements.liveGoBtn.addEventListener('click', function () {
+                scrollToResult(true);
+            });
+        }
 
         // 스캔 즉시 입출고 버튼
         if (quick.inboundBtn) {

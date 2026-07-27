@@ -34,10 +34,27 @@
                         <!-- 카메라 미리보기 -->
                         <div class="ff-scanner-wrap mb-3">
                             <video id="scanPreview" class="ff-scanner-video" muted playsinline></video>
-                            <div class="ff-scanner-guide"></div>
+                            <div class="ff-scanner-guide" id="scannerGuide"></div>
+                            <!-- 인식 순간 화면 전체가 깜빡이는 피드백 -->
+                            <div class="ff-scan-flash" id="scanFlash"></div>
                             <div class="ff-scanner-idle" id="scannerIdle">
                                 <i class="bi bi-camera-video-off"></i>
                                 <p class="mb-0 small">카메라가 꺼져 있습니다</p>
+                            </div>
+                        </div>
+
+                        <!-- 인식 즉시 표시되는 라이브 상태 바 -->
+                        <div class="ff-scan-live d-none" id="scanLive">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-upc-scan fs-4 flex-shrink-0" id="scanLiveIcon"></i>
+                                <div class="flex-grow-1 min-width-0">
+                                    <div class="ff-code fw-bold text-truncate" id="scanLiveCode">-</div>
+                                    <div class="small text-truncate" id="scanLiveText">조회 중...</div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-success flex-shrink-0 d-none"
+                                        id="scanLiveGoBtn">
+                                    결과<i class="bi bi-arrow-down-short"></i>
+                                </button>
                             </div>
                         </div>
 
@@ -59,6 +76,28 @@
                                     class="btn btn-outline-secondary btn-lg flex-fill" disabled>
                                 <i class="bi bi-stop-fill me-1"></i>정지
                             </button>
+                        </div>
+
+                        <!-- 피드백 옵션 -->
+                        <div class="d-flex gap-3 mt-3 small">
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" id="scanSoundToggle" checked>
+                                <label class="form-check-label" for="scanSoundToggle">
+                                    <i class="bi bi-volume-up"></i> 소리
+                                </label>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" id="scanVibrateToggle" checked>
+                                <label class="form-check-label" for="scanVibrateToggle">
+                                    <i class="bi bi-phone-vibrate"></i> 진동
+                                </label>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" id="scanAutoScrollToggle" checked>
+                                <label class="form-check-label" for="scanAutoScrollToggle">
+                                    <i class="bi bi-arrow-down-square"></i> 결과로 이동
+                                </label>
+                            </div>
                         </div>
 
                         <div id="scannerMessage" class="alert alert-warning mt-3 mb-0 small d-none"></div>
@@ -95,23 +134,12 @@
                     </div>
                 </div>
 
-                <!-- 최근 스캔 -->
-                <div class="card ff-card mt-3">
-                    <div class="card-header bg-white border-0 pt-3">
-                        <span class="fw-bold"><i class="bi bi-clock-history me-1"></i>최근 스캔</span>
-                    </div>
-                    <div class="card-body pt-2">
-                        <ul class="list-group list-group-flush" id="recentScans">
-                            <li class="list-group-item text-muted small px-0">스캔 기록이 없습니다.</li>
-                        </ul>
-                    </div>
-                </div>
             </div>
 
             <!-- ============================================================
                  스캔 결과 + 즉시 입출고
                  ============================================================ -->
-            <div class="col-12 col-lg-6">
+            <div class="col-12 col-lg-6" id="resultColumn">
 
                 <!-- 스캔 즉시 입출고 (스캔 성공 시 노출) -->
                 <div class="card ff-card border-success mb-3 d-none" id="quickActions">
@@ -242,6 +270,23 @@
                                 다른 PC에서 IP로 접속했다면 아래 <strong>직접 입력</strong>을 사용하세요.
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================
+                 최근 스캔 (모바일에서는 결과 아래에 표시)
+                 ============================================================ -->
+            <div class="col-12">
+                <div class="card ff-card">
+                    <div class="card-header bg-white border-0 pt-3">
+                        <span class="fw-bold"><i class="bi bi-clock-history me-1"></i>최근 스캔</span>
+                        <span class="text-muted small ms-2">인식된 코드와 조회 결과가 기록됩니다</span>
+                    </div>
+                    <div class="card-body pt-2">
+                        <ul class="list-group list-group-flush" id="recentScans">
+                            <li class="list-group-item text-muted small px-0">스캔 기록이 없습니다.</li>
+                        </ul>
                     </div>
                 </div>
             </div>
