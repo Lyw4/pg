@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/layout :: head('품목 관리')}"></head>
+
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="ff-content">
+
+    <div th:replace="~{fragments/layout :: topbar('기준 정보 · 품목 관리')}"></div>
+
+    <main class="ff-main">
+
+        <!-- 처리 결과 메시지 -->
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-1"></i>
+            <span th:text="${successMessage}">처리 완료</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle-fill me-1"></i>
+            <span th:text="${errorMessage}">처리 실패</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <!-- 검색 필터 -->
+        <div class="card ff-card ff-filter-card mb-3">
+            <div class="card-body">
+                <form th:action="@{/admin/products}" method="get" class="row g-2 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label for="keyword" class="form-label">품목 코드 / 품목명</label>
+                        <input type="text" id="keyword" name="keyword" class="form-control form-control-sm"
+                               th:value="${keyword}" placeholder="예: FD-CT 또는 육성우">
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <label for="animalType" class="form-label">축종</label>
+                        <select id="animalType" name="animalType" class="form-select form-select-sm">
+                            <option value="">전체</option>
+                            <option th:each="type : ${animalTypes}"
+                                    th:value="${type}"
+                                    th:text="${type}"
+                                    th:selected="${type == selectedAnimalType}">축종</option>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <label for="active" class="form-label">사용 여부</label>
+                        <select id="active" name="active" class="form-select form-select-sm">
+                            <option value="" th:selected="${selectedActive == null}">전체</option>
+                            <option value="true" th:selected="${selectedActive != null and selectedActive}">사용</option>
+                            <option value="false" th:selected="${selectedActive != null and !selectedActive}">중지</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-2 d-flex gap-2">
+                        <button type="submit" class="btn btn-sm btn-dark flex-grow-1">
+                            <i class="bi bi-search me-1"></i>검색
+                        </button>
+                        <a th:href="@{/admin/products}" class="btn btn-sm btn-outline-secondary">초기화</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 목록 -->
+        <div class="card ff-card">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="fw-bold"><i class="bi bi-box2-fill me-1"></i>품목 목록</span>
+                    <span class="text-muted small ms-2">
+                        총 <span th:text="${products.totalElements}">0</span>건
+                    </span>
+                </div>
+                <a th:href="@{/admin/products/new}" class="btn btn-sm btn-success">
+                    <i class="bi bi-plus-lg me-1"></i>품목 등록
+                </a>
+            </div>
+
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                        <tr>
+                            <th style="width: 130px;">품목 코드</th>
+                            <th>품목명</th>
+                            <th class="text-center" style="width: 80px;">축종</th>
+                            <th class="text-center" style="width: 80px;">규격</th>
+                            <th class="text-end" style="width: 100px;">단가</th>
+                            <th class="text-end" style="width: 90px;">현재고</th>
+                            <th class="text-end" style="width: 90px;">안전재고</th>
+                            <th class="text-center" style="width: 80px;">상태</th>
+                            <th class="text-end" style="width: 170px;">관리</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:if="${products.empty}">
+                            <td colspan="9" class="text-center text-muted py-4">
+                                조회된 품목이 없습니다.
+                            </td>
+                        </tr>
+
+                        <tr th:each="item : ${products.content}"
+                            th:classappend="${item.active} ? '' : 'ff-row-inactive'">
+                            <td><span class="ff-code" th:text="${item.productCode}">FD-CT-001</span></td>
+                            <td th:text="${item.name}">품목명</td>
+                            <td class="text-center">
+                                <span class="badge bg-light text-dark border" th:text="${item.animalType}">소</span>
+                            </td>
+                            <td class="text-center" th:text="${item.weightKg} + 'kg'">25kg</td>
+                            <td class="text-end"
+                                th:text="${#numbers.formatInteger(item.price, 1, 'COMMA')}">0</td>
+                            <td class="text-end">
+                                <span th:classappend="${item.belowSafetyStock} ? 'text-danger fw-bold'"
+                                      th:text="${#numbers.formatInteger(item.totalStock, 1, 'COMMA')}">0</span>
+                                <i th:if="${item.belowSafetyStock}"
+                                   class="bi bi-exclamation-triangle-fill text-danger ms-1"
+                                   title="안전재고 미달"></i>
+                            </td>
+                            <td class="text-end text-muted"
+                                th:text="${#numbers.formatInteger(item.safetyStock, 1, 'COMMA')}">0</td>
+                            <td class="text-center">
+                                <span class="badge" th:classappend="${item.activeBadgeClass}"
+                                      th:text="${item.activeLabel}">사용</span>
+                            </td>
+                            <td class="text-end">
+                                <div class="d-flex gap-1 justify-content-end">
+                                    <a th:href="@{/admin/products/{id}/edit(id=${item.productId})}"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil me-1"></i>수정
+                                    </a>
+
+                                    <!-- 사용 중지 / 재사용 : ADMIN 전용 -->
+                                    <form sec:authorize="hasRole('ADMIN')"
+                                          th:action="@{/admin/products/{id}/active(id=${item.productId})}"
+                                          method="post" class="m-0"
+                                          onsubmit="return confirm('해당 품목의 사용 여부를 변경하시겠습니까?');">
+                                        <input type="hidden" name="active" th:value="${!item.active}">
+                                        <button type="submit" class="btn btn-sm"
+                                                th:classappend="${item.active} ? 'btn-outline-secondary' : 'btn-outline-success'"
+                                                th:text="${item.active} ? '사용중지' : '재사용'">사용중지</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 페이지 네비게이션 -->
+                <nav th:if="${products.totalPages > 1}" class="mt-3">
+                    <ul class="pagination pagination-sm justify-content-center mb-0">
+                        <li class="page-item" th:classappend="${products.first} ? 'disabled'">
+                            <a class="page-link"
+                               th:href="@{/admin/products(keyword=${keyword}, animalType=${selectedAnimalType}, active=${selectedActive}, page=${products.number - 1})}">
+                                이전
+                            </a>
+                        </li>
+
+                        <li class="page-item"
+                            th:each="i : ${#numbers.sequence(0, products.totalPages - 1)}"
+                            th:classappend="${i == products.number} ? 'active'">
+                            <a class="page-link"
+                               th:href="@{/admin/products(keyword=${keyword}, animalType=${selectedAnimalType}, active=${selectedActive}, page=${i})}"
+                               th:text="${i + 1}">1</a>
+                        </li>
+
+                        <li class="page-item" th:classappend="${products.last} ? 'disabled'">
+                            <a class="page-link"
+                               th:href="@{/admin/products(keyword=${keyword}, animalType=${selectedAnimalType}, active=${selectedActive}, page=${products.number + 1})}">
+                                다음
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<div th:replace="~{fragments/layout :: scripts}"></div>
+
+</body>
+</html>

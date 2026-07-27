@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/layout :: head('창고 구역 관리')}"></head>
+
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="ff-content">
+
+    <div th:replace="~{fragments/layout :: topbar('기준 정보 · 창고 구역 관리')}"></div>
+
+    <main class="ff-main">
+
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-1"></i>
+            <span th:text="${successMessage}">처리 완료</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle-fill me-1"></i>
+            <span th:text="${errorMessage}">처리 실패</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <!-- 검색 필터 -->
+        <div class="card ff-card ff-filter-card mb-3">
+            <div class="card-body">
+                <form th:action="@{/admin/bins}" method="get" class="row g-2 align-items-end">
+                    <div class="col-6 col-md-3">
+                        <label for="zone" class="form-label">구역(Zone)</label>
+                        <select id="zone" name="zone" class="form-select form-select-sm">
+                            <option value="">전체</option>
+                            <option th:each="z : ${zones}" th:value="${z}" th:text="${z}"
+                                    th:selected="${z == selectedZone}">A</option>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <label for="active" class="form-label">사용 여부</label>
+                        <select id="active" name="active" class="form-select form-select-sm">
+                            <option value="" th:selected="${selectedActive == null}">전체</option>
+                            <option value="true" th:selected="${selectedActive != null and selectedActive}">사용</option>
+                            <option value="false" th:selected="${selectedActive != null and !selectedActive}">중지</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-3 d-flex gap-2">
+                        <button type="submit" class="btn btn-sm btn-dark flex-grow-1">
+                            <i class="bi bi-search me-1"></i>검색
+                        </button>
+                        <a th:href="@{/admin/bins}" class="btn btn-sm btn-outline-secondary">초기화</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 목록 -->
+        <div class="card ff-card">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="fw-bold"><i class="bi bi-grid-3x3-gap-fill me-1"></i>창고 구역 목록</span>
+                    <span class="text-muted small ms-2">
+                        조회 <span th:text="${#lists.size(bins)}">0</span>건 /
+                        사용 중 <span th:text="${activeBinCount}">0</span>건
+                    </span>
+                </div>
+                <a th:href="@{/admin/bins/new}" class="btn btn-sm btn-success">
+                    <i class="bi bi-plus-lg me-1"></i>구역 등록
+                </a>
+            </div>
+
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                        <tr>
+                            <th style="width: 130px;">구역 코드</th>
+                            <th style="width: 200px;">위치</th>
+                            <th class="text-end" style="width: 130px;">최대 적재</th>
+                            <th>비고</th>
+                            <th class="text-center" style="width: 80px;">상태</th>
+                            <th class="text-end" style="width: 170px;">관리</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:if="${#lists.isEmpty(bins)}">
+                            <td colspan="6" class="text-center text-muted py-4">
+                                조회된 창고 구역이 없습니다.
+                            </td>
+                        </tr>
+
+                        <tr th:each="bin : ${bins}"
+                            th:classappend="${bin.active} ? '' : 'ff-row-inactive'">
+                            <td><span class="ff-code" th:text="${bin.binCode}">A-01-01</span></td>
+                            <td th:text="${bin.locationLabel}">A구역 · 1랙 · 1단</td>
+                            <td class="text-end"
+                                th:text="${#numbers.formatInteger(bin.maxCapacity, 1, 'COMMA')} + ' 포대'">0 포대</td>
+                            <td class="small text-muted" th:text="${bin.memo} ?: '-'">-</td>
+                            <td class="text-center">
+                                <span class="badge" th:classappend="${bin.activeBadgeClass}"
+                                      th:text="${bin.activeLabel}">사용</span>
+                            </td>
+                            <td class="text-end">
+                                <div class="d-flex gap-1 justify-content-end">
+                                    <a th:href="@{/admin/bins/{id}/edit(id=${bin.binId})}"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil me-1"></i>수정
+                                    </a>
+
+                                    <form sec:authorize="hasRole('ADMIN')"
+                                          th:action="@{/admin/bins/{id}/active(id=${bin.binId})}"
+                                          method="post" class="m-0"
+                                          onsubmit="return confirm('해당 구역의 사용 여부를 변경하시겠습니까?');">
+                                        <input type="hidden" name="active" th:value="${!bin.active}">
+                                        <button type="submit" class="btn btn-sm"
+                                                th:classappend="${bin.active} ? 'btn-outline-secondary' : 'btn-outline-success'"
+                                                th:text="${bin.active} ? '사용중지' : '재사용'">사용중지</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<div th:replace="~{fragments/layout :: scripts}"></div>
+
+</body>
+</html>

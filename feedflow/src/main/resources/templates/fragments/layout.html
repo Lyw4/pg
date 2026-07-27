@@ -37,7 +37,27 @@
             </a>
         </li>
 
+        <!-- 기준 정보 (Master Data) : STAFF, ADMIN 공통 -->
+        <li class="nav-item mt-3">
+            <span class="ff-nav-title">기준 정보</span>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/products}"
+               th:classappend="${menu == 'products'} ? 'active'">
+                <i class="bi bi-box2 me-2"></i>품목 관리
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/bins}"
+               th:classappend="${menu == 'bins'} ? 'active'">
+                <i class="bi bi-grid-3x3-gap me-2"></i>창고 구역 관리
+            </a>
+        </li>
+
         <!-- 사원 관리: ADMIN 에게만 렌더링 (DOM 에서 제거) -->
+        <li class="nav-item mt-3" sec:authorize="hasRole('ADMIN')">
+            <span class="ff-nav-title">시스템 관리</span>
+        </li>
         <li class="nav-item" sec:authorize="hasRole('ADMIN')">
             <a class="nav-link" th:href="@{/admin/employees}"
                th:classappend="${menu == 'employees'} ? 'active'">
@@ -47,7 +67,7 @@
 
         <li class="nav-item mt-3">
             <span class="nav-link disabled small">
-                <i class="bi bi-hourglass-split me-2"></i>재고/출고 관리 (준비중)
+                <i class="bi bi-hourglass-split me-2"></i>입고/출고 관리 (준비중)
             </span>
         </li>
     </ul>

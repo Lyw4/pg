@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/layout :: head('품목 등록/수정')}"></head>
+
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="ff-content">
+
+    <div th:replace="~{fragments/layout :: topbar('기준 정보 · 품목 등록/수정')}"></div>
+
+    <main class="ff-main">
+
+        <div class="card ff-card ff-form-card">
+            <div class="card-header bg-white border-0 pt-3">
+                <span class="fw-bold">
+                    <i class="bi bi-box2-fill me-1"></i>
+                    <span th:text="${editMode} ? '품목 수정' : '품목 등록'">품목 등록</span>
+                </span>
+            </div>
+
+            <div class="card-body">
+
+                <form th:object="${productForm}" th:action="@{${formAction}}" method="post" novalidate>
+
+                    <div class="row g-3">
+
+                        <!-- 품목 코드 -->
+                        <div class="col-12 col-md-6">
+                            <label for="productCode" class="form-label ff-required">품목 코드</label>
+                            <input type="text" id="productCode" th:field="*{productCode}"
+                                   class="form-control ff-code"
+                                   th:classappend="${#fields.hasErrors('productCode')} ? 'is-invalid'"
+                                   placeholder="예: FD-CT-001" autofocus>
+                            <div class="invalid-feedback" th:errors="*{productCode}">오류</div>
+                            <div class="form-text">영문/숫자/하이픈만 사용하며, 중복 등록할 수 없습니다. (소문자는 대문자로 저장)</div>
+                        </div>
+
+                        <!-- 축종 -->
+                        <div class="col-12 col-md-6">
+                            <label for="animalType" class="form-label ff-required">축종</label>
+                            <input type="text" id="animalType" th:field="*{animalType}"
+                                   class="form-control" list="animalTypeOptions"
+                                   th:classappend="${#fields.hasErrors('animalType')} ? 'is-invalid'"
+                                   placeholder="예: 소, 돼지, 닭">
+                            <datalist id="animalTypeOptions">
+                                <option th:each="type : ${animalTypes}" th:value="${type}"></option>
+                            </datalist>
+                            <div class="invalid-feedback" th:errors="*{animalType}">오류</div>
+                        </div>
+
+                        <!-- 품목명 -->
+                        <div class="col-12">
+                            <label for="name" class="form-label ff-required">품목명</label>
+                            <input type="text" id="name" th:field="*{name}" class="form-control"
+                                   th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"
+                                   placeholder="예: 프리미엄 육성우 배합사료">
+                            <div class="invalid-feedback" th:errors="*{name}">오류</div>
+                        </div>
+
+                        <!-- 포장 무게 -->
+                        <div class="col-6 col-md-4">
+                            <label for="weightKg" class="form-label ff-required">포장 무게 (kg)</label>
+                            <input type="number" id="weightKg" th:field="*{weightKg}" class="form-control"
+                                   th:classappend="${#fields.hasErrors('weightKg')} ? 'is-invalid'"
+                                   min="1" max="9999">
+                            <div class="invalid-feedback" th:errors="*{weightKg}">오류</div>
+                        </div>
+
+                        <!-- 단가 -->
+                        <div class="col-6 col-md-4">
+                            <label for="price" class="form-label ff-required">단가 (원)</label>
+                            <input type="number" id="price" th:field="*{price}" class="form-control"
+                                   th:classappend="${#fields.hasErrors('price')} ? 'is-invalid'"
+                                   min="0" step="100">
+                            <div class="invalid-feedback" th:errors="*{price}">오류</div>
+                        </div>
+
+                        <!-- 안전 재고 -->
+                        <div class="col-6 col-md-4">
+                            <label for="safetyStock" class="form-label ff-required">안전 재고 수량</label>
+                            <input type="number" id="safetyStock" th:field="*{safetyStock}" class="form-control"
+                                   th:classappend="${#fields.hasErrors('safetyStock')} ? 'is-invalid'"
+                                   min="0">
+                            <div class="invalid-feedback" th:errors="*{safetyStock}">오류</div>
+                        </div>
+
+                        <!-- 재고 수량 : 등록 시에만 입력 가능 -->
+                        <div class="col-6 col-md-4">
+                            <label for="totalStock" class="form-label ff-required">
+                                <span th:text="${editMode} ? '현재 재고 수량' : '초기 재고 수량'">초기 재고 수량</span>
+                            </label>
+                            <input type="number" id="totalStock" th:field="*{totalStock}" class="form-control"
+                                   th:classappend="${#fields.hasErrors('totalStock')} ? 'is-invalid'"
+                                   min="0" th:readonly="${editMode}">
+                            <div class="invalid-feedback" th:errors="*{totalStock}">오류</div>
+                            <div class="form-text" th:if="${editMode}">
+                                재고는 입·출고 처리로만 변경되며 여기서는 수정되지 않습니다.
+                            </div>
+                        </div>
+
+                        <!-- 사용 여부 -->
+                        <div class="col-6 col-md-4">
+                            <label class="form-label d-block">사용 여부</label>
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" role="switch"
+                                       id="active" th:field="*{active}">
+                                <label class="form-check-label" for="active">사용</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-lg me-1"></i>
+                            <span th:text="${editMode} ? '수정 저장' : '등록'">등록</span>
+                        </button>
+                        <a th:href="@{/admin/products}" class="btn btn-outline-secondary">취소</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <p class="text-muted small mt-3">
+            <i class="bi bi-info-circle me-1"></i>
+            상품 이미지와 상세 설명은 B2C 쇼핑몰 담당 화면에서 관리합니다. (관리자 화면에서는 다루지 않습니다)
+        </p>
+
+    </main>
+</div>
+
+<div th:replace="~{fragments/layout :: scripts}"></div>
+
+</body>
+</html>

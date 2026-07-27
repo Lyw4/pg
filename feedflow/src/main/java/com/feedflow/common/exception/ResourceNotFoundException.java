@@ -1,0 +1,19 @@
+package com.feedflow.common.exception;
+
+/**
+ * 조회 대상 데이터가 존재하지 않을 때 발생.
+ */
+public class ResourceNotFoundException extends RuntimeException {
+
+    public ResourceNotFoundException(String message) {
+        super(message);
+    }
+
+    public static ResourceNotFoundException ofProduct(Long productId) {
+        return new ResourceNotFoundException("존재하지 않는 품목입니다. id=" + productId);
+    }
+
+    public static ResourceNotFoundException ofWarehouseBin(Long binId) {
+        return new ResourceNotFoundException("존재하지 않는 창고 구역입니다. id=" + binId);
+    }
+}
