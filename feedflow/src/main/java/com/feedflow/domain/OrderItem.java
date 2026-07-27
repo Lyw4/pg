@@ -52,4 +52,16 @@ public class OrderItem {
     /** 주문 당시 단가(원) */
     @Column(name = "orderPrice", nullable = false)
     private Long orderPrice;
+
+    /**
+     * 출고된 대표 로트를 지정한다.
+     * <p>
+     * FEFO 출고 시 하나의 주문 항목이 여러 로트에 걸쳐 차감될 수 있는데,
+     * 스키마상 orderItems 는 로트를 1개만 가리킬 수 있으므로
+     * <b>가장 먼저 만료되는(먼저 출고된) 로트</b>를 대표로 기록한다.
+     * 로트별 상세 차감 내역은 stockMovements 이력에 남는다.
+     */
+    public void assignLot(ProductLot lot) {
+        this.lot = lot;
+    }
 }

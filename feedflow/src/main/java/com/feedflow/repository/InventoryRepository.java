@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,6 +27,30 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     /** 특정 로트의 구역별 보관 수량 합계 */
     @Query("select sum(i.quantity) from Inventory i where i.lot.lotId = :lotId")
     Long sumQuantityByLotId(@Param("lotId") Long lotId);
+
+    /**
+     * FEFO(First Expired First Out) 출고 후보 재고 조회.
+     * <p>
+     * <b>유통기한이 가장 적게 남은 로트가 먼저 나오도록 정렬</b>하며,
+     * 이미 유통기한이 지난 로트와 사용 중지된 구역은 출고 대상에서 제외한다.
+     *
+     * @param productId 출고할 품목
+     * @param today     기준일 (이 날짜 이전에 만료된 로트는 제외)
+     */
+    @Query("""
+            select i
+            from Inventory i
+            join fetch i.lot l
+            join fetch l.product p
+            join fetch i.bin b
+            where p.productId = :productId
+              and i.quantity > 0
+              and l.expirationDate >= :today
+              and b.active = true
+            order by l.expirationDate asc, b.binCode asc
+            """)
+    List<Inventory> findAllocatableByProductId(@Param("productId") Long productId,
+                                               @Param("today") LocalDate today);
 
     /**
      * 재고 현황 목록.

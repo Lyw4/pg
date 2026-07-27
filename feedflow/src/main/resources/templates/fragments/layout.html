@@ -88,10 +88,21 @@
             </a>
         </li>
 
+        <!-- 출고 관리 : STAFF, ADMIN 공통 -->
         <li class="nav-item mt-3">
-            <span class="nav-link disabled small">
-                <i class="bi bi-hourglass-split me-2"></i>출고/피킹 관리 (준비중)
-            </span>
+            <span class="ff-nav-title">출고 관리</span>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/outbound}"
+               th:classappend="${menu == 'outbound' and subMenu == 'list'} ? 'active'">
+                <i class="bi bi-box-arrow-up me-2"></i>출고 대기 주문
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/outbound/direct}"
+               th:classappend="${menu == 'outbound' and subMenu == 'direct'} ? 'active'">
+                <i class="bi bi-arrow-right-square me-2"></i>직접 출고
+            </a>
         </li>
     </ul>
 </aside>

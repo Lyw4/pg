@@ -8,7 +8,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
@@ -37,6 +39,31 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Long sumSalesBetween(@Param("excludedStatus") OrderStatus excludedStatus,
                          @Param("start") LocalDateTime start,
                          @Param("end") LocalDateTime end);
+
+    /* ------------------------------------------------------------------
+     * 출고 관리
+     * ------------------------------------------------------------------ */
+
+    /** 출고 처리 대상 주문 목록 (결제완료 / 출고대기) - 주문이 빠른 순 */
+    @Query("""
+            select o
+            from Order o
+            join fetch o.user u
+            where o.status in :statuses
+            order by o.createdAt asc
+            """)
+    List<Order> findDispatchTargets(@Param("statuses") Collection<OrderStatus> statuses);
+
+    /** 출고 처리를 위해 주문 + 주문상세 + 품목을 한 번에 조회 */
+    @Query("""
+            select distinct o
+            from Order o
+            join fetch o.user u
+            join fetch o.orderItems oi
+            join fetch oi.product p
+            where o.orderId = :orderId
+            """)
+    Optional<Order> findWithItemsById(@Param("orderId") Long orderId);
 
     /**
      * 일별 매출 추이 (Chart.js 용).

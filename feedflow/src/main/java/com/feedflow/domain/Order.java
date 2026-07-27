@@ -84,4 +84,34 @@ public class Order {
             status = OrderStatus.PAID;
         }
     }
+
+    /* ------------------------------------------------------------------
+     * 출고 관련 도메인 로직
+     * ------------------------------------------------------------------ */
+
+    /** 출고 처리 가능한 상태인지 (결제완료 / 출고대기) */
+    public boolean isDispatchable() {
+        return status == OrderStatus.PAID || status == OrderStatus.READY;
+    }
+
+    /** 출고 대기 상태로 변경 */
+    public void markReady() {
+        this.status = OrderStatus.READY;
+    }
+
+    /** 출고 완료 처리 */
+    public void markShipped() {
+        this.status = OrderStatus.SHIPPED;
+    }
+
+    public void changeStatus(OrderStatus status) {
+        this.status = status;
+    }
+
+    /** 주문 전체 수량 */
+    public int totalQuantity() {
+        return orderItems.stream()
+                .mapToInt(item -> item.getQuantity() == null ? 0 : item.getQuantity())
+                .sum();
+    }
 }
