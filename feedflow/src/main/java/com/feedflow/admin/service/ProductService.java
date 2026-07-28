@@ -5,6 +5,7 @@ import com.feedflow.common.util.Texts;
 import com.feedflow.admin.dto.ProductDto;
 import com.feedflow.admin.dto.ProductForm;
 import com.feedflow.admin.dto.StockSyncResultDto;
+import com.feedflow.admin.dto.StockSyncRow;
 import com.feedflow.common.exception.DuplicateCodeException;
 import com.feedflow.common.exception.ResourceNotFoundException;
 import com.feedflow.domain.AnimalType;
@@ -19,7 +20,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 품목(기준 정보) 관리 서비스.
@@ -203,13 +207,46 @@ public class ProductService {
      * 전체 품목의 재고 정합성을 재계산한다.
      * 관리자 화면에서 한 번에 점검/보정할 때 사용한다.
      *
+     * <h3>쿼리 최적화</h3>
+     * 이전에는 {@code findAll()} 로 전체 품목을 읽고 품목마다
+     * {@code sumLotQuantityByProductId} 를 호출해 <b>품목 수만큼 집계 쿼리가 반복(N+1)</b>됐다.
+     * 지금은
+     * <ol>
+     *     <li>집계 쿼리 1회로 전체 품목의 장부 재고 · 로트 합계를 가져오고</li>
+     *     <li>어긋난 품목만 {@code in} 조건으로 1회 로딩해 보정한다</li>
+     * </ol>
+     * 품목이 몇 개든 쿼리는 <b>최대 2회</b>다. 불일치가 없으면 1회로 끝난다.
+     *
      * @return 품목별 결과 (보정된 항목이 앞으로 오도록 정렬)
      */
     @Transactional
     public List<StockSyncResultDto> syncAllTotalStocks() {
-        return productRepository.findAll().stream()
-                .map(product -> syncTotalStock(product.getProductId()))
-                .sorted(Comparator.comparing(StockSyncResultDto::isAdjusted).reversed())
+        List<StockSyncRow> rows = productRepository.findStockSyncRows();
+
+        // 1) 보정이 필요한 품목만 고른다
+        Map<Long, Integer> targets = new LinkedHashMap<>();
+        for (StockSyncRow row : rows) {
+            if (row.bookStock() != row.calculatedStock()) {
+                targets.put(row.productId(), row.calculatedStock());
+            }
+        }
+
+        // 2) 필요한 품목만 한 번에 로딩해 보정한다 (변경 감지로 UPDATE 발생)
+        Map<Long, Boolean> adjustedByProductId = new HashMap<>();
+        if (!targets.isEmpty()) {
+            for (Product product : productRepository.findAllById(targets.keySet())) {
+                boolean adjusted = product.syncTotalStock(targets.get(product.getProductId()));
+                adjustedByProductId.put(product.getProductId(), adjusted);
+            }
+        }
+
+        Comparator<StockSyncResultDto> adjustedFirst =
+                Comparator.comparing(StockSyncResultDto::isAdjusted).reversed();
+
+        return rows.stream()
+                .map(row -> StockSyncResultDto.of(
+                        row, adjustedByProductId.getOrDefault(row.productId(), false)))
+                .sorted(adjustedFirst.thenComparing(StockSyncResultDto::getProductCode))
                 .toList();
     }
 

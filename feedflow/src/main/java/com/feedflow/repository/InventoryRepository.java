@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -113,6 +114,55 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     List<Inventory> search(@Param("productId") Long productId,
                            @Param("binId") Long binId,
                            @Param("zone") String zone);
+
+    /**
+     * 폐기 대상 재고 조회.
+     * <p>
+     * 이전에는 전체 재고를 읽어와 자바에서 만료 여부를 걸러냈다.
+     * 폐기 화면은 보통 만료 재고만 보므로 <b>필터를 DB 로 내려</b>
+     * 필요 없는 행을 애초에 가져오지 않게 한다.
+     *
+     * @param productId     품목 (null 이면 전체)
+     * @param zone          구역 그룹 (null 이면 전체)
+     * @param expiredBefore 이 날짜보다 유통기한이 이전인 재고만 (null 이면 만료 여부 무시)
+     */
+    @Query("""
+            select i
+            from Inventory i
+            join fetch i.lot l
+            join fetch l.product p
+            join fetch i.bin b
+            where (:productId is null or p.productId = :productId)
+              and (:zone is null or b.zone = :zone)
+              and (:expiredBefore is null or l.expirationDate < :expiredBefore)
+              and i.quantity > 0
+            order by l.expirationDate asc, b.binCode asc
+            """)
+    List<Inventory> findDisposalTargets(@Param("productId") Long productId,
+                                       @Param("zone") String zone,
+                                       @Param("expiredBefore") LocalDate expiredBefore);
+
+    /**
+     * 여러 품목의 FEFO 출고 후보 재고를 한 번에 조회.
+     * <p>
+     * 주문 미리보기는 주문 항목마다 후보 재고를 조회하므로
+     * 항목 수만큼 쿼리가 반복(N+1)됐다. 품목 목록을 {@code in} 조건으로 묶어 1회로 줄인다.
+     * 정렬 규칙은 {@link #findAllocatableByProductId} 와 동일하다.
+     */
+    @Query("""
+            select i
+            from Inventory i
+            join fetch i.lot l
+            join fetch l.product p
+            join fetch i.bin b
+            where p.productId in :productIds
+              and i.quantity > 0
+              and l.expirationDate >= :today
+              and b.active = true
+            order by l.expirationDate asc, b.binCode asc
+            """)
+    List<Inventory> findAllocatableByProductIds(@Param("productIds") Collection<Long> productIds,
+                                                @Param("today") LocalDate today);
 
     /** 재고가 남아있는 행 수 */
     @Query("select count(i) from Inventory i where i.quantity > 0")

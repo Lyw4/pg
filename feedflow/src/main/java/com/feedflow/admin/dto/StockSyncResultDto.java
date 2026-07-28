@@ -42,6 +42,18 @@ public class StockSyncResultDto {
      * @param row Repository 집계 결과
      */
     public static StockSyncResultDto ofDiagnosis(StockSyncRow row) {
+        return of(row, false);
+    }
+
+    /**
+     * 집계 결과로 결과 DTO 를 만든다.
+     * <p>
+     * 전체 보정은 집계 쿼리 한 번으로 전/후 값을 이미 알 수 있으므로,
+     * 품목마다 합계 쿼리를 다시 날리지 않고 이 결과를 그대로 사용한다.
+     *
+     * @param adjusted 실제로 totalStock 을 변경했는지
+     */
+    public static StockSyncResultDto of(StockSyncRow row, boolean adjusted) {
         return StockSyncResultDto.builder()
                 .productId(row.productId())
                 .productCode(row.productCode())
@@ -49,7 +61,7 @@ public class StockSyncResultDto {
                 .active(row.isActive())
                 .previousStock(row.bookStock())
                 .calculatedStock(row.calculatedStock())
-                .adjusted(false)
+                .adjusted(adjusted)
                 .build();
     }
 

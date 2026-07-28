@@ -219,9 +219,12 @@ public class InventoryService {
     public List<InventoryDto> getDisposalTargets(Long productId, String zone, boolean expiredOnly) {
         LocalDate today = LocalDate.now();
 
-        return inventoryRepository.search(productId, null, Texts.trimToNull(zone)).stream()
+        // 만료 조건을 DB 로 내려 필요 없는 행을 애초에 읽지 않는다
+        LocalDate expiredBefore = expiredOnly ? today : null;
+
+        return inventoryRepository
+                .findDisposalTargets(productId, Texts.trimToNull(zone), expiredBefore).stream()
                 .map(inventory -> InventoryDto.of(inventory, today))
-                .filter(dto -> !expiredOnly || dto.isExpired())
                 .toList();
     }
 
