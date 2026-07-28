@@ -4,6 +4,8 @@ import com.feedflow.admin.dto.ProductDto;
 import com.feedflow.admin.dto.ProductForm;
 import com.feedflow.admin.service.ProductService;
 import com.feedflow.common.exception.DuplicateCodeException;
+import com.feedflow.domain.AnimalType;
+import com.feedflow.domain.ProductType;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -40,10 +42,16 @@ public class AdminProductController {
 
     private final ProductService productService;
 
-    /** 검색 필터 / 입력 자동완성용 축종 목록 (이 컨트롤러의 모든 화면 공통) */
+    /** 검색 필터 / 등록 폼용 축종 목록 (이 컨트롤러의 모든 화면 공통) */
     @ModelAttribute("animalTypes")
-    public List<String> animalTypes() {
+    public List<AnimalType> animalTypes() {
         return productService.getAnimalTypes();
+    }
+
+    /** 검색 필터 / 등록 폼용 품목 구분 목록 (사료 / 영양제) */
+    @ModelAttribute("productTypes")
+    public List<ProductType> productTypes() {
+        return productService.getProductTypes();
     }
 
     @ModelAttribute("menu")
@@ -57,17 +65,20 @@ public class AdminProductController {
 
     @GetMapping
     public String list(@RequestParam(name = "keyword", required = false) String keyword,
-                       @RequestParam(name = "animalType", required = false) String animalType,
+                       @RequestParam(name = "animalType", required = false) AnimalType animalType,
+                       @RequestParam(name = "productType", required = false) ProductType productType,
                        @RequestParam(name = "active", required = false) Boolean active,
                        @RequestParam(name = "page", defaultValue = "0") int page,
                        Model model) {
 
         Pageable pageable = PageRequest.of(Math.max(page, 0), PAGE_SIZE, Sort.by("productCode").ascending());
-        Page<ProductDto> products = productService.getProducts(keyword, animalType, active, pageable);
+        Page<ProductDto> products =
+                productService.getProducts(keyword, animalType, productType, active, pageable);
 
         model.addAttribute("products", products);
         model.addAttribute("keyword", keyword);
         model.addAttribute("selectedAnimalType", animalType);
+        model.addAttribute("selectedProductType", productType);
         model.addAttribute("selectedActive", active);
         return LIST_VIEW;
     }

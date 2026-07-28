@@ -172,7 +172,7 @@ public class OutboundService {
                         .productId(item.getProduct().getProductId())
                         .productCode(item.getProduct().getProductCode())
                         .productName(item.getProduct().getName())
-                        .animalType(item.getProduct().getAnimalType())
+                        .animalType(item.getProduct().getAnimalType().getDescription())
                         .quantity(item.getQuantity())
                         .orderPrice(item.getOrderPrice())
                         .plan(previewAllocation(item.getProduct(), item.getQuantity()))

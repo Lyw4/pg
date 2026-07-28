@@ -38,7 +38,7 @@ public class SafetyStockAlertDto {
                 .productId(product.getProductId())
                 .productCode(product.getProductCode())
                 .name(product.getName())
-                .animalType(product.getAnimalType())
+                .animalType(product.getAnimalType().getDescription())
                 .weightKg(product.getWeightKg())
                 .price(product.getPrice())
                 .totalStock(total)

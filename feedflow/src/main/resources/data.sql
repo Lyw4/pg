@@ -18,26 +18,30 @@ INSERT INTO users (userId, email, password, name, phone, role, createdAt) VALUES
 (5, 'farm3@example.com',    '{noop}user123',  '행복한계농장', '010-5555-5005', 'USER', DATEADD('DAY', -60, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
--- 2. 품목(사료) 12종  ※ 기준 정보(Master Data)
+-- 2. 품목 13종  ※ 기준 정보(Master Data)
+--    · 취급 축종은 CATTLE(소) / PIG(돼지) / POULTRY(조류: 닭·오리) 3종으로 고정
+--    · 취급 품목 구분은 FEED(사료) / SUPPLEMENT(영양제) 2종으로 고정
 --    · productId 1, 3 은 안전재고 미달 → 대시보드 '안전재고 알림' 노출
 --    · productId 12 는 사용 중지(단종) → 미달이지만 알림에서 제외
 --    · 10건 초과라서 품목 목록 화면의 페이징을 바로 확인할 수 있다
 -- ---------------------------------------------------------------------
-INSERT INTO products (productId, productCode, name, animalType, weightKg, price, totalStock, safetyStock, shelfLifeDays, active, imageUrl, description, version) VALUES
-(1,  'FD-CT-001', '프리미엄 육성우 배합사료', '소',   25, 32000,  40,  50, 180, TRUE,  '/images/feed-cattle.png',  '육성기 한우의 골격 형성을 돕는 고단백 배합사료입니다.', 0),
-(2,  'FD-PG-001', '자돈용 배합사료',         '돼지', 20, 28000, 300, 100, 180, TRUE,  '/images/feed-pig.png',     '이유 후 자돈의 소화 흡수율을 높인 프리스타터 사료입니다.', 0),
+INSERT INTO products (productId, productCode, name, animalType, productType, weightKg, price, totalStock, safetyStock, shelfLifeDays, active, imageUrl, description, version) VALUES
+(1,  'FD-CT-001', '프리미엄 육성우 배합사료', 'CATTLE',  'FEED',       25, 32000,  40,  50, 180, TRUE,  '/images/feed-cattle.png',  '육성기 한우의 골격 형성을 돕는 고단백 배합사료입니다.', 0),
+(2,  'FD-PG-001', '자돈용 배합사료',         'PIG',     'FEED',       20, 28000, 300, 100, 180, TRUE,  '/images/feed-pig.png',     '이유 후 자돈의 소화 흡수율을 높인 프리스타터 사료입니다.', 0),
 -- productId 3 : 정상 로트 80 + 만료 로트 20 = 100 (안전재고 120 미달 유지)
-(3,  'FD-CK-001', '산란계 전용 배합사료',     '닭',   25, 24000, 100, 120,  90, TRUE,  '/images/feed-chicken.png', '산란율 향상을 위한 칼슘 강화 배합사료입니다.', 0),
-(4,  'FD-CT-002', '번식우 유지 배합사료',     '소',   25, 30000, 220,  80, 180, TRUE,  NULL, NULL, 0),
-(5,  'FD-CT-003', '비육후기 고에너지 사료',   '소',   25, 34000, 150,  60, 150, TRUE,  NULL, NULL, 0),
-(6,  'FD-PG-002', '육성돈 배합사료',         '돼지', 25, 26000, 260,  90, 180, TRUE,  NULL, NULL, 0),
-(7,  'FD-PG-003', '임신돈 전용 사료',        '돼지', 25, 27000, 180,  70, 180, TRUE,  NULL, NULL, 0),
-(8,  'FD-CK-002', '육계 초기 사료',          '닭',   20, 25000, 140,  50,  90, TRUE,  NULL, NULL, 0),
-(9,  'FD-CK-003', '육계 후기 사료',          '닭',   20, 23000, 190,  60,  90, TRUE,  NULL, NULL, 0),
-(10, 'FD-DK-001', '산란오리 배합사료',       '오리', 25, 26000,  90,  40, 120, TRUE,  NULL, NULL, 0),
-(11, 'FD-GT-001', '산양 성장기 사료',        '염소', 20, 31000,  70,  30, 120, TRUE,  NULL, NULL, 0),
+(3,  'FD-PL-001', '산란계 전용 배합사료',     'POULTRY', 'FEED',       25, 24000, 100, 120,  90, TRUE,  '/images/feed-chicken.png', '산란율 향상을 위한 칼슘 강화 배합사료입니다.', 0),
+(4,  'FD-CT-002', '번식우 유지 배합사료',     'CATTLE',  'FEED',       25, 30000, 220,  80, 180, TRUE,  NULL, NULL, 0),
+(5,  'FD-CT-003', '비육후기 고에너지 사료',   'CATTLE',  'FEED',       25, 34000, 150,  60, 150, TRUE,  NULL, NULL, 0),
+(6,  'FD-PG-002', '육성돈 배합사료',         'PIG',     'FEED',       25, 26000, 260,  90, 180, TRUE,  NULL, NULL, 0),
+(7,  'FD-PG-003', '임신돈 전용 사료',        'PIG',     'FEED',       25, 27000, 180,  70, 180, TRUE,  NULL, NULL, 0),
+(8,  'FD-PL-002', '육계 초기 사료',          'POULTRY', 'FEED',       20, 25000, 140,  50,  90, TRUE,  NULL, NULL, 0),
+(9,  'FD-PL-003', '육계 후기 사료',          'POULTRY', 'FEED',       20, 23000, 190,  60,  90, TRUE,  NULL, NULL, 0),
+(10, 'FD-PL-004', '산란오리 배합사료',       'POULTRY', 'FEED',       25, 26000,  90,  40, 120, TRUE,  NULL, NULL, 0),
+-- 영양제(보조제) : 포장 단위가 작고 유통기한이 길다
+(11, 'SP-CT-001', '한우 비타민 영양제',      'CATTLE',  'SUPPLEMENT',  5, 45000,  70,  30, 365, TRUE,  NULL, NULL, 0),
+(13, 'SP-PG-001', '자돈 정장 영양제',        'PIG',     'SUPPLEMENT',  5, 38000,  30,  20, 365, TRUE,  NULL, NULL, 0),
 -- 단종(사용 중지) 품목: 재고가 안전재고보다 적지만 대시보드 알림에서 제외된다
-(12, 'FD-CT-900', '구형 육성우 사료(단종)',  '소',   25, 29000,  10,  50, 180, FALSE, NULL, NULL, 0);
+(12, 'FD-CT-900', '구형 육성우 사료(단종)',  'CATTLE',  'FEED',       25, 29000,  10,  50, 180, FALSE, NULL, NULL, 0);
 
 -- ---------------------------------------------------------------------
 -- 3. 로트 5건
@@ -50,19 +54,21 @@ INSERT INTO productLots (lotId, productId, lotNo, manufacturedDate, expirationDa
 (2, 1, 'LOT-CT-2602', DATEADD('DAY', -155, CURRENT_DATE), DATEADD('DAY',  25, CURRENT_DATE),  20, 0),
 (3, 2, 'LOT-PG-2611', DATEADD('DAY',  -20, CURRENT_DATE), DATEADD('DAY', 160, CURRENT_DATE), 150, 0),
 (4, 2, 'LOT-PG-2612', DATEADD('DAY',  -10, CURRENT_DATE), DATEADD('DAY', 170, CURRENT_DATE), 150, 0),
-(5, 3, 'LOT-CK-2621', DATEADD('DAY',  -72, CURRENT_DATE), DATEADD('DAY',  18, CURRENT_DATE),  80, 0),
+(5, 3, 'LOT-PL-2621', DATEADD('DAY',  -72, CURRENT_DATE), DATEADD('DAY',  18, CURRENT_DATE),  80, 0),
 -- 이미 유통기한이 지난 로트 (대시보드 '만료' 경고 + 출고 대상 제외 확인용)
-(15, 3, 'LOT-CK-2620', DATEADD('DAY', -95, CURRENT_DATE), DATEADD('DAY',  -5, CURRENT_DATE),  20, 0),
+(15, 3, 'LOT-PL-2620', DATEADD('DAY', -95, CURRENT_DATE), DATEADD('DAY',  -5, CURRENT_DATE),  20, 0),
 -- 품목 4~12 의 로트 (products.totalStock 과 수량을 일치시킨다)
 (6,  4, 'LOT-CT-2603', DATEADD('DAY',  -60, CURRENT_DATE), DATEADD('DAY', 120, CURRENT_DATE), 220, 0),
 (7,  5, 'LOT-CT-2604', DATEADD('DAY',  -50, CURRENT_DATE), DATEADD('DAY', 100, CURRENT_DATE), 150, 0),
 (8,  6, 'LOT-PG-2613', DATEADD('DAY',  -40, CURRENT_DATE), DATEADD('DAY', 140, CURRENT_DATE), 260, 0),
 (9,  7, 'LOT-PG-2614', DATEADD('DAY',  -30, CURRENT_DATE), DATEADD('DAY', 150, CURRENT_DATE), 180, 0),
-(10, 8, 'LOT-CK-2622', DATEADD('DAY',  -30, CURRENT_DATE), DATEADD('DAY',  60, CURRENT_DATE), 140, 0),
-(11, 9, 'LOT-CK-2623', DATEADD('DAY',  -20, CURRENT_DATE), DATEADD('DAY',  70, CURRENT_DATE), 190, 0),
-(12, 10, 'LOT-DK-2631', DATEADD('DAY', -30, CURRENT_DATE), DATEADD('DAY',  90, CURRENT_DATE),  90, 0),
-(13, 11, 'LOT-GT-2641', DATEADD('DAY', -20, CURRENT_DATE), DATEADD('DAY', 100, CURRENT_DATE),  70, 0),
-(14, 12, 'LOT-CT-2699', DATEADD('DAY', -140, CURRENT_DATE), DATEADD('DAY', 40, CURRENT_DATE),  10, 0);
+(10, 8, 'LOT-PL-2622', DATEADD('DAY',  -30, CURRENT_DATE), DATEADD('DAY',  60, CURRENT_DATE), 140, 0),
+(11, 9, 'LOT-PL-2623', DATEADD('DAY',  -20, CURRENT_DATE), DATEADD('DAY',  70, CURRENT_DATE), 190, 0),
+(12, 10, 'LOT-PL-2631', DATEADD('DAY', -30, CURRENT_DATE), DATEADD('DAY',  90, CURRENT_DATE),  90, 0),
+(14, 12, 'LOT-CT-2699', DATEADD('DAY', -140, CURRENT_DATE), DATEADD('DAY', 40, CURRENT_DATE),  10, 0),
+-- 영양제 로트 (shelfLifeDays 365 규칙에 맞춰 제조일자 = 유통기한 - 365)
+(13, 11, 'LOT-SP-2651', DATEADD('DAY',  -20, CURRENT_DATE), DATEADD('DAY', 345, CURRENT_DATE),  70, 0),
+(16, 13, 'LOT-SP-2661', DATEADD('DAY',  -30, CURRENT_DATE), DATEADD('DAY', 335, CURRENT_DATE),  30, 0);
 
 -- ---------------------------------------------------------------------
 -- 4. 최근 7일치 주문 15건
@@ -150,7 +156,9 @@ INSERT INTO inventories (inventoryId, lotId, binId, quantity, updatedAt, version
 (15, 13, 8,  70, DATEADD('DAY', -20, CURRENT_TIMESTAMP), 0),
 (16, 14, 7,  10, DATEADD('DAY', -140, CURRENT_TIMESTAMP), 0),
 -- 만료된 로트의 재고 (출고 가능 재고에는 포함되지 않는다)
-(17, 15, 3,  20, DATEADD('DAY',  -95, CURRENT_TIMESTAMP), 0);
+(17, 15, 3,  20, DATEADD('DAY',  -95, CURRENT_TIMESTAMP), 0),
+-- 영양제 재고 (저온 구역 COLD-01 : 90 + 70 + 30 = 190 ≤ maxCapacity 200)
+(18, 16, 8,  30, DATEADD('DAY',  -30, CURRENT_TIMESTAMP), 0);
 
 -- ---------------------------------------------------------------------
 -- 8. 입고 이력 7건 (위 재고와 1:1 대응)
@@ -172,17 +180,18 @@ INSERT INTO stockMovements (movementId, movementType, productId, lotId, binId, q
 (14, 'INBOUND', 10, 12, 8,  90, '저온 구역 입고', 2, '이사원', DATEADD('DAY', -30, CURRENT_TIMESTAMP)),
 (15, 'INBOUND', 11, 13, 8,  70, '저온 구역 입고', 2, '이사원', DATEADD('DAY', -20, CURRENT_TIMESTAMP)),
 (16, 'INBOUND', 12, 14, 7,  10, '단종 품목 잔여 재고', 1, '김책임', DATEADD('DAY', -140, CURRENT_TIMESTAMP)),
-(17, 'INBOUND',  3, 15, 3,  20, '유통기한 경과 재고(폐기 대기)', 2, '이사원', DATEADD('DAY', -95, CURRENT_TIMESTAMP));
+(17, 'INBOUND',  3, 15, 3,  20, '유통기한 경과 재고(폐기 대기)', 2, '이사원', DATEADD('DAY', -95, CURRENT_TIMESTAMP)),
+(18, 'INBOUND', 13, 16, 8,  30, '영양제 저온 구역 입고', 2, '이사원', DATEADD('DAY', -30, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
 -- 9. IDENTITY 시퀀스 재시작
 --    (명시적 ID 로 INSERT 했으므로, 이후 JPA 저장 시 PK 충돌을 막는다)
 -- ---------------------------------------------------------------------
 ALTER TABLE users ALTER COLUMN userId RESTART WITH 6;
-ALTER TABLE products ALTER COLUMN productId RESTART WITH 13;
-ALTER TABLE productLots ALTER COLUMN lotId RESTART WITH 16;
+ALTER TABLE products ALTER COLUMN productId RESTART WITH 14;
+ALTER TABLE productLots ALTER COLUMN lotId RESTART WITH 17;
 ALTER TABLE orders ALTER COLUMN orderId RESTART WITH 16;
 ALTER TABLE orderItems ALTER COLUMN orderItemId RESTART WITH 17;
 ALTER TABLE warehouseBins ALTER COLUMN binId RESTART WITH 10;
-ALTER TABLE inventories ALTER COLUMN inventoryId RESTART WITH 18;
-ALTER TABLE stockMovements ALTER COLUMN movementId RESTART WITH 18;
+ALTER TABLE inventories ALTER COLUMN inventoryId RESTART WITH 19;
+ALTER TABLE stockMovements ALTER COLUMN movementId RESTART WITH 19;

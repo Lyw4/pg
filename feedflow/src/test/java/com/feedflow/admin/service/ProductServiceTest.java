@@ -1,5 +1,6 @@
 package com.feedflow.admin.service;
 
+import com.feedflow.domain.AnimalType;
 import com.feedflow.admin.dto.ProductForm;
 import com.feedflow.admin.dto.StockSyncResultDto;
 import com.feedflow.common.exception.DuplicateCodeException;
@@ -68,7 +69,7 @@ class ProductServiceTest {
         Product saved = captor.getValue();
         assertThat(saved.getProductCode()).isEqualTo("FD-CT-010");
         assertThat(saved.getName()).isEqualTo("번식우 유지 배합사료");
-        assertThat(saved.getAnimalType()).isEqualTo("소");
+        assertThat(saved.getAnimalType()).isEqualTo(AnimalType.CATTLE);
         assertThat(saved.getWeightKg()).isEqualTo(25);
         assertThat(saved.getPrice()).isEqualTo(32000L);
         assertThat(saved.getTotalStock()).isEqualTo(100);
@@ -317,7 +318,7 @@ class ProductServiceTest {
         ProductForm form = new ProductForm();
         form.setProductCode(productCode);
         form.setName(name);
-        form.setAnimalType("소");
+        form.setAnimalType(AnimalType.CATTLE);
         form.setWeightKg(25);
         form.setPrice(32000L);
         form.setTotalStock(100);
@@ -332,7 +333,7 @@ class ProductServiceTest {
                 .productId(productId)
                 .productCode(productCode)
                 .name("프리미엄 육성우 배합사료")
-                .animalType("소")
+                .animalType(AnimalType.CATTLE)
                 .weightKg(25)
                 .price(32000L)
                 .totalStock(100)

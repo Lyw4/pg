@@ -7,7 +7,9 @@ import com.feedflow.admin.dto.ProductForm;
 import com.feedflow.admin.dto.StockSyncResultDto;
 import com.feedflow.common.exception.DuplicateCodeException;
 import com.feedflow.common.exception.ResourceNotFoundException;
+import com.feedflow.domain.AnimalType;
 import com.feedflow.domain.Product;
+import com.feedflow.domain.ProductType;
 import com.feedflow.repository.ProductLotRepository;
 import com.feedflow.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
@@ -40,11 +42,12 @@ public class ProductService {
 
     /** 품목 목록 검색 (빈 문자열 조건은 무시) */
     public Page<ProductDto> getProducts(String keyword,
-                                        String animalType,
+                                        AnimalType animalType,
+                                        ProductType productType,
                                         Boolean active,
                                         Pageable pageable) {
         return productRepository
-                .search(Texts.trimToNull(keyword), Texts.trimToNull(animalType), active, pageable)
+                .search(Texts.trimToNull(keyword), animalType, productType, active, pageable)
                 .map(ProductDto::from);
     }
 
@@ -57,9 +60,19 @@ public class ProductService {
         return ProductForm.from(findProduct(productId));
     }
 
-    /** 검색 필터용 축종 목록 */
-    public List<String> getAnimalTypes() {
-        return productRepository.findDistinctAnimalTypes();
+    /**
+     * 검색 필터 / 등록 폼용 축종 목록.
+     * <p>
+     * 이전에는 DB 에 저장된 값을 distinct 로 뽑았기 때문에 등록된 품목이 없는 축종은
+     * 선택지에 나타나지 않았다. 취급 범위가 고정되었으므로 enum 전체를 그대로 내려준다.
+     */
+    public List<AnimalType> getAnimalTypes() {
+        return List.of(AnimalType.values());
+    }
+
+    /** 검색 필터 / 등록 폼용 품목 구분 목록 (사료 / 영양제) */
+    public List<ProductType> getProductTypes() {
+        return List.of(ProductType.values());
     }
 
     /** 입고 화면 등의 품목 선택 목록 (사용 중인 품목만) */
@@ -90,7 +103,8 @@ public class ProductService {
         Product product = Product.builder()
                 .productCode(productCode)
                 .name(Texts.trim(form.getName()))
-                .animalType(Texts.trim(form.getAnimalType()))
+                .animalType(form.getAnimalType())
+                .productType(form.getProductType())
                 .weightKg(form.getWeightKg())
                 .price(form.getPrice())
                 .totalStock(form.getTotalStock())
@@ -121,7 +135,8 @@ public class ProductService {
         product.updateMasterData(
                 productCode,
                 Texts.trim(form.getName()),
-                Texts.trim(form.getAnimalType()),
+                form.getAnimalType(),
+                form.getProductType(),
                 form.getWeightKg(),
                 form.getPrice(),
                 form.getSafetyStock(),

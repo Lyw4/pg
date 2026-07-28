@@ -1,5 +1,6 @@
 package com.feedflow.repository;
 
+import com.feedflow.domain.AnimalType;
 import com.feedflow.domain.Product;
 import com.feedflow.domain.ProductLot;
 import org.junit.jupiter.api.DisplayName;
@@ -176,7 +177,7 @@ class DashboardAlertRepositoryTest {
         Product product = Product.builder()
                 .productCode(productCode)
                 .name(name)
-                .animalType("소")
+                .animalType(AnimalType.CATTLE)
                 .weightKg(25)
                 .price(32000L)
                 .totalStock(totalStock)

@@ -37,18 +37,29 @@
                                th:value="${keyword}" placeholder="예: FD-CT 또는 육성우">
                     </div>
 
-                    <div class="col-6 col-md-3">
+                    <div class="col-6 col-md-2">
                         <label for="animalType" class="form-label">축종</label>
                         <select id="animalType" name="animalType" class="form-select form-select-sm">
                             <option value="">전체</option>
                             <option th:each="type : ${animalTypes}"
                                     th:value="${type}"
-                                    th:text="${type}"
+                                    th:text="${type.description}"
                                     th:selected="${type == selectedAnimalType}">축종</option>
                         </select>
                     </div>
 
-                    <div class="col-6 col-md-3">
+                    <div class="col-6 col-md-2">
+                        <label for="productType" class="form-label">품목 구분</label>
+                        <select id="productType" name="productType" class="form-select form-select-sm">
+                            <option value="">전체</option>
+                            <option th:each="type : ${productTypes}"
+                                    th:value="${type}"
+                                    th:text="${type.description}"
+                                    th:selected="${type == selectedProductType}">사료</option>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-md-2">
                         <label for="active" class="form-label">사용 여부</label>
                         <select id="active" name="active" class="form-select form-select-sm">
                             <option value="" th:selected="${selectedActive == null}">전체</option>
@@ -89,6 +100,7 @@
                             <th style="width: 130px;">품목 코드</th>
                             <th>품목명</th>
                             <th class="text-center" style="width: 80px;">축종</th>
+                            <th class="text-center" style="width: 85px;">구분</th>
                             <th class="text-center" style="width: 80px;">규격</th>
                             <th class="text-center" style="width: 90px;">유통기한</th>
                             <th class="text-end" style="width: 100px;">단가</th>
@@ -100,7 +112,7 @@
                         </thead>
                         <tbody>
                         <tr th:if="${products.empty}">
-                            <td colspan="10" class="text-center text-muted py-4">
+                            <td colspan="11" class="text-center text-muted py-4">
                                 조회된 품목이 없습니다.
                             </td>
                         </tr>
@@ -111,6 +123,10 @@
                             <td th:text="${item.name}">품목명</td>
                             <td class="text-center">
                                 <span class="badge bg-light text-dark border" th:text="${item.animalType}">소</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge" th:classappend="${item.productType.badgeClass}"
+                                      th:text="${item.productType.description}">사료</span>
                             </td>
                             <td class="text-center" th:text="${item.weightKg} + 'kg'">25kg</td>
                             <td class="text-center small text-muted"
@@ -159,7 +175,7 @@
                     <ul class="pagination pagination-sm justify-content-center mb-0">
                         <li class="page-item" th:classappend="${products.first} ? 'disabled'">
                             <a class="page-link"
-                               th:href="@{/admin/products(keyword=${keyword}, animalType=${selectedAnimalType}, active=${selectedActive}, page=${products.number - 1})}">
+                               th:href="@{/admin/products(keyword=${keyword}, animalType=${selectedAnimalType}, productType=${selectedProductType}, active=${selectedActive}, page=${products.number - 1})}">
                                 이전
                             </a>
                         </li>
@@ -168,13 +184,13 @@
                             th:each="i : ${#numbers.sequence(0, products.totalPages - 1)}"
                             th:classappend="${i == products.number} ? 'active'">
                             <a class="page-link"
-                               th:href="@{/admin/products(keyword=${keyword}, animalType=${selectedAnimalType}, active=${selectedActive}, page=${i})}"
+                               th:href="@{/admin/products(keyword=${keyword}, animalType=${selectedAnimalType}, productType=${selectedProductType}, active=${selectedActive}, page=${i})}"
                                th:text="${i + 1}">1</a>
                         </li>
 
                         <li class="page-item" th:classappend="${products.last} ? 'disabled'">
                             <a class="page-link"
-                               th:href="@{/admin/products(keyword=${keyword}, animalType=${selectedAnimalType}, active=${selectedActive}, page=${products.number + 1})}">
+                               th:href="@{/admin/products(keyword=${keyword}, animalType=${selectedAnimalType}, productType=${selectedProductType}, active=${selectedActive}, page=${products.number + 1})}">
                                 다음
                             </a>
                         </li>

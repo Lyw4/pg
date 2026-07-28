@@ -60,7 +60,7 @@ public class InventoryDto {
                 .productId(product.getProductId())
                 .productCode(product.getProductCode())
                 .productName(product.getName())
-                .animalType(product.getAnimalType())
+                .animalType(product.getAnimalType().getDescription())
                 .lotId(lot.getLotId())
                 .lotNo(lot.getLotNo())
                 .manufacturedDate(lot.getManufacturedDate())
