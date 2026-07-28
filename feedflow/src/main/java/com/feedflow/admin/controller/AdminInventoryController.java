@@ -1,11 +1,14 @@
 package com.feedflow.admin.controller;
 
+import com.feedflow.admin.dto.DisposalForm;
+import com.feedflow.admin.dto.DisposalResultDto;
 import com.feedflow.admin.dto.InboundForm;
 import com.feedflow.admin.dto.InboundResultDto;
 import com.feedflow.admin.service.InventoryService;
 import com.feedflow.admin.service.ProductService;
 import com.feedflow.admin.service.WarehouseBinService;
 import com.feedflow.common.exception.BusinessRuleException;
+import com.feedflow.domain.DisposalReason;
 import com.feedflow.domain.MovementType;
 import com.feedflow.security.LoginUser;
 import jakarta.validation.Valid;
@@ -13,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -41,6 +45,7 @@ public class AdminInventoryController {
     private static final String LIST_VIEW = "admin/inventory/list";
     private static final String INBOUND_VIEW = "admin/inventory/inbound";
     private static final String MOVEMENTS_VIEW = "admin/inventory/movements";
+    private static final String DISPOSAL_VIEW = "admin/inventory/disposal";
 
     private final InventoryService inventoryService;
     private final ProductService productService;
@@ -119,6 +124,65 @@ public class AdminInventoryController {
         }
 
         return "redirect:/admin/inventory/inbound";
+    }
+
+    /* ------------------------------------------------------------------
+     * 폐기 처리 (유통기한 경과 / 파손 재고)
+     * ------------------------------------------------------------------ */
+
+    @GetMapping("/disposal")
+    public String disposalPage(@RequestParam(name = "productId", required = false) Long productId,
+                               @RequestParam(name = "zone", required = false) String zone,
+                               @RequestParam(name = "expiredOnly", defaultValue = "true") boolean expiredOnly,
+                               Model model) {
+
+        model.addAttribute("targets", inventoryService.getDisposalTargets(productId, zone, expiredOnly));
+        model.addAttribute("expiredCount", inventoryService.getExpiredInventoryCount());
+        model.addAttribute("expiredQuantity", inventoryService.getExpiredQuantity());
+        model.addAttribute("todayDisposalQuantity", inventoryService.getTodayDisposalQuantity());
+
+        model.addAttribute("products", productService.getActiveProducts());
+        model.addAttribute("zones", warehouseBinService.getZones());
+        model.addAttribute("reasons", DisposalReason.values());
+
+        model.addAttribute("selectedProductId", productId);
+        model.addAttribute("selectedZone", zone);
+        model.addAttribute("expiredOnly", expiredOnly);
+        model.addAttribute("subMenu", "disposal");
+        return DISPOSAL_VIEW;
+    }
+
+    /**
+     * 폐기 처리.
+     * 재고 손실이 발생하므로 책임자(ADMIN)만 처리할 수 있다.
+     */
+    @PostMapping("/disposal")
+    @PreAuthorize("hasRole('ADMIN')")
+    public String dispose(@Valid @ModelAttribute("disposalForm") DisposalForm disposalForm,
+                          BindingResult bindingResult,
+                          @AuthenticationPrincipal LoginUser loginUser,
+                          RedirectAttributes redirectAttributes) {
+
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute("errorMessage",
+                    bindingResult.getFieldErrors().stream()
+                            .map(error -> error.getDefaultMessage())
+                            .findFirst()
+                            .orElse("입력값이 올바르지 않습니다."));
+            return "redirect:/admin/inventory/disposal";
+        }
+
+        Long userId = (loginUser == null) ? null : loginUser.getUserId();
+        String userName = (loginUser == null) ? null : loginUser.getDisplayName();
+
+        try {
+            DisposalResultDto result = inventoryService.dispose(disposalForm, userId, userName);
+            redirectAttributes.addFlashAttribute("successMessage", result.getSummaryMessage());
+        } catch (BusinessRuleException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+        }
+
+        return "redirect:/admin/inventory/disposal";
     }
 
     /* ------------------------------------------------------------------

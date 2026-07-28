@@ -12,6 +12,7 @@ public enum MovementType {
 
     INBOUND("입고", "bg-primary", 1),
     OUTBOUND("출고", "bg-warning text-dark", -1),
+    DISPOSAL("폐기", "bg-danger", -1),
     MOVE("구역이동", "bg-info text-dark", 0),
     ADJUST("재고조정", "bg-secondary", 0);
 

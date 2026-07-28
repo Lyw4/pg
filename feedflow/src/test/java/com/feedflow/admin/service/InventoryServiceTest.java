@@ -486,3 +486,4 @@ class InventoryServiceTest {
                 .build();
     }
 }
+

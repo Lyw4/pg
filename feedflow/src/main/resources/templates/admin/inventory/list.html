@@ -140,9 +140,14 @@
                         조회 <span th:text="${#lists.size(inventories)}">0</span>건
                     </span>
                 </div>
-                <a th:href="@{/admin/inventory/inbound}" class="btn btn-sm btn-success">
-                    <i class="bi bi-box-arrow-in-down me-1"></i>입고 등록
-                </a>
+                <div class="d-flex gap-2">
+                    <a th:href="@{/admin/inventory/disposal}" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-trash3 me-1"></i>폐기 처리
+                    </a>
+                    <a th:href="@{/admin/inventory/inbound}" class="btn btn-sm btn-success">
+                        <i class="bi bi-box-arrow-in-down me-1"></i>입고 등록
+                    </a>
+                </div>
             </div>
 
             <div class="card-body">

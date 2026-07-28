@@ -24,6 +24,35 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     @Query("select sum(i.quantity) from Inventory i where i.bin.binId = :binId")
     Long sumQuantityByBinId(@Param("binId") Long binId);
 
+    /** 폐기 처리를 위해 재고 + 로트 + 품목 + 구역을 한 번에 조회 */
+    @Query("""
+            select i
+            from Inventory i
+            join fetch i.lot l
+            join fetch l.product p
+            join fetch i.bin b
+            where i.inventoryId = :inventoryId
+            """)
+    Optional<Inventory> findWithDetailById(@Param("inventoryId") Long inventoryId);
+
+    /** 유통기한이 지난 재고 건수 (폐기 대상) */
+    @Query("""
+            select count(i)
+            from Inventory i
+            where i.quantity > 0
+              and i.lot.expirationDate < :today
+            """)
+    long countExpiredInventories(@Param("today") LocalDate today);
+
+    /** 유통기한이 지난 재고 수량 합계 */
+    @Query("""
+            select sum(i.quantity)
+            from Inventory i
+            where i.quantity > 0
+              and i.lot.expirationDate < :today
+            """)
+    Long sumExpiredQuantity(@Param("today") LocalDate today);
+
     /** 특정 로트의 구역별 재고 (바코드 스캔 결과 표시용) */
     @Query("""
             select i

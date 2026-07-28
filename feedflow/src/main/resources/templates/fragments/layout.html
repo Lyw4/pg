@@ -82,6 +82,12 @@
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/inventory/disposal}"
+               th:classappend="${menu == 'inventory' and subMenu == 'disposal'} ? 'active'">
+                <i class="bi bi-trash3 me-2"></i>재고 폐기
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link" th:href="@{/admin/inventory/movements}"
                th:classappend="${menu == 'inventory' and subMenu == 'movements'} ? 'active'">
                 <i class="bi bi-clock-history me-2"></i>입출고 이력

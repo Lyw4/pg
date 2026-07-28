@@ -57,9 +57,15 @@
                     은 <strong>이미 유통기한이 지나 출고할 수 없습니다.</strong> 폐기/반품 처리가 필요합니다.
                 </span>
             </div>
-            <a th:href="@{/admin/inventory}" class="btn btn-sm btn-dark">
-                <i class="bi bi-stack me-1"></i>재고 현황
-            </a>
+            <div class="d-flex gap-2">
+                <a th:href="@{/admin/inventory}" class="btn btn-sm btn-outline-dark">
+                    <i class="bi bi-stack me-1"></i>재고 현황
+                </a>
+                <a th:if="${todayTask.expiredLotCount > 0}"
+                   th:href="@{/admin/inventory/disposal}" class="btn btn-sm btn-danger">
+                    <i class="bi bi-trash3 me-1"></i>폐기 처리
+                </a>
+            </div>
         </div>
 
         <div th:if="${!todayTask.hasAlert()}" class="alert alert-success" role="alert">

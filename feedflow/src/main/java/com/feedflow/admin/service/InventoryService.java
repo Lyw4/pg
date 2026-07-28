@@ -1,5 +1,7 @@
 package com.feedflow.admin.service;
 
+import com.feedflow.admin.dto.DisposalForm;
+import com.feedflow.admin.dto.DisposalResultDto;
 import com.feedflow.admin.dto.InboundForm;
 import com.feedflow.admin.dto.InboundResultDto;
 import com.feedflow.admin.dto.InventoryDto;
@@ -144,6 +146,101 @@ public class InventoryService {
                 .newInventory(newInventory)
                 .expiredLot(lot.isExpired(LocalDate.now()))
                 .build();
+    }
+
+    /* ==================================================================
+     * 폐기 처리
+     * ================================================================== */
+
+    /**
+     * 재고 폐기 처리.
+     * <p>
+     * 유통기한이 지난 재고나 파손/변질 재고를 장부에서 제거한다.
+     * 출고(FEFO)와 달리 <b>지정한 로트 × 구역의 재고만</b> 정확히 차감한다.
+     * <ol>
+     *     <li>보관 수량보다 많이 폐기할 수 없다.</li>
+     *     <li>차감 대상 : Inventory.quantity → ProductLot.lotQuantity → Product.totalStock</li>
+     *     <li>사유와 처리자를 담은 DISPOSAL 이력을 남긴다. (재고 손실 추적)</li>
+     * </ol>
+     *
+     * @throws ResourceNotFoundException 대상 재고가 없는 경우
+     * @throws BusinessRuleException     보관 수량을 초과해 폐기하려는 경우
+     */
+    @Transactional
+    public DisposalResultDto dispose(DisposalForm form, Long userId, String userName) {
+        int quantity = form.getQuantity() == null ? 0 : form.getQuantity();
+        if (quantity <= 0) {
+            throw new BusinessRuleException("폐기 수량은 1 이상이어야 합니다.");
+        }
+
+        Inventory inventory = inventoryRepository.findWithDetailById(form.getInventoryId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "폐기 대상 재고를 찾을 수 없습니다. id=" + form.getInventoryId()));
+
+        ProductLot lot = inventory.getLot();
+        WarehouseBin bin = inventory.getBin();
+        Product product = lot.getProduct();
+
+        int stored = inventory.getQuantity() == null ? 0 : inventory.getQuantity();
+        if (quantity > stored) {
+            throw new BusinessRuleException(
+                    "보관 수량보다 많이 폐기할 수 없습니다. 구역 [" + bin.getBinCode() + "] 보관 "
+                            + stored + "개 / 요청 " + quantity + "개");
+        }
+
+        // 재고 차감 (구역 → 로트 → 품목)
+        inventory.subtractQuantity(quantity);
+        lot.subtractQuantity(quantity);
+        product.decreaseStock(quantity);
+
+        // 폐기 이력 (사유 필수)
+        stockMovementRepository.save(StockMovement.disposal(
+                lot, bin, quantity, form.getReason(), form.getMemo(), userId, userName));
+
+        return DisposalResultDto.builder()
+                .productCode(product.getProductCode())
+                .productName(product.getName())
+                .lotNo(lot.getLotNo())
+                .binCode(bin.getBinCode())
+                .reason(form.getReason())
+                .quantity(quantity)
+                .binQuantityAfter(inventory.getQuantity())
+                .lotQuantityAfter(lot.getLotQuantity())
+                .productTotalStock(product.getTotalStock())
+                .build();
+    }
+
+    /**
+     * 폐기 대상 재고 목록.
+     *
+     * @param expiredOnly true 면 이미 유통기한이 지난 재고만 반환
+     */
+    public List<InventoryDto> getDisposalTargets(Long productId, String zone, boolean expiredOnly) {
+        LocalDate today = LocalDate.now();
+
+        return inventoryRepository.search(productId, null, emptyToNull(zone)).stream()
+                .map(inventory -> InventoryDto.of(inventory, today))
+                .filter(dto -> !expiredOnly || dto.isExpired())
+                .toList();
+    }
+
+    /** 만료된(폐기 대상) 재고 건수 */
+    public long getExpiredInventoryCount() {
+        return inventoryRepository.countExpiredInventories(LocalDate.now());
+    }
+
+    /** 만료된(폐기 대상) 재고 수량 */
+    public long getExpiredQuantity() {
+        Long sum = inventoryRepository.sumExpiredQuantity(LocalDate.now());
+        return sum == null ? 0L : sum;
+    }
+
+    /** 오늘 폐기 수량 */
+    public long getTodayDisposalQuantity() {
+        LocalDate today = LocalDate.now();
+        Long sum = stockMovementRepository.sumQuantityByTypeBetween(
+                MovementType.DISPOSAL, today.atStartOfDay(), today.atTime(LocalTime.MAX));
+        return sum == null ? 0L : sum;
     }
 
     /* ==================================================================

@@ -62,6 +62,11 @@ public class StockMovement {
     @Column(name = "memo", length = 200)
     private String memo;
 
+    /** 폐기 사유 (폐기 이력에만 존재) */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reason", length = 30)
+    private DisposalReason reason;
+
     /** 처리자 스냅샷 */
     @Column(name = "userId")
     private Long userId;
@@ -77,6 +82,28 @@ public class StockMovement {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }
+    }
+
+    /** 폐기 이력 생성 */
+    public static StockMovement disposal(ProductLot lot,
+                                         WarehouseBin bin,
+                                         int quantity,
+                                         DisposalReason reason,
+                                         String memo,
+                                         Long userId,
+                                         String userName) {
+        return StockMovement.builder()
+                .movementType(MovementType.DISPOSAL)
+                .product(lot.getProduct())
+                .lot(lot)
+                .bin(bin)
+                .quantity(quantity)
+                .reason(reason)
+                .memo(memo)
+                .userId(userId)
+                .userName(userName)
+                .createdAt(LocalDateTime.now())
+                .build();
     }
 
     /** 입고 이력 생성 */
