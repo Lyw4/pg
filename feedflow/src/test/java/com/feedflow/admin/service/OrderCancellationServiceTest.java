@@ -88,8 +88,10 @@ class OrderCancellationServiceTest {
         @Test
         @DisplayName("여러 로트에 걸쳐 차감된 재고를 로트별로 정확히 되돌린다")
         void restoresAcrossMultipleLots() {
-            // given : 품목 총 재고 70. 출고 30 이 LOT-A 20 + LOT-B 10 으로 나뉘어 빠진 상태
-            Product product = product(70);
+            // given : 출고 30 이 LOT-A 20 + LOT-B 10 으로 나뉘어 빠진 상태
+            //         품목의 로트는 이 둘뿐이므로 totalStock 은 로트 잔여 합계(5 + 40)와 같다.
+            //         (이 전제가 맞아야 아래 '세 계층 합계 일치' 검증이 의미를 갖는다)
+            Product product = product(45);
 
             ProductLot lotA = lot(10L, product, "LOT-A", 5);    // 출고 후 잔여 5 (원래 25)
             ProductLot lotB = lot(11L, product, "LOT-B", 40);   // 출고 후 잔여 40 (원래 50)
@@ -133,12 +135,15 @@ class OrderCancellationServiceTest {
 
             // 품목 총 재고는 두 로트 복구량의 합만큼 늘어난다
             assertThat(product.getTotalStock())
-                    .as("70 + 30 = 100")
-                    .isEqualTo(100);
+                    .as("45 + 30 = 75")
+                    .isEqualTo(75);
 
-            // 세 계층의 합이 어긋나지 않는다
+            // 세 계층의 합이 어긋나지 않는다 (25 + 50 = 75)
             assertThat(product.getTotalStock())
                     .as("totalStock 은 로트 잔여 합계와 같아야 한다")
+                    .isEqualTo(lotA.getLotQuantity() + lotB.getLotQuantity());
+            assertThat(inventoryA.getQuantity() + inventoryB.getQuantity())
+                    .as("구역 재고 합계도 로트 잔여 합계와 같아야 한다")
                     .isEqualTo(lotA.getLotQuantity() + lotB.getLotQuantity());
 
             assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELED);

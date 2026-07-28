@@ -90,7 +90,7 @@ public class OutboundService {
         int quantity = requirePositive(form.getQuantity());
 
         List<AllocationLineDto> lines =
-                allocateAndDeduct(product, quantity, form.getMemo(), userId, userName, null);
+                allocateAndDeduct(product, quantity, form.getMemo(), userId, userName, null, null);
 
         return OutboundResultDto.builder()
                 .productId(product.getProductId())
@@ -132,7 +132,8 @@ public class OutboundService {
             int quantity = requirePositive(orderItem.getQuantity());
 
             List<AllocationLineDto> lines =
-                    allocateAndDeduct(product, quantity, memo, userId, userName, orderItem);
+                    allocateAndDeduct(product, quantity, memo, userId, userName,
+                            orderItem, order.getOrderId());
 
             results.add(OutboundResultDto.builder()
                     .productId(product.getProductId())
@@ -282,12 +283,19 @@ public class OutboundService {
      *
      * @param orderItem 주문 기반 출고인 경우 대표 로트를 기록할 주문 항목 (직접 출고는 null)
      */
+    /**
+     * @param orderId 주문 기반 출고면 주문 번호, 직접 출고면 null.
+     *                {@code orderItem.getOrder()} 로 역참조하지 않고 <b>명시적으로 받는다.</b>
+     *                양방향 연관의 반대편이 채워져 있다는 보장에 기대면 호출 맥락에 따라
+     *                null 참조가 발생할 수 있다.
+     */
     private List<AllocationLineDto> allocateAndDeduct(Product product,
                                                       int quantity,
                                                       String memo,
                                                       Long userId,
                                                       String userName,
-                                                      OrderItem orderItem) {
+                                                      OrderItem orderItem,
+                                                      Long orderId) {
 
         LocalDate today = LocalDate.now();
 
@@ -321,7 +329,6 @@ public class OutboundService {
             lot.subtractQuantity(take);
 
             // 주문 번호를 남겨야 나중에 출고 취소 시 어느 로트/구역으로 되돌릴지 알 수 있다
-            Long orderId = orderItem == null ? null : orderItem.getOrder().getOrderId();
             stockMovementRepository.save(
                     StockMovement.outbound(lot, bin, take, orderId, memo, userId, userName));
 
