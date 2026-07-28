@@ -749,6 +749,25 @@ body {
     white-space: nowrap;
 }
 
+/* 유통기한 임박 D-Day 뱃지 (칸 안에 작게) */
+.ff-bin-dday {
+    font-size: .58rem;
+    padding: .1rem .25rem;
+    vertical-align: middle;
+    margin-right: .15rem;
+}
+
+/* 줄 끝 채움 칸
+ * 칸 너비 비율을 도면 전체에서 통일하기 위한 투명 여백.
+ * 이게 없으면 칸이 적은 줄에서 남은 공간을 나눠 가져 같은 수용량인데 더 넓게 보인다.
+ */
+.ff-bin-filler {
+    flex-shrink: 1;
+    flex-basis: 0;
+    min-width: 0;
+    display: block;
+}
+
 /* 칸 내부 적재 게이지 */
 .ff-bin-gauge {
     width: 100%;
@@ -837,5 +856,10 @@ body {
     .ff-bin-tile {
         flex: 1 1 calc(50% - .45rem) !important;
         min-width: 0;
+    }
+
+    /* 좁은 화면에서는 비례 배치를 쓰지 않으므로 채움 칸도 숨긴다 */
+    .ff-bin-filler {
+        display: none;
     }
 }

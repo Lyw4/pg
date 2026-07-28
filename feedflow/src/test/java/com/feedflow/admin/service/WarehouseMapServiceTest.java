@@ -152,6 +152,39 @@ class WarehouseMapServiceTest {
         }
 
         @Test
+        @DisplayName("유통기한 30일 이내 재고가 있는 구역만 임박으로 표시한다")
+        void marksExpiringSoonBins() {
+            WarehouseBinMapDto urgent = WarehouseBinMapDto.of(
+                    row(1L, "A-01-01", "A", "01", 1, 500, true, 100L, 1L, 1L,
+                            TODAY.plusDays(5)), TODAY);
+            WarehouseBinMapDto boundary = WarehouseBinMapDto.of(
+                    row(2L, "A-01-02", "A", "01", 2, 500, true, 100L, 1L, 1L,
+                            TODAY.plusDays(30)), TODAY);
+            WarehouseBinMapDto safe = WarehouseBinMapDto.of(
+                    row(3L, "A-02-01", "A", "02", 1, 500, true, 100L, 1L, 1L,
+                            TODAY.plusDays(31)), TODAY);
+            WarehouseBinMapDto expired = WarehouseBinMapDto.of(
+                    row(4L, "A-02-02", "A", "02", 2, 500, true, 100L, 1L, 1L,
+                            TODAY.minusDays(3)), TODAY);
+            WarehouseBinMapDto emptyBin = WarehouseBinMapDto.of(
+                    row(5L, "A-03-01", "A", "03", 1, 500, true, 0L, 0L, 0L, null), TODAY);
+
+            assertThat(urgent.isExpiringSoon()).isTrue();
+            assertThat(urgent.getEarliestDDayLabel()).isEqualTo("D-5");
+            assertThat(boundary.isExpiringSoon())
+                    .as("정확히 30일도 임박으로 본다 (대시보드 경고와 동일 기준)")
+                    .isTrue();
+            assertThat(safe.isExpiringSoon())
+                    .as("31일 남은 재고는 임박이 아니다")
+                    .isFalse();
+            assertThat(expired.isExpiringSoon()).isTrue();
+            assertThat(expired.getEarliestDDayLabel()).isEqualTo("만료 3일 경과");
+            assertThat(emptyBin.isExpiringSoon())
+                    .as("재고가 없으면 임박 표시도 없다")
+                    .isFalse();
+        }
+
+        @Test
         @DisplayName("사용 중지된 구역은 적재 상태색이 아니라 사용 중지로 표시한다")
         void inactiveBin_showsInactiveStyle() {
             WarehouseBinMapDto bin = WarehouseBinMapDto.of(
@@ -212,6 +245,83 @@ class WarehouseMapServiceTest {
             assertThat(zoneB.getZone()).isEqualTo("B");
             assertThat(zoneB.getBinCount()).isEqualTo(1);
             assertThat(zoneB.getLevelCount()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("칸이 적은 줄에는 채움 칸을 두어 수용량이 같으면 어느 줄이든 같은 너비가 되게 한다")
+        void fillerNormalizesWidthAcrossLevels() {
+            // given : 2단은 500 하나뿐, 1단은 500 + 400 + 400 = 1300
+            given(warehouseBinRepository.findWarehouseMapRows(null)).willReturn(List.of(
+                    row(2L, "A-01-02", "A", "01", 2, 500, true, 170L, 2L, 2L, null),
+                    row(1L, "A-01-01", "A", "01", 1, 500, true, 240L, 2L, 2L, null),
+                    row(3L, "A-02-01", "A", "02", 1, 400, true, 210L, 3L, 2L, null),
+                    row(9L, "A-03-01", "A", "03", 1, 400, false, 0L, 0L, 0L, null)));
+
+            // when
+            WarehouseMapZoneDto zone = warehouseMapService.getZones(null, TODAY).get(0);
+
+            // then
+            WarehouseMapLevelDto level2 = zone.getLevels().get(0);
+            WarehouseMapLevelDto level1 = zone.getLevels().get(1);
+
+            assertThat(level2.getFillerGrow())
+                    .as("2단은 500 만 있으므로 기준 1300 까지 800 을 채워야 한다")
+                    .isEqualTo(800);
+            assertThat(level1.getFillerGrow())
+                    .as("가장 넓은 줄은 채울 필요가 없다")
+                    .isZero();
+            assertThat(level1.isHasFiller()).isFalse();
+            assertThat(level2.isHasFiller()).isTrue();
+
+            // 채움 칸을 포함한 총 flex-grow 가 두 줄 모두 같아야 너비 기준이 통일된다
+            int total2 = level2.getBins().stream().mapToInt(WarehouseBinMapDto::getFlexGrow).sum()
+                    + level2.getFillerGrow();
+            int total1 = level1.getBins().stream().mapToInt(WarehouseBinMapDto::getFlexGrow).sum()
+                    + level1.getFillerGrow();
+
+            assertThat(total2)
+                    .as("A-01-02(500) 와 A-01-01(500) 이 같은 너비로 보이려면 줄 총합이 같아야 한다")
+                    .isEqualTo(total1)
+                    .isEqualTo(1300);
+        }
+
+        @Test
+        @DisplayName("너비 기준은 구역이 달라도 도면 전체에서 하나로 통일한다")
+        void referenceCapacityIsFloorWide() {
+            // given : A구역 1단 1300, COLD구역 1단 200
+            given(warehouseBinRepository.findWarehouseMapRows(null)).willReturn(List.of(
+                    row(1L, "A-01-01", "A", "01", 1, 500, true, 240L, 1L, 1L, null),
+                    row(3L, "A-02-01", "A", "02", 1, 400, true, 210L, 1L, 1L, null),
+                    row(9L, "A-03-01", "A", "03", 1, 400, true, 0L, 0L, 0L, null),
+                    row(8L, "COLD-01", "COLD", "01", 1, 200, true, 190L, 3L, 2L, null)));
+
+            // when
+            List<WarehouseMapZoneDto> zones = warehouseMapService.getZones(null, TODAY);
+
+            // then
+            WarehouseMapLevelDto coldLevel = zones.get(1).getLevels().get(0);
+            assertThat(coldLevel.getFillerGrow())
+                    .as("COLD 구역도 A구역과 같은 기준(1300)을 쓰므로 200 을 뺀 1100 을 채운다")
+                    .isEqualTo(1100);
+        }
+
+        @Test
+        @DisplayName("사용 중지 구역도 도면에서 자리를 차지하므로 너비 기준에 포함한다")
+        void inactiveBinOccupiesWidth() {
+            given(warehouseBinRepository.findWarehouseMapRows(null)).willReturn(List.of(
+                    row(1L, "A-01-01", "A", "01", 1, 500, true, 240L, 1L, 1L, null),
+                    row(9L, "A-03-01", "A", "03", 1, 400, false, 0L, 0L, 0L, null)));
+
+            WarehouseMapZoneDto zone = warehouseMapService.getZones(null, TODAY).get(0);
+
+            assertThat(zone.getLevels().get(0).getFillerGrow())
+                    .as("500 + 400 = 900 이 그대로 기준이므로 채움 칸은 없다")
+                    .isZero();
+            assertThat(zone.getTotalCapacity())
+                    .as("다만 수용량 통계에서는 사용 중지 400 을 제외한다")
+                    .isEqualTo(500);
+            assertThat(zone.getInactiveBinCount()).isEqualTo(1);
+            assertThat(zone.getInactiveCapacity()).isEqualTo(400);
         }
 
         @Test

@@ -60,9 +60,12 @@ public class WarehouseMapService {
             grouped.computeIfAbsent(row.zone(), key -> new ArrayList<>()).add(row);
         }
 
+        // 칸 너비를 도면 전체에서 통일하기 위해 먼저 기준값을 구한다
+        int referenceCapacity = referenceCapacity(rows);
+
         List<WarehouseMapZoneDto> result = new ArrayList<>();
         for (Map.Entry<String, List<WarehouseMapRow>> entry : grouped.entrySet()) {
-            result.add(toZoneDto(entry.getKey(), entry.getValue(), today));
+            result.add(toZoneDto(entry.getKey(), entry.getValue(), today, referenceCapacity));
         }
         return result;
     }
@@ -121,12 +124,34 @@ public class WarehouseMapService {
      * ------------------------------------------------------------------ */
 
     /**
+     * 도면 전체의 칸 너비 기준값을 구한다.
+     * <p>
+     * <b>가장 넓은 줄(단)의 수용량 합계</b>다. 모든 줄을 이 값에 맞춰 정규화하면
+     * 수용량이 같은 칸은 어느 구역 어느 단에 있어도 같은 너비가 된다.
+     * <p>
+     * 사용 중지 구역도 도면에 그려지므로 너비 계산에는 포함한다.
+     * (수용량 통계에서는 제외하지만 자리는 차지하기 때문이다)
+     */
+    private int referenceCapacity(List<WarehouseMapRow> rows) {
+        Map<String, Integer> capacityPerLevel = new LinkedHashMap<>();
+        for (WarehouseMapRow row : rows) {
+            String key = row.zone() + "#" + levelOf(row.binLevel());
+            capacityPerLevel.merge(key, Math.max(row.capacity(), 1), Integer::sum);
+        }
+        return capacityPerLevel.values().stream()
+                .max(Integer::compareTo)
+                .orElse(1);
+    }
+
+    /**
      * 한 구역 그룹을 도면 DTO 로 변환한다.
      * <p>
      * 창고 평면도처럼 <b>단(Level)을 한 줄씩 쌓고</b>, 줄 안에서는 랙 번호 순으로 나열한다.
-     * 칸의 너비는 화면에서 수용량에 비례하도록 그려지므로 여기서는 순서만 맞춰주면 된다.
+     *
+     * @param referenceCapacity 도면 전체 공통 너비 기준 (줄 끝 채움 칸 계산용)
      */
-    private WarehouseMapZoneDto toZoneDto(String zone, List<WarehouseMapRow> rows, LocalDate today) {
+    private WarehouseMapZoneDto toZoneDto(String zone, List<WarehouseMapRow> rows,
+                                          LocalDate today, int referenceCapacity) {
         // 단별로 묶는다. 높은 단이 위로 오도록 내림차순 정렬.
         Map<Integer, List<WarehouseMapRow>> byLevel = new TreeMap<>(Comparator.reverseOrder());
         for (WarehouseMapRow row : rows) {
@@ -137,6 +162,8 @@ public class WarehouseMapService {
         List<WarehouseBinMapDto> allBins = new ArrayList<>();
         int totalCapacity = 0;
         int totalLoaded = 0;
+        int inactiveBinCount = 0;
+        int inactiveCapacity = 0;
 
         for (Map.Entry<Integer, List<WarehouseMapRow>> entry : byLevel.entrySet()) {
             List<WarehouseBinMapDto> levelBins = entry.getValue().stream()
@@ -144,9 +171,15 @@ public class WarehouseMapService {
                     .map(row -> WarehouseBinMapDto.of(row, today))
                     .toList();
 
+            // 이 줄이 차지하는 너비 합계 (사용 중지 구역도 자리를 차지한다)
+            int levelWidth = levelBins.stream()
+                    .mapToInt(WarehouseBinMapDto::getFlexGrow)
+                    .sum();
+
             levels.add(WarehouseMapLevelDto.builder()
                     .level(entry.getKey())
                     .bins(levelBins)
+                    .fillerGrow(Math.max(referenceCapacity - levelWidth, 0))
                     .build());
 
             allBins.addAll(levelBins);
@@ -155,6 +188,9 @@ public class WarehouseMapService {
                 if (row.isActive()) {
                     totalCapacity += row.capacity();
                     totalLoaded += row.loaded();
+                } else {
+                    inactiveBinCount++;
+                    inactiveCapacity += row.capacity();
                 }
             }
         }
@@ -166,6 +202,8 @@ public class WarehouseMapService {
                 .totalCapacity(totalCapacity)
                 .totalLoaded(totalLoaded)
                 .usageRate(WarehouseBinMapDto.calculateUsageRate(totalLoaded, totalCapacity))
+                .inactiveBinCount(inactiveBinCount)
+                .inactiveCapacity(inactiveCapacity)
                 .build();
     }
 

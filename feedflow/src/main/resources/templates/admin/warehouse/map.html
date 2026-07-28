@@ -145,7 +145,11 @@
                                 <span class="ff-zone-meta">
                                     <span th:text="${zoneGroup.binCount}">0</span>칸 ·
                                     <span th:text="${zoneGroup.levelCount}">0</span>단 ·
-                                    수용 <span th:text="${#numbers.formatInteger(zoneGroup.totalCapacity, 1, 'COMMA')}">0</span>
+                                    가용 수용
+                                    <span th:text="${#numbers.formatInteger(zoneGroup.totalCapacity, 1, 'COMMA')}">0</span>
+                                    <span th:if="${zoneGroup.hasInactive}" class="text-secondary"
+                                          th:text="'(중지 ' + ${zoneGroup.inactiveBinCount} + '칸 · '
+                                                   + ${#numbers.formatInteger(zoneGroup.inactiveCapacity, 1, 'COMMA')} + ' 제외)'">(중지 1칸 제외)</span>
                                 </span>
                                 <span class="ff-zone-rate">
                                     <span class="ff-zone-bar">
@@ -188,13 +192,23 @@
                                                   th:text="${#numbers.formatInteger(bin.loadedQuantity, 1, 'COMMA')}
                                                            + ' / ' + ${#numbers.formatInteger(bin.maxCapacity, 1, 'COMMA')}">0 / 0</span>
                                             <span class="ff-bin-meta">
+                                                <!-- 유통기한 임박 재고가 있으면 도면에서 바로 보이게 한다 -->
+                                                <span th:if="${bin.expiringSoon}"
+                                                      class="badge ff-bin-dday"
+                                                      th:classappend="${bin.earliestDDayBadgeClass}"
+                                                      th:text="${bin.earliestDDayLabel}">D-5</span>
                                                 <span th:if="${!bin.active}">사용 중지</span>
                                                 <span th:if="${bin.active and bin.lotCount > 0}"
-                                                      th:text="'로트 ' + ${bin.lotCount}">로트 0</span>
+                                                      th:text="'로트 ' + ${bin.lotCount} + ' · ' + ${bin.productCount} + '종'">로트 0 · 0종</span>
                                                 <span th:if="${bin.active and bin.lotCount == 0}">비어있음</span>
                                             </span>
                                         </span>
                                     </button>
+
+                                    <!-- 줄 끝 채움 칸 : 칸 너비 비율을 도면 전체에서 통일하기 위한 여백 -->
+                                    <span class="ff-bin-filler" th:if="${lv.hasFiller}"
+                                          th:style="'flex-grow:' + ${lv.fillerGrow}"
+                                          aria-hidden="true"></span>
                                 </div>
                             </div>
                         </div>
@@ -209,7 +223,8 @@
                 <p class="text-muted small mb-0 mt-2">
                     <i class="bi bi-hand-index me-1"></i>
                     구역을 클릭하면 보관 중인 품목과 로트를 확인할 수 있습니다.
-                    칸의 가로 크기는 최대 수용량에 비례합니다.
+                    칸의 가로 크기는 최대 수용량에 비례하며, 도면 전체에서 같은 기준으로 그려집니다.
+                    유통기한 30일 이내 재고가 있는 구역에는 D-Day 뱃지가 표시됩니다.
                 </p>
             </div>
         </div>

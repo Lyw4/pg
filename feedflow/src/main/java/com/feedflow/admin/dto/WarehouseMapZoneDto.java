@@ -28,12 +28,24 @@ public class WarehouseMapZoneDto {
     /** 이 구역의 전체 칸 (요약 집계용) */
     private final List<WarehouseBinMapDto> bins;
 
+    /** 사용 중인 구역의 수용량 합계 (= 실제로 채울 수 있는 용량) */
     private final int totalCapacity;
+
     private final int totalLoaded;
     private final int usageRate;
 
+    /** 사용 중지된 칸 수 */
+    private final int inactiveBinCount;
+
+    /** 사용 중지로 묶여 쓸 수 없는 수용량 */
+    private final int inactiveCapacity;
+
     public int getBinCount() {
         return bins.size();
+    }
+
+    public boolean isHasInactive() {
+        return inactiveBinCount > 0;
     }
 
     public int getLevelCount() {

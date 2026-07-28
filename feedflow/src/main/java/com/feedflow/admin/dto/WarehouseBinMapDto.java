@@ -133,6 +133,19 @@ public class WarehouseBinMapDto {
         return loadedQuantity <= 0;
     }
 
+    /** 유통기한 임박 알림 기준 (일) — 대시보드 경고와 동일하게 30일 */
+    private static final long EXPIRING_SOON_DAYS = 30;
+
+    /**
+     * 유통기한이 임박(또는 만료)한 재고가 있는 구역인지.
+     * <p>
+     * 도면에서 "어느 구역에 급한 재고가 있는지" 바로 보이게 하기 위한 표시다.
+     * 기준일은 대시보드 '유통기한 임박 알림'과 같은 30일을 쓴다.
+     */
+    public boolean isExpiringSoon() {
+        return earliestRemainingDays != null && earliestRemainingDays <= EXPIRING_SOON_DAYS;
+    }
+
     /** 가장 임박한 유통기한 D-Day 라벨 */
     public String getEarliestDDayLabel() {
         return earliestRemainingDays == null ? "-" : DDay.label(earliestRemainingDays);
