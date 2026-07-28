@@ -91,8 +91,11 @@ public class WarehouseBinMapDto {
      * <p>
      * 수용량이 0 이거나 없는 구역은 나눗셈이 불가능하므로 0% 로 본다.
      * 반올림을 쓰므로 210/400 은 53% 가 된다.
+     * <p>
+     * 구역 그룹(Zone) 합계와 창고 전체 요약도 같은 규칙으로 계산해야 화면 숫자가 어긋나지 않으므로
+     * 서비스 계층에서도 쓸 수 있도록 {@code public} 으로 공개한다.
      */
-    static int calculateUsageRate(int loadedQuantity, int maxCapacity) {
+    public static int calculateUsageRate(int loadedQuantity, int maxCapacity) {
         if (maxCapacity <= 0) {
             return 0;
         }
