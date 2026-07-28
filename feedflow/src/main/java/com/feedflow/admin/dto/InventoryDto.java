@@ -1,5 +1,6 @@
 package com.feedflow.admin.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.feedflow.common.util.DDay;
 import com.feedflow.domain.Inventory;
 import com.feedflow.domain.Product;
@@ -75,12 +76,20 @@ public class InventoryDto {
                 .build();
     }
 
-    /** D-Day 표기 (만료된 로트는 경과일로 표기) */
+    /**
+     * D-Day 표기 (만료된 로트는 경과일로 표기).
+     * <p>
+     * {@code @JsonProperty} 를 명시한 이유 — Jackson 은 {@code getDDayLabel} 처럼
+     * 접두사 뒤에 대문자가 연속되면 {@code ddayLabel} 로 이름을 바꿔버린다.
+     * 카멜 표기법(camelCase) 규칙에 맞게 JSON 키를 고정한다.
+     */
+    @JsonProperty("dDayLabel")
     public String getDDayLabel() {
         return DDay.label(remainingDays);
     }
 
     /** 유통기한 상태 뱃지 클래스 */
+    @JsonProperty("dDayBadgeClass")
     public String getDDayBadgeClass() {
         return DDay.badgeClass(remainingDays);
     }

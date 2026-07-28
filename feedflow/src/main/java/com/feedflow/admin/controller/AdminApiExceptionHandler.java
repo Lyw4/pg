@@ -22,7 +22,8 @@ import java.util.Objects;
         AdminRestController.class,
         BarcodeApiController.class,
         OutboundApiController.class,
-        ScanActionApiController.class
+        ScanActionApiController.class,
+        WarehouseMapApiController.class
 })
 public class AdminApiExceptionHandler {
 

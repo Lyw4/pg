@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/layout :: head('창고 2D 도면')}"></head>
+
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="ff-content">
+
+    <div th:replace="~{fragments/layout :: topbar('기준 정보', '창고 2D 도면')}"></div>
+
+    <main class="ff-main">
+
+        <!-- 요약 -->
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-xl-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">전체 사용률</div>
+                            <div class="ff-stat-value text-dark"
+                                 th:text="${summary.usageRate} + '%'">0%</div>
+                            <div class="text-muted" style="font-size: .72rem;"
+                                 th:text="${#numbers.formatInteger(summary.totalLoaded, 1, 'COMMA')} + ' / '
+                                          + ${#numbers.formatInteger(summary.totalCapacity, 1, 'COMMA')} + ' 포대'">0 / 0 포대</div>
+                        </div>
+                        <div class="ff-stat-icon bg-primary-subtle text-primary">
+                            <i class="bi bi-diagram-3"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-xl-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">남은 여유</div>
+                            <div class="ff-stat-value text-success"
+                                 th:text="${#numbers.formatInteger(summary.remainingCapacity, 1, 'COMMA')}">0</div>
+                            <div class="text-muted" style="font-size: .72rem;">포대 적재 가능</div>
+                        </div>
+                        <div class="ff-stat-icon bg-success-subtle text-success">
+                            <i class="bi bi-box-seam"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-xl-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">포화 구역</div>
+                            <div class="ff-stat-value"
+                                 th:classappend="${summary.fullBins > 0} ? 'text-danger' : 'text-dark'"
+                                 th:text="${summary.fullBins} + '개'">0개</div>
+                            <div class="text-muted" style="font-size: .72rem;">90% 이상 적재</div>
+                        </div>
+                        <div class="ff-stat-icon bg-danger-subtle text-danger">
+                            <i class="bi bi-exclamation-triangle"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-xl-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">구역 수</div>
+                            <div class="ff-stat-value text-dark"
+                                 th:text="${summary.activeBins} + '개'">0개</div>
+                            <div class="text-muted" style="font-size: .72rem;">
+                                빈 구역 <span th:text="${summary.emptyBins}">0</span> ·
+                                중지 <span th:text="${summary.inactiveBins}">0</span>
+                            </div>
+                        </div>
+                        <div class="ff-stat-icon bg-secondary-subtle text-secondary">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 필터 + 범례 -->
+        <div class="card ff-card ff-filter-card mb-3">
+            <div class="card-body d-flex flex-wrap justify-content-between align-items-end gap-3">
+                <form th:action="@{/admin/warehouse-map}" method="get" class="d-flex align-items-end gap-2">
+                    <div>
+                        <label for="zone" class="form-label">구역(Zone)</label>
+                        <select id="zone" name="zone" class="form-select form-select-sm">
+                            <option value="">전체</option>
+                            <option th:each="z : ${zoneCodes}" th:value="${z}" th:text="${z}"
+                                    th:selected="${z == selectedZone}">A</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-dark">
+                        <i class="bi bi-search me-1"></i>조회
+                    </button>
+                    <a th:href="@{/admin/warehouse-map}" class="btn btn-sm btn-outline-secondary">초기화</a>
+                </form>
+
+                <div class="ff-map-legend">
+                    <span class="ff-legend-item"><i class="ff-legend-swatch ff-bin-spare"></i>여유 (60% 미만)</span>
+                    <span class="ff-legend-item"><i class="ff-legend-swatch ff-bin-normal"></i>보통 (60~89%)</span>
+                    <span class="ff-legend-item"><i class="ff-legend-swatch ff-bin-full"></i>포화 (90% 이상)</span>
+                    <span class="ff-legend-item"><i class="ff-legend-swatch ff-bin-empty"></i>비어있음</span>
+                    <span class="ff-legend-item"><i class="ff-legend-swatch ff-bin-inactive"></i>사용 중지</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 도면 -->
+        <div th:if="${#lists.isEmpty(zones)}" class="card ff-card">
+            <div class="card-body text-center text-muted py-5">
+                <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                표시할 창고 구역이 없습니다.
+            </div>
+        </div>
+
+        <div th:each="zoneGroup : ${zones}" class="card ff-card mb-3">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <span class="fw-bold">
+                        <i class="bi bi-bounding-box me-1"></i>
+                        <span th:text="${zoneGroup.zone} + '구역'">A구역</span>
+                    </span>
+                    <span class="text-muted small ms-2">
+                        <span th:text="${zoneGroup.binCount}">0</span>칸 ·
+                        <span th:text="${zoneGroup.columnCount}">0</span>랙 ×
+                        <span th:text="${zoneGroup.rowCount}">0</span>단
+                    </span>
+                </div>
+                <div class="d-flex align-items-center gap-2" style="min-width: 220px;">
+                    <div class="progress flex-grow-1" style="height: 8px;">
+                        <div class="progress-bar"
+                             th:classappend="${zoneGroup.usageRate >= 90
+                                              ? 'bg-danger'
+                                              : (zoneGroup.usageRate >= 60 ? 'bg-warning' : 'bg-success')}"
+                             th:style="'width:' + ${zoneGroup.usageRateCapped} + '%'"></div>
+                    </div>
+                    <span class="small fw-semibold text-nowrap"
+                          th:text="${zoneGroup.usageRate} + '%'">0%</span>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div class="ff-map-wrapper">
+                    <!-- 세로축 (단) -->
+                    <div class="ff-map-axis-y">
+                        <div class="ff-map-axis-label" th:each="lv : ${zoneGroup.levelLabels}"
+                             th:text="${lv} + '단'">1단</div>
+                    </div>
+
+                    <div class="flex-grow-1">
+                        <!-- 도면 그리드 -->
+                        <div class="ff-map-grid"
+                             th:style="'grid-template-columns:' + ${zoneGroup.gridTemplateColumns}">
+
+                            <button type="button"
+                                    th:each="bin : ${zoneGroup.bins}"
+                                    class="ff-bin-tile"
+                                    th:classappend="${bin.tileClass}"
+                                    th:style="'grid-column:' + ${bin.gridColumn} + ';grid-row:' + ${bin.gridRow}"
+                                    th:data-bin-id="${bin.binId}"
+                                    th:data-bin-code="${bin.binCode}"
+                                    th:title="|${bin.binCode} · ${bin.statusLabel} · 적재 ${bin.loadedQuantity}/${bin.maxCapacity} (${bin.usageRate}%) · 품목 ${bin.productCount}종 · 로트 ${bin.lotCount}건|">
+
+                                <span class="ff-bin-code" th:text="${bin.binCode}">A-01-01</span>
+                                <span class="ff-bin-rate" th:text="${bin.usageRate} + '%'">0%</span>
+                                <span class="ff-bin-qty"
+                                      th:text="${#numbers.formatInteger(bin.loadedQuantity, 1, 'COMMA')}
+                                               + ' / ' + ${#numbers.formatInteger(bin.maxCapacity, 1, 'COMMA')}">0 / 0</span>
+
+                                <span class="ff-bin-gauge">
+                                    <span class="ff-bin-gauge-fill"
+                                          th:style="'width:' + ${bin.usageRateCapped} + '%'"></span>
+                                </span>
+
+                                <span class="ff-bin-meta">
+                                    <span th:if="${bin.lotCount > 0}"
+                                          th:text="'로트 ' + ${bin.lotCount}">로트 0</span>
+                                    <span th:if="${bin.lotCount == 0}">비어있음</span>
+                                </span>
+                            </button>
+                        </div>
+
+                        <!-- 가로축 (랙) -->
+                        <div class="ff-map-axis-x"
+                             th:style="'grid-template-columns:' + ${zoneGroup.gridTemplateColumns}">
+                            <div class="ff-map-axis-label" th:each="rk : ${zoneGroup.rackLabels}"
+                                 th:text="${rk} + '랙'">01랙</div>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="text-muted small mb-0 mt-2">
+                    <i class="bi bi-hand-index me-1"></i>
+                    구역을 클릭하면 보관 중인 품목과 로트를 확인할 수 있습니다.
+                </p>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- 구역 상세 모달 -->
+<div class="modal fade" id="binDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-box-seam me-1"></i>
+                    <span id="binDetailTitle">구역 상세</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+            </div>
+
+            <div class="modal-body">
+                <!-- 로딩 -->
+                <div id="binDetailLoading" class="text-center py-4">
+                    <div class="spinner-border text-secondary" role="status">
+                        <span class="visually-hidden">불러오는 중</span>
+                    </div>
+                </div>
+
+                <!-- 오류 -->
+                <div id="binDetailError" class="alert alert-danger d-none" role="alert">
+                    <i class="bi bi-exclamation-circle-fill me-1"></i>
+                    <span id="binDetailErrorText">상세 정보를 불러오지 못했습니다.</span>
+                </div>
+
+                <div id="binDetailBody" class="d-none">
+                    <!-- 구역 요약 -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-2">
+                                <div class="text-muted small">위치</div>
+                                <div class="fw-semibold" id="binDetailLocation">-</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-2">
+                                <div class="text-muted small">상태</div>
+                                <span class="badge" id="binDetailStatus">-</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-2">
+                                <div class="text-muted small">적재 / 수용</div>
+                                <div class="fw-semibold" id="binDetailLoad">-</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-2">
+                                <div class="text-muted small">여유</div>
+                                <div class="fw-semibold" id="binDetailRemaining">-</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="binDetailExpiredAlert" class="alert alert-warning d-none py-2 small" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        유통기한이 지난 로트가 보관되어 있습니다. 폐기 처리를 검토하세요.
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light">
+                            <tr>
+                                <th>품목</th>
+                                <th style="width: 130px;">로트</th>
+                                <th class="text-center" style="width: 120px;">유통기한</th>
+                                <th class="text-end" style="width: 90px;">수량</th>
+                            </tr>
+                            </thead>
+                            <tbody id="binDetailRows"></tbody>
+                        </table>
+                    </div>
+
+                    <p class="text-muted small mb-0 mt-2" id="binDetailEmpty">
+                        이 구역에는 보관 중인 재고가 없습니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <a href="#" id="binDetailInventoryLink" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-list-ul me-1"></i>재고 현황에서 보기
+                </a>
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{fragments/layout :: scripts}"></div>
+<script th:src="@{/js/warehouse-map.js}"></script>
+
+</body>
+</html>

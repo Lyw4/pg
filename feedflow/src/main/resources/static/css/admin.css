@@ -517,3 +517,201 @@ body {
         display: none !important;
     }
 }
+
+
+/* ==================================================================
+ * 창고 2D 도면 맵
+ * ================================================================== */
+
+/* 범례 */
+.ff-map-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    font-size: .78rem;
+    color: #6c757d;
+}
+
+.ff-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+}
+
+.ff-legend-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    display: inline-block;
+    border: 1px solid rgba(0, 0, 0, .12);
+}
+
+/* 도면 레이아웃 : 좌측 세로축(단) + 우측 그리드 */
+.ff-map-wrapper {
+    display: flex;
+    gap: .5rem;
+    overflow-x: auto;
+}
+
+.ff-map-axis-y {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    padding-top: 0;
+    flex-shrink: 0;
+}
+
+.ff-map-axis-y .ff-map-axis-label {
+    height: 104px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: .25rem;
+}
+
+.ff-map-axis-x {
+    display: grid;
+    gap: .5rem;
+    margin-top: .4rem;
+}
+
+.ff-map-axis-label {
+    font-size: .72rem;
+    font-weight: 600;
+    color: #adb5bd;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.ff-map-grid {
+    display: grid;
+    gap: .5rem;
+    min-width: 320px;
+}
+
+/* 구역 타일 */
+.ff-bin-tile {
+    height: 104px;
+    border: 1px solid rgba(0, 0, 0, .1);
+    border-radius: .5rem;
+    padding: .5rem .55rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    text-align: left;
+    cursor: pointer;
+    transition: transform .12s ease, box-shadow .12s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.ff-bin-tile:hover,
+.ff-bin-tile:focus-visible {
+    transform: translateY(-2px);
+    box-shadow: 0 .4rem .8rem rgba(0, 0, 0, .14);
+    outline: none;
+    z-index: 2;
+}
+
+.ff-bin-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .74rem;
+    font-weight: 700;
+    letter-spacing: -.02em;
+}
+
+.ff-bin-rate {
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.ff-bin-qty {
+    font-size: .68rem;
+    opacity: .85;
+}
+
+.ff-bin-meta {
+    font-size: .66rem;
+    opacity: .75;
+}
+
+/* 타일 내부 적재 게이지 */
+.ff-bin-gauge {
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(0, 0, 0, .12);
+    display: block;
+    overflow: hidden;
+}
+
+.ff-bin-gauge-fill {
+    display: block;
+    height: 100%;
+    background: rgba(0, 0, 0, .38);
+}
+
+/* 상태별 색상 (범례 스와치와 공유) */
+.ff-bin-spare {
+    background-color: #d1e7dd;
+    border-color: #a3cfbb;
+    color: #0f5132;
+}
+
+.ff-bin-normal {
+    background-color: #fff3cd;
+    border-color: #ffe69c;
+    color: #664d03;
+}
+
+.ff-bin-full {
+    background-color: #f8d7da;
+    border-color: #f1aeb5;
+    color: #842029;
+}
+
+.ff-bin-empty {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+    color: #6c757d;
+}
+
+/* 사용 중지 구역은 사선으로 '쓸 수 없음'을 표시 */
+.ff-bin-inactive {
+    background-color: #e9ecef;
+    border-color: #ced4da;
+    color: #adb5bd;
+    background-image: repeating-linear-gradient(
+            45deg,
+            rgba(0, 0, 0, .05) 0,
+            rgba(0, 0, 0, .05) 6px,
+            transparent 6px,
+            transparent 12px
+    );
+    cursor: not-allowed;
+}
+
+.ff-bin-inactive:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* 모바일에서는 축 라벨을 숨기고 타일을 2열로 */
+@media (max-width: 575.98px) {
+    .ff-map-axis-y,
+    .ff-map-axis-x {
+        display: none;
+    }
+
+    .ff-map-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        min-width: 0;
+    }
+
+    .ff-bin-tile {
+        grid-column: auto !important;
+        grid-row: auto !important;
+    }
+}

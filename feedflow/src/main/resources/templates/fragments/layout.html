@@ -59,6 +59,12 @@
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/warehouse-map}"
+               th:classappend="${menu == 'warehouseMap'} ? 'active'">
+                <i class="bi bi-bounding-box me-2"></i>창고 2D 도면
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link" th:href="@{/admin/bins}"
                th:classappend="${menu == 'bins'} ? 'active'">
                 <i class="bi bi-grid-3x3-gap me-2"></i>창고 구역 관리
