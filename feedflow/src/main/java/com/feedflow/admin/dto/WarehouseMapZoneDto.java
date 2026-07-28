@@ -18,6 +18,14 @@ import java.util.List;
 @Builder
 public class WarehouseMapZoneDto {
 
+    /**
+     * 저온 구역 코드.
+     * <p>
+     * 저온 구역은 도면에서 파란 점선으로 따로 표시해 일반 보관 구역과 구분한다.
+     * 온도 관리 대상이라 아무 곳에나 적재할 수 없어 시각적으로 즉시 구분되어야 한다.
+     */
+    public static final String COLD_ZONE_CODE = "COLD";
+
     private final String zone;
 
     private final int binCount;
@@ -105,6 +113,21 @@ public class WarehouseMapZoneDto {
 
         int fontSize = (int) Math.floor(Math.min(byWidth, byHeight));
         return Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, fontSize));
+    }
+
+    /** 저온 구역인지 */
+    public boolean isCold() {
+        return COLD_ZONE_CODE.equalsIgnoreCase(zone);
+    }
+
+    /** 구역 경계선 CSS 클래스 (저온 구역은 파란 점선으로 구분) */
+    public String getAreaClass() {
+        return isCold() ? "ff-zone-area-cold" : "ff-zone-area-normal";
+    }
+
+    /** 구역 이름 칩에 붙일 보조 라벨 */
+    public String getKindLabel() {
+        return isCold() ? "저온" : "상온";
     }
 
     public int getUsageRateCapped() {

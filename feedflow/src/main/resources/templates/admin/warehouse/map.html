@@ -115,6 +115,9 @@
                     <span class="ff-legend-item"><i class="ff-legend-swatch ff-bin-receiving"></i>입고 대기</span>
                     <span class="ff-legend-item"><i class="ff-legend-swatch ff-bin-shipping"></i>출고 대기</span>
                     <span class="ff-legend-item"><i class="ff-legend-swatch ff-facility-inspection"></i>검수실</span>
+                    <span class="ff-legend-divider"></span>
+                    <span class="ff-legend-item"><i class="ff-legend-outline ff-zone-area-cold"></i>저온 구역</span>
+                    <span class="ff-legend-item"><i class="ff-legend-outline ff-zone-area-normal"></i>상온 구역</span>
                 </div>
             </div>
         </div>
@@ -134,11 +137,19 @@
                                    + ';grid-template-rows:' + ${floorPlan.gridTemplateRows}">
 
                         <!-- 구역 이름 라벨 (사각형 뒤에 크게 겹쳐 표시) -->
-                        <div class="ff-zone-label" th:each="z : ${floorPlan.zones}"
-                             th:style="'grid-area:' + ${z.gridArea}
-                                       + ';font-size:' + ${z.labelFontSize} + 'px'"
-                             th:text="${z.zone}"
-                             aria-hidden="true">A</div>
+                        <div th:each="z : ${floorPlan.zones}"
+                             class="ff-zone-area"
+                             th:classappend="${z.areaClass}"
+                             th:style="'grid-area:' + ${z.gridArea}"
+                             aria-hidden="true">
+                            <span class="ff-zone-chip">
+                                <span th:text="${z.zone}">A</span>
+                                <span class="ff-zone-chip-kind" th:text="${z.kindLabel}">상온</span>
+                            </span>
+                            <span class="ff-zone-label"
+                                  th:style="'font-size:' + ${z.labelFontSize} + 'px'"
+                                  th:text="${z.zone}">A</span>
+                        </div>
 
                         <!-- 부대시설 : 출입구 · 벽 · 검수실 -->
                         <div th:each="fac : ${floorPlan.facilities}"

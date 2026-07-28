@@ -343,6 +343,29 @@ class WarehouseMapServiceTest {
         }
 
         @Test
+        @DisplayName("저온 구역과 상온 구역의 경계선 색을 구분한다")
+        void distinguishesColdZone() {
+            WarehouseMapZoneDto cold = WarehouseMapZoneDto.of("COLD", List.of(
+                    WarehouseBinMapDto.of(
+                            storageRow(35L, "COLD-01", "COLD", 300, true, 160L, 1L, 1L, null,
+                                    21, 1, 3, 3), TODAY)));
+            WarehouseMapZoneDto normal = WarehouseMapZoneDto.of("N", List.of(
+                    WarehouseBinMapDto.of(
+                            storageRow(8L, "N-01", "N", 200, true, 90L, 1L, 1L, null,
+                                    9, 1, 5, 3), TODAY)));
+
+            assertThat(cold.isCold()).isTrue();
+            assertThat(cold.getAreaClass()).isEqualTo("ff-zone-area-cold");
+            assertThat(cold.getKindLabel()).isEqualTo("저온");
+
+            assertThat(normal.isCold())
+                    .as("저온 구역이 아니면 상온으로 표시해 적재 가능 여부를 구분한다")
+                    .isFalse();
+            assertThat(normal.getAreaClass()).isEqualTo("ff-zone-area-normal");
+            assertThat(normal.getKindLabel()).isEqualTo("상온");
+        }
+
+        @Test
         @DisplayName("긴 구역 이름도 박스를 넘지 않도록 라벨 글자 크기를 줄인다")
         void labelFontSize_fitsInBoundingBox() {
             // 좁은 박스에 4글자 이름 (COLD) → 글자 크기를 줄여야 잘리지 않는다

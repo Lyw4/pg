@@ -600,19 +600,80 @@ body {
 }
 
 /* ---------------- 구역 이름 라벨 (사각형 뒤) ---------------- */
-.ff-zone-label {
+/* 구역 경계 박스
+ * 구역에 속한 사각형들의 경계 상자를 점선으로 둘러 '구획'을 보여준다.
+ * 저온 구역은 온도 관리 대상이라 아무 곳에나 적재할 수 없으므로 색을 달리해 구분한다. */
+.ff-zone-area {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    /* font-size 는 경계 상자 크기와 글자 수에 맞춰 서버에서 계산해 주입한다 */
-    font-weight: 800;
-    color: rgba(13, 110, 253, .12);
+    border-radius: .5rem;
     pointer-events: none;
     user-select: none;
     z-index: 0;
+    margin: -3px;
+    padding: 3px;
+}
+
+.ff-zone-area-normal {
+    border: 2px dashed rgba(108, 117, 125, .45);
+    background-color: rgba(108, 117, 125, .04);
+}
+
+.ff-zone-area-cold {
+    border: 2px dashed rgba(13, 110, 253, .55);
+    background-color: rgba(13, 110, 253, .06);
+}
+
+/* 구역 이름 칩 (경계 박스 좌상단) */
+.ff-zone-chip {
+    position: absolute;
+    top: -9px;
+    left: 10px;
+    display: inline-flex;
+    align-items: baseline;
+    gap: .25rem;
+    background: #fff;
+    padding: 0 .4rem;
+    border-radius: .25rem;
+    font-size: .68rem;
+    font-weight: 700;
+    color: #495057;
+    white-space: nowrap;
+}
+
+.ff-zone-area-cold .ff-zone-chip {
+    color: #0a58ca;
+}
+
+.ff-zone-chip-kind {
+    font-size: .6rem;
+    font-weight: 500;
+    opacity: .75;
+}
+
+/* 구역 이름을 크게 겹쳐 표시 (사각형 뒤) */
+.ff-zone-label {
+    /* font-size 는 경계 상자 크기와 글자 수에 맞춰 서버에서 계산해 주입한다 */
+    font-weight: 800;
+    color: rgba(108, 117, 125, .13);
     letter-spacing: -.04em;
     overflow: hidden;
     white-space: nowrap;
+    line-height: 1;
+}
+
+.ff-zone-area-cold .ff-zone-label {
+    color: rgba(13, 110, 253, .13);
+}
+
+/* 범례용 경계선 스와치 */
+.ff-legend-outline {
+    width: 16px;
+    height: 12px;
+    display: inline-block;
+    border-radius: 3px;
 }
 
 /* ---------------- 부대시설 ---------------- */
