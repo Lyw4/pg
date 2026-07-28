@@ -1,0 +1,11 @@
+부모 테이블	자식 테이블	외래키 컬럼	카디널리티	필수여부	JPA 매핑	설명
+users	orders	userId	1 : N	필수	@ManyToOne(LAZY)	고객 1명이 주문 여러 건
+orders	orderItems	orderId	1 : N	필수	@OneToMany(cascade=ALL, orphanRemoval) 양방향	주문 1건에 항목 여러 개
+products	orderItems	productId	1 : N	필수	@ManyToOne(LAZY)	품목이 여러 주문 항목에 등장
+products	productLots	productId	1 : N	필수	@ManyToOne(LAZY)	품목 1개에 로트 여러 개
+products	stockMovements	productId	1 : N	필수	@ManyToOne(LAZY)	품목별 입출고 이력
+productLots	inventories	lotId	1 : N	필수	@ManyToOne(LAZY)	로트가 여러 구역에 분산 적재 가능
+productLots	orderItems	lotId	1 : N	선택(nullable)	@ManyToOne(LAZY)	FEFO 대표 로트
+productLots	stockMovements	lotId	1 : N	필수	@ManyToOne(LAZY)	모든 이력은 로트에 귀속
+warehouseBins	inventories	binId	1 : N	필수	@ManyToOne(LAZY)	구역에 여러 로트 적재
+warehouseBins	stockMovements	binId	1 : N	선택(nullable)	@ManyToOne(LAZY)	이력의 대상 구역
