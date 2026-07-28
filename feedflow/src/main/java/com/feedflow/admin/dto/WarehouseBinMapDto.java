@@ -49,19 +49,13 @@ public class WarehouseBinMapDto {
     /** 가장 임박한 유통기한까지 남은 일수 (재고 없으면 null) */
     private final Long earliestRemainingDays;
 
-    /* 도면 배치 좌표 (1-based, CSS Grid 용) */
-    private final int gridColumn;
-    private final int gridRow;
-
     /**
      * 집계 결과 한 행을 도면 타일로 변환한다.
      *
-     * @param row        Repository 집계 결과
-     * @param today      D-Day 계산 기준일
-     * @param gridColumn CSS Grid 열 (랙 순서, 1-based)
-     * @param gridRow    CSS Grid 행 (단 역순, 1-based)
+     * @param row   Repository 집계 결과
+     * @param today D-Day 계산 기준일
      */
-    public static WarehouseBinMapDto of(WarehouseMapRow row, LocalDate today, int gridColumn, int gridRow) {
+    public static WarehouseBinMapDto of(WarehouseMapRow row, LocalDate today) {
         int loaded = row.loaded();
         int capacity = row.capacity();
         int usageRate = calculateUsageRate(loaded, capacity);
@@ -81,8 +75,6 @@ public class WarehouseBinMapDto {
                 .productCount(row.products())
                 .earliestExpiration(row.earliestExpiration())
                 .earliestRemainingDays(remainingDays(row.earliestExpiration(), today))
-                .gridColumn(gridColumn)
-                .gridRow(gridRow)
                 .build();
     }
 
@@ -148,6 +140,19 @@ public class WarehouseBinMapDto {
 
     public String getEarliestDDayBadgeClass() {
         return DDay.badgeClass(earliestRemainingDays);
+    }
+
+    /**
+     * 도면에서 이 칸이 차지할 상대 너비 (CSS {@code flex-grow}).
+     * <p>
+     * 수용량에 비례시켜 <b>큰 구역이 도면에서도 크게</b> 보이도록 한다.
+     * 모든 칸을 같은 크기로 그리면 수용량 600 구역과 200 구역이 구분되지 않아
+     * 도면만 보고 창고 규모를 파악할 수 없다.
+     * <p>
+     * 수용량이 없는 구역은 최소 크기(1)로 둔다.
+     */
+    public int getFlexGrow() {
+        return Math.max(maxCapacity, 1);
     }
 
     /** 위치 표기 (A구역 · 01랙 · 1단) */

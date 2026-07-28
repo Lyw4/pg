@@ -3,6 +3,7 @@ package com.feedflow.admin.service;
 import com.feedflow.admin.dto.BinDetailDto;
 import com.feedflow.admin.dto.InventoryDto;
 import com.feedflow.admin.dto.WarehouseBinMapDto;
+import com.feedflow.admin.dto.WarehouseMapLevelDto;
 import com.feedflow.admin.dto.WarehouseMapRow;
 import com.feedflow.admin.dto.WarehouseMapSummaryDto;
 import com.feedflow.admin.dto.WarehouseMapZoneDto;
@@ -20,7 +21,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
+import java.util.TreeMap;
 
 /**
  * 창고 2D 도면 맵 조회 서비스.
@@ -102,8 +103,7 @@ public class WarehouseMapService {
         WarehouseMapRow row = warehouseBinRepository.findWarehouseMapRowByBinId(binId)
                 .orElseThrow(() -> ResourceNotFoundException.ofWarehouseBin(binId));
 
-        // 도면 좌표는 상세에서 의미가 없으므로 1,1 로 둔다
-        WarehouseBinMapDto bin = WarehouseBinMapDto.of(row, today, 1, 1);
+        WarehouseBinMapDto bin = WarehouseBinMapDto.of(row, today);
 
         List<InventoryDto> inventories =
                 inventoryRepository.search(null, binId, null).stream()
@@ -123,54 +123,59 @@ public class WarehouseMapService {
     /**
      * 한 구역 그룹을 도면 DTO 로 변환한다.
      * <p>
-     * 랙 번호와 단을 각각 정렬해 축 라벨을 만들고, 그 인덱스를 CSS Grid 좌표로 쓴다.
-     * 특정 좌표에 구역이 없으면 타일이 없으므로 도면에 빈칸으로 남는다.
+     * 창고 평면도처럼 <b>단(Level)을 한 줄씩 쌓고</b>, 줄 안에서는 랙 번호 순으로 나열한다.
+     * 칸의 너비는 화면에서 수용량에 비례하도록 그려지므로 여기서는 순서만 맞춰주면 된다.
      */
     private WarehouseMapZoneDto toZoneDto(String zone, List<WarehouseMapRow> rows, LocalDate today) {
-        List<String> rackLabels = new ArrayList<>(new TreeSet<>(
-                rows.stream().map(row -> rackLabel(row.rack())).toList()));
+        // 단별로 묶는다. 높은 단이 위로 오도록 내림차순 정렬.
+        Map<Integer, List<WarehouseMapRow>> byLevel = new TreeMap<>(Comparator.reverseOrder());
+        for (WarehouseMapRow row : rows) {
+            byLevel.computeIfAbsent(levelOf(row.binLevel()), key -> new ArrayList<>()).add(row);
+        }
 
-        // 단은 높은 층이 위로 오도록 내림차순
-        List<Integer> levelLabels = rows.stream()
-                .map(row -> levelLabel(row.binLevel()))
-                .distinct()
-                .sorted(Comparator.reverseOrder())
-                .toList();
-
-        List<WarehouseBinMapDto> bins = new ArrayList<>();
+        List<WarehouseMapLevelDto> levels = new ArrayList<>();
+        List<WarehouseBinMapDto> allBins = new ArrayList<>();
         int totalCapacity = 0;
         int totalLoaded = 0;
 
-        for (WarehouseMapRow row : rows) {
-            int column = rackLabels.indexOf(rackLabel(row.rack())) + 1;
-            int rowIndex = levelLabels.indexOf(levelLabel(row.binLevel())) + 1;
+        for (Map.Entry<Integer, List<WarehouseMapRow>> entry : byLevel.entrySet()) {
+            List<WarehouseBinMapDto> levelBins = entry.getValue().stream()
+                    .sorted(Comparator.comparing(row -> rackOf(row.rack())))
+                    .map(row -> WarehouseBinMapDto.of(row, today))
+                    .toList();
 
-            bins.add(WarehouseBinMapDto.of(row, today, column, rowIndex));
+            levels.add(WarehouseMapLevelDto.builder()
+                    .level(entry.getKey())
+                    .bins(levelBins)
+                    .build());
 
-            if (row.isActive()) {
-                totalCapacity += row.capacity();
-                totalLoaded += row.loaded();
+            allBins.addAll(levelBins);
+
+            for (WarehouseMapRow row : entry.getValue()) {
+                if (row.isActive()) {
+                    totalCapacity += row.capacity();
+                    totalLoaded += row.loaded();
+                }
             }
         }
 
         return WarehouseMapZoneDto.builder()
                 .zone(zone)
-                .rackLabels(rackLabels)
-                .levelLabels(levelLabels)
-                .bins(bins)
+                .levels(levels)
+                .bins(allBins)
                 .totalCapacity(totalCapacity)
                 .totalLoaded(totalLoaded)
                 .usageRate(WarehouseBinMapDto.calculateUsageRate(totalLoaded, totalCapacity))
                 .build();
     }
 
-    /** 랙 번호가 없는 구역은 한 칸으로 몰아 배치한다 */
-    private String rackLabel(String rack) {
-        return (rack == null || rack.isBlank()) ? "-" : rack;
+    /** 랙 번호가 없는 구역은 정렬 시 맨 뒤로 보낸다 */
+    private String rackOf(String rack) {
+        return (rack == null || rack.isBlank()) ? "~" : rack;
     }
 
     /** 단이 없는 구역은 1단으로 본다 */
-    private int levelLabel(Integer binLevel) {
+    private int levelOf(Integer binLevel) {
         return binLevel == null ? 1 : binLevel;
     }
 }

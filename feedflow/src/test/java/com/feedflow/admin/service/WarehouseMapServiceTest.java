@@ -2,6 +2,7 @@ package com.feedflow.admin.service;
 
 import com.feedflow.admin.dto.BinDetailDto;
 import com.feedflow.admin.dto.WarehouseBinMapDto;
+import com.feedflow.admin.dto.WarehouseMapLevelDto;
 import com.feedflow.admin.dto.WarehouseMapRow;
 import com.feedflow.admin.dto.WarehouseMapSummaryDto;
 import com.feedflow.admin.dto.WarehouseMapZoneDto;
@@ -98,8 +99,7 @@ class WarehouseMapServiceTest {
         @DisplayName("초과 적재된 구역의 진행바는 100% 에서 멈추지만 실제 적재율은 그대로 보여준다")
         void overloaded_gaugeCappedButRateKept() {
             WarehouseBinMapDto bin = WarehouseBinMapDto.of(
-                    row(1L, "A-01-01", "A", "01", 1, 500, true, 600L, 2L, 2L, null),
-                    TODAY, 1, 1);
+                    row(1L, "A-01-01", "A", "01", 1, 500, true, 600L, 2L, 2L, null), TODAY);
 
             assertThat(bin.getUsageRate()).isEqualTo(120);
             assertThat(bin.getUsageRateCapped()).isEqualTo(100);
@@ -155,8 +155,7 @@ class WarehouseMapServiceTest {
         @DisplayName("사용 중지된 구역은 적재 상태색이 아니라 사용 중지로 표시한다")
         void inactiveBin_showsInactiveStyle() {
             WarehouseBinMapDto bin = WarehouseBinMapDto.of(
-                    row(9L, "A-03-01", "A", "03", 1, 400, false, 0L, 0L, 0L, null),
-                    TODAY, 1, 1);
+                    row(9L, "A-03-01", "A", "03", 1, 400, false, 0L, 0L, 0L, null), TODAY);
 
             assertThat(bin.getStatus())
                     .as("계산된 상태 자체는 EMPTY 이지만")
@@ -175,8 +174,8 @@ class WarehouseMapServiceTest {
     class ZoneGrouping {
 
         @Test
-        @DisplayName("구역(Zone) 별로 묶고 랙을 가로축, 단을 세로축으로 좌표를 계산한다")
-        void groupsByZoneAndCalculatesGridPosition() {
+        @DisplayName("구역(Zone) 별로 묶고 단(Level)을 높은 층부터 한 줄씩 쌓는다")
+        void groupsByZoneAndLevel() {
             // given : A구역 2랙 × 2단 + B구역 1랙 1단
             given(warehouseBinRepository.findWarehouseMapRows(null)).willReturn(List.of(
                     row(1L, "A-01-01", "A", "01", 1, 500, true, 240L, 2L, 2L, null),
@@ -193,27 +192,57 @@ class WarehouseMapServiceTest {
 
             WarehouseMapZoneDto zoneA = zones.get(0);
             assertThat(zoneA.getZone()).isEqualTo("A");
-            assertThat(zoneA.getRackLabels()).containsExactly("01", "02");
-            assertThat(zoneA.getLevelLabels())
+            assertThat(zoneA.getBinCount()).isEqualTo(4);
+            assertThat(zoneA.getLevelCount()).isEqualTo(2);
+
+            assertThat(zoneA.getLevels())
                     .as("높은 단이 위로 오도록 내림차순이어야 한다")
+                    .extracting(WarehouseMapLevelDto::getLevel)
                     .containsExactly(2, 1);
-            assertThat(zoneA.getColumnCount()).isEqualTo(2);
-            assertThat(zoneA.getRowCount()).isEqualTo(2);
-            assertThat(zoneA.getGridTemplateColumns()).isEqualTo("repeat(2, minmax(0, 1fr))");
 
-            // A-01-01 : 1랙(1열) 1단 → 2단이 1행이므로 1단은 2행
-            WarehouseBinMapDto a0101 = findBin(zoneA, "A-01-01");
-            assertThat(a0101.getGridColumn()).isEqualTo(1);
-            assertThat(a0101.getGridRow()).isEqualTo(2);
-
-            // A-02-02 : 2랙(2열) 2단 → 1행
-            WarehouseBinMapDto a0202 = findBin(zoneA, "A-02-02");
-            assertThat(a0202.getGridColumn()).isEqualTo(2);
-            assertThat(a0202.getGridRow()).isEqualTo(1);
+            // 각 줄 안에서는 랙 번호 순으로 왼쪽부터 배치된다
+            assertThat(zoneA.getLevels().get(0).getBins())
+                    .extracting(WarehouseBinMapDto::getBinCode)
+                    .containsExactly("A-01-02", "A-02-02");
+            assertThat(zoneA.getLevels().get(1).getBins())
+                    .extracting(WarehouseBinMapDto::getBinCode)
+                    .containsExactly("A-01-01", "A-02-01");
 
             WarehouseMapZoneDto zoneB = zones.get(1);
             assertThat(zoneB.getZone()).isEqualTo("B");
             assertThat(zoneB.getBinCount()).isEqualTo(1);
+            assertThat(zoneB.getLevelCount()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("칸의 상대 너비는 최대 수용량에 비례한다")
+        void tileWidthProportionalToCapacity() {
+            given(warehouseBinRepository.findWarehouseMapRows(null)).willReturn(List.of(
+                    row(5L, "B-01-01", "B", "01", 1, 600, true, 360L, 2L, 1L, null),
+                    row(7L, "B-02-01", "B", "02", 1, 300, true, 160L, 1L, 1L, null)));
+
+            List<WarehouseBinMapDto> bins =
+                    warehouseMapService.flattenBins(warehouseMapService.getZones(null, TODAY));
+
+            assertThat(bins)
+                    .extracting(WarehouseBinMapDto::getBinCode, WarehouseBinMapDto::getFlexGrow)
+                    .containsExactly(
+                            tuple("B-01-01", 600),
+                            tuple("B-02-01", 300));
+        }
+
+        @Test
+        @DisplayName("수용량이 0 인 구역도 도면에서 사라지지 않도록 최소 너비를 갖는다")
+        void zeroCapacity_hasMinimumWidth() {
+            given(warehouseBinRepository.findWarehouseMapRows(null)).willReturn(List.of(
+                    row(1L, "A-01-01", "A", "01", 1, 0, true, 0L, 0L, 0L, null)));
+
+            WarehouseBinMapDto bin =
+                    warehouseMapService.getZones(null, TODAY).get(0).getBins().get(0);
+
+            assertThat(bin.getFlexGrow())
+                    .as("flex-grow 가 0 이면 칸이 아예 보이지 않는다")
+                    .isEqualTo(1);
         }
 
         @Test
@@ -247,17 +276,31 @@ class WarehouseMapServiceTest {
         }
 
         @Test
-        @DisplayName("랙이나 단 정보가 없는 구역도 좌표를 받아 도면에 그려진다")
+        @DisplayName("랙이나 단 정보가 없는 구역은 1단으로 취급해 도면에 그려진다")
         void binWithoutRackOrLevel_stillPlaced() {
             given(warehouseBinRepository.findWarehouseMapRows(null)).willReturn(List.of(
                     row(8L, "COLD-01", "COLD", null, null, 200, true, 190L, 2L, 2L, null)));
 
             WarehouseMapZoneDto zone = warehouseMapService.getZones(null, TODAY).get(0);
 
-            assertThat(zone.getRackLabels()).containsExactly("-");
-            assertThat(zone.getLevelLabels()).containsExactly(1);
-            assertThat(zone.getBins().get(0).getGridColumn()).isEqualTo(1);
-            assertThat(zone.getBins().get(0).getGridRow()).isEqualTo(1);
+            assertThat(zone.getLevelCount()).isEqualTo(1);
+            assertThat(zone.getLevels().get(0).getLevel()).isEqualTo(1);
+            assertThat(zone.getBins()).hasSize(1);
+            assertThat(zone.getBins().get(0).getBinCode()).isEqualTo("COLD-01");
+        }
+
+        @Test
+        @DisplayName("랙 번호가 없는 구역은 같은 단에서 맨 오른쪽으로 배치한다")
+        void binWithoutRack_sortedLast() {
+            given(warehouseBinRepository.findWarehouseMapRows(null)).willReturn(List.of(
+                    row(1L, "A-99-01", "A", null, 1, 300, true, 0L, 0L, 0L, null),
+                    row(2L, "A-01-01", "A", "01", 1, 500, true, 100L, 1L, 1L, null)));
+
+            WarehouseMapZoneDto zone = warehouseMapService.getZones(null, TODAY).get(0);
+
+            assertThat(zone.getLevels().get(0).getBins())
+                    .extracting(WarehouseBinMapDto::getBinCode)
+                    .containsExactly("A-01-01", "A-99-01");
         }
 
         @Test
@@ -425,13 +468,6 @@ class WarehouseMapServiceTest {
     /* ==================================================================
      * 픽스처
      * ================================================================== */
-
-    private WarehouseBinMapDto findBin(WarehouseMapZoneDto zone, String binCode) {
-        return zone.getBins().stream()
-                .filter(bin -> binCode.equals(bin.getBinCode()))
-                .findFirst()
-                .orElseThrow(() -> new AssertionError("도면에 " + binCode + " 타일이 없다"));
-    }
 
     private WarehouseMapRow row(Long binId, String binCode, String zone, String rack,
                                 Integer binLevel, Integer maxCapacity, boolean active,
