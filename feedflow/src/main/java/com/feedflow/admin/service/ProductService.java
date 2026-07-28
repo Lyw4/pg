@@ -134,6 +134,27 @@ public class ProductService {
      * ------------------------------------------------------------------ */
 
     /**
+     * 재고 정합성 진단 (읽기 전용).
+     * <p>
+     * <b>아무것도 변경하지 않고</b> 품목별 장부 재고(totalStock)와 로트 수량 합계의 차이만 계산한다.
+     * 관리자가 보정 버튼을 누르기 전에 "무엇이 얼마나 어긋나 있는지" 확인하는 용도다.
+     * 집계는 DB 단(group by)에서 수행하므로 품목 수만큼 쿼리가 반복되지 않는다.
+     *
+     * @return 어긋난 품목이 앞으로, 그 안에서는 품목 코드 순으로 정렬된 진단 결과
+     */
+    public List<StockSyncResultDto> getStockSyncDiagnosis() {
+        Comparator<StockSyncResultDto> mismatchedFirst =
+                Comparator.comparing(StockSyncResultDto::isMismatched).reversed();
+        Comparator<StockSyncResultDto> order =
+                mismatchedFirst.thenComparing(StockSyncResultDto::getProductCode);
+
+        return productRepository.findStockSyncRows().stream()
+                .map(StockSyncResultDto::ofDiagnosis)
+                .sorted(order)
+                .toList();
+    }
+
+    /**
      * 품목의 totalStock 을 로트 수량 합계로 강제 동기화한다.
      * <p>
      * totalStock 은 조회 성능을 위한 비정규화 값이라 입·출고 도중 예외나 외부 수정으로
@@ -156,6 +177,7 @@ public class ProductService {
                 .productId(product.getProductId())
                 .productCode(product.getProductCode())
                 .productName(product.getName())
+                .active(product.isActive())
                 .previousStock(previousStock)
                 .calculatedStock(calculatedStock)
                 .adjusted(adjusted)

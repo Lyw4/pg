@@ -1,5 +1,6 @@
 package com.feedflow.repository;
 
+import com.feedflow.admin.dto.StockSyncRow;
 import com.feedflow.domain.Product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -78,4 +79,30 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
               and p.totalStock < p.safetyStock
             """)
     long countSafetyStockAlerts();
+
+    /* ------------------------------------------------------------------
+     * 재고 정합성 진단 (읽기 전용)
+     * ------------------------------------------------------------------ */
+
+    /**
+     * 전체 품목의 장부 재고(totalStock)와 로트 수량 합계를 한 번에 조회한다.
+     * <p>
+     * 품목마다 합계 쿼리를 반복하면 N+1 이 되므로 {@code left join} + {@code group by} 로
+     * DB 단에서 집계한다. 로트가 없는 품목도 결과에 포함되며 합계는 0 으로 내려온다.
+     * <b>값을 변경하지 않는 진단 전용</b> 쿼리다.
+     */
+    @Query("""
+            select new com.feedflow.admin.dto.StockSyncRow(
+                       p.productId,
+                       p.productCode,
+                       p.name,
+                       p.active,
+                       p.totalStock,
+                       coalesce(sum(l.lotQuantity), 0L))
+            from Product p
+                left join ProductLot l on l.product = p
+            group by p.productId, p.productCode, p.name, p.active, p.totalStock
+            order by p.productCode asc
+            """)
+    List<StockSyncRow> findStockSyncRows();
 }

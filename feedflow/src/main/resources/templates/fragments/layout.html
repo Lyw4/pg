@@ -93,6 +93,12 @@
                 <i class="bi bi-clock-history me-2"></i>입출고 이력
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/inventory/sync}"
+               th:classappend="${menu == 'inventory' and subMenu == 'sync'} ? 'active'">
+                <i class="bi bi-shield-check me-2"></i>재고 정합성 점검
+            </a>
+        </li>
 
         <!-- 현장 작업 : STAFF, ADMIN 공통 -->
         <li class="nav-item mt-3">
