@@ -135,13 +135,13 @@ class DashboardServiceTest {
         assertThat(expired.getRemainingDays()).isEqualTo(-5L);
         assertThat(expired.isExpired()).isTrue();
         assertThat(expired.getDDayLabel()).isEqualTo("만료 5일 경과");
-        assertThat(expired.getBadgeClass()).isEqualTo("bg-dark");
+        assertThat(expired.getDDayBadgeClass()).isEqualTo("bg-dark");
 
         ExpiringLotDto d3 = lots.get(1);
         assertThat(d3.getRemainingDays()).isEqualTo(3L);
         assertThat(d3.isExpired()).isFalse();
         assertThat(d3.getDDayLabel()).isEqualTo("D-3");
-        assertThat(d3.getBadgeClass()).isEqualTo("bg-danger");    // 7일 이내는 위험
+        assertThat(d3.getDDayBadgeClass()).isEqualTo("bg-danger");    // 7일 이내는 위험
 
         ExpiringLotDto expiringToday = lots.get(2);
         assertThat(expiringToday.getRemainingDays()).isZero();
@@ -151,7 +151,7 @@ class DashboardServiceTest {
         assertThat(expiringToday.getDDayLabel()).isEqualTo("오늘 만료");
 
         ExpiringLotDto d25 = lots.get(3);
-        assertThat(d25.getBadgeClass()).isEqualTo("bg-warning text-dark");
+        assertThat(d25.getDDayBadgeClass()).isEqualTo("bg-warning text-dark");
     }
 
     /* ==================================================================

@@ -1,5 +1,6 @@
 package com.feedflow.admin.dto;
 
+import com.feedflow.common.util.DDay;
 import com.feedflow.domain.ProductLot;
 import lombok.Builder;
 import lombok.Getter;
@@ -51,32 +52,11 @@ public class ExpiringLotDto {
 
     /** D-Day 표기 (만료된 로트는 경과일로 표기) */
     public String getDDayLabel() {
-        if (remainingDays == null) {
-            return "-";
-        }
-        if (remainingDays < 0) {
-            return "만료 " + Math.abs(remainingDays) + "일 경과";
-        }
-        if (remainingDays == 0) {
-            return "오늘 만료";
-        }
-        return "D-" + remainingDays;
+        return DDay.label(remainingDays);
     }
 
-    /**
-     * 위험도별 뱃지 클래스.
-     * 만료(검정) → 7일 이내(빨강) → 그 외(노랑)
-     */
-    public String getBadgeClass() {
-        if (remainingDays == null) {
-            return "bg-light text-dark border";
-        }
-        if (remainingDays < 0) {
-            return "bg-dark";
-        }
-        if (remainingDays <= 7) {
-            return "bg-danger";
-        }
-        return "bg-warning text-dark";
+    /** 위험도별 뱃지 클래스 (만료 검정 → 7일 이내 빨강 → 30일 이내 노랑) */
+    public String getDDayBadgeClass() {
+        return DDay.badgeClass(remainingDays);
     }
 }

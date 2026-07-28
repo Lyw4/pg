@@ -31,12 +31,6 @@ public class AdminController {
     private final DashboardService dashboardService;
     private final EmployeeService employeeService;
 
-    /** 모든 관리자 화면 공통 - 로그인 사용자 정보 */
-    @ModelAttribute("loginUser")
-    public LoginUser loginUser(@AuthenticationPrincipal LoginUser loginUser) {
-        return loginUser;
-    }
-
     /**
      * 대시보드.
      * 공통 영역(안전재고 / 유통기한 / 오늘의 할 일)은 STAFF·ADMIN 모두,
@@ -62,7 +56,7 @@ public class AdminController {
     @GetMapping("/employees")
     @PreAuthorize("hasRole('ADMIN')")
     public String employees(@AuthenticationPrincipal LoginUser loginUser, Model model) {
-        Long loginUserId = loginUser == null ? null : loginUser.getUserId();
+        Long loginUserId = LoginUser.idOf(loginUser);
 
         model.addAttribute("employees", employeeService.getEmployees(loginUserId));
         model.addAttribute("roles", Role.values());
@@ -81,7 +75,7 @@ public class AdminController {
                              @AuthenticationPrincipal LoginUser loginUser,
                              RedirectAttributes redirectAttributes) {
 
-        Long loginUserId = loginUser == null ? null : loginUser.getUserId();
+        Long loginUserId = LoginUser.idOf(loginUser);
 
         try {
             String changedName = employeeService.changeRole(userId, role, loginUserId);

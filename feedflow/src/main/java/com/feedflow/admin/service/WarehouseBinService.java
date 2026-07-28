@@ -1,5 +1,6 @@
 package com.feedflow.admin.service;
 
+import com.feedflow.common.util.Texts;
 import com.feedflow.admin.dto.WarehouseBinDto;
 import com.feedflow.admin.dto.WarehouseBinForm;
 import com.feedflow.common.exception.DuplicateCodeException;
@@ -27,7 +28,7 @@ public class WarehouseBinService {
      * ------------------------------------------------------------------ */
 
     public List<WarehouseBinDto> getBins(String zone, Boolean active) {
-        return warehouseBinRepository.search(emptyToNull(zone), active).stream()
+        return warehouseBinRepository.search(Texts.trimToNull(zone), active).stream()
                 .map(WarehouseBinDto::from)
                 .toList();
     }
@@ -62,7 +63,7 @@ public class WarehouseBinService {
      */
     @Transactional
     public Long create(WarehouseBinForm form) {
-        String binCode = normalizeCode(form.getBinCode());
+        String binCode = Texts.code(form.getBinCode());
 
         if (warehouseBinRepository.existsByBinCode(binCode)) {
             throw DuplicateCodeException.ofBinCode(binCode);
@@ -70,11 +71,11 @@ public class WarehouseBinService {
 
         WarehouseBin bin = WarehouseBin.builder()
                 .binCode(binCode)
-                .zone(normalizeCode(form.getZone()))
-                .rack(trim(form.getRack()))
+                .zone(Texts.code(form.getZone()))
+                .rack(Texts.trim(form.getRack()))
                 .binLevel(form.getBinLevel())
                 .maxCapacity(form.getMaxCapacity())
-                .memo(trim(form.getMemo()))
+                .memo(Texts.trim(form.getMemo()))
                 .active(form.isActive())
                 .build();
 
@@ -90,7 +91,7 @@ public class WarehouseBinService {
     @Transactional
     public void update(Long binId, WarehouseBinForm form) {
         WarehouseBin bin = findBin(binId);
-        String binCode = normalizeCode(form.getBinCode());
+        String binCode = Texts.code(form.getBinCode());
 
         if (warehouseBinRepository.existsByBinCodeAndBinIdNot(binCode, binId)) {
             throw DuplicateCodeException.ofBinCode(binCode);
@@ -98,11 +99,11 @@ public class WarehouseBinService {
 
         bin.updateMasterData(
                 binCode,
-                normalizeCode(form.getZone()),
-                trim(form.getRack()),
+                Texts.code(form.getZone()),
+                Texts.trim(form.getRack()),
                 form.getBinLevel(),
                 form.getMaxCapacity(),
-                trim(form.getMemo()));
+                Texts.trim(form.getMemo()));
         bin.changeActive(form.isActive());
     }
 
@@ -120,17 +121,5 @@ public class WarehouseBinService {
     private WarehouseBin findBin(Long binId) {
         return warehouseBinRepository.findById(binId)
                 .orElseThrow(() -> ResourceNotFoundException.ofWarehouseBin(binId));
-    }
-
-    private String normalizeCode(String code) {
-        return code == null ? null : code.trim().toUpperCase();
-    }
-
-    private String trim(String value) {
-        return value == null ? null : value.trim();
-    }
-
-    private String emptyToNull(String value) {
-        return (value == null || value.isBlank()) ? null : value.trim();
     }
 }

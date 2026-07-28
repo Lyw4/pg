@@ -1,5 +1,6 @@
 package com.feedflow.admin.service;
 
+import com.feedflow.common.util.Numbers;
 import com.feedflow.admin.dto.AllocationLineDto;
 import com.feedflow.admin.dto.AllocationPlanDto;
 import com.feedflow.admin.dto.OrderDispatchPreviewDto;
@@ -115,6 +116,9 @@ public class OutboundService {
             throw new BusinessRuleException(
                     "출고할 수 없는 주문 상태입니다. 현재 상태=" + order.getStatus().getDescription());
         }
+        if (order.getOrderItems().isEmpty()) {
+            throw new BusinessRuleException("주문 상세 항목이 없어 출고할 수 없습니다. 주문번호=" + orderId);
+        }
 
         String memo = "주문 #" + orderId + " 출고";
         List<OutboundResultDto> results = new ArrayList<>();
@@ -209,25 +213,13 @@ public class OutboundService {
 
         for (Allocation allocation : allocations) {
             Inventory inventory = allocation.inventory();
-            ProductLot lot = inventory.getLot();
-            WarehouseBin bin = inventory.getBin();
+            int take = allocation.quantity();
+            int before = Numbers.orZero(inventory.getQuantity());
+            allocated += take;
 
-            int before = nullSafe(inventory.getQuantity());
-            allocated += allocation.quantity();
-
-            lines.add(AllocationLineDto.builder()
-                    .sequence(sequence++)
-                    .lotId(lot.getLotId())
-                    .lotNo(lot.getLotNo())
-                    .expirationDate(lot.getExpirationDate())
-                    .remainingDays(lot.daysUntilExpiration(today))
-                    .binId(bin.getBinId())
-                    .binCode(bin.getBinCode())
-                    .allocatedQuantity(allocation.quantity())
-                    .binQuantityBefore(before)
-                    .binQuantityAfter(before - allocation.quantity())
-                    .lotQuantityAfter(nullSafe(lot.getLotQuantity()) - allocation.quantity())
-                    .build());
+            // 미리보기는 재고를 변경하지 않으므로 "차감 후" 값을 직접 계산해서 넘긴다
+            lines.add(toAllocationLine(sequence++, inventory, take, before,
+                    before - take, Numbers.orZero(inventory.getLot().getLotQuantity()) - take, today));
         }
 
         return AllocationPlanDto.builder()
@@ -283,7 +275,7 @@ public class OutboundService {
             WarehouseBin bin = inventory.getBin();
 
             int take = allocation.quantity();
-            int before = nullSafe(inventory.getQuantity());
+            int before = Numbers.orZero(inventory.getQuantity());
 
             inventory.subtractQuantity(take);
             lot.subtractQuantity(take);
@@ -304,25 +296,44 @@ public class OutboundService {
                 orderItem.assignLot(lot);
             }
 
-            lines.add(AllocationLineDto.builder()
-                    .sequence(sequence++)
-                    .lotId(lot.getLotId())
-                    .lotNo(lot.getLotNo())
-                    .expirationDate(lot.getExpirationDate())
-                    .remainingDays(lot.daysUntilExpiration(today))
-                    .binId(bin.getBinId())
-                    .binCode(bin.getBinCode())
-                    .allocatedQuantity(take)
-                    .binQuantityBefore(before)
-                    .binQuantityAfter(nullSafe(inventory.getQuantity()))
-                    .lotQuantityAfter(nullSafe(lot.getLotQuantity()))
-                    .build());
+            // 이미 차감이 반영된 상태이므로 현재 값을 그대로 넘긴다
+            lines.add(toAllocationLine(sequence++, inventory, take, before,
+                    Numbers.orZero(inventory.getQuantity()), Numbers.orZero(lot.getLotQuantity()), today));
         }
 
         // 5) 품목 전체 재고 차감
         product.decreaseStock(quantity);
 
         return lines;
+    }
+
+    /**
+     * 차감 내역 한 줄을 만든다.
+     * 미리보기(계산값)와 실제 차감(반영값) 두 경로가 같은 표기를 쓰도록 한 곳으로 모았다.
+     */
+    private AllocationLineDto toAllocationLine(int sequence,
+                                               Inventory inventory,
+                                               int allocatedQuantity,
+                                               int binQuantityBefore,
+                                               int binQuantityAfter,
+                                               int lotQuantityAfter,
+                                               LocalDate today) {
+        ProductLot lot = inventory.getLot();
+        WarehouseBin bin = inventory.getBin();
+
+        return AllocationLineDto.builder()
+                .sequence(sequence)
+                .lotId(lot.getLotId())
+                .lotNo(lot.getLotNo())
+                .expirationDate(lot.getExpirationDate())
+                .remainingDays(lot.daysUntilExpiration(today))
+                .binId(bin.getBinId())
+                .binCode(bin.getBinCode())
+                .allocatedQuantity(allocatedQuantity)
+                .binQuantityBefore(binQuantityBefore)
+                .binQuantityAfter(binQuantityAfter)
+                .lotQuantityAfter(lotQuantityAfter)
+                .build();
     }
 
     /**
@@ -346,7 +357,7 @@ public class OutboundService {
             if (remaining <= 0) {
                 break;
             }
-            int available = nullSafe(inventory.getQuantity());
+            int available = Numbers.orZero(inventory.getQuantity());
             if (available <= 0) {
                 continue;
             }
@@ -381,11 +392,7 @@ public class OutboundService {
 
     private int totalQuantityOf(List<Inventory> inventories) {
         return inventories.stream()
-                .mapToInt(inventory -> nullSafe(inventory.getQuantity()))
+                .mapToInt(inventory -> Numbers.orZero(inventory.getQuantity()))
                 .sum();
-    }
-
-    private int nullSafe(Integer value) {
-        return value == null ? 0 : value;
     }
 }

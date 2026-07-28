@@ -11,6 +11,11 @@
 (function () {
     'use strict';
 
+    // 공통 유틸 (ff-utils.js) 재사용
+    var escapeHtml = window.FFUtils.escapeHtml;
+    var number = window.FFUtils.number;
+    var dDayBadge = window.FFUtils.dDayBadge;
+
     var PREVIEW_API = '/api/admin/outbound/preview';
 
     var productSelect = document.getElementById('productId');
@@ -23,37 +28,8 @@
 
     var timer = null;
 
-    function escapeHtml(value) {
-        if (value === null || value === undefined) {
-            return '';
-        }
-        return String(value)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
 
-    function number(value) {
-        if (value === null || value === undefined) {
-            return '-';
-        }
-        return Number(value).toLocaleString('ko-KR');
-    }
 
-    function dDayBadge(remainingDays) {
-        if (remainingDays === null || remainingDays === undefined) {
-            return {label: '-', cls: 'bg-light text-dark border'};
-        }
-        if (remainingDays <= 7) {
-            return {label: 'D-' + remainingDays, cls: 'bg-danger'};
-        }
-        if (remainingDays <= 30) {
-            return {label: 'D-' + remainingDays, cls: 'bg-warning text-dark'};
-        }
-        return {label: 'D-' + remainingDays, cls: 'bg-light text-dark border'};
-    }
 
     function clear(message) {
         previewBox.innerHTML = '<p class="text-muted small mb-0">'

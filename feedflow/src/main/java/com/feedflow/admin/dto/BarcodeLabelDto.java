@@ -1,5 +1,6 @@
 package com.feedflow.admin.dto;
 
+import com.feedflow.common.util.DDay;
 import com.feedflow.domain.Product;
 import com.feedflow.domain.ProductLot;
 import lombok.Builder;
@@ -71,25 +72,10 @@ public class BarcodeLabelDto {
     }
 
     public String getDDayLabel() {
-        if (remainingDays == null) {
-            return "-";
-        }
-        return remainingDays < 0 ? "만료 " + Math.abs(remainingDays) + "일 경과" : "D-" + remainingDays;
+        return DDay.label(remainingDays);
     }
 
     public String getDDayBadgeClass() {
-        if (remainingDays == null) {
-            return "bg-light text-dark border";
-        }
-        if (remainingDays < 0) {
-            return "bg-dark";
-        }
-        if (remainingDays <= 7) {
-            return "bg-danger";
-        }
-        if (remainingDays <= 30) {
-            return "bg-warning text-dark";
-        }
-        return "bg-light text-dark border";
+        return DDay.badgeClass(remainingDays);
     }
 }

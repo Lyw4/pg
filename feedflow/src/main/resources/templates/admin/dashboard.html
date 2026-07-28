@@ -11,7 +11,7 @@
 
 <div class="ff-content">
 
-    <div th:replace="~{fragments/layout :: topbar('대시보드')}"></div>
+    <div th:replace="~{fragments/layout :: topbar(null, '대시보드')}"></div>
 
     <main class="ff-main">
 
@@ -318,7 +318,7 @@
                                         th:text="${#numbers.formatInteger(lot.lotQuantity, 1, 'COMMA')}">0
                                     </td>
                                     <td class="text-center">
-                                        <span class="badge" th:classappend="${lot.badgeClass}"
+                                        <span class="badge" th:classappend="${lot.dDayBadgeClass}"
                                               th:text="${lot.dDayLabel}">D-0</span>
                                     </td>
                                 </tr>

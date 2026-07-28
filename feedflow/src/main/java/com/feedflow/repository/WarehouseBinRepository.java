@@ -6,7 +6,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface WarehouseBinRepository extends JpaRepository<WarehouseBin, Long> {
 
@@ -15,8 +14,6 @@ public interface WarehouseBinRepository extends JpaRepository<WarehouseBin, Long
 
     /** 수정 시 중복 검사 (자기 자신은 제외) */
     boolean existsByBinCodeAndBinIdNot(String binCode, Long binId);
-
-    Optional<WarehouseBin> findByBinCode(String binCode);
 
     /**
      * 구역 목록 검색.

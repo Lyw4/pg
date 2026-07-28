@@ -67,8 +67,8 @@ public class AdminOutboundController {
                                 @AuthenticationPrincipal LoginUser loginUser,
                                 RedirectAttributes redirectAttributes) {
 
-        Long userId = (loginUser == null) ? null : loginUser.getUserId();
-        String userName = (loginUser == null) ? null : loginUser.getDisplayName();
+        Long userId = LoginUser.idOf(loginUser);
+        String userName = LoginUser.nameOf(loginUser);
 
         try {
             OrderDispatchResultDto result = outboundService.dispatchOrder(orderId, userId, userName);
@@ -105,8 +105,8 @@ public class AdminOutboundController {
             return DIRECT_VIEW;
         }
 
-        Long userId = (loginUser == null) ? null : loginUser.getUserId();
-        String userName = (loginUser == null) ? null : loginUser.getDisplayName();
+        Long userId = LoginUser.idOf(loginUser);
+        String userName = LoginUser.nameOf(loginUser);
 
         try {
             OutboundResultDto result = outboundService.dispatch(outboundForm, userId, userName);

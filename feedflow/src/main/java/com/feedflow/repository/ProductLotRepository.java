@@ -47,16 +47,6 @@ public interface ProductLotRepository extends JpaRepository<ProductLot, Long> {
             """)
     List<ProductLot> findAllWithProduct();
 
-    /** 특정 품목의 로트 목록 (유통기한 임박 순) */
-    @Query("""
-            select l
-            from ProductLot l
-            join fetch l.product p
-            where p.productId = :productId
-            order by l.expirationDate asc
-            """)
-    List<ProductLot> findByProductId(@Param("productId") Long productId);
-
     /* ------------------------------------------------------------------
      * 대시보드 - 유통기한 임박 알림
      * ------------------------------------------------------------------ */

@@ -10,6 +10,7 @@ import com.feedflow.admin.dto.ScanOutboundRequest;
 import com.feedflow.admin.dto.ScanResultDto;
 import com.feedflow.common.exception.BusinessRuleException;
 import com.feedflow.common.exception.ResourceNotFoundException;
+import com.feedflow.common.util.Texts;
 import com.feedflow.domain.Inventory;
 import com.feedflow.domain.Product;
 import com.feedflow.domain.ProductLot;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 바코드 / QR 코드 스캔 조회 서비스.
@@ -60,18 +62,14 @@ public class BarcodeScanService {
         LocalDate today = LocalDate.now();
 
         // 1) 로트번호 우선 조회
-        List<ProductLot> lots = productLotRepository.findAllByLotNo(code);
-        if (!lots.isEmpty()) {
-            ProductLot lot = lots.get(0);
-            List<Inventory> inventories = inventoryRepository.findByLotIdWithBin(lot.getLotId());
-            return ScanResultDto.ofLot(lot, inventories, today);
+        Optional<ProductLot> lot = findLotByNo(code);
+        if (lot.isPresent()) {
+            List<Inventory> inventories = inventoryRepository.findByLotIdWithBin(lot.get().getLotId());
+            return ScanResultDto.ofLot(lot.get(), inventories, today);
         }
 
         // 2) 품목코드 조회
-        Product product = productRepository.findByProductCode(code)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "등록되지 않은 바코드입니다. 로트번호 또는 품목코드를 확인하세요. (스캔값: " + code + ")"));
-
+        Product product = findProductByCode(code);
         List<Inventory> inventories = inventoryRepository.search(product.getProductId(), null, null);
         return ScanResultDto.ofProduct(product, inventories, today);
     }
@@ -94,11 +92,11 @@ public class BarcodeScanService {
         InboundForm form = new InboundForm();
         form.setBinId(request.getBinId());
         form.setQuantity(request.getQuantity());
-        form.setMemo(defaultMemo(request.getMemo(), "바코드 스캔 입고"));
+        form.setMemo(Texts.defaultIfBlank(request.getMemo(), "바코드 스캔 입고"));
 
-        List<ProductLot> lots = productLotRepository.findAllByLotNo(code);
-        if (!lots.isEmpty()) {
-            ProductLot lot = lots.get(0);
+        Optional<ProductLot> existingLot = findLotByNo(code);
+        if (existingLot.isPresent()) {
+            ProductLot lot = existingLot.get();
             form.setProductId(lot.getProduct().getProductId());
             form.setLotNo(lot.getLotNo());
             form.setManufacturedDate(lot.getManufacturedDate());
@@ -128,7 +126,7 @@ public class BarcodeScanService {
         OutboundForm form = new OutboundForm();
         form.setProductId(product.getProductId());
         form.setQuantity(request.getQuantity());
-        form.setMemo(defaultMemo(request.getMemo(), "바코드 스캔 출고"));
+        form.setMemo(Texts.defaultIfBlank(request.getMemo(), "바코드 스캔 출고"));
 
         return outboundService.dispatch(form, userId, userName);
     }
@@ -156,13 +154,20 @@ public class BarcodeScanService {
      * 내부 헬퍼
      * ================================================================== */
 
+    /**
+     * 로트번호로 로트를 찾는다.
+     * 로트번호는 품목 단위로 유일하므로 서로 다른 품목에 같은 번호가 있을 수 있어
+     * 유통기한이 가장 임박한 로트를 우선한다.
+     */
+    private Optional<ProductLot> findLotByNo(String code) {
+        return productLotRepository.findAllByLotNo(code).stream().findFirst();
+    }
+
     /** 코드(로트번호 또는 품목코드)로 품목을 찾는다 */
     private Product resolveProduct(String code) {
-        List<ProductLot> lots = productLotRepository.findAllByLotNo(code);
-        if (!lots.isEmpty()) {
-            return lots.get(0).getProduct();
-        }
-        return findProductByCode(code);
+        return findLotByNo(code)
+                .map(ProductLot::getProduct)
+                .orElseGet(() -> findProductByCode(code));
     }
 
     private Product findProductByCode(String code) {
@@ -171,16 +176,12 @@ public class BarcodeScanService {
                         "등록되지 않은 바코드입니다. 로트번호 또는 품목코드를 확인하세요. (스캔값: " + code + ")"));
     }
 
-    private String defaultMemo(String memo, String defaultValue) {
-        return (memo == null || memo.isBlank()) ? defaultValue : memo.trim();
-    }
-
     /** 스캔 값 정규화 : 앞뒤 공백 제거 + 대문자 변환 */
     private String normalize(String rawCode) {
-        if (rawCode == null || rawCode.isBlank()) {
+        if (Texts.isBlank(rawCode)) {
             throw new BusinessRuleException("스캔된 코드가 비어 있습니다.");
         }
-        String code = rawCode.trim().toUpperCase();
+        String code = Texts.code(rawCode);
         if (code.length() > MAX_CODE_LENGTH) {
             throw new BusinessRuleException("스캔된 코드가 너무 깁니다. (최대 " + MAX_CODE_LENGTH + "자)");
         }

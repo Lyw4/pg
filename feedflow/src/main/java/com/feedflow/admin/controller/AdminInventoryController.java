@@ -109,8 +109,8 @@ public class AdminInventoryController {
             return INBOUND_VIEW;
         }
 
-        Long userId = (loginUser == null) ? null : loginUser.getUserId();
-        String userName = (loginUser == null) ? null : loginUser.getDisplayName();
+        Long userId = LoginUser.idOf(loginUser);
+        String userName = LoginUser.nameOf(loginUser);
 
         try {
             InboundResultDto result = inventoryService.receive(inboundForm, userId, userName);
@@ -172,8 +172,8 @@ public class AdminInventoryController {
             return "redirect:/admin/inventory/disposal";
         }
 
-        Long userId = (loginUser == null) ? null : loginUser.getUserId();
-        String userName = (loginUser == null) ? null : loginUser.getDisplayName();
+        Long userId = LoginUser.idOf(loginUser);
+        String userName = LoginUser.nameOf(loginUser);
 
         try {
             DisposalResultDto result = inventoryService.dispose(disposalForm, userId, userName);

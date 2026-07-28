@@ -1,5 +1,6 @@
 package com.feedflow.admin.service;
 
+import com.feedflow.common.util.Numbers;
 import com.feedflow.admin.dto.DailySalesRow;
 import com.feedflow.admin.dto.ExpiringLotDto;
 import com.feedflow.admin.dto.SafetyStockAlertDto;
@@ -41,6 +42,9 @@ public class DashboardService {
 
     private static final DateTimeFormatter CHART_LABEL_FORMATTER = DateTimeFormatter.ofPattern("MM/dd");
     private static final int MAX_CHART_DAYS = 90;
+
+    /** 매출 집계에서 제외하는 주문 상태 (취소 주문은 매출이 아니다) */
+    private static final OrderStatus EXCLUDED_FROM_SALES = OrderStatus.CANCELED;
 
     private final ProductRepository productRepository;
     private final ProductLotRepository productLotRepository;
@@ -117,10 +121,10 @@ public class DashboardService {
         LocalDateTime todayEnd = today.atTime(LocalTime.MAX);
         LocalDateTime monthStart = today.withDayOfMonth(1).atStartOfDay();
 
-        long todaySales = nullSafe(
-                orderRepository.sumSalesBetween(OrderStatus.CANCELED, todayStart, todayEnd));
-        long monthSales = nullSafe(
-                orderRepository.sumSalesBetween(OrderStatus.CANCELED, monthStart, todayEnd));
+        long todaySales = Numbers.orZero(
+                orderRepository.sumSalesBetween(EXCLUDED_FROM_SALES, todayStart, todayEnd));
+        long monthSales = Numbers.orZero(
+                orderRepository.sumSalesBetween(EXCLUDED_FROM_SALES, monthStart, todayEnd));
 
         return SalesSummaryDto.builder()
                 .todaySales(todaySales)
@@ -140,7 +144,7 @@ public class DashboardService {
         LocalDate from = today.minusDays(targetDays - 1L);
 
         List<DailySalesRow> rows =
-                orderRepository.findDailySales(OrderStatus.CANCELED, from.atStartOfDay());
+                orderRepository.findDailySales(EXCLUDED_FROM_SALES, from.atStartOfDay());
 
         Map<LocalDate, Long> salesByDate = new HashMap<>();
         for (DailySalesRow row : rows) {
@@ -170,9 +174,5 @@ public class DashboardService {
     /** 유통기한 경고 상한일 (오늘 + 기준일수) */
     private LocalDate expirationLimit(LocalDate today) {
         return today.plusDays(expirationAlertDays);
-    }
-
-    private long nullSafe(Long value) {
-        return value == null ? 0L : value;
     }
 }

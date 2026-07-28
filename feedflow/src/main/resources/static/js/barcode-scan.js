@@ -8,6 +8,11 @@
 (function () {
     'use strict';
 
+    // 공통 유틸 (ff-utils.js) 재사용
+    var escapeHtml = window.FFUtils.escapeHtml;
+    var number = window.FFUtils.number;
+    var dDayBadge = window.FFUtils.dDayBadge;
+
     var SCAN_API = '/api/admin/scan';
     var DUPLICATE_IGNORE_MS = 2500;   // 같은 코드 연속 인식 무시 시간
     var MAX_RECENT = 8;
@@ -67,24 +72,7 @@
      * 유틸
      * ------------------------------------------------------------------ */
 
-    function escapeHtml(value) {
-        if (value === null || value === undefined) {
-            return '';
-        }
-        return String(value)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
 
-    function number(value) {
-        if (value === null || value === undefined) {
-            return '-';
-        }
-        return Number(value).toLocaleString('ko-KR');
-    }
 
     function setStatus(text, badgeClass) {
         elements.status.textContent = text;
@@ -243,21 +231,6 @@
         elements.message.textContent = text;
     }
 
-    function dDayBadge(remainingDays) {
-        if (remainingDays === null || remainingDays === undefined) {
-            return {label: '-', cls: 'bg-light text-dark border'};
-        }
-        if (remainingDays < 0) {
-            return {label: '만료 ' + Math.abs(remainingDays) + '일 경과', cls: 'bg-dark'};
-        }
-        if (remainingDays <= 7) {
-            return {label: 'D-' + remainingDays, cls: 'bg-danger'};
-        }
-        if (remainingDays <= 30) {
-            return {label: 'D-' + remainingDays, cls: 'bg-warning text-dark'};
-        }
-        return {label: 'D-' + remainingDays, cls: 'bg-light text-dark border'};
-    }
 
     /* ------------------------------------------------------------------
      * 카메라

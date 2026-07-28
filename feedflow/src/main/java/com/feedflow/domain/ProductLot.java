@@ -121,6 +121,9 @@ public class ProductLot {
      * </ul>
      */
     public long daysUntilExpiration(LocalDate baseDate) {
+        if (baseDate == null || expirationDate == null) {
+            throw new IllegalStateException("유통기한 정보가 없어 D-Day 를 계산할 수 없습니다. lotNo=" + lotNo);
+        }
         return ChronoUnit.DAYS.between(baseDate, expirationDate);
     }
 

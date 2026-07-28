@@ -1,5 +1,6 @@
 package com.feedflow.admin.service;
 
+import com.feedflow.common.util.Texts;
 import com.feedflow.admin.dto.DisposalForm;
 import com.feedflow.admin.dto.DisposalResultDto;
 import com.feedflow.admin.dto.InboundForm;
@@ -218,7 +219,7 @@ public class InventoryService {
     public List<InventoryDto> getDisposalTargets(Long productId, String zone, boolean expiredOnly) {
         LocalDate today = LocalDate.now();
 
-        return inventoryRepository.search(productId, null, emptyToNull(zone)).stream()
+        return inventoryRepository.search(productId, null, Texts.trimToNull(zone)).stream()
                 .map(inventory -> InventoryDto.of(inventory, today))
                 .filter(dto -> !expiredOnly || dto.isExpired())
                 .toList();
@@ -250,7 +251,7 @@ public class InventoryService {
     /** 재고 현황 (로트 × 구역) */
     public List<InventoryDto> getInventories(Long productId, Long binId, String zone) {
         LocalDate today = LocalDate.now();
-        return inventoryRepository.search(productId, binId, emptyToNull(zone)).stream()
+        return inventoryRepository.search(productId, binId, Texts.trimToNull(zone)).stream()
                 .map(inventory -> InventoryDto.of(inventory, today))
                 .toList();
     }
@@ -327,9 +328,5 @@ public class InventoryService {
                             + " (현재 " + currentQuantity + " + 입고 " + quantity
                             + " > 최대 " + maxCapacity + ")");
         }
-    }
-
-    private String emptyToNull(String value) {
-        return (value == null || value.isBlank()) ? null : value.trim();
     }
 }

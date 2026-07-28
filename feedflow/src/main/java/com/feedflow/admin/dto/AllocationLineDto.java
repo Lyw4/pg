@@ -1,5 +1,6 @@
 package com.feedflow.admin.dto;
 
+import com.feedflow.common.util.DDay;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -41,16 +42,10 @@ public class AllocationLineDto {
     }
 
     public String getDDayLabel() {
-        return "D-" + remainingDays;
+        return DDay.label(remainingDays);
     }
 
     public String getDDayBadgeClass() {
-        if (remainingDays <= 7) {
-            return "bg-danger";
-        }
-        if (remainingDays <= 30) {
-            return "bg-warning text-dark";
-        }
-        return "bg-light text-dark border";
+        return DDay.badgeClass(remainingDays);
     }
 }

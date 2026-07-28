@@ -1,5 +1,6 @@
 package com.feedflow.admin.service;
 
+import com.feedflow.common.util.Texts;
 import com.feedflow.admin.dto.ProductDto;
 import com.feedflow.admin.dto.ProductForm;
 import com.feedflow.common.exception.DuplicateCodeException;
@@ -36,7 +37,7 @@ public class ProductService {
                                         Boolean active,
                                         Pageable pageable) {
         return productRepository
-                .search(emptyToNull(keyword), emptyToNull(animalType), active, pageable)
+                .search(Texts.trimToNull(keyword), Texts.trimToNull(animalType), active, pageable)
                 .map(ProductDto::from);
     }
 
@@ -73,7 +74,7 @@ public class ProductService {
      */
     @Transactional
     public Long create(ProductForm form) {
-        String productCode = normalizeCode(form.getProductCode());
+        String productCode = Texts.code(form.getProductCode());
 
         if (productRepository.existsByProductCode(productCode)) {
             throw DuplicateCodeException.ofProductCode(productCode);
@@ -81,8 +82,8 @@ public class ProductService {
 
         Product product = Product.builder()
                 .productCode(productCode)
-                .name(trim(form.getName()))
-                .animalType(trim(form.getAnimalType()))
+                .name(Texts.trim(form.getName()))
+                .animalType(Texts.trim(form.getAnimalType()))
                 .weightKg(form.getWeightKg())
                 .price(form.getPrice())
                 .totalStock(form.getTotalStock())
@@ -104,7 +105,7 @@ public class ProductService {
     @Transactional
     public void update(Long productId, ProductForm form) {
         Product product = findProduct(productId);
-        String productCode = normalizeCode(form.getProductCode());
+        String productCode = Texts.code(form.getProductCode());
 
         if (productRepository.existsByProductCodeAndProductIdNot(productCode, productId)) {
             throw DuplicateCodeException.ofProductCode(productCode);
@@ -112,8 +113,8 @@ public class ProductService {
 
         product.updateMasterData(
                 productCode,
-                trim(form.getName()),
-                trim(form.getAnimalType()),
+                Texts.trim(form.getName()),
+                Texts.trim(form.getAnimalType()),
                 form.getWeightKg(),
                 form.getPrice(),
                 form.getSafetyStock(),
@@ -139,18 +140,5 @@ public class ProductService {
     private Product findProduct(Long productId) {
         return productRepository.findById(productId)
                 .orElseThrow(() -> ResourceNotFoundException.ofProduct(productId));
-    }
-
-    /** 품목 코드는 공백 제거 + 대문자로 정규화하여 저장한다. */
-    private String normalizeCode(String code) {
-        return code == null ? null : code.trim().toUpperCase();
-    }
-
-    private String trim(String value) {
-        return value == null ? null : value.trim();
-    }
-
-    private String emptyToNull(String value) {
-        return (value == null || value.isBlank()) ? null : value.trim();
     }
 }

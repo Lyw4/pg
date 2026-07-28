@@ -32,8 +32,8 @@ public class ScanActionApiController {
     @PostMapping("/inbound")
     public ResponseEntity<InboundResultDto> inbound(@Valid @RequestBody ScanInboundRequest request,
                                                     @AuthenticationPrincipal LoginUser loginUser) {
-        Long userId = (loginUser == null) ? null : loginUser.getUserId();
-        String userName = (loginUser == null) ? null : loginUser.getDisplayName();
+        Long userId = LoginUser.idOf(loginUser);
+        String userName = LoginUser.nameOf(loginUser);
 
         return ResponseEntity.ok(barcodeScanService.receiveByCode(request, userId, userName));
     }
@@ -42,8 +42,8 @@ public class ScanActionApiController {
     @PostMapping("/outbound")
     public ResponseEntity<OutboundResultDto> outbound(@Valid @RequestBody ScanOutboundRequest request,
                                                       @AuthenticationPrincipal LoginUser loginUser) {
-        Long userId = (loginUser == null) ? null : loginUser.getUserId();
-        String userName = (loginUser == null) ? null : loginUser.getDisplayName();
+        Long userId = LoginUser.idOf(loginUser);
+        String userName = LoginUser.nameOf(loginUser);
 
         return ResponseEntity.ok(barcodeScanService.dispatchByCode(request, userId, userName));
     }

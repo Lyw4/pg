@@ -66,10 +66,6 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
             """)
     List<Inventory> findByLotIdWithBin(@Param("lotId") Long lotId);
 
-    /** 특정 로트의 구역별 보관 수량 합계 */
-    @Query("select sum(i.quantity) from Inventory i where i.lot.lotId = :lotId")
-    Long sumQuantityByLotId(@Param("lotId") Long lotId);
-
     /**
      * FEFO(First Expired First Out) 출고 후보 재고 조회.
      * <p>
