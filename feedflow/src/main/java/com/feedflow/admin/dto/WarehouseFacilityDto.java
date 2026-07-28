@@ -77,14 +77,14 @@ public class WarehouseFacilityDto {
         return switch (warehouse) {
             case WH1 -> List.of(
                     of("입고 출입구", FacilityType.DOOR, 1, 1, 4, 2),
-                    of("하역장 벽", FacilityType.WALL, 5, 1, 1, 18),
-                    of("출고 출입구", FacilityType.DOOR, 1, 13, 4, 2),
-                    of("검수실", FacilityType.INSPECTION, 1, 16, 4, 3));
+                    of("하역장 벽", FacilityType.WALL, 5, 1, 1, 14),
+                    of("출고 출입구", FacilityType.DOOR, 1, 10, 4, 2),
+                    of("검수실", FacilityType.INSPECTION, 1, 12, 4, 3));
             case WH2 -> List.of(
                     of("입고 출입구", FacilityType.DOOR, 1, 1, 4, 2),
-                    of("하역장 벽", FacilityType.WALL, 5, 1, 1, 18),
-                    of("출고 출입구", FacilityType.DOOR, 1, 13, 4, 2),
-                    of("검수실", FacilityType.INSPECTION, 1, 16, 4, 3));
+                    of("하역장 벽", FacilityType.WALL, 5, 1, 1, 14),
+                    of("출고 출입구", FacilityType.DOOR, 1, 10, 4, 2),
+                    of("검수실", FacilityType.INSPECTION, 1, 12, 4, 3));
         };
     }
 }

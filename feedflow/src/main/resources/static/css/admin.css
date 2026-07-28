@@ -604,13 +604,15 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2.6rem;
+    /* font-size 는 경계 상자 크기와 글자 수에 맞춰 서버에서 계산해 주입한다 */
     font-weight: 800;
-    color: rgba(13, 110, 253, .13);
+    color: rgba(13, 110, 253, .12);
     pointer-events: none;
     user-select: none;
     z-index: 0;
-    letter-spacing: -.03em;
+    letter-spacing: -.04em;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 /* ---------------- 부대시설 ---------------- */
@@ -633,12 +635,32 @@ body {
     color: #a4133c;
 }
 
+/* 벽은 칸을 꽉 채우면 굵은 갈색 덩어리처럼 보인다.
+ * 칸 가운데에 얇은 선만 그려 '구획 경계'로 읽히게 한다. */
 .ff-facility-wall {
-    background-color: #6c584c;
-    border: 1px solid #4a3f35;
-    color: transparent;
-    writing-mode: vertical-rl;
+    background-color: transparent;
+    border: none;
     font-size: 0;
+    color: transparent;
+    position: relative;
+}
+
+.ff-facility-wall::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 7px;
+    border-radius: 4px;
+    background: repeating-linear-gradient(
+            180deg,
+            #8d99ae 0,
+            #8d99ae 14px,
+            #b3bcc9 14px,
+            #b3bcc9 20px
+    );
 }
 
 .ff-facility-inspection {
@@ -722,13 +744,21 @@ body {
     opacity: .8;
 }
 
-/* 좁은 사각형(2칸 이하)은 세로로 길므로 수량 표기를 숨겨 겹침을 막는다 */
+/* 좁고 세로로 긴 사각형(2칸 이하)
+ * space-between 을 그대로 두면 위/아래로 내용이 벌어져 가운데가 텅 빈다.
+ * 내용을 가운데로 모아 읽기 좋게 한다. */
+.ff-bin-narrow {
+    justify-content: center;
+    gap: .3rem;
+}
+
 .ff-bin-narrow .ff-bin-qty,
 .ff-bin-narrow .ff-bin-meta {
     font-size: .55rem;
 }
 
-.ff-bin-narrow .ff-bin-head {
+.ff-bin-narrow .ff-bin-head,
+.ff-bin-narrow .ff-bin-foot {
     flex-direction: column;
     align-items: flex-start;
     gap: 0;
@@ -761,6 +791,12 @@ body {
     display: block;
     height: 100%;
     background: rgba(0, 0, 0, .4);
+}
+
+/* 비어있는 구역은 0% 만 보면 애매하므로 글자로 명시한다 */
+.ff-bin-empty-text {
+    font-style: italic;
+    opacity: .7;
 }
 
 /* 유통기한 임박 D-Day 뱃지 */

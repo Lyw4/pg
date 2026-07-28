@@ -135,7 +135,8 @@
 
                         <!-- 구역 이름 라벨 (사각형 뒤에 크게 겹쳐 표시) -->
                         <div class="ff-zone-label" th:each="z : ${floorPlan.zones}"
-                             th:style="'grid-area:' + ${z.gridArea}"
+                             th:style="'grid-area:' + ${z.gridArea}
+                                       + ';font-size:' + ${z.labelFontSize} + 'px'"
                              th:text="${z.zone}"
                              aria-hidden="true">A</div>
 
@@ -183,9 +184,11 @@
                                           class="badge ff-bin-dday"
                                           th:classappend="${bin.earliestDDayBadgeClass}"
                                           th:text="${bin.earliestDDayLabel}">D-5</span>
-                                    <span th:if="${!bin.active}">중지</span>
+                                    <span th:if="${!bin.active}">사용 중지</span>
                                     <span th:if="${bin.active and bin.lotCount > 0}"
-                                          th:text="'로트 ' + ${bin.lotCount}">로트 0</span>
+                                          th:text="'로트 ' + ${bin.lotCount} + ' · ' + ${bin.productCount} + '종'">로트 0 · 0종</span>
+                                    <span th:if="${bin.active and bin.storage and bin.lotCount == 0}"
+                                          class="ff-bin-empty-text">비어있음</span>
                                 </span>
                             </span>
                         </button>

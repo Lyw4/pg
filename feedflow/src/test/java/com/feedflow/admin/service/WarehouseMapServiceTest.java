@@ -343,6 +343,45 @@ class WarehouseMapServiceTest {
         }
 
         @Test
+        @DisplayName("긴 구역 이름도 박스를 넘지 않도록 라벨 글자 크기를 줄인다")
+        void labelFontSize_fitsInBoundingBox() {
+            // 좁은 박스에 4글자 이름 (COLD) → 글자 크기를 줄여야 잘리지 않는다
+            WarehouseMapZoneDto narrowCold = WarehouseMapZoneDto.of("COLD", List.of(
+                    WarehouseBinMapDto.of(
+                            storageRow(8L, "COLD-01", "COLD", 200, true, 0L, 0L, 0L, null,
+                                    9, 1, 3, 3), TODAY)));
+
+            // 넓은 박스에 1글자 이름 (A) → 크게 그릴 수 있다
+            WarehouseMapZoneDto wideA = WarehouseMapZoneDto.of("A", List.of(
+                    WarehouseBinMapDto.of(
+                            storageRow(1L, "A-01", "A", 500, true, 0L, 0L, 0L, null,
+                                    6, 1, 8, 8), TODAY)));
+
+            assertThat(narrowCold.getLabelFontSize())
+                    .as("글자 수가 많으면 폰트가 작아져야 한다")
+                    .isLessThan(wideA.getLabelFontSize());
+
+            // 실제로 박스 안에 들어가는지 확인 (셀 폭 36px, 글자 폭 ≈ 폰트 * 0.62)
+            double textWidth = narrowCold.getLabelFontSize() * 0.62 * "COLD".length();
+            assertThat(textWidth)
+                    .as("COLD 가 'COL' 로 잘리지 않아야 한다")
+                    .isLessThanOrEqualTo(narrowCold.getPosWidth() * 36.0);
+        }
+
+        @Test
+        @DisplayName("아주 작은 박스에서도 라벨 글자 크기는 하한을 지킨다")
+        void labelFontSize_hasLowerBound() {
+            WarehouseMapZoneDto tiny = WarehouseMapZoneDto.of("COLD", List.of(
+                    WarehouseBinMapDto.of(
+                            storageRow(8L, "COLD-01", "COLD", 200, true, 0L, 0L, 0L, null,
+                                    9, 1, 1, 1), TODAY)));
+
+            assertThat(tiny.getLabelFontSize())
+                    .as("0px 이 되어 사라지면 안 된다")
+                    .isGreaterThanOrEqualTo(13);
+        }
+
+        @Test
         @DisplayName("구역 적재율은 사용 중인 보관 구역만 집계한다")
         void zoneUsageRate_excludesInactiveAndNonStorage() {
             given(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH1)).willReturn(List.of(

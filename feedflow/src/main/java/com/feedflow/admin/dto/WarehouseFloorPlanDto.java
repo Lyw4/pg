@@ -46,9 +46,13 @@ public class WarehouseFloorPlanDto {
         return "repeat(" + GRID_COLUMNS + ", minmax(0, 1fr))";
     }
 
-    /** CSS Grid 행 정의 */
+    /**
+     * CSS Grid 행 정의.
+     * <p>
+     * 행 높이를 충분히 확보해야 사각형이 납작한 막대처럼 보이지 않는다.
+     */
     public String getGridTemplateRows() {
-        return "repeat(" + GRID_ROWS + ", minmax(22px, auto))";
+        return "repeat(" + GRID_ROWS + ", minmax(34px, auto))";
     }
 
     public boolean isEmpty() {

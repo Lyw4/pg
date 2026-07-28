@@ -23,9 +23,15 @@ import lombok.Setter;
 @NoArgsConstructor
 public class WarehouseBinForm {
 
-    /** 도면 격자 크기 (화면 입력 상한과 도면 렌더링이 같은 값을 써야 한다) */
-    public static final int GRID_COLUMNS = 24;
-    public static final int GRID_ROWS = 18;
+    /**
+     * 도면 격자 크기 (화면 입력 상한과 도면 렌더링이 같은 값을 써야 한다).
+     * <p>
+     * 행을 줄이고 열을 늘렸다. 행이 많으면 한 행의 높이가 얇아져
+     * 사각형이 <b>가로로 긴 막대</b>처럼 보이기 때문이다.
+     * 26 x 14 격자에서 5칸 x 3칸 사각형이 대략 정사각형에 가깝게 그려진다.
+     */
+    public static final int GRID_COLUMNS = 26;
+    public static final int GRID_ROWS = 14;
 
     /** 수정 시에만 값이 존재 */
     private Long binId;

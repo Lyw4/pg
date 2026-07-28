@@ -80,6 +80,33 @@ public class WarehouseMapZoneDto {
         return posY + " / " + posX + " / span " + posHeight + " / span " + posWidth;
     }
 
+    /* 도면 한 칸의 대략적인 크기 (px) — 라벨 글자 크기 계산에만 쓴다 */
+    private static final double CELL_WIDTH = 36;
+    private static final double CELL_HEIGHT = 34;
+
+    /** 라벨 글자 크기 하한 / 상한 (px) */
+    private static final int MIN_FONT_SIZE = 13;
+    private static final int MAX_FONT_SIZE = 58;
+
+    /**
+     * 도면 위 구역 라벨의 글자 크기(px).
+     * <p>
+     * 고정 크기로 두면 <b>{@code COLD} 처럼 긴 이름이 박스를 넘어 잘린다.</b>
+     * (실제로 'COL' 까지만 보이는 문제가 있었다)
+     * 경계 상자의 너비/높이와 <b>글자 수</b>를 함께 반영해 박스 안에 들어가는 크기를 구한다.
+     */
+    public int getLabelFontSize() {
+        int nameLength = Math.max(zone == null ? 1 : zone.length(), 1);
+
+        // 폭 기준 : 글자 하나가 대략 폰트 크기의 0.62배 너비를 차지한다
+        double byWidth = (posWidth * CELL_WIDTH * 0.85) / (nameLength * 0.62);
+        // 높이 기준 : 박스 높이의 70% 를 넘지 않게 한다
+        double byHeight = posHeight * CELL_HEIGHT * 0.7;
+
+        int fontSize = (int) Math.floor(Math.min(byWidth, byHeight));
+        return Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, fontSize));
+    }
+
     public int getUsageRateCapped() {
         return Math.min(usageRate, 100);
     }
