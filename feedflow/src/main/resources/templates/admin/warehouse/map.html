@@ -318,7 +318,10 @@
             </div>
 
             <div class="modal-footer">
-                <a href="#" id="binDetailInventoryLink" class="btn btn-sm btn-outline-primary">
+                <!-- 빈 앵커(우물정 하나)를 두면 JS 가 값을 채우기 전에 눌렸을 때
+                     화면이 최상단으로 튕긴다. 기본값을 실제 경로로 두고 JS 가 binId 만 덧붙인다. -->
+                <a th:href="@{/admin/inventory}" id="binDetailInventoryLink"
+                   class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-list-ul me-1"></i>재고 현황에서 보기
                 </a>
                 <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">닫기</button>

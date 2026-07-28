@@ -16,4 +16,8 @@ public class ResourceNotFoundException extends RuntimeException {
     public static ResourceNotFoundException ofWarehouseBin(Long binId) {
         return new ResourceNotFoundException("존재하지 않는 창고 구역입니다. id=" + binId);
     }
+
+    public static ResourceNotFoundException ofOrder(Long orderId) {
+        return new ResourceNotFoundException("존재하지 않는 주문입니다. id=" + orderId);
+    }
 }

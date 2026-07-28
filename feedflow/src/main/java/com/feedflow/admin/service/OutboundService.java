@@ -201,6 +201,8 @@ public class OutboundService {
                 .createdAt(order.getCreatedAt())
                 .items(items)
                 .dispatchable(order.isDispatchable())
+                .cancelable(order.isCancelable())
+                .stockDeducted(order.isStockDeducted())
                 .build();
     }
 
@@ -318,16 +320,10 @@ public class OutboundService {
             inventory.subtractQuantity(take);
             lot.subtractQuantity(take);
 
-            stockMovementRepository.save(StockMovement.builder()
-                    .movementType(MovementType.OUTBOUND)
-                    .product(product)
-                    .lot(lot)
-                    .bin(bin)
-                    .quantity(take)
-                    .memo(memo)
-                    .userId(userId)
-                    .userName(userName)
-                    .build());
+            // 주문 번호를 남겨야 나중에 출고 취소 시 어느 로트/구역으로 되돌릴지 알 수 있다
+            Long orderId = orderItem == null ? null : orderItem.getOrder().getOrderId();
+            stockMovementRepository.save(
+                    StockMovement.outbound(lot, bin, take, orderId, memo, userId, userName));
 
             // 첫 번째(= 가장 먼저 만료되는) 로트를 주문 항목의 대표 로트로 기록
             if (orderItem != null && sequence == 1) {

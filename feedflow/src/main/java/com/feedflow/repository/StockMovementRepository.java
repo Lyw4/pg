@@ -38,6 +38,25 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
                                Pageable pageable);
 
     /** 특정 기간의 유형별 처리 건수 (오늘 입고 건수 등) */
+    /**
+     * 특정 주문의 특정 유형 이력 조회 (출고 취소 시 복구 대상 산출용).
+     * <p>
+     * 복구할 때 로트 · 구역 · 품목을 모두 쓰므로 {@code join fetch} 로 한 번에 가져온다.
+     * 오래된 출고부터 처리하도록 이력 순서를 유지한다.
+     */
+    @Query("""
+            select m
+            from StockMovement m
+            join fetch m.lot l
+            join fetch l.product p
+            left join fetch m.bin b
+            where m.orderId = :orderId
+              and m.movementType = :movementType
+            order by m.movementId asc
+            """)
+    List<StockMovement> findByOrderIdAndType(@Param("orderId") Long orderId,
+                                             @Param("movementType") MovementType movementType);
+
     long countByMovementTypeAndCreatedAtBetween(MovementType movementType,
                                                 LocalDateTime start,
                                                 LocalDateTime end);

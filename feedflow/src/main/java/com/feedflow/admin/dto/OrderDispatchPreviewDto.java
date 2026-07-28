@@ -29,6 +29,17 @@ public class OrderDispatchPreviewDto {
     /** 출고 처리 가능한 상태인지 (결제완료 / 출고대기) */
     private final boolean dispatchable;
 
+    /**
+     * 취소 가능한 상태인지.
+     * <p>
+     * 판단 규칙은 {@code Order} 도메인이 갖고 있고 여기에는 결과만 담는다.
+     * DTO 가 상태 규칙을 다시 구현하면 두 곳이 어긋날 수 있다.
+     */
+    private final boolean cancelable;
+
+    /** 이미 출고되어 취소 시 재고 복구가 필요한 상태인지 */
+    private final boolean stockDeducted;
+
     public String getStatusLabel() {
         return status.getDescription();
     }

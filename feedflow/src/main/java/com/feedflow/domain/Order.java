@@ -94,6 +94,29 @@ public class Order {
         return status == OrderStatus.PAID || status == OrderStatus.READY;
     }
 
+    /**
+     * 취소 가능한 상태인지.
+     * <p>
+     * 이미 취소된 주문은 다시 취소할 수 없고, <b>배송 완료된 주문도 취소하지 않는다.</b>
+     * 물건이 이미 고객에게 넘어간 뒤라 창고 재고를 되돌리면 실물과 장부가 어긋난다.
+     * (이 경우는 반품 절차로 처리해야 한다)
+     */
+    public boolean isCancelable() {
+        return status == OrderStatus.PAID
+                || status == OrderStatus.READY
+                || status == OrderStatus.SHIPPED;
+    }
+
+    /** 이미 출고되어 재고가 차감된 상태인지 (취소 시 재고 복구가 필요) */
+    public boolean isStockDeducted() {
+        return status == OrderStatus.SHIPPED;
+    }
+
+    /** 주문 취소 */
+    public void cancel() {
+        this.status = OrderStatus.CANCELED;
+    }
+
     /** 출고 대기 상태로 변경 */
     public void markReady() {
         this.status = OrderStatus.READY;

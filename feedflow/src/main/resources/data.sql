@@ -291,6 +291,17 @@ INSERT INTO stockMovements (movementId, movementType, productId, lotId, binId, q
 (36, 'INBOUND',  9, 34, 29, 180, '제2창고 상온 구역 입고', 2, '이사원', DATEADD('DAY',  -18, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
+-- 8-1. 주문 기반 출고 이력  ※ 출고 취소 기능의 복구 근거
+--    · 주문 #5 (SHIPPED) : 품목 2 / 로트 3 / 구역 5(B-01) 에서 10개 출고
+--    · orderId 를 남겨야 취소 시 어느 로트·구역으로 되돌릴지 알 수 있다
+--      (orderItems.lotId 는 대표 로트 하나만 기록하므로 근거로 쓸 수 없다)
+--    · 취소하면 B-01 은 360 -> 370 (한도 600), 로트3 은 150 -> 160,
+--      품목2 totalStock 은 700 -> 710 으로 복구된다
+-- ---------------------------------------------------------------------
+INSERT INTO stockMovements (movementId, movementType, productId, lotId, binId, quantity, orderId, memo, userId, userName, createdAt) VALUES
+(37, 'OUTBOUND', 2, 3, 5, 10, 5, '주문 #5 FEFO 출고', 1, '김책임', DATEADD('DAY', -1, CURRENT_TIMESTAMP));
+
+-- ---------------------------------------------------------------------
 -- 9. IDENTITY 시퀀스 재시작
 --    (명시적 ID 로 INSERT 했으므로, 이후 JPA 저장 시 PK 충돌을 막는다)
 -- ---------------------------------------------------------------------
@@ -301,4 +312,4 @@ ALTER TABLE orders ALTER COLUMN orderId RESTART WITH 16;
 ALTER TABLE orderItems ALTER COLUMN orderItemId RESTART WITH 17;
 ALTER TABLE warehouseBins ALTER COLUMN binId RESTART WITH 41;
 ALTER TABLE inventories ALTER COLUMN inventoryId RESTART WITH 37;
-ALTER TABLE stockMovements ALTER COLUMN movementId RESTART WITH 37;
+ALTER TABLE stockMovements ALTER COLUMN movementId RESTART WITH 38;

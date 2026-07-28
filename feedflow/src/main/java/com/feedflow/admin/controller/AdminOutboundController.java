@@ -1,14 +1,17 @@
 package com.feedflow.admin.controller;
 
+import com.feedflow.admin.dto.OrderCancelResultDto;
 import com.feedflow.admin.dto.OrderDispatchResultDto;
 import com.feedflow.admin.dto.OutboundForm;
 import com.feedflow.admin.dto.OutboundResultDto;
+import com.feedflow.admin.service.OrderCancellationService;
 import com.feedflow.admin.service.OutboundService;
 import com.feedflow.admin.service.ProductService;
 import com.feedflow.common.exception.BusinessRuleException;
 import com.feedflow.security.LoginUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -18,6 +21,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
@@ -33,6 +37,7 @@ public class AdminOutboundController {
     private static final String DIRECT_VIEW = "admin/outbound/direct";
 
     private final OutboundService outboundService;
+    private final OrderCancellationService orderCancellationService;
     private final ProductService productService;
 
     @ModelAttribute("menu")
@@ -77,6 +82,40 @@ public class AdminOutboundController {
             return "redirect:/admin/outbound";
         } catch (BusinessRuleException e) {
             // 재고 부족 등 업무 규칙 위반 → 상세 화면으로 되돌려 원인을 보여준다
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            return "redirect:/admin/outbound/orders/" + orderId;
+        }
+    }
+
+    /* ------------------------------------------------------------------
+     * 주문(출고) 취소
+     * ------------------------------------------------------------------ */
+
+    /**
+     * 주문을 취소하고 이미 출고된 재고를 원상 복구한다.
+     * <p>
+     * 재고 장부와 매출을 되돌리는 작업이라 <b>책임자(ADMIN) 전용</b>으로 제한한다.
+     * ({@code /admin/**} 는 STAFF 도 접근할 수 있으므로 메서드 단위로 한 번 더 막는다)
+     */
+    @PostMapping("/orders/{orderId}/cancel")
+    @PreAuthorize("hasRole('ADMIN')")
+    public String cancelOrder(@PathVariable("orderId") Long orderId,
+                              @RequestParam(name = "reason", required = false) String reason,
+                              @AuthenticationPrincipal LoginUser loginUser,
+                              RedirectAttributes redirectAttributes) {
+
+        Long userId = LoginUser.idOf(loginUser);
+        String userName = LoginUser.nameOf(loginUser);
+
+        try {
+            OrderCancelResultDto result =
+                    orderCancellationService.cancel(orderId, reason, userId, userName);
+
+            redirectAttributes.addFlashAttribute("successMessage", result.getSummaryMessage());
+            redirectAttributes.addFlashAttribute("cancelResult", result);
+            return "redirect:/admin/outbound";
+        } catch (BusinessRuleException e) {
+            // 이미 취소됨 / 배송 완료 / 구역 한도 초과 등 → 상세 화면에서 사유를 보여준다
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
             return "redirect:/admin/outbound/orders/" + orderId;
         }

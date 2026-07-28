@@ -168,6 +168,21 @@
                 <div class="d-flex gap-2">
                     <a th:href="@{/admin/outbound}" class="btn btn-outline-secondary">목록으로</a>
 
+                    <!-- 출고 취소 : 재고 장부를 되돌리는 작업이라 ADMIN 에게만 렌더링 -->
+                    <form th:if="${preview.cancelable}"
+                          th:action="@{/admin/outbound/orders/{id}/cancel(id=${preview.orderId})}"
+                          method="post" class="m-0 d-flex align-items-center gap-2"
+                          sec:authorize="hasRole('ADMIN')"
+                          onsubmit="return confirm('주문을 취소합니다. 이미 출고된 재고는 원래 로트와 구역으로 복구됩니다. 계속하시겠습니까?');">
+                        <input type="text" name="reason" class="form-control form-control-sm"
+                               style="max-width: 220px;" maxlength="150"
+                               placeholder="취소 사유 (선택)">
+                        <button type="submit" class="btn btn-outline-danger text-nowrap">
+                            <i class="bi bi-x-circle me-1"></i>
+                            <span th:text="${preview.stockDeducted} ? '출고 취소 (재고 복구)' : '주문 취소'">주문 취소</span>
+                        </button>
+                    </form>
+
                     <form th:action="@{/admin/outbound/orders/{id}/dispatch(id=${preview.orderId})}"
                           method="post" class="m-0"
                           onsubmit="return confirm('선입선출(FEFO) 규칙으로 출고 처리하시겠습니까?');">
