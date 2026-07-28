@@ -40,6 +40,10 @@
                             <div class="text-muted" style="font-size: .72rem;"
                                  th:text="${#numbers.formatInteger(floorPlan.summary.totalLoaded, 1, 'COMMA')} + ' / '
                                           + ${#numbers.formatInteger(floorPlan.summary.totalCapacity, 1, 'COMMA')} + ' 포대'">0 / 0 포대</div>
+                            <!-- 대기 구역 재고는 적재율에서 빼지만 실물은 창고에 있으므로 함께 알려준다 -->
+                            <div th:if="${floorPlan.summary.hasWaitingStock}"
+                                 class="text-info" style="font-size: .7rem;"
+                                 th:text="'+ 대기 구역 ' + ${#numbers.formatInteger(floorPlan.summary.waitingLoaded, 1, 'COMMA')} + '포대 별도'">+ 대기 구역 0포대 별도</div>
                         </div>
                         <div class="ff-stat-icon bg-primary-subtle text-primary">
                             <i class="bi bi-diagram-3"></i>
@@ -55,7 +59,10 @@
                             <div class="text-muted small">남은 여유</div>
                             <div class="ff-stat-value text-success"
                                  th:text="${#numbers.formatInteger(floorPlan.summary.remainingCapacity, 1, 'COMMA')}">0</div>
-                            <div class="text-muted" style="font-size: .72rem;">포대 적재 가능</div>
+                            <div class="text-muted" style="font-size: .72rem;">보관 구역 적재 가능</div>
+                            <div th:if="${floorPlan.summary.waitingCapacity > 0}"
+                                 class="text-muted" style="font-size: .7rem;"
+                                 th:text="'대기 구역 수용 ' + ${#numbers.formatInteger(floorPlan.summary.waitingCapacity, 1, 'COMMA')} + ' 제외'">대기 구역 수용 0 제외</div>
                         </div>
                         <div class="ff-stat-icon bg-success-subtle text-success">
                             <i class="bi bi-box-seam"></i>
@@ -90,7 +97,8 @@
                                  th:classappend="${floorPlan.summary.expiringBins > 0} ? 'text-warning' : 'text-dark'"
                                  th:text="${floorPlan.summary.expiringBins} + '칸'">0칸</div>
                             <div class="text-muted" style="font-size: .72rem;">
-                                전체 <span th:text="${floorPlan.summary.totalBins}">0</span>칸 ·
+                                보관 <span th:text="${floorPlan.summary.storageBins}">0</span>칸 ·
+                                대기 <span th:text="${floorPlan.summary.waitingBins}">0</span>칸 ·
                                 중지 <span th:text="${floorPlan.summary.inactiveBins}">0</span>칸
                             </div>
                         </div>

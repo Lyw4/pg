@@ -456,6 +456,73 @@ class WarehouseMapServiceTest {
         }
 
         @Test
+        @DisplayName("대기 구역 재고는 적재율에서 빼지만 별도 항목으로 집계해 보여준다")
+        void waitingStockIsExcludedButReported() {
+            // given : 입고 대기 구역에 250 포대가 실제로 쌓여 있는 상태
+            given(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH1)).willReturn(List.of(
+                    storageRow(1L, "A-01", "A", 500, true, 240L, 1L, 1L, null, 6, 1, 2, 4),
+                    row(10L, "R-01", "R", BinPurpose.RECEIVING, 300, true,
+                            250L, 1L, 1L, null, 1, 3, 4, 3),
+                    row(23L, "S-01", "S", BinPurpose.SHIPPING, 400, true,
+                            0L, 0L, 0L, null, 1, 6, 4, 2)));
+
+            WarehouseMapSummaryDto summary =
+                    warehouseMapService.getFloorPlan(Warehouse.WH1, TODAY).getSummary();
+
+            // 적재율은 보관 구역만
+            assertThat(summary.getTotalCapacity()).isEqualTo(500);
+            assertThat(summary.getTotalLoaded()).isEqualTo(240);
+            assertThat(summary.getUsageRate()).isEqualTo(48);
+
+            // 대기 구역은 별도 집계
+            assertThat(summary.getWaitingBins()).isEqualTo(2);
+            assertThat(summary.getWaitingCapacity())
+                    .as("입고 대기 300 + 출고 대기 400")
+                    .isEqualTo(700);
+            assertThat(summary.getWaitingLoaded())
+                    .as("대기 구역 재고가 요약에서 사라지면 창고 실물을 알 수 없다")
+                    .isEqualTo(250);
+            assertThat(summary.isHasWaitingStock()).isTrue();
+
+            // 창고 실물 총량은 보관 + 대기
+            assertThat(summary.getTotalLoadedIncludingWaiting())
+                    .as("240 + 250 = 490")
+                    .isEqualTo(490);
+        }
+
+        @Test
+        @DisplayName("사용 중지 구역의 수용량도 별도로 집계한다")
+        void reportsInactiveCapacity() {
+            given(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH1)).willReturn(List.of(
+                    storageRow(1L, "A-01", "A", 500, true, 240L, 1L, 1L, null, 6, 1, 2, 4),
+                    storageRow(9L, "A-03", "A", 400, false, 0L, 0L, 0L, null, 6, 10, 2, 5)));
+
+            WarehouseMapSummaryDto summary =
+                    warehouseMapService.getFloorPlan(Warehouse.WH1, TODAY).getSummary();
+
+            assertThat(summary.getInactiveCapacity())
+                    .as("보수 중이라 쓸 수 없는 공간을 구분해 보여준다")
+                    .isEqualTo(400);
+            assertThat(summary.getTotalCapacity()).isEqualTo(500);
+        }
+
+        @Test
+        @DisplayName("대기 구역이 비어 있으면 별도 표기를 하지 않는다")
+        void noWaitingStock_notReported() {
+            given(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH2)).willReturn(List.of(
+                    storageRow(8L, "N-01", "N", 200, true, 90L, 1L, 1L, null, 9, 1, 5, 3),
+                    row(22L, "R-11", "R", BinPurpose.RECEIVING, 300, true,
+                            0L, 0L, 0L, null, 1, 3, 4, 3)));
+
+            WarehouseMapSummaryDto summary =
+                    warehouseMapService.getFloorPlan(Warehouse.WH2, TODAY).getSummary();
+
+            assertThat(summary.getWaitingLoaded()).isZero();
+            assertThat(summary.isHasWaitingStock()).isFalse();
+            assertThat(summary.getWaitingCapacity()).isEqualTo(300);
+        }
+
+        @Test
         @DisplayName("포화 / 빈 구역 / 유통기한 임박 구역 개수를 센다")
         void countsBinsByStatus() {
             given(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH1)).willReturn(List.of(
