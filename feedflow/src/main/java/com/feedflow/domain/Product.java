@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -74,6 +75,18 @@ public class Product {
     @Column(name = "active", nullable = false)
     private boolean active;
 
+
+    /**
+     * 낙관적 락(Optimistic Lock) 버전.
+     * <p>
+     * 재고(totalStock) 는 입고 / 출고 / 폐기가 동시에 일어날 수 있으므로
+     * 두 트랜잭션이 같은 행을 수정하면 나중 커밋이 실패하도록 한다.
+     * (실패 시 ObjectOptimisticLockingFailureException 이 발생하고 전체가 롤백된다)
+     */
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
     /** B2C 쇼핑몰 전용 - 관리자 화면 렌더링 제외 */
     @Column(name = "imageUrl", length = 500)
     private String imageUrl;
@@ -118,6 +131,28 @@ public class Product {
     /** 사용 여부 변경 (사용 중지 / 재사용) */
     public void changeActive(boolean active) {
         this.active = active;
+    }
+
+    /**
+     * 재고 정합성 보정.
+     * <p>
+     * totalStock 은 조회 성능을 위해 비정규화한 값이므로,
+     * 로트 수량 합계와 어긋났을 때 계산값으로 강제 동기화한다.
+     * 입·출고 경로가 아니라 <b>정합성 재계산 전용</b>이다.
+     *
+     * @param calculatedStock 로트 수량 합계
+     * @return 실제로 값이 바뀌었으면 true
+     */
+    public boolean syncTotalStock(int calculatedStock) {
+        if (calculatedStock < 0) {
+            throw new IllegalArgumentException("재고 합계는 0 이상이어야 합니다. 값=" + calculatedStock);
+        }
+        int current = totalStock == null ? 0 : totalStock;
+        if (current == calculatedStock) {
+            return false;
+        }
+        this.totalStock = calculatedStock;
+        return true;
     }
 
     /* ------------------------------------------------------------------

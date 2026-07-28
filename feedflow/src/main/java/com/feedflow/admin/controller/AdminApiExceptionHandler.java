@@ -3,6 +3,7 @@ package com.feedflow.admin.controller;
 import com.feedflow.admin.dto.ApiErrorResponse;
 import com.feedflow.common.exception.BusinessRuleException;
 import com.feedflow.common.exception.ResourceNotFoundException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -46,6 +47,17 @@ public class AdminApiExceptionHandler {
         return ResponseEntity.badRequest()
                 .body(ApiErrorResponse.of(HttpStatus.BAD_REQUEST,
                         "필수 파라미터가 누락되었습니다: " + e.getParameterName()));
+    }
+
+    /**
+     * 낙관적 락 충돌 → 409 Conflict
+     * 같은 재고를 동시에 수정한 경우이므로 클라이언트가 재시도하면 된다.
+     */
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ApiErrorResponse> handleOptimisticLock(OptimisticLockingFailureException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiErrorResponse.of(HttpStatus.CONFLICT,
+                        "다른 사용자가 같은 재고를 동시에 처리했습니다. 최신 재고를 확인한 뒤 다시 시도해 주세요."));
     }
 
     /** 요청 본문 검증 실패 → 400 (첫 번째 오류 메시지를 그대로 전달) */

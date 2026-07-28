@@ -1,9 +1,11 @@
 package com.feedflow.admin.service;
 
 import com.feedflow.admin.dto.ProductForm;
+import com.feedflow.admin.dto.StockSyncResultDto;
 import com.feedflow.common.exception.DuplicateCodeException;
 import com.feedflow.common.exception.ResourceNotFoundException;
 import com.feedflow.domain.Product;
+import com.feedflow.repository.ProductLotRepository;
 import com.feedflow.repository.ProductRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,6 +37,9 @@ class ProductServiceTest {
 
     @Mock
     private ProductRepository productRepository;
+
+    @Mock
+    private ProductLotRepository productLotRepository;
 
     @InjectMocks
     private ProductService productService;
@@ -236,6 +241,72 @@ class ProductServiceTest {
         // 주문·로트 이력이 참조하므로 물리 삭제해서는 안 된다
         verify(productRepository, never()).delete(any(Product.class));
         verify(productRepository, never()).deleteById(anyLong());
+    }
+
+    /* ==================================================================
+     * 재고 정합성 보정 (syncTotalStock)
+     * ================================================================== */
+
+    @Test
+    @DisplayName("[정합성] totalStock 이 로트 합계와 다르면 로트 합계로 강제 보정한다")
+    void syncTotalStock_adjustsMismatchedStock() {
+        // given : totalStock 100 인데 실제 로트 합계는 80
+        Product target = product(1L, "FD-CK-001");
+        given(productRepository.findById(1L)).willReturn(Optional.of(target));
+        given(productLotRepository.sumLotQuantityByProductId(1L)).willReturn(80L);
+
+        // when
+        StockSyncResultDto result = productService.syncTotalStock(1L);
+
+        // then
+        assertThat(target.getTotalStock())
+                .as("로트 합계를 정답으로 간주해 보정한다")
+                .isEqualTo(80);
+        assertThat(result.getPreviousStock()).isEqualTo(100);
+        assertThat(result.getCalculatedStock()).isEqualTo(80);
+        assertThat(result.getDifference()).isEqualTo(20);   // 과다 계상되어 있었음
+        assertThat(result.isAdjusted()).isTrue();
+        assertThat(result.getSummaryMessage()).contains("100", "80");
+    }
+
+    @Test
+    @DisplayName("[정합성] 이미 값이 일치하면 변경하지 않고 adjusted=false 를 반환한다")
+    void syncTotalStock_noChangeWhenAlreadyCorrect() {
+        Product target = product(1L, "FD-CT-001");
+        given(productRepository.findById(1L)).willReturn(Optional.of(target));
+        given(productLotRepository.sumLotQuantityByProductId(1L)).willReturn(100L);
+
+        StockSyncResultDto result = productService.syncTotalStock(1L);
+
+        assertThat(target.getTotalStock()).isEqualTo(100);
+        assertThat(result.isAdjusted()).isFalse();
+        assertThat(result.getDifference()).isZero();
+        assertThat(result.getSummaryMessage()).contains("재고가 정확합니다");
+    }
+
+    @Test
+    @DisplayName("[정합성] 로트가 하나도 없으면 재고를 0 으로 보정한다")
+    void syncTotalStock_noLotsBecomesZero() {
+        Product target = product(1L, "FD-CT-001");
+        given(productRepository.findById(1L)).willReturn(Optional.of(target));
+        given(productLotRepository.sumLotQuantityByProductId(1L)).willReturn(0L);
+
+        StockSyncResultDto result = productService.syncTotalStock(1L);
+
+        assertThat(target.getTotalStock()).isZero();
+        assertThat(result.isAdjusted()).isTrue();
+        assertThat(result.getDifference()).isEqualTo(100);
+    }
+
+    @Test
+    @DisplayName("[정합성] 존재하지 않는 품목이면 ResourceNotFoundException 이 발생한다")
+    void syncTotalStock_notFound_throwsException() {
+        given(productRepository.findById(999L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> productService.syncTotalStock(999L))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(productLotRepository, never()).sumLotQuantityByProductId(anyLong());
     }
 
     /* ==================================================================

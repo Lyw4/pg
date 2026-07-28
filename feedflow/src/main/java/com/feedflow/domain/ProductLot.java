@@ -9,6 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -57,6 +58,18 @@ public class ProductLot {
     /** 유통기한 (제조일자 + 품목의 shelfLifeDays 로 자동 계산) */
     @Column(name = "expirationDate", nullable = false)
     private LocalDate expirationDate;
+
+
+    /**
+     * 낙관적 락(Optimistic Lock) 버전.
+     * <p>
+     * 로트 수량(lotQuantity) 는 입고 / 출고 / 폐기가 동시에 일어날 수 있으므로
+     * 두 트랜잭션이 같은 행을 수정하면 나중 커밋이 실패하도록 한다.
+     * (실패 시 ObjectOptimisticLockingFailureException 이 발생하고 전체가 롤백된다)
+     */
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
 
     /** 해당 로트의 전체 잔여 수량 */
     @Column(name = "lotQuantity", nullable = false)

@@ -21,6 +21,17 @@ public interface ProductLotRepository extends JpaRepository<ProductLot, Long> {
      */
     Optional<ProductLot> findByProduct_ProductIdAndLotNo(Long productId, String lotNo);
 
+    /**
+     * 특정 품목의 로트 수량 합계 (재고 정합성 재계산용).
+     * 로트가 없으면 0 을 반환한다.
+     */
+    @Query("""
+            select coalesce(sum(l.lotQuantity), 0)
+            from ProductLot l
+            where l.product.productId = :productId
+            """)
+    long sumLotQuantityByProductId(@Param("productId") Long productId);
+
     /** 로트번호 자동 생성용 : 같은 품목 + 같은 제조일자의 로트 개수 */
     long countByProduct_ProductIdAndManufacturedDate(Long productId, LocalDate manufacturedDate);
 

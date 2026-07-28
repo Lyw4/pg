@@ -11,6 +11,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -56,6 +57,18 @@ public class Inventory {
 
     @Column(name = "updatedAt", nullable = false)
     private LocalDateTime updatedAt;
+
+    /**
+     * 낙관적 락(Optimistic Lock) 버전.
+     * <p>
+     * 구역 재고(quantity) 는 입고 / 출고 / 폐기가 동시에 일어날 수 있으므로
+     * 두 트랜잭션이 같은 행을 수정하면 나중 커밋이 실패하도록 한다.
+     * (실패 시 ObjectOptimisticLockingFailureException 이 발생하고 전체가 롤백된다)
+     */
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
 
     @PrePersist
     @PreUpdate

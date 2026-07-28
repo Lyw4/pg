@@ -23,21 +23,21 @@ INSERT INTO users (userId, email, password, name, phone, role, createdAt) VALUES
 --    · productId 12 는 사용 중지(단종) → 미달이지만 알림에서 제외
 --    · 10건 초과라서 품목 목록 화면의 페이징을 바로 확인할 수 있다
 -- ---------------------------------------------------------------------
-INSERT INTO products (productId, productCode, name, animalType, weightKg, price, totalStock, safetyStock, shelfLifeDays, active, imageUrl, description) VALUES
-(1,  'FD-CT-001', '프리미엄 육성우 배합사료', '소',   25, 32000,  40,  50, 180, TRUE,  '/images/feed-cattle.png',  '육성기 한우의 골격 형성을 돕는 고단백 배합사료입니다.'),
-(2,  'FD-PG-001', '자돈용 배합사료',         '돼지', 20, 28000, 300, 100, 180, TRUE,  '/images/feed-pig.png',     '이유 후 자돈의 소화 흡수율을 높인 프리스타터 사료입니다.'),
+INSERT INTO products (productId, productCode, name, animalType, weightKg, price, totalStock, safetyStock, shelfLifeDays, active, imageUrl, description, version) VALUES
+(1,  'FD-CT-001', '프리미엄 육성우 배합사료', '소',   25, 32000,  40,  50, 180, TRUE,  '/images/feed-cattle.png',  '육성기 한우의 골격 형성을 돕는 고단백 배합사료입니다.', 0),
+(2,  'FD-PG-001', '자돈용 배합사료',         '돼지', 20, 28000, 300, 100, 180, TRUE,  '/images/feed-pig.png',     '이유 후 자돈의 소화 흡수율을 높인 프리스타터 사료입니다.', 0),
 -- productId 3 : 정상 로트 80 + 만료 로트 20 = 100 (안전재고 120 미달 유지)
-(3,  'FD-CK-001', '산란계 전용 배합사료',     '닭',   25, 24000, 100, 120,  90, TRUE,  '/images/feed-chicken.png', '산란율 향상을 위한 칼슘 강화 배합사료입니다.'),
-(4,  'FD-CT-002', '번식우 유지 배합사료',     '소',   25, 30000, 220,  80, 180, TRUE,  NULL, NULL),
-(5,  'FD-CT-003', '비육후기 고에너지 사료',   '소',   25, 34000, 150,  60, 150, TRUE,  NULL, NULL),
-(6,  'FD-PG-002', '육성돈 배합사료',         '돼지', 25, 26000, 260,  90, 180, TRUE,  NULL, NULL),
-(7,  'FD-PG-003', '임신돈 전용 사료',        '돼지', 25, 27000, 180,  70, 180, TRUE,  NULL, NULL),
-(8,  'FD-CK-002', '육계 초기 사료',          '닭',   20, 25000, 140,  50,  90, TRUE,  NULL, NULL),
-(9,  'FD-CK-003', '육계 후기 사료',          '닭',   20, 23000, 190,  60,  90, TRUE,  NULL, NULL),
-(10, 'FD-DK-001', '산란오리 배합사료',       '오리', 25, 26000,  90,  40, 120, TRUE,  NULL, NULL),
-(11, 'FD-GT-001', '산양 성장기 사료',        '염소', 20, 31000,  70,  30, 120, TRUE,  NULL, NULL),
+(3,  'FD-CK-001', '산란계 전용 배합사료',     '닭',   25, 24000, 100, 120,  90, TRUE,  '/images/feed-chicken.png', '산란율 향상을 위한 칼슘 강화 배합사료입니다.', 0),
+(4,  'FD-CT-002', '번식우 유지 배합사료',     '소',   25, 30000, 220,  80, 180, TRUE,  NULL, NULL, 0),
+(5,  'FD-CT-003', '비육후기 고에너지 사료',   '소',   25, 34000, 150,  60, 150, TRUE,  NULL, NULL, 0),
+(6,  'FD-PG-002', '육성돈 배합사료',         '돼지', 25, 26000, 260,  90, 180, TRUE,  NULL, NULL, 0),
+(7,  'FD-PG-003', '임신돈 전용 사료',        '돼지', 25, 27000, 180,  70, 180, TRUE,  NULL, NULL, 0),
+(8,  'FD-CK-002', '육계 초기 사료',          '닭',   20, 25000, 140,  50,  90, TRUE,  NULL, NULL, 0),
+(9,  'FD-CK-003', '육계 후기 사료',          '닭',   20, 23000, 190,  60,  90, TRUE,  NULL, NULL, 0),
+(10, 'FD-DK-001', '산란오리 배합사료',       '오리', 25, 26000,  90,  40, 120, TRUE,  NULL, NULL, 0),
+(11, 'FD-GT-001', '산양 성장기 사료',        '염소', 20, 31000,  70,  30, 120, TRUE,  NULL, NULL, 0),
 -- 단종(사용 중지) 품목: 재고가 안전재고보다 적지만 대시보드 알림에서 제외된다
-(12, 'FD-CT-900', '구형 육성우 사료(단종)',  '소',   25, 29000,  10,  50, 180, FALSE, NULL, NULL);
+(12, 'FD-CT-900', '구형 육성우 사료(단종)',  '소',   25, 29000,  10,  50, 180, FALSE, NULL, NULL, 0);
 
 -- ---------------------------------------------------------------------
 -- 3. 로트 5건
@@ -45,24 +45,24 @@ INSERT INTO products (productId, productCode, name, animalType, weightKg, price,
 -- ---------------------------------------------------------------------
 --    ※ manufacturedDate = expirationDate - 품목의 shelfLifeDays 로 맞춰 두었다
 --      (입고 시 자동 계산되는 값과 동일한 규칙)
-INSERT INTO productLots (lotId, productId, lotNo, manufacturedDate, expirationDate, lotQuantity) VALUES
-(1, 1, 'LOT-CT-2601', DATEADD('DAY', -175, CURRENT_DATE), DATEADD('DAY',   5, CURRENT_DATE),  20),
-(2, 1, 'LOT-CT-2602', DATEADD('DAY', -155, CURRENT_DATE), DATEADD('DAY',  25, CURRENT_DATE),  20),
-(3, 2, 'LOT-PG-2611', DATEADD('DAY',  -20, CURRENT_DATE), DATEADD('DAY', 160, CURRENT_DATE), 150),
-(4, 2, 'LOT-PG-2612', DATEADD('DAY',  -10, CURRENT_DATE), DATEADD('DAY', 170, CURRENT_DATE), 150),
-(5, 3, 'LOT-CK-2621', DATEADD('DAY',  -72, CURRENT_DATE), DATEADD('DAY',  18, CURRENT_DATE),  80),
+INSERT INTO productLots (lotId, productId, lotNo, manufacturedDate, expirationDate, lotQuantity, version) VALUES
+(1, 1, 'LOT-CT-2601', DATEADD('DAY', -175, CURRENT_DATE), DATEADD('DAY',   5, CURRENT_DATE),  20, 0),
+(2, 1, 'LOT-CT-2602', DATEADD('DAY', -155, CURRENT_DATE), DATEADD('DAY',  25, CURRENT_DATE),  20, 0),
+(3, 2, 'LOT-PG-2611', DATEADD('DAY',  -20, CURRENT_DATE), DATEADD('DAY', 160, CURRENT_DATE), 150, 0),
+(4, 2, 'LOT-PG-2612', DATEADD('DAY',  -10, CURRENT_DATE), DATEADD('DAY', 170, CURRENT_DATE), 150, 0),
+(5, 3, 'LOT-CK-2621', DATEADD('DAY',  -72, CURRENT_DATE), DATEADD('DAY',  18, CURRENT_DATE),  80, 0),
 -- 이미 유통기한이 지난 로트 (대시보드 '만료' 경고 + 출고 대상 제외 확인용)
-(15, 3, 'LOT-CK-2620', DATEADD('DAY', -95, CURRENT_DATE), DATEADD('DAY',  -5, CURRENT_DATE),  20),
+(15, 3, 'LOT-CK-2620', DATEADD('DAY', -95, CURRENT_DATE), DATEADD('DAY',  -5, CURRENT_DATE),  20, 0),
 -- 품목 4~12 의 로트 (products.totalStock 과 수량을 일치시킨다)
-(6,  4, 'LOT-CT-2603', DATEADD('DAY',  -60, CURRENT_DATE), DATEADD('DAY', 120, CURRENT_DATE), 220),
-(7,  5, 'LOT-CT-2604', DATEADD('DAY',  -50, CURRENT_DATE), DATEADD('DAY', 100, CURRENT_DATE), 150),
-(8,  6, 'LOT-PG-2613', DATEADD('DAY',  -40, CURRENT_DATE), DATEADD('DAY', 140, CURRENT_DATE), 260),
-(9,  7, 'LOT-PG-2614', DATEADD('DAY',  -30, CURRENT_DATE), DATEADD('DAY', 150, CURRENT_DATE), 180),
-(10, 8, 'LOT-CK-2622', DATEADD('DAY',  -30, CURRENT_DATE), DATEADD('DAY',  60, CURRENT_DATE), 140),
-(11, 9, 'LOT-CK-2623', DATEADD('DAY',  -20, CURRENT_DATE), DATEADD('DAY',  70, CURRENT_DATE), 190),
-(12, 10, 'LOT-DK-2631', DATEADD('DAY', -30, CURRENT_DATE), DATEADD('DAY',  90, CURRENT_DATE),  90),
-(13, 11, 'LOT-GT-2641', DATEADD('DAY', -20, CURRENT_DATE), DATEADD('DAY', 100, CURRENT_DATE),  70),
-(14, 12, 'LOT-CT-2699', DATEADD('DAY', -140, CURRENT_DATE), DATEADD('DAY', 40, CURRENT_DATE),  10);
+(6,  4, 'LOT-CT-2603', DATEADD('DAY',  -60, CURRENT_DATE), DATEADD('DAY', 120, CURRENT_DATE), 220, 0),
+(7,  5, 'LOT-CT-2604', DATEADD('DAY',  -50, CURRENT_DATE), DATEADD('DAY', 100, CURRENT_DATE), 150, 0),
+(8,  6, 'LOT-PG-2613', DATEADD('DAY',  -40, CURRENT_DATE), DATEADD('DAY', 140, CURRENT_DATE), 260, 0),
+(9,  7, 'LOT-PG-2614', DATEADD('DAY',  -30, CURRENT_DATE), DATEADD('DAY', 150, CURRENT_DATE), 180, 0),
+(10, 8, 'LOT-CK-2622', DATEADD('DAY',  -30, CURRENT_DATE), DATEADD('DAY',  60, CURRENT_DATE), 140, 0),
+(11, 9, 'LOT-CK-2623', DATEADD('DAY',  -20, CURRENT_DATE), DATEADD('DAY',  70, CURRENT_DATE), 190, 0),
+(12, 10, 'LOT-DK-2631', DATEADD('DAY', -30, CURRENT_DATE), DATEADD('DAY',  90, CURRENT_DATE),  90, 0),
+(13, 11, 'LOT-GT-2641', DATEADD('DAY', -20, CURRENT_DATE), DATEADD('DAY', 100, CURRENT_DATE),  70, 0),
+(14, 12, 'LOT-CT-2699', DATEADD('DAY', -140, CURRENT_DATE), DATEADD('DAY', 40, CURRENT_DATE),  10, 0);
 
 -- ---------------------------------------------------------------------
 -- 4. 최근 7일치 주문 15건
@@ -131,26 +131,26 @@ INSERT INTO warehouseBins (binId, binCode, zone, rack, binLevel, maxCapacity, ac
 --      이 값이 어긋나면 "전체 재고는 있는데 출고 가능 재고가 부족"한 현상이 발생한다.
 --    · 각 구역의 합계는 warehouseBins.maxCapacity 를 넘지 않아야 한다
 -- ---------------------------------------------------------------------
-INSERT INTO inventories (inventoryId, lotId, binId, quantity, updatedAt) VALUES
-(1,  1,  1,  20, DATEADD('DAY', -50, CURRENT_TIMESTAMP)),
-(2,  2,  2,  20, DATEADD('DAY', -20, CURRENT_TIMESTAMP)),
-(3,  3,  5, 100, DATEADD('DAY', -10, CURRENT_TIMESTAMP)),
-(4,  3,  6,  50, DATEADD('DAY', -10, CURRENT_TIMESTAMP)),
-(5,  4,  7, 150, DATEADD('DAY',  -5, CURRENT_TIMESTAMP)),
-(6,  5,  3,  50, DATEADD('DAY', -35, CURRENT_TIMESTAMP)),
-(7,  5,  4,  30, DATEADD('DAY', -35, CURRENT_TIMESTAMP)),
+INSERT INTO inventories (inventoryId, lotId, binId, quantity, updatedAt, version) VALUES
+(1,  1,  1,  20, DATEADD('DAY', -50, CURRENT_TIMESTAMP), 0),
+(2,  2,  2,  20, DATEADD('DAY', -20, CURRENT_TIMESTAMP), 0),
+(3,  3,  5, 100, DATEADD('DAY', -10, CURRENT_TIMESTAMP), 0),
+(4,  3,  6,  50, DATEADD('DAY', -10, CURRENT_TIMESTAMP), 0),
+(5,  4,  7, 150, DATEADD('DAY',  -5, CURRENT_TIMESTAMP), 0),
+(6,  5,  3,  50, DATEADD('DAY', -35, CURRENT_TIMESTAMP), 0),
+(7,  5,  4,  30, DATEADD('DAY', -35, CURRENT_TIMESTAMP), 0),
 -- 품목 4~12 의 구역 재고
-(8,  6,  1, 220, DATEADD('DAY', -60, CURRENT_TIMESTAMP)),
-(9,  7,  2, 150, DATEADD('DAY', -50, CURRENT_TIMESTAMP)),
-(10, 8,  5, 260, DATEADD('DAY', -40, CURRENT_TIMESTAMP)),
-(11, 9,  6, 180, DATEADD('DAY', -30, CURRENT_TIMESTAMP)),
-(12, 10, 3, 140, DATEADD('DAY', -30, CURRENT_TIMESTAMP)),
-(13, 11, 4, 190, DATEADD('DAY', -20, CURRENT_TIMESTAMP)),
-(14, 12, 8,  90, DATEADD('DAY', -30, CURRENT_TIMESTAMP)),
-(15, 13, 8,  70, DATEADD('DAY', -20, CURRENT_TIMESTAMP)),
-(16, 14, 7,  10, DATEADD('DAY', -140, CURRENT_TIMESTAMP)),
+(8,  6,  1, 220, DATEADD('DAY', -60, CURRENT_TIMESTAMP), 0),
+(9,  7,  2, 150, DATEADD('DAY', -50, CURRENT_TIMESTAMP), 0),
+(10, 8,  5, 260, DATEADD('DAY', -40, CURRENT_TIMESTAMP), 0),
+(11, 9,  6, 180, DATEADD('DAY', -30, CURRENT_TIMESTAMP), 0),
+(12, 10, 3, 140, DATEADD('DAY', -30, CURRENT_TIMESTAMP), 0),
+(13, 11, 4, 190, DATEADD('DAY', -20, CURRENT_TIMESTAMP), 0),
+(14, 12, 8,  90, DATEADD('DAY', -30, CURRENT_TIMESTAMP), 0),
+(15, 13, 8,  70, DATEADD('DAY', -20, CURRENT_TIMESTAMP), 0),
+(16, 14, 7,  10, DATEADD('DAY', -140, CURRENT_TIMESTAMP), 0),
 -- 만료된 로트의 재고 (출고 가능 재고에는 포함되지 않는다)
-(17, 15, 3,  20, DATEADD('DAY',  -95, CURRENT_TIMESTAMP));
+(17, 15, 3,  20, DATEADD('DAY',  -95, CURRENT_TIMESTAMP), 0);
 
 -- ---------------------------------------------------------------------
 -- 8. 입고 이력 7건 (위 재고와 1:1 대응)

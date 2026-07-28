@@ -1,11 +1,14 @@
 package com.feedflow.admin.service;
 
+import com.feedflow.common.util.Numbers;
 import com.feedflow.common.util.Texts;
 import com.feedflow.admin.dto.ProductDto;
 import com.feedflow.admin.dto.ProductForm;
+import com.feedflow.admin.dto.StockSyncResultDto;
 import com.feedflow.common.exception.DuplicateCodeException;
 import com.feedflow.common.exception.ResourceNotFoundException;
 import com.feedflow.domain.Product;
+import com.feedflow.repository.ProductLotRepository;
 import com.feedflow.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -13,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -26,6 +30,9 @@ import java.util.List;
 public class ProductService {
 
     private final ProductRepository productRepository;
+
+    /** 재고 정합성 재계산 시 로트 수량 합계를 구하기 위해 사용 */
+    private final ProductLotRepository productLotRepository;
 
     /* ------------------------------------------------------------------
      * 조회
@@ -120,6 +127,53 @@ public class ProductService {
                 form.getSafetyStock(),
                 form.getShelfLifeDays());
         product.changeActive(form.isActive());
+    }
+
+    /* ------------------------------------------------------------------
+     * 재고 정합성 보정
+     * ------------------------------------------------------------------ */
+
+    /**
+     * 품목의 totalStock 을 로트 수량 합계로 강제 동기화한다.
+     * <p>
+     * totalStock 은 조회 성능을 위한 비정규화 값이라 입·출고 도중 예외나 외부 수정으로
+     * 실제 로트 합계와 어긋날 수 있다. 이 메서드는 <b>로트 수량 합계를 정답으로 간주</b>하고
+     * totalStock 을 맞춘다. (관리자 화면의 '정합성 재계산' 버튼용)
+     *
+     * @return 보정 전/후 값이 담긴 결과 (변경이 없으면 adjusted = false)
+     * @throws ResourceNotFoundException 품목이 존재하지 않는 경우
+     */
+    @Transactional
+    public StockSyncResultDto syncTotalStock(Long productId) {
+        Product product = findProduct(productId);
+
+        int previousStock = Numbers.orZero(product.getTotalStock());
+        int calculatedStock = (int) productLotRepository.sumLotQuantityByProductId(productId);
+
+        boolean adjusted = product.syncTotalStock(calculatedStock);
+
+        return StockSyncResultDto.builder()
+                .productId(product.getProductId())
+                .productCode(product.getProductCode())
+                .productName(product.getName())
+                .previousStock(previousStock)
+                .calculatedStock(calculatedStock)
+                .adjusted(adjusted)
+                .build();
+    }
+
+    /**
+     * 전체 품목의 재고 정합성을 재계산한다.
+     * 관리자 화면에서 한 번에 점검/보정할 때 사용한다.
+     *
+     * @return 품목별 결과 (보정된 항목이 앞으로 오도록 정렬)
+     */
+    @Transactional
+    public List<StockSyncResultDto> syncAllTotalStocks() {
+        return productRepository.findAll().stream()
+                .map(product -> syncTotalStock(product.getProductId()))
+                .sorted(Comparator.comparing(StockSyncResultDto::isAdjusted).reversed())
+                .toList();
     }
 
     /**
