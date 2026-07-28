@@ -588,11 +588,12 @@ body {
 
 .ff-floor {
     display: grid;
-    gap: 4px;
-    min-width: 860px;
+    gap: 5px;
+    min-width: 900px;
     border: 3px solid #343a40;
     border-radius: .4rem;
-    padding: 8px;
+    /* 구역 경계 점선이 바깥으로 3px 나가므로 여백을 넉넉히 준다 */
+    padding: 11px;
     background:
             linear-gradient(90deg, rgba(0, 0, 0, .02) 1px, transparent 1px) 0 0 / 28px 28px,
             linear-gradient(rgba(0, 0, 0, .02) 1px, transparent 1px) 0 0 / 28px 28px,
@@ -626,34 +627,11 @@ body {
     background-color: rgba(13, 110, 253, .06);
 }
 
-/* 구역 이름 칩 (경계 박스 좌상단) */
-.ff-zone-chip {
-    position: absolute;
-    top: -9px;
-    left: 10px;
-    display: inline-flex;
-    align-items: baseline;
-    gap: .25rem;
-    background: #fff;
-    padding: 0 .4rem;
-    border-radius: .25rem;
-    font-size: .68rem;
-    font-weight: 700;
-    color: #495057;
-    white-space: nowrap;
-}
-
-.ff-zone-area-cold .ff-zone-chip {
-    color: #0a58ca;
-}
-
-.ff-zone-chip-kind {
-    font-size: .6rem;
-    font-weight: 500;
-    opacity: .75;
-}
-
-/* 구역 이름을 크게 겹쳐 표시 (사각형 뒤) */
+/* 구역 이름을 크게 겹쳐 표시 (사각형 뒤)
+ *
+ * 경계 박스 위에 걸치는 이름 칩을 두었더니 도면 상단에서 잘리고
+ * 위아래로 붙은 구역끼리 서로 침범했다. 구역 이름은 큰 글자와 점선 색으로 충분히
+ * 구분되고 정확한 이름은 하단 '구역별 적재 현황'에 있으므로 칩은 두지 않는다. */
 .ff-zone-label {
     /* font-size 는 경계 상자 크기와 글자 수에 맞춰 서버에서 계산해 주입한다 */
     font-weight: 800;
@@ -787,16 +765,34 @@ body {
     white-space: nowrap;
 }
 
+/* 좁은 칸은 코드와 비율이 세로로 쌓이므로 비율을 조금 줄여 두 줄이 다 보이게 한다 */
+.ff-bin-narrow .ff-bin-rate {
+    font-size: .74rem;
+}
+
+.ff-bin-narrow .ff-bin-code {
+    font-size: .62rem;
+}
+
 .ff-bin-qty {
     font-size: .62rem;
     opacity: .85;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
 }
 
 .ff-bin-meta {
     font-size: .6rem;
     opacity: .75;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: .2rem;
 }
 
 .ff-bin-purpose {
@@ -823,6 +819,19 @@ body {
     flex-direction: column;
     align-items: flex-start;
     gap: 0;
+}
+
+/* 좁은 칸에는 '로트 2 · 2종' 까지 넣을 폭이 없어 글자가 잘린다.
+ * 적재율·수량·임박 여부만 남기고 상세는 툴팁과 모달에 맡긴다. */
+.ff-bin-narrow .ff-bin-lots,
+.ff-bin-narrow .ff-bin-empty-text {
+    display: none;
+}
+
+/* 납작한 칸도 같은 이유로 상세를 숨긴다 */
+.ff-bin-flat .ff-bin-lots,
+.ff-bin-flat .ff-bin-empty-text {
+    display: none;
 }
 
 /* 납작한 사각형(1칸)은 게이지와 하단 정보를 숨기고 코드/비율만 남긴다 */

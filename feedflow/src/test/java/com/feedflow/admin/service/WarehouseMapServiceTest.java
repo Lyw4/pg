@@ -172,9 +172,29 @@ class WarehouseMapServiceTest {
                     .isFalse();
             assertThat(expired.isExpiringSoon()).isTrue();
             assertThat(expired.getEarliestDDayLabel()).isEqualTo("만료 3일 경과");
+            assertThat(expired.getEarliestDDayShortLabel())
+                    .as("도면 사각형 안에서는 글자가 잘리지 않게 압축해서 쓴다")
+                    .isEqualTo("만료+3");
             assertThat(emptyBin.isExpiringSoon())
                     .as("재고가 없으면 임박 표시도 없다")
                     .isFalse();
+        }
+
+        @Test
+        @DisplayName("도면용 짧은 D-Day 라벨은 길이가 제한된다")
+        void shortDDayLabel_isCompact() {
+            assertThat(bin(500, 100L, TODAY.plusDays(12)).getEarliestDDayShortLabel())
+                    .isEqualTo("D-12");
+            assertThat(bin(500, 100L, TODAY).getEarliestDDayShortLabel())
+                    .isEqualTo("오늘");
+            assertThat(bin(500, 100L, TODAY.minusDays(40)).getEarliestDDayShortLabel())
+                    .isEqualTo("만료+40");
+            assertThat(bin(500, 0L, null).getEarliestDDayShortLabel())
+                    .isEqualTo("-");
+
+            // 사각형 폭이 좁아도 넘치지 않도록 6자 이내로 유지한다
+            assertThat(bin(500, 100L, TODAY.minusDays(365)).getEarliestDDayShortLabel())
+                    .hasSizeLessThanOrEqualTo(7);
         }
 
         @Test

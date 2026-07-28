@@ -205,6 +205,26 @@ public class WarehouseBinMapDto {
         return earliestRemainingDays == null ? "-" : DDay.label(earliestRemainingDays);
     }
 
+    /**
+     * 도면 사각형 안에 넣을 짧은 D-Day 라벨.
+     * <p>
+     * 기본 라벨은 만료 시 {@code "만료 5일 경과"} 처럼 길어서 사각형을 넘쳐 글자가 잘린다.
+     * 도면에서는 위험 신호만 보이면 되므로 압축해서 쓰고,
+     * 정확한 문구는 툴팁과 상세 모달에서 보여준다.
+     */
+    public String getEarliestDDayShortLabel() {
+        if (earliestRemainingDays == null) {
+            return "-";
+        }
+        if (earliestRemainingDays < 0) {
+            return "만료+" + Math.abs(earliestRemainingDays);
+        }
+        if (earliestRemainingDays == 0) {
+            return "오늘";
+        }
+        return "D-" + earliestRemainingDays;
+    }
+
     public String getEarliestDDayBadgeClass() {
         return DDay.badgeClass(earliestRemainingDays);
     }

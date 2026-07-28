@@ -141,11 +141,8 @@
                              class="ff-zone-area"
                              th:classappend="${z.areaClass}"
                              th:style="'grid-area:' + ${z.gridArea}"
+                             th:title="|${z.zone}구역 (${z.kindLabel})|"
                              aria-hidden="true">
-                            <span class="ff-zone-chip">
-                                <span th:text="${z.zone}">A</span>
-                                <span class="ff-zone-chip-kind" th:text="${z.kindLabel}">상온</span>
-                            </span>
                             <span class="ff-zone-label"
                                   th:style="'font-size:' + ${z.labelFontSize} + 'px'"
                                   th:text="${z.zone}">A</span>
@@ -194,9 +191,10 @@
                                     <span th:if="${bin.expiringSoon}"
                                           class="badge ff-bin-dday"
                                           th:classappend="${bin.earliestDDayBadgeClass}"
-                                          th:text="${bin.earliestDDayLabel}">D-5</span>
-                                    <span th:if="${!bin.active}">사용 중지</span>
+                                          th:text="${bin.earliestDDayShortLabel}">D-5</span>
+                                    <span th:if="${!bin.active}">중지</span>
                                     <span th:if="${bin.active and bin.lotCount > 0}"
+                                          class="ff-bin-lots"
                                           th:text="'로트 ' + ${bin.lotCount} + ' · ' + ${bin.productCount} + '종'">로트 0 · 0종</span>
                                     <span th:if="${bin.active and bin.storage and bin.lotCount == 0}"
                                           class="ff-bin-empty-text">비어있음</span>
