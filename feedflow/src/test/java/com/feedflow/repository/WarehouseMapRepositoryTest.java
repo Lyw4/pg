@@ -2,10 +2,12 @@ package com.feedflow.repository;
 
 import com.feedflow.admin.dto.WarehouseMapRow;
 import com.feedflow.domain.AnimalType;
+import com.feedflow.domain.BinPurpose;
 import com.feedflow.domain.Inventory;
 import com.feedflow.domain.Product;
 import com.feedflow.domain.ProductLot;
 import com.feedflow.domain.ProductType;
+import com.feedflow.domain.Warehouse;
 import com.feedflow.domain.WarehouseBin;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -55,6 +57,9 @@ class WarehouseMapRepositoryTest {
 
     private static final LocalDate TODAY = LocalDate.of(2026, 7, 28);
 
+    /** 좌표 자동 배정용 순번 */
+    private int binSequence = 0;
+
     private Product feed;
     private Product supplement;
 
@@ -68,7 +73,7 @@ class WarehouseMapRepositoryTest {
     @DisplayName("재고가 전혀 없는 구역도 결과에 포함되고 적재량은 0 이다")
     void includesEmptyBin() {
         // given : 재고를 한 건도 넣지 않은 구역
-        persistBin("A-01-01", "A", "01", 1, 500, true);
+        persistBin("A-01-01", "A", 500, true);
 
         // when
         List<WarehouseMapRow> rows = warehouseBinRepository.findWarehouseMapRows(null);
@@ -90,7 +95,7 @@ class WarehouseMapRepositoryTest {
     @DisplayName("수량이 0 인 재고 행은 집계에서 제외하지만 구역은 결과에 남는다")
     void excludesZeroQuantityButKeepsBin() {
         // given
-        WarehouseBin bin = persistBin("A-01-01", "A", "01", 1, 500, true);
+        WarehouseBin bin = persistBin("A-01-01", "A", 500, true);
         ProductLot lot = persistLot(feed, "LOT-A", TODAY.plusDays(100), 0);
         persistInventory(lot, bin, 0);      // 출고로 소진되어 0 이 된 행
 
@@ -109,7 +114,7 @@ class WarehouseMapRepositoryTest {
     @DisplayName("여러 로트가 섞인 구역의 수량 합계 / 로트 수 / 품목 수를 정확히 집계한다")
     void aggregatesMultipleLots() {
         // given : 같은 구역에 사료 로트 2개 + 영양제 로트 1개
-        WarehouseBin bin = persistBin("COLD-01", "COLD", "01", 1, 200, true);
+        WarehouseBin bin = persistBin("COLD-01", "COLD", 200, true);
 
         ProductLot feedLot1 = persistLot(feed, "LOT-F1", TODAY.plusDays(30), 90);
         ProductLot feedLot2 = persistLot(feed, "LOT-F2", TODAY.plusDays(60), 30);
@@ -141,7 +146,7 @@ class WarehouseMapRepositoryTest {
     @Test
     @DisplayName("같은 품목의 로트가 여러 개면 로트 수만 늘고 품목 수는 1이다")
     void distinctCountsProductOnce() {
-        WarehouseBin bin = persistBin("A-01-01", "A", "01", 1, 500, true);
+        WarehouseBin bin = persistBin("A-01-01", "A", 500, true);
         persistInventory(persistLot(feed, "LOT-1", TODAY.plusDays(10), 20), bin, 20);
         persistInventory(persistLot(feed, "LOT-2", TODAY.plusDays(20), 30), bin, 30);
 
@@ -155,8 +160,8 @@ class WarehouseMapRepositoryTest {
     @Test
     @DisplayName("같은 로트가 여러 구역에 나뉘어 있으면 각 구역에 자기 몫만 집계된다")
     void splitsLotAcrossBins() {
-        WarehouseBin binA = persistBin("A-01-01", "A", "01", 1, 500, true);
-        WarehouseBin binB = persistBin("B-01-01", "B", "01", 1, 600, true);
+        WarehouseBin binA = persistBin("A-01-01", "A", 500, true);
+        WarehouseBin binB = persistBin("B-01-01", "B", 600, true);
 
         ProductLot lot = persistLot(feed, "LOT-SPLIT", TODAY.plusDays(50), 150);
         persistInventory(lot, binA, 100);
@@ -173,25 +178,41 @@ class WarehouseMapRepositoryTest {
     }
 
     @Test
-    @DisplayName("zone 을 지정하면 해당 구역 그룹만 조회한다")
-    void filtersByZone() {
-        persistBin("A-01-01", "A", "01", 1, 500, true);
-        persistBin("B-01-01", "B", "01", 1, 600, true);
-        persistBin("COLD-01", "COLD", "01", 1, 200, true);
+    @DisplayName("창고를 지정하면 해당 창고의 구역만 조회한다")
+    void filtersByWarehouse() {
+        persistBin("A-01", Warehouse.WH1, "A", BinPurpose.STORAGE, 500, true);
+        persistBin("B-01", Warehouse.WH1, "B", BinPurpose.STORAGE, 600, true);
+        persistBin("COLD-01", Warehouse.WH2, "COLD", BinPurpose.STORAGE, 200, true);
 
-        assertThat(warehouseBinRepository.findWarehouseMapRows("A"))
+        assertThat(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH1))
+                .as("서로 다른 건물의 구역이 한 도면에 섞이면 실제 위치를 오해한다")
                 .extracting(WarehouseMapRow::binCode)
-                .containsExactly("A-01-01");
+                .containsExactly("A-01", "B-01");
+
+        assertThat(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH2))
+                .extracting(WarehouseMapRow::binCode)
+                .containsExactly("COLD-01");
 
         assertThat(warehouseBinRepository.findWarehouseMapRows(null))
-                .as("zone 이 null 이면 전체 조회")
+                .as("창고가 null 이면 전체 조회")
                 .hasSize(3);
+    }
+
+    @Test
+    @DisplayName("입고 대기 등 보관 외 용도 구역도 도면에 그려지도록 조회에 포함한다")
+    void includesNonStorageBin() {
+        persistBin("R-01", Warehouse.WH1, "R", BinPurpose.RECEIVING, 300, true);
+        persistBin("S-01", Warehouse.WH1, "S", BinPurpose.SHIPPING, 400, true);
+
+        assertThat(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH1))
+                .extracting(WarehouseMapRow::purpose)
+                .containsExactly(BinPurpose.RECEIVING, BinPurpose.SHIPPING);
     }
 
     @Test
     @DisplayName("사용 중지된 구역도 도면에 표시하기 위해 결과에 포함한다")
     void includesInactiveBin() {
-        persistBin("A-03-01", "A", "03", 1, 400, false);
+        persistBin("A-03-01", "A", 400, false);
 
         List<WarehouseMapRow> rows = warehouseBinRepository.findWarehouseMapRows(null);
 
@@ -200,21 +221,23 @@ class WarehouseMapRepositoryTest {
     }
 
     @Test
-    @DisplayName("결과는 구역 그룹 → 구역 코드 순으로 정렬된다")
-    void ordersByZoneThenBinCode() {
-        persistBin("B-01-01", "B", "01", 1, 600, true);
-        persistBin("A-02-01", "A", "02", 1, 400, true);
-        persistBin("A-01-01", "A", "01", 1, 500, true);
+    @DisplayName("결과는 도면 좌표(위 → 아래, 왼쪽 → 오른쪽) 순으로 정렬된다")
+    void ordersByPosition() {
+        // 일부러 뒤섞어 저장한다
+        persistBinAt("C-01", 9, 13, 7, 2);
+        persistBinAt("A-01", 6, 1, 2, 6);
+        persistBinAt("D-01", 17, 1, 7, 2);
 
-        assertThat(warehouseBinRepository.findWarehouseMapRows(null))
+        assertThat(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH1))
+                .as("도면을 위에서 아래로 읽는 순서와 같아야 구역 라벨 배치가 자연스럽다")
                 .extracting(WarehouseMapRow::binCode)
-                .containsExactly("A-01-01", "A-02-01", "B-01-01");
+                .containsExactly("A-01", "D-01", "C-01");
     }
 
     @Test
     @DisplayName("구역 1건 조회도 동일하게 집계되며 없는 구역은 빈 Optional 을 반환한다")
     void findsSingleBin() {
-        WarehouseBin bin = persistBin("COLD-01", "COLD", "01", 1, 200, true);
+        WarehouseBin bin = persistBin("COLD-01", "COLD", 200, true);
         persistInventory(persistLot(supplement, "LOT-S1", TODAY.plusDays(300), 70), bin, 70);
 
         Optional<WarehouseMapRow> found =
@@ -246,14 +269,45 @@ class WarehouseMapRepositoryTest {
                 .build());
     }
 
-    private WarehouseBin persistBin(String binCode, String zone, String rack,
-                                    Integer binLevel, int maxCapacity, boolean active) {
+    /** 보관 구역 (제1창고, 좌표는 순서대로 자동 배정) */
+    private WarehouseBin persistBin(String binCode, String zone, int maxCapacity, boolean active) {
+        return persistBin(binCode, Warehouse.WH1, zone, BinPurpose.STORAGE, maxCapacity, active);
+    }
+
+    /** 좌표를 직접 지정하는 보관 구역 (정렬 검증용) */
+    private WarehouseBin persistBinAt(String binCode, int posX, int posY, int posWidth, int posHeight) {
         return entityManager.persist(WarehouseBin.builder()
                 .binCode(binCode)
+                .warehouse(Warehouse.WH1)
+                .zone(binCode.substring(0, 1))
+                .binPurpose(BinPurpose.STORAGE)
+                .rack("01")
+                .binLevel(1)
+                .maxCapacity(400)
+                .posX(posX)
+                .posY(posY)
+                .posWidth(posWidth)
+                .posHeight(posHeight)
+                .active(true)
+                .build());
+    }
+
+    private WarehouseBin persistBin(String binCode, Warehouse warehouse, String zone,
+                                    BinPurpose binPurpose, int maxCapacity, boolean active) {
+        // 좌표는 겹치지만 집계 쿼리 검증에는 영향이 없으므로 순번으로 단순 배정한다
+        int seq = ++binSequence;
+        return entityManager.persist(WarehouseBin.builder()
+                .binCode(binCode)
+                .warehouse(warehouse)
                 .zone(zone)
-                .rack(rack)
-                .binLevel(binLevel)
+                .binPurpose(binPurpose)
+                .rack("01")
+                .binLevel(1)
                 .maxCapacity(maxCapacity)
+                .posX(seq)
+                .posY(seq)
+                .posWidth(1)
+                .posHeight(1)
                 .active(active)
                 .build());
     }

@@ -27,19 +27,19 @@ INSERT INTO users (userId, email, password, name, phone, role, createdAt) VALUES
 -- ---------------------------------------------------------------------
 INSERT INTO products (productId, productCode, name, animalType, productType, weightKg, price, totalStock, safetyStock, shelfLifeDays, active, imageUrl, description, version) VALUES
 (1,  'FD-CT-001', '프리미엄 육성우 배합사료', 'CATTLE',  'FEED',       25, 32000,  40,  50, 180, TRUE,  '/images/feed-cattle.png',  '육성기 한우의 골격 형성을 돕는 고단백 배합사료입니다.', 0),
-(2,  'FD-PG-001', '자돈용 배합사료',         'PIG',     'FEED',       20, 28000, 300, 100, 180, TRUE,  '/images/feed-pig.png',     '이유 후 자돈의 소화 흡수율을 높인 프리스타터 사료입니다.', 0),
+(2,  'FD-PG-001', '자돈용 배합사료',         'PIG',     'FEED',       20, 28000, 550, 100, 180, TRUE,  '/images/feed-pig.png',     '이유 후 자돈의 소화 흡수율을 높인 프리스타터 사료입니다.', 0),
 -- productId 3 : 정상 로트 80 + 만료 로트 20 = 100 (안전재고 120 미달 유지)
 (3,  'FD-PL-001', '산란계 전용 배합사료',     'POULTRY', 'FEED',       25, 24000, 100, 120,  90, TRUE,  '/images/feed-chicken.png', '산란율 향상을 위한 칼슘 강화 배합사료입니다.', 0),
-(4,  'FD-CT-002', '번식우 유지 배합사료',     'CATTLE',  'FEED',       25, 30000, 220,  80, 180, TRUE,  NULL, NULL, 0),
-(5,  'FD-CT-003', '비육후기 고에너지 사료',   'CATTLE',  'FEED',       25, 34000, 150,  60, 150, TRUE,  NULL, NULL, 0),
-(6,  'FD-PG-002', '육성돈 배합사료',         'PIG',     'FEED',       25, 26000, 260,  90, 180, TRUE,  NULL, NULL, 0),
-(7,  'FD-PG-003', '임신돈 전용 사료',        'PIG',     'FEED',       25, 27000, 180,  70, 180, TRUE,  NULL, NULL, 0),
-(8,  'FD-PL-002', '육계 초기 사료',          'POULTRY', 'FEED',       20, 25000, 140,  50,  90, TRUE,  NULL, NULL, 0),
-(9,  'FD-PL-003', '육계 후기 사료',          'POULTRY', 'FEED',       20, 23000, 190,  60,  90, TRUE,  NULL, NULL, 0),
-(10, 'FD-PL-004', '산란오리 배합사료',       'POULTRY', 'FEED',       25, 26000,  90,  40, 120, TRUE,  NULL, NULL, 0),
+(4,  'FD-CT-002', '번식우 유지 배합사료',     'CATTLE',  'FEED',       25, 30000, 400,  80, 180, TRUE,  NULL, NULL, 0),
+(5,  'FD-CT-003', '비육후기 고에너지 사료',   'CATTLE',  'FEED',       25, 34000, 350,  60, 150, TRUE,  NULL, NULL, 0),
+(6,  'FD-PG-002', '육성돈 배합사료',         'PIG',     'FEED',       25, 26000, 680,  90, 180, TRUE,  NULL, NULL, 0),
+(7,  'FD-PG-003', '임신돈 전용 사료',        'PIG',     'FEED',       25, 27000, 300,  70, 180, TRUE,  NULL, NULL, 0),
+(8,  'FD-PL-002', '육계 초기 사료',          'POULTRY', 'FEED',       20, 25000, 240,  50,  90, TRUE,  NULL, NULL, 0),
+(9,  'FD-PL-003', '육계 후기 사료',          'POULTRY', 'FEED',       20, 23000, 420,  60,  90, TRUE,  NULL, NULL, 0),
+(10, 'FD-PL-004', '산란오리 배합사료',       'POULTRY', 'FEED',       25, 26000,  150,  40, 120, TRUE,  NULL, NULL, 0),
 -- 영양제(보조제) : 포장 단위가 작고 유통기한이 길다
-(11, 'SP-CT-001', '한우 비타민 영양제',      'CATTLE',  'SUPPLEMENT',  5, 45000,  70,  30, 365, TRUE,  NULL, NULL, 0),
-(13, 'SP-PG-001', '자돈 정장 영양제',        'PIG',     'SUPPLEMENT',  5, 38000,  30,  20, 365, TRUE,  NULL, NULL, 0),
+(11, 'SP-CT-001', '한우 비타민 영양제',      'CATTLE',  'SUPPLEMENT',  5, 45000,  400,  30, 365, TRUE,  NULL, NULL, 0),
+(13, 'SP-PG-001', '자돈 정장 영양제',        'PIG',     'SUPPLEMENT',  5, 38000,  150,  20, 365, TRUE,  NULL, NULL, 0),
 -- 단종(사용 중지) 품목: 재고가 안전재고보다 적지만 대시보드 알림에서 제외된다
 (12, 'FD-CT-900', '구형 육성우 사료(단종)',  'CATTLE',  'FEED',       25, 29000,  10,  50, 180, FALSE, NULL, NULL, 0);
 
@@ -68,7 +68,21 @@ INSERT INTO productLots (lotId, productId, lotNo, manufacturedDate, expirationDa
 (14, 12, 'LOT-CT-2699', DATEADD('DAY', -140, CURRENT_DATE), DATEADD('DAY', 40, CURRENT_DATE),  10, 0),
 -- 영양제 로트 (shelfLifeDays 365 규칙에 맞춰 제조일자 = 유통기한 - 365)
 (13, 11, 'LOT-SP-2651', DATEADD('DAY',  -20, CURRENT_DATE), DATEADD('DAY', 345, CURRENT_DATE),  70, 0),
-(16, 13, 'LOT-SP-2661', DATEADD('DAY',  -30, CURRENT_DATE), DATEADD('DAY', 335, CURRENT_DATE),  30, 0);
+(16, 13, 'LOT-SP-2661', DATEADD('DAY',  -30, CURRENT_DATE), DATEADD('DAY', 335, CURRENT_DATE),  30, 0),
+-- 2D 도면에 적재 현황을 다양하게 보여주기 위한 추가 로트
+-- (품목 1, 3, 12 는 안전재고 미달 / 단종 시나리오를 유지해야 하므로 추가하지 않는다)
+(17,  4, 'LOT-CT-2605', DATEADD('DAY',  -60, CURRENT_DATE), DATEADD('DAY', 120, CURRENT_DATE), 180, 0),
+(18,  5, 'LOT-CT-2606', DATEADD('DAY',  -40, CURRENT_DATE), DATEADD('DAY', 110, CURRENT_DATE), 200, 0),
+(19,  6, 'LOT-PG-2615', DATEADD('DAY', -170, CURRENT_DATE), DATEADD('DAY',  10, CURRENT_DATE), 150, 0),
+(20,  7, 'LOT-PG-2616', DATEADD('DAY',  -30, CURRENT_DATE), DATEADD('DAY', 150, CURRENT_DATE), 120, 0),
+(21,  8, 'LOT-PL-2624', DATEADD('DAY',  -75, CURRENT_DATE), DATEADD('DAY',  15, CURRENT_DATE), 100, 0),
+(22,  9, 'LOT-PL-2625', DATEADD('DAY',  -20, CURRENT_DATE), DATEADD('DAY',  70, CURRENT_DATE), 230, 0),
+(23, 10, 'LOT-PL-2632', DATEADD('DAY', -100, CURRENT_DATE), DATEADD('DAY',  20, CURRENT_DATE),  60, 0),
+(24, 11, 'LOT-SP-2652', DATEADD('DAY',  -30, CURRENT_DATE), DATEADD('DAY', 335, CURRENT_DATE), 140, 0),
+(25, 13, 'LOT-SP-2662', DATEADD('DAY',  -40, CURRENT_DATE), DATEADD('DAY', 325, CURRENT_DATE), 120, 0),
+(26,  2, 'LOT-PG-2617', DATEADD('DAY',  -15, CURRENT_DATE), DATEADD('DAY', 165, CURRENT_DATE), 250, 0),
+(27,  6, 'LOT-PG-2618', DATEADD('DAY',  -50, CURRENT_DATE), DATEADD('DAY', 130, CURRENT_DATE), 270, 0),
+(28, 11, 'LOT-SP-2653', DATEADD('DAY',  -60, CURRENT_DATE), DATEADD('DAY', 305, CURRENT_DATE), 190, 0);
 
 -- ---------------------------------------------------------------------
 -- 4. 최근 7일치 주문 15건
@@ -115,19 +129,62 @@ INSERT INTO orderItems (orderItemId, orderId, productId, lotId, quantity, orderP
 (16, 15, 1, 1, 10, 32000);
 
 -- ---------------------------------------------------------------------
--- 6. 창고 구역(Bin) 9건  ※ 기준 정보(Master Data)
---    · A / B / COLD 3개 구역, binId 9 는 사용 중지 상태
+-- 6. 창고 구역(Bin) 40건  ※ 기준 정보(Master Data)
+--    · 제1창고(WH1) 20칸 : 상온 - R / H / A / B / C / D / E 구역
+--    · 제2창고(WH2) 20칸 : 저온 - R / S / K / COLD 구역
+--
+--    ★ 2D 도면 배치 좌표 (posX, posY, posWidth, posHeight)
+--      창고 평면을 24열 x 18행 격자로 보고 사각형의 좌상단 위치와 크기를 지정한다.
+--      1열 1행이 왼쪽 위. 출입구/벽/검수실은 건물 구조물이라 DB 가 아니라
+--      WarehouseFacilityDto 상수로 관리한다. (5열은 하역장 벽이므로 비워둔다)
+--
+--    ★ binPurpose
+--      STORAGE   : 보관 (적재율 통계 포함)
+--      RECEIVING : 입고 대기 / SHIPPING : 출고 대기 (통계 제외)
 -- ---------------------------------------------------------------------
-INSERT INTO warehouseBins (binId, binCode, zone, rack, binLevel, maxCapacity, active, memo, createdAt) VALUES
-(1, 'A-01-01', 'A',    '01', 1, 500, TRUE,  '입고 대기 우선 구역',   DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
-(2, 'A-01-02', 'A',    '01', 2, 500, TRUE,  NULL,                    DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
-(3, 'A-02-01', 'A',    '02', 1, 400, TRUE,  NULL,                    DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
-(4, 'A-02-02', 'A',    '02', 2, 400, TRUE,  NULL,                    DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
-(5, 'B-01-01', 'B',    '01', 1, 600, TRUE,  '대량 파렛트 적재 구역', DATEADD('DAY', -200, CURRENT_TIMESTAMP)),
-(6, 'B-01-02', 'B',    '01', 2, 600, TRUE,  NULL,                    DATEADD('DAY', -200, CURRENT_TIMESTAMP)),
-(7, 'B-02-01', 'B',    '02', 1, 300, TRUE,  NULL,                    DATEADD('DAY', -200, CURRENT_TIMESTAMP)),
-(8, 'COLD-01', 'COLD', '01', 1, 200, TRUE,  '저온 보관(첨가제) 구역', DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
-(9, 'A-03-01', 'A',    '03', 1, 400, FALSE, '천장 누수 보수 중 사용 중지', DATEADD('DAY', -90, CURRENT_TIMESTAMP));
+INSERT INTO warehouseBins (binId, binCode, warehouse, zone, binPurpose, rack, binLevel, maxCapacity, posX, posY, posWidth, posHeight, active, memo, createdAt) VALUES
+-- ===== 제1창고 (WH1) : 하역장(1~4열) | 벽(5열) | 보관 구역(6~23열) =====
+(10, 'R-01', 'WH1', 'R', 'RECEIVING', '01', 1, 300,  1,  4, 4, 3, TRUE,  '입고 검수 전 대기 구역',   DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
+(11, 'H-01', 'WH1', 'H', 'STORAGE',   '01', 1, 700,  1,  7, 4, 3, TRUE,  '대형 파렛트 구역',         DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
+(12, 'H-02', 'WH1', 'H', 'STORAGE',   '02', 1, 700,  1, 10, 4, 3, TRUE,  NULL,                       DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
+(1,  'A-01', 'WH1', 'A', 'STORAGE',   '01', 1, 500,  6,  1, 2, 6, TRUE,  '입고 동선 우선 구역',      DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
+(2,  'A-02', 'WH1', 'A', 'STORAGE',   '01', 2, 500,  6,  7, 2, 6, TRUE,  NULL,                       DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
+(9,  'A-03', 'WH1', 'A', 'STORAGE',   '01', 3, 400,  6, 13, 2, 6, FALSE, '천장 누수 보수 중 사용 중지', DATEADD('DAY', -90, CURRENT_TIMESTAMP)),
+(5,  'B-01', 'WH1', 'B', 'STORAGE',   '01', 1, 600,  9,  1, 7, 2, TRUE,  '대량 파렛트 적재 구역',    DATEADD('DAY', -200, CURRENT_TIMESTAMP)),
+(6,  'B-02', 'WH1', 'B', 'STORAGE',   '01', 2, 600,  9,  4, 7, 2, TRUE,  NULL,                       DATEADD('DAY', -200, CURRENT_TIMESTAMP)),
+(7,  'B-03', 'WH1', 'B', 'STORAGE',   '02', 1, 300,  9,  7, 7, 2, TRUE,  NULL,                       DATEADD('DAY', -200, CURRENT_TIMESTAMP)),
+(13, 'B-04', 'WH1', 'B', 'STORAGE',   '02', 2, 300,  9, 10, 7, 2, TRUE,  NULL,                       DATEADD('DAY', -200, CURRENT_TIMESTAMP)),
+(3,  'C-01', 'WH1', 'C', 'STORAGE',   '01', 1, 400,  9, 13, 7, 2, TRUE,  NULL,                       DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
+(4,  'C-02', 'WH1', 'C', 'STORAGE',   '01', 2, 400,  9, 16, 7, 2, TRUE,  NULL,                       DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
+(14, 'D-01', 'WH1', 'D', 'STORAGE',   '01', 1, 500, 17,  1, 7, 2, TRUE,  NULL,                       DATEADD('DAY', -180, CURRENT_TIMESTAMP)),
+(15, 'D-02', 'WH1', 'D', 'STORAGE',   '01', 2, 500, 17,  4, 7, 2, TRUE,  NULL,                       DATEADD('DAY', -180, CURRENT_TIMESTAMP)),
+(16, 'D-03', 'WH1', 'D', 'STORAGE',   '02', 1, 450, 17,  7, 3, 5, TRUE,  NULL,                       DATEADD('DAY', -180, CURRENT_TIMESTAMP)),
+(17, 'D-04', 'WH1', 'D', 'STORAGE',   '02', 2, 450, 21,  7, 3, 5, TRUE,  NULL,                       DATEADD('DAY', -180, CURRENT_TIMESTAMP)),
+(18, 'E-01', 'WH1', 'E', 'STORAGE',   '01', 1, 250, 17, 13, 3, 2, TRUE,  NULL,                       DATEADD('DAY', -150, CURRENT_TIMESTAMP)),
+(19, 'E-02', 'WH1', 'E', 'STORAGE',   '01', 2, 250, 21, 13, 3, 2, TRUE,  NULL,                       DATEADD('DAY', -150, CURRENT_TIMESTAMP)),
+(20, 'E-03', 'WH1', 'E', 'STORAGE',   '02', 1, 250, 17, 16, 3, 2, TRUE,  NULL,                       DATEADD('DAY', -150, CURRENT_TIMESTAMP)),
+(21, 'E-04', 'WH1', 'E', 'STORAGE',   '02', 2, 250, 21, 16, 3, 2, TRUE,  NULL,                       DATEADD('DAY', -150, CURRENT_TIMESTAMP)),
+-- ===== 제2창고 (WH2) : 저온 창고. COLD 구역을 이 창고에 배치 =====
+(22, 'R-11',    'WH2', 'R',    'RECEIVING', '01', 1, 300,  1,  4, 4, 3, TRUE,  '저온 입고 대기(사전 냉각)', DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(23, 'S-01',    'WH2', 'S',    'SHIPPING',  '01', 1, 400,  1,  7, 4, 3, TRUE,  '출고 피킹 집합 구역',       DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(24, 'S-02',    'WH2', 'S',    'SHIPPING',  '02', 1, 400,  1, 10, 4, 3, TRUE,  NULL,                        DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(25, 'K-01',    'WH2', 'K',    'STORAGE',   '01', 1, 350,  6,  1, 2, 6, TRUE,  '상온 병행 보관 구역',       DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(26, 'K-02',    'WH2', 'K',    'STORAGE',   '01', 2, 350,  6,  7, 2, 6, TRUE,  NULL,                        DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(27, 'K-03',    'WH2', 'K',    'STORAGE',   '01', 3, 350,  6, 13, 2, 6, TRUE,  NULL,                        DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(8,  'COLD-01', 'WH2', 'COLD', 'STORAGE',   '01', 1, 200,  9,  1, 7, 2, TRUE,  '저온 보관(영양제) 구역',    DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(28, 'COLD-02', 'WH2', 'COLD', 'STORAGE',   '01', 2, 200,  9,  4, 7, 2, TRUE,  NULL,                        DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(29, 'COLD-03', 'WH2', 'COLD', 'STORAGE',   '02', 1, 200,  9,  7, 7, 2, TRUE,  NULL,                        DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(30, 'COLD-04', 'WH2', 'COLD', 'STORAGE',   '02', 2, 200,  9, 10, 7, 2, TRUE,  NULL,                        DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(31, 'COLD-05', 'WH2', 'COLD', 'STORAGE',   '03', 1, 200,  9, 13, 7, 2, TRUE,  NULL,                        DATEADD('DAY', -110, CURRENT_TIMESTAMP)),
+(32, 'COLD-06', 'WH2', 'COLD', 'STORAGE',   '03', 2, 200,  9, 16, 7, 2, TRUE,  NULL,                        DATEADD('DAY', -110, CURRENT_TIMESTAMP)),
+(33, 'COLD-07', 'WH2', 'COLD', 'STORAGE',   '04', 1, 250, 17,  1, 7, 2, TRUE,  NULL,                        DATEADD('DAY', -110, CURRENT_TIMESTAMP)),
+(34, 'COLD-08', 'WH2', 'COLD', 'STORAGE',   '04', 2, 250, 17,  4, 7, 2, TRUE,  NULL,                        DATEADD('DAY', -110, CURRENT_TIMESTAMP)),
+(35, 'COLD-09', 'WH2', 'COLD', 'STORAGE',   '05', 1, 300, 17,  7, 3, 5, TRUE,  NULL,                        DATEADD('DAY', -110, CURRENT_TIMESTAMP)),
+(36, 'COLD-10', 'WH2', 'COLD', 'STORAGE',   '05', 2, 300, 21,  7, 3, 5, TRUE,  NULL,                        DATEADD('DAY', -110, CURRENT_TIMESTAMP)),
+(37, 'COLD-11', 'WH2', 'COLD', 'STORAGE',   '06', 1, 150, 17, 13, 3, 2, TRUE,  NULL,                        DATEADD('DAY', -100, CURRENT_TIMESTAMP)),
+(38, 'COLD-12', 'WH2', 'COLD', 'STORAGE',   '06', 2, 150, 21, 13, 3, 2, TRUE,  NULL,                        DATEADD('DAY', -100, CURRENT_TIMESTAMP)),
+(39, 'COLD-13', 'WH2', 'COLD', 'STORAGE',   '07', 1, 150, 17, 16, 3, 2, FALSE, '냉각기 교체 중 사용 중지',  DATEADD('DAY', -100, CURRENT_TIMESTAMP)),
+(40, 'COLD-14', 'WH2', 'COLD', 'STORAGE',   '07', 2, 150, 21, 16, 3, 2, TRUE,  NULL,                        DATEADD('DAY', -100, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
 -- 7. 재고 (로트 × 구역) 16건
@@ -158,7 +215,20 @@ INSERT INTO inventories (inventoryId, lotId, binId, quantity, updatedAt, version
 -- 만료된 로트의 재고 (출고 가능 재고에는 포함되지 않는다)
 (17, 15, 3,  20, DATEADD('DAY',  -95, CURRENT_TIMESTAMP), 0),
 -- 영양제 재고 (저온 구역 COLD-01 : 90 + 70 + 30 = 190 ≤ maxCapacity 200)
-(18, 16, 8,  30, DATEADD('DAY',  -30, CURRENT_TIMESTAMP), 0);
+(18, 16, 8,  30, DATEADD('DAY',  -30, CURRENT_TIMESTAMP), 0),
+-- 2D 도면 적재 현황용 추가 재고 (신규 구역에 분산 배치)
+(19, 17, 14, 180, DATEADD('DAY',  -60, CURRENT_TIMESTAMP), 0),   -- D-01  180/500
+(20, 18, 15, 200, DATEADD('DAY',  -40, CURRENT_TIMESTAMP), 0),   -- D-02  200/500
+(21, 19, 16, 150, DATEADD('DAY', -170, CURRENT_TIMESTAMP), 0),   -- D-03  150/450 (D-10 임박)
+(22, 20, 17, 120, DATEADD('DAY',  -30, CURRENT_TIMESTAMP), 0),   -- D-04  120/450
+(23, 21, 11, 100, DATEADD('DAY',  -75, CURRENT_TIMESTAMP), 0),   -- H-01  100/700 (D-15 임박)
+(24, 22, 12, 230, DATEADD('DAY',  -20, CURRENT_TIMESTAMP), 0),   -- H-02  230/700
+(25, 23, 18,  60, DATEADD('DAY', -100, CURRENT_TIMESTAMP), 0),   -- E-01   60/250 (D-20 임박)
+(26, 24, 25, 140, DATEADD('DAY',  -30, CURRENT_TIMESTAMP), 0),   -- K-01  140/350 (제2창고)
+(27, 25, 28, 120, DATEADD('DAY',  -40, CURRENT_TIMESTAMP), 0),   -- COLD-02 120/200 = 60% 보통
+(28, 26, 10, 250, DATEADD('DAY',  -15, CURRENT_TIMESTAMP), 0),   -- R-01  250/300 (입고 대기)
+(29, 27, 13, 270, DATEADD('DAY',  -50, CURRENT_TIMESTAMP), 0),   -- B-04  270/300 = 90% 포화
+(30, 28, 29, 190, DATEADD('DAY',  -60, CURRENT_TIMESTAMP), 0);   -- COLD-03 190/200 = 95% 포화
 
 -- ---------------------------------------------------------------------
 -- 8. 입고 이력 7건 (위 재고와 1:1 대응)
@@ -181,7 +251,20 @@ INSERT INTO stockMovements (movementId, movementType, productId, lotId, binId, q
 (15, 'INBOUND', 11, 13, 8,  70, '저온 구역 입고', 2, '이사원', DATEADD('DAY', -20, CURRENT_TIMESTAMP)),
 (16, 'INBOUND', 12, 14, 7,  10, '단종 품목 잔여 재고', 1, '김책임', DATEADD('DAY', -140, CURRENT_TIMESTAMP)),
 (17, 'INBOUND',  3, 15, 3,  20, '유통기한 경과 재고(폐기 대기)', 2, '이사원', DATEADD('DAY', -95, CURRENT_TIMESTAMP)),
-(18, 'INBOUND', 13, 16, 8,  30, '영양제 저온 구역 입고', 2, '이사원', DATEADD('DAY', -30, CURRENT_TIMESTAMP));
+(18, 'INBOUND', 13, 16, 8,  30, '영양제 저온 구역 입고', 2, '이사원', DATEADD('DAY', -30, CURRENT_TIMESTAMP)),
+-- 2D 도면 적재 현황용 추가 입고 이력
+(19, 'INBOUND',  4, 17, 14, 180, '정기 발주 입고',       2, '이사원', DATEADD('DAY',  -60, CURRENT_TIMESTAMP)),
+(20, 'INBOUND',  5, 18, 15, 200, '정기 발주 입고',       2, '이사원', DATEADD('DAY',  -40, CURRENT_TIMESTAMP)),
+(21, 'INBOUND',  6, 19, 16, 150, '이월 재고 이관',       1, '김책임', DATEADD('DAY', -170, CURRENT_TIMESTAMP)),
+(22, 'INBOUND',  7, 20, 17, 120, '정기 발주 입고',       2, '이사원', DATEADD('DAY',  -30, CURRENT_TIMESTAMP)),
+(23, 'INBOUND',  8, 21, 11, 100, '대형 파렛트 입고',     2, '이사원', DATEADD('DAY',  -75, CURRENT_TIMESTAMP)),
+(24, 'INBOUND',  9, 22, 12, 230, '대형 파렛트 입고',     2, '이사원', DATEADD('DAY',  -20, CURRENT_TIMESTAMP)),
+(25, 'INBOUND', 10, 23, 18,  60, '소량 보충 입고',       2, '이사원', DATEADD('DAY', -100, CURRENT_TIMESTAMP)),
+(26, 'INBOUND', 11, 24, 25, 140, '제2창고 상온 병행 보관', 2, '이사원', DATEADD('DAY',  -30, CURRENT_TIMESTAMP)),
+(27, 'INBOUND', 13, 25, 28, 120, '영양제 저온 구역 입고', 2, '이사원', DATEADD('DAY',  -40, CURRENT_TIMESTAMP)),
+(28, 'INBOUND',  2, 26, 10, 250, '입고 검수 대기',        2, '이사원', DATEADD('DAY',  -15, CURRENT_TIMESTAMP)),
+(29, 'INBOUND',  6, 27, 13, 270, '대량 발주 입고',        1, '김책임', DATEADD('DAY',  -50, CURRENT_TIMESTAMP)),
+(30, 'INBOUND', 11, 28, 29, 190, '영양제 저온 구역 입고', 2, '이사원', DATEADD('DAY',  -60, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
 -- 9. IDENTITY 시퀀스 재시작
@@ -189,9 +272,9 @@ INSERT INTO stockMovements (movementId, movementType, productId, lotId, binId, q
 -- ---------------------------------------------------------------------
 ALTER TABLE users ALTER COLUMN userId RESTART WITH 6;
 ALTER TABLE products ALTER COLUMN productId RESTART WITH 14;
-ALTER TABLE productLots ALTER COLUMN lotId RESTART WITH 17;
+ALTER TABLE productLots ALTER COLUMN lotId RESTART WITH 29;
 ALTER TABLE orders ALTER COLUMN orderId RESTART WITH 16;
 ALTER TABLE orderItems ALTER COLUMN orderItemId RESTART WITH 17;
-ALTER TABLE warehouseBins ALTER COLUMN binId RESTART WITH 10;
-ALTER TABLE inventories ALTER COLUMN inventoryId RESTART WITH 19;
-ALTER TABLE stockMovements ALTER COLUMN movementId RESTART WITH 19;
+ALTER TABLE warehouseBins ALTER COLUMN binId RESTART WITH 41;
+ALTER TABLE inventories ALTER COLUMN inventoryId RESTART WITH 31;
+ALTER TABLE stockMovements ALTER COLUMN movementId RESTART WITH 31;

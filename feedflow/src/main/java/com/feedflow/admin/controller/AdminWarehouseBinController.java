@@ -3,6 +3,8 @@ package com.feedflow.admin.controller;
 import com.feedflow.admin.dto.WarehouseBinForm;
 import com.feedflow.admin.service.WarehouseBinService;
 import com.feedflow.common.exception.DuplicateCodeException;
+import com.feedflow.domain.BinPurpose;
+import com.feedflow.domain.Warehouse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -37,6 +39,18 @@ public class AdminWarehouseBinController {
         return warehouseBinService.getZones();
     }
 
+    /** 창고 선택 목록 */
+    @ModelAttribute("warehouses")
+    public List<Warehouse> warehouses() {
+        return List.of(Warehouse.values());
+    }
+
+    /** 구역 용도 선택 목록 */
+    @ModelAttribute("binPurposes")
+    public List<BinPurpose> binPurposes() {
+        return List.of(BinPurpose.values());
+    }
+
     @ModelAttribute("menu")
     public String menu() {
         return "bins";
@@ -47,12 +61,14 @@ public class AdminWarehouseBinController {
      * ------------------------------------------------------------------ */
 
     @GetMapping
-    public String list(@RequestParam(name = "zone", required = false) String zone,
+    public String list(@RequestParam(name = "warehouse", required = false) Warehouse warehouse,
+                       @RequestParam(name = "zone", required = false) String zone,
                        @RequestParam(name = "active", required = false) Boolean active,
                        Model model) {
 
-        model.addAttribute("bins", warehouseBinService.getBins(zone, active));
+        model.addAttribute("bins", warehouseBinService.getBins(warehouse, zone, active));
         model.addAttribute("activeBinCount", warehouseBinService.countActiveBins());
+        model.addAttribute("selectedWarehouse", warehouse);
         model.addAttribute("selectedZone", zone);
         model.addAttribute("selectedActive", active);
         return LIST_VIEW;
@@ -76,6 +92,7 @@ public class AdminWarehouseBinController {
                          RedirectAttributes redirectAttributes) {
 
         prepareForm(model, false, null);
+        validateLayout(binForm, bindingResult);
 
         if (bindingResult.hasErrors()) {
             return FORM_VIEW;
@@ -113,6 +130,7 @@ public class AdminWarehouseBinController {
 
         prepareForm(model, true, binId);
         binForm.setBinId(binId);
+        validateLayout(binForm, bindingResult);
 
         if (bindingResult.hasErrors()) {
             return FORM_VIEW;
@@ -135,6 +153,22 @@ public class AdminWarehouseBinController {
         model.addAttribute("editMode", editMode);
         model.addAttribute("formAction",
                 editMode ? "/admin/bins/" + binId : "/admin/bins");
+        model.addAttribute("gridColumns", WarehouseBinForm.GRID_COLUMNS);
+        model.addAttribute("gridRows", WarehouseBinForm.GRID_ROWS);
+    }
+
+    /**
+     * 도면 배치가 격자를 벗어나지 않는지 검사한다.
+     * <p>
+     * 좌표와 크기에 각각 상한을 걸어도 둘의 합이 격자를 넘을 수 있어
+     * ({@code posX 23 + posWidth 4}) 필드 단위 검증만으로는 잡히지 않는다.
+     */
+    private void validateLayout(WarehouseBinForm binForm, BindingResult bindingResult) {
+        if (!binForm.isWithinGrid()) {
+            bindingResult.reject("layout.outOfGrid",
+                    "도면 배치가 격자(" + WarehouseBinForm.GRID_COLUMNS + " x "
+                            + WarehouseBinForm.GRID_ROWS + ")를 벗어납니다. 위치와 크기를 확인하세요.");
+        }
     }
 
     /* ------------------------------------------------------------------

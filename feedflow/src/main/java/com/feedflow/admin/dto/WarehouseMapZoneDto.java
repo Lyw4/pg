@@ -6,54 +6,92 @@ import lombok.Getter;
 import java.util.List;
 
 /**
- * 도면의 구역 블록(Zone) 하나.
+ * 구역(Zone) 요약 — 도면 위의 범례/칩으로 표시한다.
  * <p>
- * 창고 평면도처럼 <b>단(Level)을 한 줄씩 쌓아</b> 표현한다.
- * 높은 단이 위로 오도록 정렬되어 있고, 줄 안에서는 랙 번호 순으로 배치된다.
+ * 자유 배치 도면에서는 구역이 사각형 묶음으로만 구분되므로,
+ * 구역별 적재 현황을 별도 요약으로 보여줘야 "어느 구역이 포화인지" 알 수 있다.
  * <p>
- * 칸의 크기를 모두 똑같이 그리면 수용량 600 구역과 200 구역이 같아 보여
- * 도면을 봐도 창고 규모를 알 수 없다. 그래서 너비를 수용량에 비례시킨다.
- * ({@link WarehouseBinMapDto#getFlexGrow()})
+ * 배치 좌표의 <b>경계 상자(bounding box)</b> 도 함께 계산해 도면 위에 구역 이름을
+ * 큰 글자로 겹쳐 표시한다. (스케치의 A · B · C 라벨)
  */
 @Getter
 @Builder
 public class WarehouseMapZoneDto {
 
-    /** 구역 그룹 (A / B / COLD) */
     private final String zone;
 
-    /** 단별 배치 (위에서부터 = 높은 단이 위) */
-    private final List<WarehouseMapLevelDto> levels;
+    private final int binCount;
 
-    /** 이 구역의 전체 칸 (요약 집계용) */
-    private final List<WarehouseBinMapDto> bins;
-
-    /** 사용 중인 구역의 수용량 합계 (= 실제로 채울 수 있는 용량) */
+    /** 보관 구역의 수용량 합계 (사용 중지 · 비보관 용도 제외) */
     private final int totalCapacity;
 
     private final int totalLoaded;
     private final int usageRate;
 
-    /** 사용 중지된 칸 수 */
-    private final int inactiveBinCount;
+    /* ---------------- 도면 위 라벨 위치 (경계 상자) ---------------- */
+    private final int posX;
+    private final int posY;
+    private final int posWidth;
+    private final int posHeight;
 
-    /** 사용 중지로 묶여 쓸 수 없는 수용량 */
-    private final int inactiveCapacity;
+    /**
+     * 구역 사각형들의 경계 상자로 라벨 위치를 계산한다.
+     *
+     * @param zone 구역 코드
+     * @param bins 이 구역에 속한 사각형 (1건 이상)
+     */
+    public static WarehouseMapZoneDto of(String zone, List<WarehouseBinMapDto> bins) {
+        int minX = Integer.MAX_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxY = Integer.MIN_VALUE;
 
-    public int getBinCount() {
-        return bins.size();
+        int totalCapacity = 0;
+        int totalLoaded = 0;
+
+        for (WarehouseBinMapDto bin : bins) {
+            minX = Math.min(minX, bin.getPosX());
+            minY = Math.min(minY, bin.getPosY());
+            maxX = Math.max(maxX, bin.getPosX() + bin.getPosWidth() - 1);
+            maxY = Math.max(maxY, bin.getPosY() + bin.getPosHeight() - 1);
+
+            // 사용 중이면서 보관 용도인 구역만 적재율 통계에 넣는다
+            if (bin.isActive() && bin.isStorage()) {
+                totalCapacity += bin.getMaxCapacity();
+                totalLoaded += bin.getLoadedQuantity();
+            }
+        }
+
+        return WarehouseMapZoneDto.builder()
+                .zone(zone)
+                .binCount(bins.size())
+                .totalCapacity(totalCapacity)
+                .totalLoaded(totalLoaded)
+                .usageRate(WarehouseBinMapDto.calculateUsageRate(totalLoaded, totalCapacity))
+                .posX(minX)
+                .posY(minY)
+                .posWidth(maxX - minX + 1)
+                .posHeight(maxY - minY + 1)
+                .build();
     }
 
-    public boolean isHasInactive() {
-        return inactiveBinCount > 0;
+    /** {@code grid-area: y / x / span h / span w} */
+    public String getGridArea() {
+        return posY + " / " + posX + " / span " + posHeight + " / span " + posWidth;
     }
 
-    public int getLevelCount() {
-        return levels.size();
-    }
-
-    /** 진행바 너비용 (초과 적재 시에도 막대는 100 에서 멈춘다) */
     public int getUsageRateCapped() {
         return Math.min(usageRate, 100);
+    }
+
+    /** 구역 요약 진행바 색 */
+    public String getBarClass() {
+        if (usageRate >= 90) {
+            return "bg-danger";
+        }
+        if (usageRate >= 60) {
+            return "bg-warning";
+        }
+        return "bg-success";
     }
 }

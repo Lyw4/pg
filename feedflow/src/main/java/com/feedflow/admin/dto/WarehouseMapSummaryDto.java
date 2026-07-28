@@ -37,16 +37,24 @@ public class WarehouseMapSummaryDto {
     /** 포화(90% 이상) 구역 수 */
     private final int fullBins;
 
-    /** 비어 있는 구역 수 (사용 중인 구역만) */
+    /** 비어 있는 구역 수 (사용 중인 보관 구역만) */
     private final int emptyBins;
+
+    /** 보관 구역 수 (입고/출고 대기 · 검수 제외) */
+    private final int storageBins;
+
+    /** 유통기한 임박 재고가 있는 구역 수 */
+    private final int expiringBins;
 
     public static WarehouseMapSummaryDto of(List<WarehouseBinMapDto> bins) {
         int activeBins = 0;
         int inactiveBins = 0;
+        int storageBins = 0;
         int totalCapacity = 0;
         int totalLoaded = 0;
         int fullBins = 0;
         int emptyBins = 0;
+        int expiringBins = 0;
 
         for (WarehouseBinMapDto bin : bins) {
             if (!bin.isActive()) {
@@ -54,6 +62,12 @@ public class WarehouseMapSummaryDto {
                 continue;
             }
             activeBins++;
+
+            // 입고/출고 대기 · 검수 구역은 상시 보관 공간이 아니므로 적재율에서 제외한다
+            if (!bin.isStorage()) {
+                continue;
+            }
+            storageBins++;
             totalCapacity += bin.getMaxCapacity();
             totalLoaded += bin.getLoadedQuantity();
 
@@ -63,17 +77,22 @@ public class WarehouseMapSummaryDto {
             if (bin.getStatus() == BinLoadStatus.EMPTY) {
                 emptyBins++;
             }
+            if (bin.isExpiringSoon()) {
+                expiringBins++;
+            }
         }
 
         return WarehouseMapSummaryDto.builder()
                 .totalBins(bins.size())
                 .activeBins(activeBins)
                 .inactiveBins(inactiveBins)
+                .storageBins(storageBins)
                 .totalCapacity(totalCapacity)
                 .totalLoaded(totalLoaded)
                 .usageRate(WarehouseBinMapDto.calculateUsageRate(totalLoaded, totalCapacity))
                 .fullBins(fullBins)
                 .emptyBins(emptyBins)
+                .expiringBins(expiringBins)
                 .build();
     }
 

@@ -3,12 +3,13 @@ package com.feedflow.admin.service;
 import com.feedflow.admin.dto.BinDetailDto;
 import com.feedflow.admin.dto.InventoryDto;
 import com.feedflow.admin.dto.WarehouseBinMapDto;
-import com.feedflow.admin.dto.WarehouseMapLevelDto;
+import com.feedflow.admin.dto.WarehouseFacilityDto;
+import com.feedflow.admin.dto.WarehouseFloorPlanDto;
 import com.feedflow.admin.dto.WarehouseMapRow;
 import com.feedflow.admin.dto.WarehouseMapSummaryDto;
 import com.feedflow.admin.dto.WarehouseMapZoneDto;
 import com.feedflow.common.exception.ResourceNotFoundException;
-import com.feedflow.common.util.Texts;
+import com.feedflow.domain.Warehouse;
 import com.feedflow.repository.InventoryRepository;
 import com.feedflow.repository.WarehouseBinRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,19 +18,20 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 /**
- * 창고 2D 도면 맵 조회 서비스.
+ * 창고 2D 평면도 조회 서비스.
  *
- * <h3>도면 배치 규칙</h3>
- * 실제 창고를 보는 것처럼 <b>랙을 가로축, 단을 세로축</b> 으로 배치한다.
- * 단은 높은 층이 위로 오도록 역순으로 그린다 (3단 → 2단 → 1단).
- * 좌표는 서버에서 계산해 내려주므로 화면은 CSS Grid 에 값만 꽂아 넣으면 된다.
+ * <h3>배치 방식</h3>
+ * 구역마다 저장된 <b>좌표(posX, posY)와 크기(posWidth, posHeight)</b> 로 자유 배치한다.
+ * 랙/단 격자에 억지로 맞추지 않기 때문에 통로 · 대형 구역 · 비어 있는 공간을
+ * 실제 창고 도면처럼 표현할 수 있다.
+ * <p>
+ * 출입구 · 벽 · 검수실은 재고를 보관하지 않는 건물 구조물이라 DB 가 아니라
+ * {@link WarehouseFacilityDto#forWarehouse} 상수로 관리한다.
  *
  * <p>모두 조회 전용이다. 재고를 변경하지 않는다.</p>
  */
@@ -42,53 +44,32 @@ public class WarehouseMapService {
     private final InventoryRepository inventoryRepository;
 
     /* ------------------------------------------------------------------
-     * 도면 조회
+     * 평면도 조회
      * ------------------------------------------------------------------ */
 
     /**
-     * 구역 그룹(Zone) 단위로 묶은 도면 데이터.
-     * <p>
-     * 그룹 안에서 랙/단 좌표를 계산해 CSS Grid 배치 정보까지 채워준다.
+     * 창고 한 동의 평면도를 조회한다.
+     *
+     * @param warehouse 조회할 창고 (null 이면 전체 창고의 구역이 한 도면에 섞이므로 권장하지 않음)
+     * @param today     D-Day 계산 기준일
      */
-    public List<WarehouseMapZoneDto> getZones(String zone, LocalDate today) {
-        List<WarehouseMapRow> rows =
-                warehouseBinRepository.findWarehouseMapRows(Texts.trimToNull(zone));
-
-        // 조회 순서(zone → binCode)를 유지하기 위해 LinkedHashMap 사용
-        Map<String, List<WarehouseMapRow>> grouped = new LinkedHashMap<>();
-        for (WarehouseMapRow row : rows) {
-            grouped.computeIfAbsent(row.zone(), key -> new ArrayList<>()).add(row);
-        }
-
-        // 칸 너비를 도면 전체에서 통일하기 위해 먼저 기준값을 구한다
-        int referenceCapacity = referenceCapacity(rows);
-
-        List<WarehouseMapZoneDto> result = new ArrayList<>();
-        for (Map.Entry<String, List<WarehouseMapRow>> entry : grouped.entrySet()) {
-            result.add(toZoneDto(entry.getKey(), entry.getValue(), today, referenceCapacity));
-        }
-        return result;
-    }
-
-    /**
-     * 창고 전체 요약 (사용 중지 구역은 수용량 통계에서 제외).
-     * <p>
-     * 이미 조회한 도면 데이터를 재사용하므로 DB 를 다시 조회하지 않는다.
-     */
-    public WarehouseMapSummaryDto getSummary(List<WarehouseMapZoneDto> zones) {
-        return WarehouseMapSummaryDto.of(flattenBins(zones));
-    }
-
-    /** 구역 그룹별로 나뉜 타일을 하나의 목록으로 펼친다 */
-    public List<WarehouseBinMapDto> flattenBins(List<WarehouseMapZoneDto> zones) {
-        return zones.stream()
-                .flatMap(zone -> zone.getBins().stream())
+    public WarehouseFloorPlanDto getFloorPlan(Warehouse warehouse, LocalDate today) {
+        List<WarehouseBinMapDto> bins = warehouseBinRepository.findWarehouseMapRows(warehouse).stream()
+                .map(row -> WarehouseBinMapDto.of(row, today))
                 .toList();
+
+        return WarehouseFloorPlanDto.builder()
+                .warehouse(warehouse)
+                .bins(bins)
+                .facilities(WarehouseFacilityDto.forWarehouse(warehouse))
+                .zones(toZoneSummaries(bins))
+                .summary(WarehouseMapSummaryDto.of(bins))
+                .build();
     }
 
-    /** 필터용 구역 그룹 목록 */
-    public List<String> getZoneCodes() {
-        return warehouseBinRepository.findDistinctZones();
+    /** 화면 탭 구성용 창고 목록 */
+    public List<Warehouse> getWarehouses() {
+        return List.of(Warehouse.values());
     }
 
     /* ------------------------------------------------------------------
@@ -106,15 +87,12 @@ public class WarehouseMapService {
         WarehouseMapRow row = warehouseBinRepository.findWarehouseMapRowByBinId(binId)
                 .orElseThrow(() -> ResourceNotFoundException.ofWarehouseBin(binId));
 
-        WarehouseBinMapDto bin = WarehouseBinMapDto.of(row, today);
-
-        List<InventoryDto> inventories =
-                inventoryRepository.search(null, binId, null).stream()
-                        .map(inventory -> InventoryDto.of(inventory, today))
-                        .toList();
+        List<InventoryDto> inventories = inventoryRepository.search(null, binId, null).stream()
+                .map(inventory -> InventoryDto.of(inventory, today))
+                .toList();
 
         return BinDetailDto.builder()
-                .bin(bin)
+                .bin(WarehouseBinMapDto.of(row, today))
                 .inventories(inventories)
                 .build();
     }
@@ -124,96 +102,22 @@ public class WarehouseMapService {
      * ------------------------------------------------------------------ */
 
     /**
-     * 도면 전체의 칸 너비 기준값을 구한다.
+     * 구역(Zone) 별 요약을 만든다.
      * <p>
-     * <b>가장 넓은 줄(단)의 수용량 합계</b>다. 모든 줄을 이 값에 맞춰 정규화하면
-     * 수용량이 같은 칸은 어느 구역 어느 단에 있어도 같은 너비가 된다.
-     * <p>
-     * 사용 중지 구역도 도면에 그려지므로 너비 계산에는 포함한다.
-     * (수용량 통계에서는 제외하지만 자리는 차지하기 때문이다)
+     * 도면 위에 구역 이름을 큰 글자로 겹쳐 표시하기 위해 좌표 경계 상자도 함께 계산한다.
+     * 조회 순서(posY → posX)를 유지해야 도면 위에서 아래로 읽는 순서와 맞으므로
+     * {@link LinkedHashMap} 을 쓴다.
      */
-    private int referenceCapacity(List<WarehouseMapRow> rows) {
-        Map<String, Integer> capacityPerLevel = new LinkedHashMap<>();
-        for (WarehouseMapRow row : rows) {
-            String key = row.zone() + "#" + levelOf(row.binLevel());
-            capacityPerLevel.merge(key, Math.max(row.capacity(), 1), Integer::sum);
-        }
-        return capacityPerLevel.values().stream()
-                .max(Integer::compareTo)
-                .orElse(1);
-    }
-
-    /**
-     * 한 구역 그룹을 도면 DTO 로 변환한다.
-     * <p>
-     * 창고 평면도처럼 <b>단(Level)을 한 줄씩 쌓고</b>, 줄 안에서는 랙 번호 순으로 나열한다.
-     *
-     * @param referenceCapacity 도면 전체 공통 너비 기준 (줄 끝 채움 칸 계산용)
-     */
-    private WarehouseMapZoneDto toZoneDto(String zone, List<WarehouseMapRow> rows,
-                                          LocalDate today, int referenceCapacity) {
-        // 단별로 묶는다. 높은 단이 위로 오도록 내림차순 정렬.
-        Map<Integer, List<WarehouseMapRow>> byLevel = new TreeMap<>(Comparator.reverseOrder());
-        for (WarehouseMapRow row : rows) {
-            byLevel.computeIfAbsent(levelOf(row.binLevel()), key -> new ArrayList<>()).add(row);
+    private List<WarehouseMapZoneDto> toZoneSummaries(List<WarehouseBinMapDto> bins) {
+        Map<String, List<WarehouseBinMapDto>> grouped = new LinkedHashMap<>();
+        for (WarehouseBinMapDto bin : bins) {
+            grouped.computeIfAbsent(bin.getZone(), key -> new ArrayList<>()).add(bin);
         }
 
-        List<WarehouseMapLevelDto> levels = new ArrayList<>();
-        List<WarehouseBinMapDto> allBins = new ArrayList<>();
-        int totalCapacity = 0;
-        int totalLoaded = 0;
-        int inactiveBinCount = 0;
-        int inactiveCapacity = 0;
-
-        for (Map.Entry<Integer, List<WarehouseMapRow>> entry : byLevel.entrySet()) {
-            List<WarehouseBinMapDto> levelBins = entry.getValue().stream()
-                    .sorted(Comparator.comparing(row -> rackOf(row.rack())))
-                    .map(row -> WarehouseBinMapDto.of(row, today))
-                    .toList();
-
-            // 이 줄이 차지하는 너비 합계 (사용 중지 구역도 자리를 차지한다)
-            int levelWidth = levelBins.stream()
-                    .mapToInt(WarehouseBinMapDto::getFlexGrow)
-                    .sum();
-
-            levels.add(WarehouseMapLevelDto.builder()
-                    .level(entry.getKey())
-                    .bins(levelBins)
-                    .fillerGrow(Math.max(referenceCapacity - levelWidth, 0))
-                    .build());
-
-            allBins.addAll(levelBins);
-
-            for (WarehouseMapRow row : entry.getValue()) {
-                if (row.isActive()) {
-                    totalCapacity += row.capacity();
-                    totalLoaded += row.loaded();
-                } else {
-                    inactiveBinCount++;
-                    inactiveCapacity += row.capacity();
-                }
-            }
+        List<WarehouseMapZoneDto> zones = new ArrayList<>();
+        for (Map.Entry<String, List<WarehouseBinMapDto>> entry : grouped.entrySet()) {
+            zones.add(WarehouseMapZoneDto.of(entry.getKey(), entry.getValue()));
         }
-
-        return WarehouseMapZoneDto.builder()
-                .zone(zone)
-                .levels(levels)
-                .bins(allBins)
-                .totalCapacity(totalCapacity)
-                .totalLoaded(totalLoaded)
-                .usageRate(WarehouseBinMapDto.calculateUsageRate(totalLoaded, totalCapacity))
-                .inactiveBinCount(inactiveBinCount)
-                .inactiveCapacity(inactiveCapacity)
-                .build();
-    }
-
-    /** 랙 번호가 없는 구역은 정렬 시 맨 뒤로 보낸다 */
-    private String rackOf(String rack) {
-        return (rack == null || rack.isBlank()) ? "~" : rack;
-    }
-
-    /** 단이 없는 구역은 1단으로 본다 */
-    private int levelOf(Integer binLevel) {
-        return binLevel == null ? 1 : binLevel;
+        return zones;
     }
 }

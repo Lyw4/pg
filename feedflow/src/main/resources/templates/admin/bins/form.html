@@ -39,8 +39,19 @@
                             <div class="form-text">구역-랙-단 조합으로 입력하는 것을 권장합니다. (중복 불가)</div>
                         </div>
 
+                        <!-- 창고(동) -->
+                        <div class="col-6 col-md-3">
+                            <label for="warehouse" class="form-label ff-required">창고</label>
+                            <select id="warehouse" th:field="*{warehouse}" class="form-select"
+                                    th:classappend="${#fields.hasErrors('warehouse')} ? 'is-invalid'">
+                                <option th:each="wh : ${warehouses}" th:value="${wh}"
+                                        th:text="${wh.description}">제1창고</option>
+                            </select>
+                            <div class="invalid-feedback" th:errors="*{warehouse}">오류</div>
+                        </div>
+
                         <!-- 구역(Zone) -->
-                        <div class="col-12 col-md-6">
+                        <div class="col-6 col-md-3">
                             <label for="zone" class="form-label ff-required">구역(Zone)</label>
                             <input type="text" id="zone" th:field="*{zone}" class="form-control"
                                    list="zoneOptions"
@@ -50,6 +61,20 @@
                                 <option th:each="z : ${zones}" th:value="${z}"></option>
                             </datalist>
                             <div class="invalid-feedback" th:errors="*{zone}">오류</div>
+                        </div>
+
+                        <!-- 구역 용도 -->
+                        <div class="col-12 col-md-6">
+                            <label for="binPurpose" class="form-label ff-required">구역 용도</label>
+                            <select id="binPurpose" th:field="*{binPurpose}" class="form-select"
+                                    th:classappend="${#fields.hasErrors('binPurpose')} ? 'is-invalid'">
+                                <option th:each="p : ${binPurposes}" th:value="${p}"
+                                        th:text="${p.description}">보관</option>
+                            </select>
+                            <div class="invalid-feedback" th:errors="*{binPurpose}">오류</div>
+                            <div class="form-text">
+                                입고/출고 대기 · 검수 구역은 창고 적재율 통계에서 제외됩니다.
+                            </div>
                         </div>
 
                         <!-- 랙 -->
@@ -77,6 +102,56 @@
                                    th:classappend="${#fields.hasErrors('maxCapacity')} ? 'is-invalid'"
                                    min="1">
                             <div class="invalid-feedback" th:errors="*{maxCapacity}">오류</div>
+                        </div>
+
+                        <!-- 2D 도면 배치 -->
+                        <div class="col-12">
+                            <hr class="mt-2 mb-3">
+                            <div class="fw-semibold mb-1">
+                                <i class="bi bi-bounding-box me-1"></i>2D 도면 배치
+                            </div>
+                            <div class="form-text mb-2">
+                                창고 평면을
+                                <span th:text="${gridColumns}">24</span> x
+                                <span th:text="${gridRows}">18</span>
+                                격자로 보고 사각형의 좌상단 위치와 크기를 지정합니다.
+                                (1행 1열이 왼쪽 위)
+                            </div>
+                            <div th:if="${#fields.hasGlobalErrors()}" class="alert alert-danger py-2 small">
+                                <div th:each="err : ${#fields.globalErrors()}" th:text="${err}">오류</div>
+                            </div>
+                        </div>
+
+                        <div class="col-6 col-md-3">
+                            <label for="posX" class="form-label ff-required">가로 위치 (열)</label>
+                            <input type="number" id="posX" th:field="*{posX}" class="form-control"
+                                   th:classappend="${#fields.hasErrors('posX')} ? 'is-invalid'"
+                                   min="1" th:max="${gridColumns}">
+                            <div class="invalid-feedback" th:errors="*{posX}">오류</div>
+                        </div>
+
+                        <div class="col-6 col-md-3">
+                            <label for="posY" class="form-label ff-required">세로 위치 (행)</label>
+                            <input type="number" id="posY" th:field="*{posY}" class="form-control"
+                                   th:classappend="${#fields.hasErrors('posY')} ? 'is-invalid'"
+                                   min="1" th:max="${gridRows}">
+                            <div class="invalid-feedback" th:errors="*{posY}">오류</div>
+                        </div>
+
+                        <div class="col-6 col-md-3">
+                            <label for="posWidth" class="form-label ff-required">가로 크기</label>
+                            <input type="number" id="posWidth" th:field="*{posWidth}" class="form-control"
+                                   th:classappend="${#fields.hasErrors('posWidth')} ? 'is-invalid'"
+                                   min="1" th:max="${gridColumns}">
+                            <div class="invalid-feedback" th:errors="*{posWidth}">오류</div>
+                        </div>
+
+                        <div class="col-6 col-md-3">
+                            <label for="posHeight" class="form-label ff-required">세로 크기</label>
+                            <input type="number" id="posHeight" th:field="*{posHeight}" class="form-control"
+                                   th:classappend="${#fields.hasErrors('posHeight')} ? 'is-invalid'"
+                                   min="1" th:max="${gridRows}">
+                            <div class="invalid-feedback" th:errors="*{posHeight}">오류</div>
                         </div>
 
                         <!-- 비고 -->

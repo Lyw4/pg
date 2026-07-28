@@ -520,23 +520,43 @@ body {
 
 
 
+
 /* ==================================================================
- * 창고 2D 평면도 (Warehouse 2D Map)
+ * 창고 2D 평면도 (Warehouse 2D Floor Plan)
  *
  * 배치 원리
- *   ff-floor        : 창고 외곽선 (건물 경계)
- *   ff-zone-block   : 구역 블록 (A / B / COLD)
- *   ff-aisle        : 구역 사이 통로
- *   ff-level-row    : 단(Level) 한 줄. 높은 단이 위
- *   ff-bin-tile     : 구역 한 칸. 너비는 flex-grow = 수용량 (큰 구역이 크게 보인다)
+ *   ff-floor        : 창고 외곽선. 24 x 18 CSS Grid
+ *   ff-bin-tile     : 구역 사각형. grid-area 로 좌표/크기가 주입된다
+ *   ff-facility     : 출입구 · 벽 · 검수실 (건물 구조물)
+ *   ff-zone-label   : 구역 이름을 도면 위에 크게 겹쳐 표시 (사각형 뒤)
  * ================================================================== */
 
-/* 범례 */
+/* ---------------- 창고 전환 탭 ---------------- */
+.ff-warehouse-tabs .nav-link {
+    color: #6c757d;
+    font-weight: 600;
+    font-size: .86rem;
+    border-radius: .4rem .4rem 0 0;
+}
+
+.ff-warehouse-tabs .nav-link.active {
+    color: #212529;
+    background-color: #fff;
+    border-color: #dee2e6 #dee2e6 #fff;
+}
+
+.ff-warehouse-tabs .nav-link small {
+    font-size: .7rem;
+    font-weight: 400;
+}
+
+/* ---------------- 범례 ---------------- */
 .ff-map-legend {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: .75rem;
-    font-size: .78rem;
+    font-size: .76rem;
     color: #6c757d;
 }
 
@@ -551,229 +571,188 @@ body {
     height: 14px;
     border-radius: 3px;
     display: inline-block;
-    border: 1px solid rgba(0, 0, 0, .12);
+    border: 1px solid rgba(0, 0, 0, .18);
 }
 
-/* ---------------- 창고 외곽선 ---------------- */
+.ff-legend-divider {
+    width: 1px;
+    height: 14px;
+    background: #dee2e6;
+}
+
+/* ---------------- 창고 외곽선 + 격자 ---------------- */
+.ff-floor-scroll {
+    overflow-x: auto;
+    padding-bottom: .25rem;
+}
+
 .ff-floor {
+    display: grid;
+    gap: 4px;
+    min-width: 860px;
     border: 3px solid #343a40;
-    border-radius: .5rem;
+    border-radius: .4rem;
+    padding: 8px;
     background:
-            linear-gradient(90deg, rgba(0, 0, 0, .022) 1px, transparent 1px) 0 0 / 24px 24px,
-            linear-gradient(rgba(0, 0, 0, .022) 1px, transparent 1px) 0 0 / 24px 24px,
+            linear-gradient(90deg, rgba(0, 0, 0, .02) 1px, transparent 1px) 0 0 / 28px 28px,
+            linear-gradient(rgba(0, 0, 0, .02) 1px, transparent 1px) 0 0 / 28px 28px,
             #fff;
-    padding: 2.1rem 1rem 1rem;
-    position: relative;
 }
 
-.ff-floor-title {
-    position: absolute;
-    top: .5rem;
-    left: .85rem;
-    font-size: .76rem;
-    font-weight: 700;
-    color: #495057;
-}
-
-/* ---------------- 구역 블록 ---------------- */
-.ff-zone-block {
-    border: 1px dashed #adb5bd;
-    border-radius: .45rem;
-    padding: .5rem .6rem .6rem;
-    background: rgba(255, 255, 255, .65);
-}
-
-.ff-zone-head {
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-    flex-wrap: wrap;
-    margin-bottom: .5rem;
-}
-
-.ff-zone-name {
-    font-size: .82rem;
-    font-weight: 700;
-    color: #212529;
-    background: #e9ecef;
-    border-radius: .25rem;
-    padding: .05rem .4rem;
-}
-
-.ff-zone-meta {
-    font-size: .7rem;
-    color: #868e96;
-}
-
-.ff-zone-rate {
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: .4rem;
-    font-size: .72rem;
-    color: #495057;
-}
-
-.ff-zone-bar {
-    width: 90px;
-    height: 6px;
-    border-radius: 3px;
-    background: #e9ecef;
-    display: inline-block;
-    overflow: hidden;
-}
-
-.ff-zone-bar-fill {
-    display: block;
-    height: 100%;
-}
-
-/* ---------------- 통로 ---------------- */
-.ff-aisle {
-    height: 34px;
-    margin: .1rem 0;
+/* ---------------- 구역 이름 라벨 (사각형 뒤) ---------------- */
+.ff-zone-label {
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
+    font-size: 2.6rem;
+    font-weight: 800;
+    color: rgba(13, 110, 253, .13);
+    pointer-events: none;
+    user-select: none;
+    z-index: 0;
+    letter-spacing: -.03em;
 }
 
-.ff-aisle::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 50%;
-    border-top: 2px dashed #dee2e6;
-}
-
-.ff-aisle-label {
-    position: relative;
-    font-size: .66rem;
-    color: #adb5bd;
-    background: #fff;
-    padding: 0 .5rem;
-    letter-spacing: .05em;
-}
-
-/* ---------------- 단(Level) 한 줄 ---------------- */
-.ff-level-row {
-    display: flex;
-    align-items: stretch;
-    gap: .45rem;
-}
-
-.ff-level-row + .ff-level-row {
-    margin-top: .45rem;
-}
-
-.ff-level-label {
-    flex: 0 0 34px;
-    font-size: .68rem;
-    font-weight: 600;
-    color: #adb5bd;
+/* ---------------- 부대시설 ---------------- */
+.ff-facility {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: center;
+    font-size: .66rem;
+    font-weight: 600;
+    text-align: center;
+    border-radius: .25rem;
+    z-index: 1;
+    padding: .1rem;
+    line-height: 1.2;
 }
 
-.ff-level-bins {
-    display: flex;
-    gap: .45rem;
-    flex: 1 1 auto;
-    min-width: 0;
+.ff-facility-door {
+    background-color: #fde2e4;
+    border: 1.5px solid #e5383b;
+    color: #a4133c;
 }
 
-/* ---------------- 구역 칸 ---------------- */
+.ff-facility-wall {
+    background-color: #6c584c;
+    border: 1px solid #4a3f35;
+    color: transparent;
+    writing-mode: vertical-rl;
+    font-size: 0;
+}
+
+.ff-facility-inspection {
+    background-color: #cfe2ff;
+    border: 1.5px solid #6ea8fe;
+    color: #084298;
+}
+
+/* ---------------- 구역 사각형 ---------------- */
 .ff-bin-tile {
-    /* flex-grow 는 인라인 style 로 수용량이 주입된다 */
-    flex-shrink: 1;
-    flex-basis: 0;
-    min-width: 92px;
-    height: 76px;
-    border: 1.5px solid rgba(0, 0, 0, .35);
-    border-radius: .35rem;
-    padding: .35rem .45rem;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    align-items: stretch;
     text-align: left;
+    border: 1.5px solid rgba(0, 0, 0, .35);
+    border-radius: .3rem;
+    padding: .2rem .3rem;
     cursor: pointer;
-    transition: transform .12s ease, box-shadow .12s ease;
     overflow: hidden;
+    position: relative;
+    z-index: 2;
+    transition: transform .1s ease, box-shadow .1s ease;
+    min-width: 0;
 }
 
 .ff-bin-tile:hover,
 .ff-bin-tile:focus-visible {
-    transform: translateY(-2px);
-    box-shadow: 0 .4rem .8rem rgba(0, 0, 0, .18);
+    transform: scale(1.03);
+    box-shadow: 0 .35rem .75rem rgba(0, 0, 0, .22);
     outline: none;
-    z-index: 2;
+    z-index: 5;
 }
 
-.ff-bin-top,
-.ff-bin-bottom {
+.ff-bin-head,
+.ff-bin-foot {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: .25rem;
-    width: 100%;
+    gap: .2rem;
+    min-width: 0;
+}
+
+.ff-bin-mid {
+    display: block;
+    min-width: 0;
 }
 
 .ff-bin-code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: .7rem;
+    font-size: .66rem;
     font-weight: 700;
-    letter-spacing: -.02em;
+    letter-spacing: -.03em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .ff-bin-rate {
-    font-size: .95rem;
-    font-weight: 700;
+    font-size: .82rem;
+    font-weight: 800;
     line-height: 1;
     white-space: nowrap;
 }
 
 .ff-bin-qty {
-    font-size: .66rem;
+    font-size: .62rem;
     opacity: .85;
     white-space: nowrap;
 }
 
 .ff-bin-meta {
-    font-size: .63rem;
-    opacity: .7;
+    font-size: .6rem;
+    opacity: .75;
     white-space: nowrap;
 }
 
-/* 유통기한 임박 D-Day 뱃지 (칸 안에 작게) */
-.ff-bin-dday {
-    font-size: .58rem;
-    padding: .1rem .25rem;
-    vertical-align: middle;
-    margin-right: .15rem;
+.ff-bin-purpose {
+    font-size: .64rem;
+    font-weight: 600;
+    opacity: .8;
 }
 
-/* 줄 끝 채움 칸
- * 칸 너비 비율을 도면 전체에서 통일하기 위한 투명 여백.
- * 이게 없으면 칸이 적은 줄에서 남은 공간을 나눠 가져 같은 수용량인데 더 넓게 보인다.
- */
-.ff-bin-filler {
-    flex-shrink: 1;
-    flex-basis: 0;
-    min-width: 0;
-    display: block;
+/* 좁은 사각형(2칸 이하)은 세로로 길므로 수량 표기를 숨겨 겹침을 막는다 */
+.ff-bin-narrow .ff-bin-qty,
+.ff-bin-narrow .ff-bin-meta {
+    font-size: .55rem;
 }
 
-/* 칸 내부 적재 게이지 */
+.ff-bin-narrow .ff-bin-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+}
+
+/* 납작한 사각형(1칸)은 게이지와 하단 정보를 숨기고 코드/비율만 남긴다 */
+.ff-bin-flat {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 .3rem;
+}
+
+.ff-bin-flat .ff-bin-mid,
+.ff-bin-flat .ff-bin-foot {
+    display: none;
+}
+
+/* 적재 게이지 */
 .ff-bin-gauge {
     width: 100%;
-    height: 5px;
-    border-radius: 3px;
-    background: rgba(0, 0, 0, .12);
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(0, 0, 0, .13);
     display: block;
     overflow: hidden;
 }
@@ -784,7 +763,14 @@ body {
     background: rgba(0, 0, 0, .4);
 }
 
-/* ---------------- 상태별 색상 (범례 스와치와 공유) ---------------- */
+/* 유통기한 임박 D-Day 뱃지 */
+.ff-bin-dday {
+    font-size: .54rem;
+    padding: .08rem .22rem;
+    vertical-align: middle;
+}
+
+/* ---------------- 적재 상태별 색상 (범례 스와치와 공유) ---------------- */
 .ff-bin-spare {
     background-color: #d1e7dd;
     border-color: #479f76;
@@ -804,12 +790,31 @@ body {
 }
 
 .ff-bin-empty {
-    background-color: #f8f9fa;
+    background-color: #fdfdfe;
     border-color: #ced4da;
     color: #6c757d;
 }
 
-/* 사용 중지 구역은 사선으로 '쓸 수 없음'을 표시하고 클릭도 막는다 */
+/* 용도별 고정색 (적재율과 무관) */
+.ff-bin-receiving {
+    background-color: #cff4fc;
+    border-color: #6edff6;
+    color: #055160;
+}
+
+.ff-bin-shipping {
+    background-color: #ffe5d0;
+    border-color: #fd7e14;
+    color: #984c0c;
+}
+
+.ff-bin-inspection {
+    background-color: #cfe2ff;
+    border-color: #6ea8fe;
+    color: #084298;
+}
+
+/* 사용 중지 구역은 사선으로 표시하고 클릭도 막는다 */
 .ff-bin-inactive {
     background-color: #e9ecef;
     border-color: #adb5bd;
@@ -817,9 +822,9 @@ body {
     background-image: repeating-linear-gradient(
             45deg,
             rgba(0, 0, 0, .06) 0,
-            rgba(0, 0, 0, .06) 6px,
-            transparent 6px,
-            transparent 12px
+            rgba(0, 0, 0, .06) 5px,
+            transparent 5px,
+            transparent 10px
     );
     cursor: not-allowed;
 }
@@ -830,36 +835,16 @@ body {
 }
 
 /* ---------------- 좁은 화면 ----------------
- * 비례 배치를 유지하면 칸이 너무 좁아져 글자가 깨진다.
- * 세로로 쌓아 가독성을 지키고, 단 라벨은 위로 올린다.
+ * 도면은 비율이 중요해 접거나 재배치하면 의미가 깨진다.
+ * 가로 스크롤을 허용하고 최소 폭만 보장한다.
  */
-@media (max-width: 767.98px) {
+@media (max-width: 991.98px) {
     .ff-floor {
-        padding: 2rem .6rem .7rem;
+        min-width: 780px;
+        gap: 3px;
     }
 
-    .ff-level-row {
-        flex-direction: column;
-        align-items: stretch;
-        gap: .3rem;
-    }
-
-    .ff-level-label {
-        flex: 0 0 auto;
-        justify-content: flex-start;
-    }
-
-    .ff-level-bins {
-        flex-wrap: wrap;
-    }
-
-    .ff-bin-tile {
-        flex: 1 1 calc(50% - .45rem) !important;
-        min-width: 0;
-    }
-
-    /* 좁은 화면에서는 비례 배치를 쓰지 않으므로 채움 칸도 숨긴다 */
-    .ff-bin-filler {
-        display: none;
+    .ff-zone-label {
+        font-size: 2rem;
     }
 }

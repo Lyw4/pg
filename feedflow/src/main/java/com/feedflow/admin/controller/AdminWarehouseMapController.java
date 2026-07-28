@@ -1,7 +1,7 @@
 package com.feedflow.admin.controller;
 
-import com.feedflow.admin.dto.WarehouseMapZoneDto;
 import com.feedflow.admin.service.WarehouseMapService;
+import com.feedflow.domain.Warehouse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -14,9 +14,9 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * 창고 2D 도면 맵 화면 컨트롤러 (HTML 렌더링).
+ * 창고 2D 평면도 화면 컨트롤러 (HTML 렌더링).
  * <p>
- * 구역별 적재 상태를 색으로 구분해 한눈에 보여준다.
+ * 창고(동)마다 도면을 한 장씩 그리고 화면에서는 탭으로 전환한다.
  * 조회 전용이므로 STAFF · ADMIN 모두 접근할 수 있다.
  * ({@code /admin/**} 는 SecurityConfig 에서 {@code hasAnyRole("STAFF","ADMIN")} 로 제한)
  * <p>
@@ -31,28 +31,32 @@ public class AdminWarehouseMapController {
 
     private final WarehouseMapService warehouseMapService;
 
-    /** GNB 활성화용 (기준 정보 > 창고 도면) */
+    /** GNB 활성화용 (기준 정보 > 창고 2D 도면) */
     @ModelAttribute("menu")
     public String menu() {
         return "warehouseMap";
     }
 
-    /** 구역 그룹 필터 목록 */
-    @ModelAttribute("zoneCodes")
-    public List<String> zoneCodes() {
-        return warehouseMapService.getZoneCodes();
+    /** 창고 전환 탭 */
+    @ModelAttribute("warehouses")
+    public List<Warehouse> warehouses() {
+        return warehouseMapService.getWarehouses();
     }
 
+    /**
+     * 창고 평면도.
+     *
+     * @param warehouse 조회할 창고. 지정하지 않으면 제1창고를 보여준다.
+     *                  (전체를 한 도면에 겹쳐 그리면 서로 다른 건물의 구역이 섞여 위치를 오해한다)
+     */
     @GetMapping
-    public String map(@RequestParam(name = "zone", required = false) String zone,
+    public String map(@RequestParam(name = "warehouse", required = false) Warehouse warehouse,
                       Model model) {
 
-        LocalDate today = LocalDate.now();
-        List<WarehouseMapZoneDto> zones = warehouseMapService.getZones(zone, today);
+        Warehouse target = warehouse != null ? warehouse : Warehouse.WH1;
 
-        model.addAttribute("zones", zones);
-        model.addAttribute("summary", warehouseMapService.getSummary(zones));
-        model.addAttribute("selectedZone", zone);
+        model.addAttribute("floorPlan", warehouseMapService.getFloorPlan(target, LocalDate.now()));
+        model.addAttribute("selectedWarehouse", target);
         return MAP_VIEW;
     }
 }

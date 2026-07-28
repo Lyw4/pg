@@ -15,18 +15,31 @@
 
     <main class="ff-main">
 
+        <!-- 창고 전환 탭 -->
+        <ul class="nav nav-tabs ff-warehouse-tabs mb-3">
+            <li class="nav-item" th:each="wh : ${warehouses}">
+                <a class="nav-link"
+                   th:classappend="${wh == selectedWarehouse} ? 'active'"
+                   th:href="@{/admin/warehouse-map(warehouse=${wh})}">
+                    <i class="bi bi-building me-1"></i>
+                    <span th:text="${wh.description}">제1창고</span>
+                    <small class="text-muted ms-1" th:text="${wh.note}">상온</small>
+                </a>
+            </li>
+        </ul>
+
         <!-- 요약 -->
         <div class="row g-3 mb-3">
             <div class="col-6 col-xl-3">
                 <div class="card ff-card h-100">
                     <div class="card-body d-flex justify-content-between align-items-center">
                         <div>
-                            <div class="text-muted small">전체 사용률</div>
+                            <div class="text-muted small">보관 구역 사용률</div>
                             <div class="ff-stat-value text-dark"
-                                 th:text="${summary.usageRate} + '%'">0%</div>
+                                 th:text="${floorPlan.summary.usageRate} + '%'">0%</div>
                             <div class="text-muted" style="font-size: .72rem;"
-                                 th:text="${#numbers.formatInteger(summary.totalLoaded, 1, 'COMMA')} + ' / '
-                                          + ${#numbers.formatInteger(summary.totalCapacity, 1, 'COMMA')} + ' 포대'">0 / 0 포대</div>
+                                 th:text="${#numbers.formatInteger(floorPlan.summary.totalLoaded, 1, 'COMMA')} + ' / '
+                                          + ${#numbers.formatInteger(floorPlan.summary.totalCapacity, 1, 'COMMA')} + ' 포대'">0 / 0 포대</div>
                         </div>
                         <div class="ff-stat-icon bg-primary-subtle text-primary">
                             <i class="bi bi-diagram-3"></i>
@@ -41,7 +54,7 @@
                         <div>
                             <div class="text-muted small">남은 여유</div>
                             <div class="ff-stat-value text-success"
-                                 th:text="${#numbers.formatInteger(summary.remainingCapacity, 1, 'COMMA')}">0</div>
+                                 th:text="${#numbers.formatInteger(floorPlan.summary.remainingCapacity, 1, 'COMMA')}">0</div>
                             <div class="text-muted" style="font-size: .72rem;">포대 적재 가능</div>
                         </div>
                         <div class="ff-stat-icon bg-success-subtle text-success">
@@ -57,8 +70,8 @@
                         <div>
                             <div class="text-muted small">포화 구역</div>
                             <div class="ff-stat-value"
-                                 th:classappend="${summary.fullBins > 0} ? 'text-danger' : 'text-dark'"
-                                 th:text="${summary.fullBins} + '개'">0개</div>
+                                 th:classappend="${floorPlan.summary.fullBins > 0} ? 'text-danger' : 'text-dark'"
+                                 th:text="${floorPlan.summary.fullBins} + '칸'">0칸</div>
                             <div class="text-muted" style="font-size: .72rem;">90% 이상 적재</div>
                         </div>
                         <div class="ff-stat-icon bg-danger-subtle text-danger">
@@ -72,160 +85,147 @@
                 <div class="card ff-card h-100">
                     <div class="card-body d-flex justify-content-between align-items-center">
                         <div>
-                            <div class="text-muted small">구역 수</div>
-                            <div class="ff-stat-value text-dark"
-                                 th:text="${summary.activeBins} + '개'">0개</div>
+                            <div class="text-muted small">유통기한 임박 구역</div>
+                            <div class="ff-stat-value"
+                                 th:classappend="${floorPlan.summary.expiringBins > 0} ? 'text-warning' : 'text-dark'"
+                                 th:text="${floorPlan.summary.expiringBins} + '칸'">0칸</div>
                             <div class="text-muted" style="font-size: .72rem;">
-                                빈 구역 <span th:text="${summary.emptyBins}">0</span> ·
-                                중지 <span th:text="${summary.inactiveBins}">0</span>
+                                전체 <span th:text="${floorPlan.summary.totalBins}">0</span>칸 ·
+                                중지 <span th:text="${floorPlan.summary.inactiveBins}">0</span>칸
                             </div>
                         </div>
-                        <div class="ff-stat-icon bg-secondary-subtle text-secondary">
-                            <i class="bi bi-grid-3x3-gap"></i>
+                        <div class="ff-stat-icon bg-warning-subtle text-warning">
+                            <i class="bi bi-hourglass-split"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 필터 + 범례 -->
-        <div class="card ff-card ff-filter-card mb-3">
-            <div class="card-body d-flex flex-wrap justify-content-between align-items-end gap-3">
-                <form th:action="@{/admin/warehouse-map}" method="get" class="d-flex align-items-end gap-2">
-                    <div>
-                        <label for="zone" class="form-label">구역(Zone)</label>
-                        <select id="zone" name="zone" class="form-select form-select-sm">
-                            <option value="">전체</option>
-                            <option th:each="z : ${zoneCodes}" th:value="${z}" th:text="${z}"
-                                    th:selected="${z == selectedZone}">A</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-sm btn-dark">
-                        <i class="bi bi-search me-1"></i>조회
-                    </button>
-                    <a th:href="@{/admin/warehouse-map}" class="btn btn-sm btn-outline-secondary">초기화</a>
-                </form>
-
+        <!-- 범례 -->
+        <div class="card ff-card mb-3">
+            <div class="card-body py-2">
                 <div class="ff-map-legend">
                     <span class="ff-legend-item"><i class="ff-legend-swatch ff-bin-spare"></i>여유 (60% 미만)</span>
                     <span class="ff-legend-item"><i class="ff-legend-swatch ff-bin-normal"></i>보통 (60~89%)</span>
                     <span class="ff-legend-item"><i class="ff-legend-swatch ff-bin-full"></i>포화 (90% 이상)</span>
                     <span class="ff-legend-item"><i class="ff-legend-swatch ff-bin-empty"></i>비어있음</span>
                     <span class="ff-legend-item"><i class="ff-legend-swatch ff-bin-inactive"></i>사용 중지</span>
+                    <span class="ff-legend-divider"></span>
+                    <span class="ff-legend-item"><i class="ff-legend-swatch ff-bin-receiving"></i>입고 대기</span>
+                    <span class="ff-legend-item"><i class="ff-legend-swatch ff-bin-shipping"></i>출고 대기</span>
+                    <span class="ff-legend-item"><i class="ff-legend-swatch ff-facility-inspection"></i>검수실</span>
                 </div>
             </div>
         </div>
 
-        <!-- 도면 -->
-        <div th:if="${#lists.isEmpty(zones)}" class="card ff-card">
-            <div class="card-body text-center text-muted py-5">
-                <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                표시할 창고 구역이 없습니다.
-            </div>
-        </div>
-
-        <!-- 창고 평면도 : 외곽선 안에 구역 블록을 배치하고 사이를 통로로 띄운다 -->
-        <div class="card ff-card" th:unless="${#lists.isEmpty(zones)}">
+        <!-- 평면도 -->
+        <div class="card ff-card">
             <div class="card-body">
 
-                <div class="ff-floor">
-                    <div class="ff-floor-title">
-                        <i class="bi bi-bounding-box me-1"></i>창고 평면도
-                        <span class="text-muted fw-normal ms-1">
-                            (칸 크기 = 수용 규모)
-                        </span>
-                    </div>
+                <div th:if="${floorPlan.empty}" class="text-center text-muted py-5">
+                    <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                    이 창고에 등록된 구역이 없습니다.
+                </div>
 
-                    <div th:each="zoneGroup, zoneStat : ${zones}">
+                <div th:unless="${floorPlan.empty}" class="ff-floor-scroll">
+                    <div class="ff-floor"
+                         th:style="'grid-template-columns:' + ${floorPlan.gridTemplateColumns}
+                                   + ';grid-template-rows:' + ${floorPlan.gridTemplateRows}">
 
-                        <!-- 구역 블록 -->
-                        <div class="ff-zone-block">
-                            <div class="ff-zone-head">
-                                <span class="ff-zone-name" th:text="${zoneGroup.zone} + '구역'">A구역</span>
-                                <span class="ff-zone-meta">
-                                    <span th:text="${zoneGroup.binCount}">0</span>칸 ·
-                                    <span th:text="${zoneGroup.levelCount}">0</span>단 ·
-                                    가용 수용
-                                    <span th:text="${#numbers.formatInteger(zoneGroup.totalCapacity, 1, 'COMMA')}">0</span>
-                                    <span th:if="${zoneGroup.hasInactive}" class="text-secondary"
-                                          th:text="'(중지 ' + ${zoneGroup.inactiveBinCount} + '칸 · '
-                                                   + ${#numbers.formatInteger(zoneGroup.inactiveCapacity, 1, 'COMMA')} + ' 제외)'">(중지 1칸 제외)</span>
-                                </span>
-                                <span class="ff-zone-rate">
-                                    <span class="ff-zone-bar">
-                                        <span class="ff-zone-bar-fill"
-                                              th:classappend="${zoneGroup.usageRate >= 90
-                                                               ? 'bg-danger'
-                                                               : (zoneGroup.usageRate >= 60 ? 'bg-warning' : 'bg-success')}"
-                                              th:style="'width:' + ${zoneGroup.usageRateCapped} + '%'"></span>
-                                    </span>
-                                    <span class="fw-semibold" th:text="${zoneGroup.usageRate} + '%'">0%</span>
-                                </span>
-                            </div>
+                        <!-- 구역 이름 라벨 (사각형 뒤에 크게 겹쳐 표시) -->
+                        <div class="ff-zone-label" th:each="z : ${floorPlan.zones}"
+                             th:style="'grid-area:' + ${z.gridArea}"
+                             th:text="${z.zone}"
+                             aria-hidden="true">A</div>
 
-                            <!-- 단(Level) 을 한 줄씩 쌓는다 : 높은 단이 위 -->
-                            <div class="ff-level-row" th:each="lv : ${zoneGroup.levels}">
-                                <span class="ff-level-label" th:text="${lv.level} + '단'">1단</span>
-
-                                <div class="ff-level-bins">
-                                    <button type="button"
-                                            th:each="bin : ${lv.bins}"
-                                            class="ff-bin-tile"
-                                            th:classappend="${bin.tileClass}"
-                                            th:style="'flex-grow:' + ${bin.flexGrow}"
-                                            th:data-bin-id="${bin.binId}"
-                                            th:data-bin-code="${bin.binCode}"
-                                            th:title="|${bin.binCode} · ${bin.statusLabel} · 적재 ${bin.loadedQuantity}/${bin.maxCapacity} (${bin.usageRate}%) · 품목 ${bin.productCount}종 · 로트 ${bin.lotCount}건|">
-
-                                        <span class="ff-bin-top">
-                                            <span class="ff-bin-code" th:text="${bin.binCode}">A-01-01</span>
-                                            <span class="ff-bin-rate" th:text="${bin.usageRate} + '%'">0%</span>
-                                        </span>
-
-                                        <span class="ff-bin-gauge">
-                                            <span class="ff-bin-gauge-fill"
-                                                  th:style="'width:' + ${bin.usageRateCapped} + '%'"></span>
-                                        </span>
-
-                                        <span class="ff-bin-bottom">
-                                            <span class="ff-bin-qty"
-                                                  th:text="${#numbers.formatInteger(bin.loadedQuantity, 1, 'COMMA')}
-                                                           + ' / ' + ${#numbers.formatInteger(bin.maxCapacity, 1, 'COMMA')}">0 / 0</span>
-                                            <span class="ff-bin-meta">
-                                                <!-- 유통기한 임박 재고가 있으면 도면에서 바로 보이게 한다 -->
-                                                <span th:if="${bin.expiringSoon}"
-                                                      class="badge ff-bin-dday"
-                                                      th:classappend="${bin.earliestDDayBadgeClass}"
-                                                      th:text="${bin.earliestDDayLabel}">D-5</span>
-                                                <span th:if="${!bin.active}">사용 중지</span>
-                                                <span th:if="${bin.active and bin.lotCount > 0}"
-                                                      th:text="'로트 ' + ${bin.lotCount} + ' · ' + ${bin.productCount} + '종'">로트 0 · 0종</span>
-                                                <span th:if="${bin.active and bin.lotCount == 0}">비어있음</span>
-                                            </span>
-                                        </span>
-                                    </button>
-
-                                    <!-- 줄 끝 채움 칸 : 칸 너비 비율을 도면 전체에서 통일하기 위한 여백 -->
-                                    <span class="ff-bin-filler" th:if="${lv.hasFiller}"
-                                          th:style="'flex-grow:' + ${lv.fillerGrow}"
-                                          aria-hidden="true"></span>
-                                </div>
-                            </div>
+                        <!-- 부대시설 : 출입구 · 벽 · 검수실 -->
+                        <div th:each="fac : ${floorPlan.facilities}"
+                             class="ff-facility"
+                             th:classappend="${fac.cssClass}"
+                             th:style="'grid-area:' + ${fac.gridArea}">
+                            <span th:text="${fac.label}">출입구</span>
                         </div>
 
-                        <!-- 구역 사이 통로 (마지막 구역 뒤에는 없음) -->
-                        <div class="ff-aisle" th:unless="${zoneStat.last}">
-                            <span class="ff-aisle-label">통로</span>
-                        </div>
+                        <!-- 구역 사각형 -->
+                        <button type="button"
+                                th:each="bin : ${floorPlan.bins}"
+                                class="ff-bin-tile"
+                                th:classappend="${bin.tileClass
+                                                 + (bin.narrow ? ' ff-bin-narrow' : '')
+                                                 + (bin.flat ? ' ff-bin-flat' : '')}"
+                                th:style="'grid-area:' + ${bin.gridArea}"
+                                th:data-bin-id="${bin.binId}"
+                                th:data-bin-code="${bin.binCode}"
+                                th:title="|${bin.binCode} · ${bin.statusLabel} · 적재 ${bin.loadedQuantity}/${bin.maxCapacity} (${bin.usageRate}%) · 품목 ${bin.productCount}종 · 로트 ${bin.lotCount}건|">
+
+                            <span class="ff-bin-head">
+                                <span class="ff-bin-code" th:text="${bin.binCode}">A-01</span>
+                                <span class="ff-bin-rate" th:if="${bin.storage}"
+                                      th:text="${bin.usageRate} + '%'">0%</span>
+                            </span>
+
+                            <span class="ff-bin-mid">
+                                <span class="ff-bin-gauge" th:if="${bin.storage}">
+                                    <span class="ff-bin-gauge-fill"
+                                          th:style="'width:' + ${bin.usageRateCapped} + '%'"></span>
+                                </span>
+                                <span class="ff-bin-purpose" th:unless="${bin.storage}"
+                                      th:text="${bin.binPurpose.description}">입고 대기</span>
+                            </span>
+
+                            <span class="ff-bin-foot">
+                                <span class="ff-bin-qty"
+                                      th:text="${#numbers.formatInteger(bin.loadedQuantity, 1, 'COMMA')}
+                                               + '/' + ${#numbers.formatInteger(bin.maxCapacity, 1, 'COMMA')}">0/0</span>
+                                <span class="ff-bin-meta">
+                                    <span th:if="${bin.expiringSoon}"
+                                          class="badge ff-bin-dday"
+                                          th:classappend="${bin.earliestDDayBadgeClass}"
+                                          th:text="${bin.earliestDDayLabel}">D-5</span>
+                                    <span th:if="${!bin.active}">중지</span>
+                                    <span th:if="${bin.active and bin.lotCount > 0}"
+                                          th:text="'로트 ' + ${bin.lotCount}">로트 0</span>
+                                </span>
+                            </span>
+                        </button>
                     </div>
                 </div>
 
                 <p class="text-muted small mb-0 mt-2">
                     <i class="bi bi-hand-index me-1"></i>
                     구역을 클릭하면 보관 중인 품목과 로트를 확인할 수 있습니다.
-                    칸의 가로 크기는 최대 수용량에 비례하며, 도면 전체에서 같은 기준으로 그려집니다.
-                    유통기한 30일 이내 재고가 있는 구역에는 D-Day 뱃지가 표시됩니다.
+                    사각형의 위치와 크기는 실제 창고 배치를 따르며
+                    <a th:href="@{/admin/bins}">창고 구역 관리</a>에서 조정할 수 있습니다.
                 </p>
+            </div>
+        </div>
+
+        <!-- 구역별 적재 요약 -->
+        <div class="card ff-card mt-3" th:unless="${floorPlan.empty}">
+            <div class="card-header bg-white border-0 pt-3">
+                <span class="fw-bold"><i class="bi bi-bar-chart-steps me-1"></i>구역별 적재 현황</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-6 col-md-4 col-xl-3" th:each="z : ${floorPlan.zones}">
+                        <div class="border rounded p-2">
+                            <div class="d-flex justify-content-between align-items-baseline">
+                                <span class="fw-bold" th:text="${z.zone} + '구역'">A구역</span>
+                                <span class="small text-muted" th:text="${z.binCount} + '칸'">0칸</span>
+                            </div>
+                            <div class="progress my-1" style="height: 6px;">
+                                <div class="progress-bar" th:classappend="${z.barClass}"
+                                     th:style="'width:' + ${z.usageRateCapped} + '%'"></div>
+                            </div>
+                            <div class="d-flex justify-content-between small text-muted">
+                                <span th:text="${#numbers.formatInteger(z.totalLoaded, 1, 'COMMA')} + ' / '
+                                               + ${#numbers.formatInteger(z.totalCapacity, 1, 'COMMA')}">0 / 0</span>
+                                <span class="fw-semibold" th:text="${z.usageRate} + '%'">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -245,21 +245,18 @@
             </div>
 
             <div class="modal-body">
-                <!-- 로딩 -->
                 <div id="binDetailLoading" class="text-center py-4">
                     <div class="spinner-border text-secondary" role="status">
                         <span class="visually-hidden">불러오는 중</span>
                     </div>
                 </div>
 
-                <!-- 오류 -->
                 <div id="binDetailError" class="alert alert-danger d-none" role="alert">
                     <i class="bi bi-exclamation-circle-fill me-1"></i>
                     <span id="binDetailErrorText">상세 정보를 불러오지 못했습니다.</span>
                 </div>
 
                 <div id="binDetailBody" class="d-none">
-                    <!-- 구역 요약 -->
                     <div class="row g-2 mb-3">
                         <div class="col-6 col-md-3">
                             <div class="border rounded p-2">
