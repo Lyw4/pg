@@ -142,11 +142,7 @@
                              th:classappend="${z.areaClass}"
                              th:style="'grid-area:' + ${z.gridArea}"
                              th:title="|${z.zone}구역 (${z.kindLabel})|"
-                             aria-hidden="true">
-                            <span class="ff-zone-label"
-                                  th:style="'font-size:' + ${z.labelFontSize} + 'px'"
-                                  th:text="${z.zone}">A</span>
-                        </div>
+                             aria-hidden="true"></div>
 
                         <!-- 부대시설 : 출입구 · 벽 · 검수실 -->
                         <div th:each="fac : ${floorPlan.facilities}"

@@ -528,7 +528,7 @@ body {
  *   ff-floor        : 창고 외곽선. 24 x 18 CSS Grid
  *   ff-bin-tile     : 구역 사각형. grid-area 로 좌표/크기가 주입된다
  *   ff-facility     : 출입구 · 벽 · 검수실 (건물 구조물)
- *   ff-zone-label   : 구역 이름을 도면 위에 크게 겹쳐 표시 (사각형 뒤)
+ *   ff-zone-area    : 구역 경계 점선 (저온 = 파란색 / 상온 = 회색)
  * ================================================================== */
 
 /* ---------------- 창고 전환 탭 ---------------- */
@@ -617,34 +617,29 @@ body {
     padding: 3px;
 }
 
+/* 구역 이름 글자를 두지 않는 대신 경계선을 조금 더 뚜렷하게 한다 */
 .ff-zone-area-normal {
-    border: 2px dashed rgba(108, 117, 125, .45);
-    background-color: rgba(108, 117, 125, .04);
+    border: 2px dashed rgba(108, 117, 125, .55);
+    background-color: rgba(108, 117, 125, .05);
 }
 
 .ff-zone-area-cold {
-    border: 2px dashed rgba(13, 110, 253, .55);
-    background-color: rgba(13, 110, 253, .06);
+    border: 2px dashed rgba(13, 110, 253, .7);
+    background-color: rgba(13, 110, 253, .07);
 }
 
-/* 구역 이름을 크게 겹쳐 표시 (사각형 뒤)
+/* 구역 이름을 도면 위에 글자로 표시하지 않는 이유
  *
- * 경계 박스 위에 걸치는 이름 칩을 두었더니 도면 상단에서 잘리고
- * 위아래로 붙은 구역끼리 서로 침범했다. 구역 이름은 큰 글자와 점선 색으로 충분히
- * 구분되고 정확한 이름은 하단 '구역별 적재 현황'에 있으므로 칩은 두지 않는다. */
-.ff-zone-label {
-    /* font-size 는 경계 상자 크기와 글자 수에 맞춰 서버에서 계산해 주입한다 */
-    font-weight: 800;
-    color: rgba(108, 117, 125, .13);
-    letter-spacing: -.04em;
-    overflow: hidden;
-    white-space: nowrap;
-    line-height: 1;
-}
-
-.ff-zone-area-cold .ff-zone-label {
-    color: rgba(13, 110, 253, .13);
-}
+ * 처음에는 경계 박스 가운데에 큰 글자를 사각형 뒤에 깔았다. 그런데 구역이 사각형으로
+ * 빽빽하게 차 있으면 글자가 완전히 가려지고, 통로가 있는 구역만 글자가 보였다.
+ * (B · C · N 구역만 보이고 A · D · E · H · R 구역은 안 보이는 상태)
+ * 어떤 구역은 보이고 어떤 구역은 안 보이는 것이 가장 나쁜 상태라 아예 두지 않는다.
+ *
+ * 구역은 다음 세 가지로 식별한다.
+ *   1. 구역 코드 접두어 (A-01, COLD-01 ...)
+ *   2. 경계 점선 색 (파란 = 저온 / 회색 = 상온)
+ *   3. 경계 박스 마우스 오버 툴팁 + 하단 '구역별 적재 현황' 카드
+ */
 
 /* 범례용 경계선 스와치 */
 .ff-legend-outline {
@@ -946,11 +941,8 @@ body {
  */
 @media (max-width: 991.98px) {
     .ff-floor {
-        min-width: 780px;
-        gap: 3px;
-    }
-
-    .ff-zone-label {
-        font-size: 2rem;
+        min-width: 820px;
+        gap: 4px;
+        padding: 9px;
     }
 }
