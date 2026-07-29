@@ -6,6 +6,7 @@ import com.feedflow.admin.dto.AllocationPlanDto;
 import com.feedflow.admin.dto.OrderDispatchPreviewDto;
 import com.feedflow.admin.dto.OrderDispatchResultDto;
 import com.feedflow.admin.dto.OrderItemPreviewDto;
+import com.feedflow.admin.dto.OrderListFilter;
 import com.feedflow.admin.dto.OrderSummaryDto;
 import com.feedflow.admin.dto.OutboundForm;
 import com.feedflow.admin.dto.OutboundResultDto;
@@ -16,7 +17,6 @@ import com.feedflow.domain.Inventory;
 import com.feedflow.domain.MovementType;
 import com.feedflow.domain.Order;
 import com.feedflow.domain.OrderItem;
-import com.feedflow.domain.OrderStatus;
 import com.feedflow.domain.Product;
 import com.feedflow.domain.ProductLot;
 import com.feedflow.domain.StockMovement;
@@ -61,10 +61,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class OutboundService {
-
-    /** 출고 처리가 가능한 주문 상태 */
-    private static final Set<OrderStatus> DISPATCHABLE_STATUSES =
-            Set.of(OrderStatus.PAID, OrderStatus.READY);
 
     private final ProductRepository productRepository;
     private final InventoryRepository inventoryRepository;
@@ -161,7 +157,20 @@ public class OutboundService {
 
     /** 출고 대상 주문 목록 (결제완료 / 출고대기) */
     public List<OrderSummaryDto> getDispatchTargets() {
-        return orderRepository.findDispatchTargets(DISPATCHABLE_STATUSES).stream()
+        return getOrders(OrderListFilter.WAITING);
+    }
+
+    /**
+     * 상태 필터에 맞는 주문 목록.
+     * <p>
+     * 정렬 방향은 필터가 알고 있다. (출고 대기는 오래된 순, 이력 조회는 최신순)
+     */
+    public List<OrderSummaryDto> getOrders(OrderListFilter filter) {
+        List<Order> orders = filter.isOldestFirst()
+                ? orderRepository.findDispatchTargets(filter.getStatuses())
+                : orderRepository.findByStatusesLatestFirst(filter.getStatuses());
+
+        return orders.stream()
                 .map(OrderSummaryDto::from)
                 .toList();
     }

@@ -41,6 +41,7 @@
 | M8 | 재고 폐기 (ADMIN 전용, 사유 필수) | 완료 | `001d65d` | `/admin/inventory/disposal` |
 | M9 | 입출고 이력 조회 (유형 · 품목 필터, 페이징) | 완료 | `001d65d` | `/admin/inventory/movements` |
 | M10 | FEFO(선입선출) 주문 출고 — 할당 미리보기 → 처리 | 완료 | `001d65d` | `/admin/outbound`, `OutboundService` |
+| M10-1 | └ 주문 목록 상태 필터 (출고대기 · 출고완료 · 배송완료 · 취소 · 전체) | 완료 | `1a5216c` | `OrderListFilter` |
 | M11 | 직접 출고 (주문과 무관한 출고) | 완료 | `001d65d` | `/admin/outbound/direct` |
 | M12 | 출고(주문) 취소 + 재고 원상 복구 (ADMIN 전용) | 완료 | `f47db83` | `OrderCancellationService` |
 | M12-1 | └ 취소 사유 · 일시 · 처리자 기록 및 화면 표시 | 완료 | `e058e22` | `Order.cancel(reason, userId, userName)` |
@@ -89,7 +90,12 @@
 
 ## 검증 상태
 
-- 단위/통합 테스트 **142건** (`src/test`, 12개 테스트 클래스)
+- 단위/통합 테스트 **153건** (`src/test`, 13개 테스트 클래스)
+- 시드 데이터(`data.sql`)는 4가지 정합성을 만족한다. 변경 시 함께 검증해야 한다.
+  1. 이력 누적(`SUM(StockMovement × sign)`) = `ProductLot.lotQuantity`
+  2. 구역 재고 합계(`SUM(Inventory.quantity)`) = `ProductLot.lotQuantity`
+  3. 품목 장부(`Product.totalStock`) = 품목별 로트 수량 합계
+  4. 구역별 적재량 ≤ `WarehouseBin.maxCapacity`
 - 개발 샌드박스는 외부 네트워크가 차단(`INTEGRATIONS_ONLY`)되어 Gradle 의존성을 받을 수 없다.
   **컴파일·테스트 실행은 로컬 환경에서만 가능**하며, 샌드박스에서는 정적 검사(import 누락/미사용,
   중괄호 균형, 템플릿–DTO 프로퍼티 대조, 태그 중첩)로 대체한다.

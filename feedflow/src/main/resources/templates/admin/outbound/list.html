@@ -85,18 +85,37 @@
             </div>
         </div>
 
-        <!-- 출고 대기 주문 목록 -->
+        <!-- 주문 목록 (상태 필터) -->
         <div class="card ff-card">
             <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
                 <div>
-                    <span class="fw-bold"><i class="bi bi-box-arrow-up me-1"></i>출고 대기 주문</span>
+                    <span class="fw-bold">
+                        <i class="bi bi-box-arrow-up me-1"></i>
+                        <span th:text="${filter.label} + ' 주문'">출고 대기 주문</span>
+                    </span>
                     <span class="text-muted small ms-2">
-                        총 <span th:text="${#lists.size(orders)}">0</span>건 · 주문이 빠른 순
+                        총 <span th:text="${#lists.size(orders)}">0</span>건 ·
+                        <span th:text="${filter.oldestFirst} ? '주문이 빠른 순' : '최근 주문 순'">주문이 빠른 순</span>
                     </span>
                 </div>
                 <a th:href="@{/admin/outbound/direct}" class="btn btn-sm btn-outline-success">
                     <i class="bi bi-arrow-right-square me-1"></i>직접 출고
                 </a>
+            </div>
+
+            <!--
+                상태 필터.
+                취소된 주문은 취소 즉시 '출고 대기' 에서 사라지므로, 사유를 다시 확인할 수 있는
+                진입 경로가 필요하다.
+            -->
+            <div class="card-body pb-0">
+                <div class="btn-group btn-group-sm flex-wrap" role="group" aria-label="주문 상태 필터">
+                    <a th:each="f : ${filters}"
+                       th:href="@{/admin/outbound(status=${f.name()})}"
+                       class="btn"
+                       th:classappend="${f.name() == filter.name()} ? 'btn-primary' : 'btn-outline-secondary'"
+                       th:text="${f.label}">전체</a>
+                </div>
             </div>
 
             <div class="card-body">
@@ -110,13 +129,15 @@
                             <th>배송지</th>
                             <th class="text-end" style="width: 120px;">결제 금액</th>
                             <th class="text-center" style="width: 100px;">상태</th>
-                            <th class="text-end" style="width: 130px;">출고</th>
+                            <th class="text-end" style="width: 130px;"
+                                th:text="${filter.dispatchTargetList} ? '출고' : '상세'">출고</th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr th:if="${#lists.isEmpty(orders)}">
-                            <td colspan="7" class="text-center text-muted py-4">
-                                출고 대기 중인 주문이 없습니다.
+                            <td colspan="7" class="text-center text-muted py-4"
+                                th:text="'해당하는 주문이 없습니다. (' + ${filter.label} + ')'">
+                                해당하는 주문이 없습니다.
                             </td>
                         </tr>
 
@@ -139,7 +160,8 @@
                             <td class="text-end">
                                 <a th:href="@{/admin/outbound/orders/{id}(id=${order.orderId})}"
                                    class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-search me-1"></i>출고 처리
+                                    <i class="bi bi-search me-1"></i>
+                                    <span th:text="${filter.dispatchTargetList} ? '출고 처리' : '상세 보기'">출고 처리</span>
                                 </a>
                             </td>
                         </tr>
@@ -147,9 +169,13 @@
                     </table>
                 </div>
 
-                <p class="text-muted small mb-0 mt-2">
+                <p class="text-muted small mb-0 mt-2" th:if="${filter.dispatchTargetList}">
                     <i class="bi bi-info-circle me-1"></i>
                     출고 처리 시 <strong>유통기한이 가장 먼저 도래하는 로트부터</strong> 자동으로 차감됩니다. (FEFO)
+                </p>
+                <p class="text-muted small mb-0 mt-2" th:unless="${filter.dispatchTargetList}">
+                    <i class="bi bi-info-circle me-1"></i>
+                    취소된 주문은 상세 화면에서 <strong>취소 사유 · 처리자 · 재고 복구 결과</strong>를 확인할 수 있습니다.
                 </p>
             </div>
         </div>

@@ -2,6 +2,7 @@ package com.feedflow.admin.controller;
 
 import com.feedflow.admin.dto.OrderCancelResultDto;
 import com.feedflow.admin.dto.OrderDispatchResultDto;
+import com.feedflow.admin.dto.OrderListFilter;
 import com.feedflow.admin.dto.OutboundForm;
 import com.feedflow.admin.dto.OutboundResultDto;
 import com.feedflow.admin.service.OrderCancellationService;
@@ -49,9 +50,19 @@ public class AdminOutboundController {
      * 출고 대기 주문 목록
      * ------------------------------------------------------------------ */
 
+    /**
+     * 주문 목록.
+     * <p>
+     * 기본은 출고 대기(결제완료 · 출고대기)지만, 취소 · 완료된 주문도 조회할 수 있어야 한다.
+     * 취소된 주문은 취소하는 순간 출고 대기 목록에서 사라져 사유를 다시 확인할 방법이 없었다.
+     */
     @GetMapping
-    public String list(Model model) {
-        model.addAttribute("orders", outboundService.getDispatchTargets());
+    public String list(@RequestParam(name = "status", required = false) String status, Model model) {
+        OrderListFilter filter = OrderListFilter.of(status);
+
+        model.addAttribute("orders", outboundService.getOrders(filter));
+        model.addAttribute("filter", filter);
+        model.addAttribute("filters", OrderListFilter.values());
         model.addAttribute("subMenu", "list");
         return LIST_VIEW;
     }
