@@ -100,6 +100,9 @@ public class InventoryMoveService {
 
         validateMovable(fromBin, toBin, source, quantity);
 
+        // 도착 구역의 전체 적재량. 한도 검증과 결과 표기(남은 여유)에 같은 값을 쓴다.
+        int toBinLoadBefore = validateTargetCapacity(toBin, quantity);
+
         int fromQuantityBefore = Numbers.orZero(source.getQuantity());
 
         // 3) 도착 구역의 기존 재고 행 (같은 로트가 이미 있으면 합산한다)
@@ -140,6 +143,7 @@ public class InventoryMoveService {
                 .toBinLocation(toBin.locationLabel())
                 .toQuantityBefore(toQuantityBefore)
                 .toQuantityAfter(Numbers.orZero(target.getQuantity()))
+                .toBinLoadAfter(toBinLoadBefore + quantity)
                 .toCapacityLimit(toBin.capacityLimit())
                 .movedQuantity(quantity)
                 .lotQuantity(Numbers.orZero(lot.getLotQuantity()))
@@ -196,17 +200,21 @@ public class InventoryMoveService {
                     "보관 수량보다 많이 이동할 수 없습니다. 구역 [" + fromBin.getBinCode() + "] 보관 "
                             + stored + "개 / 요청 " + quantity + "개");
         }
-
-        validateBinCapacity(toBin, quantity);
     }
 
     /**
-     * 도착 구역에 자리가 있는지 확인한다.
+     * 도착 구역에 자리가 있는지 확인하고 <b>이동 전 구역 전체 적재량</b>을 돌려준다.
      * <p>
      * 판정 규칙은 {@code WarehouseBin} 이 갖고 있다. 입고 · 출고 취소 복구와 같은 규칙을
      * 써야 하므로 여기서 다시 구현하지 않는다.
+     * <p>
+     * 적재량을 반환하는 이유는 결과 화면의 "남은 여유" 도 같은 값을 기준으로 계산해야
+     * 하기 때문이다. 이 로트의 수량만으로 여유를 계산하면 같은 구역의 다른 로트를
+     * 빼먹어 실제보다 여유가 크게 표시된다.
+     *
+     * @return 이동 전 도착 구역의 전체 적재량
      */
-    private void validateBinCapacity(WarehouseBin toBin, int quantity) {
+    private int validateTargetCapacity(WarehouseBin toBin, int quantity) {
         // 재고가 한 건도 없는 구역은 sum() 이 null 을 반환하므로 0 으로 보정한다
         int currentLoad = (int) Numbers.orZero(inventoryRepository.sumQuantityByBinId(toBin.getBinId()));
 
@@ -216,5 +224,6 @@ public class InventoryMoveService {
                             + " (현재 " + currentLoad + " + 이동 " + quantity
                             + " > 한도 " + toBin.capacityLimit() + ")");
         }
+        return currentLoad;
     }
 }

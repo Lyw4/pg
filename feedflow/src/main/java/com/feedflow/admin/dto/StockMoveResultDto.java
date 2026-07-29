@@ -31,8 +31,18 @@ public class StockMoveResultDto {
     private final Long toBinId;
     private final String toBinCode;
     private final String toBinLocation;
+    /** 도착 구역에 보관된 <b>이 로트</b>의 수량 (이동 전 / 후) */
     private final int toQuantityBefore;
     private final int toQuantityAfter;
+
+    /**
+     * 도착 구역의 <b>전체</b> 적재량 (이동 후).
+     * <p>
+     * 여유 공간은 이 값으로 계산해야 한다. {@link #toQuantityAfter} 는 이 로트의 수량일 뿐
+     * 구역에는 다른 로트도 함께 쌓여 있어, 그 값으로 계산하면 여유가 실제보다 크게 나온다.
+     */
+    private final int toBinLoadAfter;
+
     private final int toCapacityLimit;
 
     /** 이동 수량 */
@@ -58,8 +68,13 @@ public class StockMoveResultDto {
                 + " (총 재고는 변하지 않습니다: " + productTotalStock + "개)";
     }
 
-    /** 도착 구역의 이동 후 남은 여유 공간 */
+    /**
+     * 도착 구역의 이동 후 남은 여유 공간.
+     * <p>
+     * 분모는 구역 전체 적재량({@link #toBinLoadAfter})이다. 이 로트의 수량만으로 계산하면
+     * 같은 구역의 다른 로트를 빼먹어 여유를 과대 계상한다.
+     */
     public int getToRemainingCapacity() {
-        return Math.max(0, toCapacityLimit - toQuantityAfter);
+        return Math.max(0, toCapacityLimit - toBinLoadAfter);
     }
 }

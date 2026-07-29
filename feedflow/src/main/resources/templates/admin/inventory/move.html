@@ -202,11 +202,18 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th class="text-muted">도착 구역 여유</th>
+                                <th class="text-muted">도착 구역 적재량</th>
                                 <td>
-                                    <span th:text="${#numbers.formatInteger(moveResult.toRemainingCapacity, 1, 'COMMA')}">0</span>
+                                    <!--
+                                        구역 '전체' 적재량이다. 위의 도착 수량은 이 로트만의 수량이므로
+                                        같은 구역에 다른 로트가 있으면 두 값이 다르다.
+                                    -->
+                                    <span th:text="${#numbers.formatInteger(moveResult.toBinLoadAfter, 1, 'COMMA')}">0</span>
                                     <span class="text-muted small"
                                           th:text="'/ 한도 ' + ${#numbers.formatInteger(moveResult.toCapacityLimit, 1, 'COMMA')}">
+                                    </span>
+                                    <span class="text-muted small ms-1"
+                                          th:text="'(여유 ' + ${#numbers.formatInteger(moveResult.toRemainingCapacity, 1, 'COMMA')} + ')'">
                                     </span>
                                 </td>
                             </tr>

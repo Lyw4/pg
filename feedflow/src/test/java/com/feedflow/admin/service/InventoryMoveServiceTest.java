@@ -109,6 +109,16 @@ class InventoryMoveServiceTest {
             assertThat(result.getFromQuantityAfter()).isEqualTo(70);
             assertThat(result.getToQuantityBefore()).isZero();
             assertThat(result.getToQuantityAfter()).isEqualTo(30);
+
+            // 도착 구역에는 다른 로트가 50 이미 쌓여 있다.
+            // 이 로트의 수량(30)과 구역 전체 적재량(80)은 다른 값이다.
+            assertThat(result.getToBinLoadAfter())
+                    .as("구역 전체 적재량 = 기존 50 + 이동 30")
+                    .isEqualTo(80);
+            assertThat(result.getToRemainingCapacity())
+                    .as("한도 600 - 적재 80")
+                    .isEqualTo(520);
+
             assertThat(result.getLotQuantity()).isEqualTo(150);
             assertThat(result.getProductTotalStock()).isEqualTo(200);
             assertThat(result.isSourceDepleted()).isFalse();
@@ -374,6 +384,15 @@ class InventoryMoveServiceTest {
                     inventoryMoveService.move(form(INVENTORY_ID, 2L, 20), USER_ID, USER_NAME);
 
             assertThat(result.getMovedQuantity()).isEqualTo(20);
+
+            // 여유 공간은 '구역 전체 적재량' 기준이다.
+            // 이 로트의 도착 수량(20)만으로 계산하면 여유가 80 으로 잘못 나온다.
+            assertThat(result.getToQuantityAfter())
+                    .as("이 로트의 도착 구역 수량")
+                    .isEqualTo(20);
+            assertThat(result.getToBinLoadAfter())
+                    .as("구역 전체 적재량 = 기존 80 + 이동 20")
+                    .isEqualTo(100);
             assertThat(result.getToRemainingCapacity())
                     .as("한도를 꽉 채웠으므로 여유는 0")
                     .isZero();
