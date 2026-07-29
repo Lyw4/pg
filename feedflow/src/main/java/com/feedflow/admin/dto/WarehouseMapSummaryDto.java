@@ -8,9 +8,26 @@ import java.util.List;
 
 /**
  * 창고 2D 맵 상단 요약.
+ *
+ * <h3>사용률 산정 정책 (확정)</h3>
+ * 사용률의 분모는 <b>사용 중인 보관(STORAGE) 구역의 수용량만</b> 쓴다.
+ * 창고 전체 수용량이 아니다.
+ * <ul>
+ *     <li><b>사용 중지 구역 제외</b> — 쓸 수 없는 공간을 여유 공간으로 계산하면
+ *         적재 계획이 왜곡된다.</li>
+ *     <li><b>입고/출고 대기 · 검수 구역 제외</b> — 물건이 잠시 머무는 곳이라
+ *         비어 있는 것이 정상이다. 분모에 넣으면 정상 상태가 낮은 사용률로 나와
+ *         "여유가 많다" 는 잘못된 신호를 준다.</li>
+ * </ul>
+ *
+ * <h3>주의 - 창고끼리 사용률을 직접 비교하지 말 것</h3>
+ * 대기 구역이 차지하는 비중은 창고마다 다르다.
+ * (제1창고는 전체 수용량의 3%, 제2창고는 22% 가 대기 구역이다)
+ * 따라서 두 창고의 사용률은 <b>분모 기준이 서로 다른 값</b>이다.
+ * 화면에서 "대기 구역 수용 N 제외" 를 함께 표기하는 이유가 이것이다.
  * <p>
- * 사용 중지된 구역은 <b>수용량 통계에서 제외</b>한다.
- * 쓸 수 없는 공간을 창고 여유 공간으로 계산하면 적재 계획이 왜곡되기 때문이다.
+ * 전체 수용량 기준으로 바꾸려는 시도는 위 두 번째 이유 때문에 하지 않는다.
+ * 실물 규모가 필요하면 {@link #getTotalLoadedIncludingWaiting()} 를 쓴다.
  */
 @Getter
 @Builder
@@ -25,13 +42,19 @@ public class WarehouseMapSummaryDto {
     /** 사용 중지된 구역 수 */
     private final int inactiveBins;
 
-    /** 사용 중인 구역의 수용량 합계 */
+    /**
+     * 사용률 분모 — <b>사용 중인 보관 구역</b>의 수용량 합계.
+     * (사용 중지 · 입고/출고 대기 · 검수 구역은 포함하지 않는다)
+     */
     private final int totalCapacity;
 
-    /** 사용 중인 구역의 적재량 합계 */
+    /**
+     * 사용률 분자 — <b>사용 중인 보관 구역</b>의 적재량 합계.
+     * 창고에 쌓여 있는 실물 총량과 다르다. 실물은 {@link #getTotalLoadedIncludingWaiting()}.
+     */
     private final int totalLoaded;
 
-    /** 창고 전체 사용률 (%) */
+    /** 보관 구역 사용률 (%) — 창고 전체 수용량 기준이 아니다 */
     private final int usageRate;
 
     /** 포화(90% 이상) 구역 수 */
@@ -145,7 +168,12 @@ public class WarehouseMapSummaryDto {
         return totalLoaded + waitingLoaded;
     }
 
-    /** 남은 여유 수량 */
+    /**
+     * 보관 구역에 더 쌓을 수 있는 수량.
+     * <p>
+     * 대기 구역의 빈 공간은 포함하지 않는다. 거기에 상시 적재하면
+     * 입출고 동선이 막히므로 "적재 가능 공간" 으로 볼 수 없다.
+     */
     public int getRemainingCapacity() {
         return Math.max(totalCapacity - totalLoaded, 0);
     }
