@@ -1020,6 +1020,12 @@ body {
     color: #dc3545;
 }
 
+/* 구역 간 이동 : 총량 변화가 없는 이벤트라 증감(파랑/노랑/빨강)과 구분되는 청록으로 둔다 */
+.ff-trace-dot-move {
+    border-color: #0dcaf0;
+    color: #087990;
+}
+
 .ff-trace-dot-etc {
     border-color: #6c757d;
     color: #6c757d;

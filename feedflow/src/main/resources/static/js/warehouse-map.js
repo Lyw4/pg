@@ -29,7 +29,8 @@
         expiredAlert: document.getElementById('binDetailExpiredAlert'),
         rows: document.getElementById('binDetailRows'),
         empty: document.getElementById('binDetailEmpty'),
-        inventoryLink: document.getElementById('binDetailInventoryLink')
+        inventoryLink: document.getElementById('binDetailInventoryLink'),
+        moveLink: document.getElementById('binDetailMoveLink')
     };
 
     /** 숫자 천단위 구분 */
@@ -85,10 +86,15 @@
         el.remaining.textContent = comma(bin.remainingCapacity) + ' 포대';
 
         el.inventoryLink.setAttribute('href', '/admin/inventory?binId=' + bin.binId);
+        el.moveLink.setAttribute('href', '/admin/inventory/move?binId=' + bin.binId);
 
         // 재고 목록
         el.rows.innerHTML = '';
         var inventories = detail.inventories || [];
+
+        // 옮길 재고가 없는 구역에서는 이동 버튼을 감춘다.
+        // (사용 중지 구역이어도 재고가 있으면 빼낼 수 있어야 하므로 active 는 따지지 않는다)
+        el.moveLink.classList.toggle('d-none', inventories.length === 0);
 
         inventories.forEach(function (inv) {
             var tr = document.createElement('tr');

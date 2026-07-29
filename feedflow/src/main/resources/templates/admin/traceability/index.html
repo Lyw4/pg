@@ -217,13 +217,26 @@
                                             <span class="text-nowrap">
                                                 <span class="fw-bold" th:classappend="${e.quantityTextClass}"
                                                       th:text="${e.signedQuantity}">+0</span>
+                                                <!-- 이동은 총량이 변하지 않으므로 증감이 아니라 '이동' 임을 명시한다 -->
+                                                <span th:if="${e.relocation}" class="text-muted small ms-1">이동</span>
                                                 <span class="text-muted small ms-1"
                                                       th:text="'잔여 ' + ${#numbers.formatInteger(e.balanceAfter, 1, 'COMMA')}">잔여 0</span>
                                             </span>
                                         </div>
 
                                         <div class="ff-timeline-meta">
-                                            <span th:if="${e.binCode != null}">
+                                            <!--
+                                                구역 간 이동은 출발지 -> 도착지로 표시한다.
+                                                총 재고는 변하지 않고 위치만 바뀌므로 다른 이벤트와 구분해야 한다.
+                                            -->
+                                            <span th:if="${e.relocation}">
+                                                <i class="bi bi-geo-alt me-1"></i>
+                                                <span class="ff-code" th:text="${e.fromBinCode}">A-01</span>
+                                                <i class="bi bi-arrow-right mx-1"></i>
+                                                <span class="ff-code" th:text="${e.binCode}">B-02</span>
+                                                <span class="text-muted ms-1" th:text="${e.binLocation}">위치</span>
+                                            </span>
+                                            <span th:if="${!e.relocation and e.binCode != null}">
                                                 <i class="bi bi-geo-alt me-1"></i>
                                                 <span class="ff-code" th:text="${e.binCode}">A-01</span>
                                                 <span class="text-muted" th:text="${e.binLocation}">위치</span>

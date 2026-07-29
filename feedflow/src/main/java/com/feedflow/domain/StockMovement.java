@@ -51,9 +51,30 @@ public class StockMovement {
     @JoinColumn(name = "lotId", nullable = false)
     private ProductLot lot;
 
+    /**
+     * 이 이동이 영향을 준 구역.
+     * <p>
+     * 입고 · 폐기 · 출고취소는 해당 구역, 출고는 빠져나간 구역이다.
+     * 구역 간 이동({@link MovementType#MOVE})에서는 <b>도착지</b>를 가리키고
+     * 출발지는 {@link #fromBin} 에 따로 담는다.
+     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "binId")
     private WarehouseBin bin;
+
+    /**
+     * 구역 간 이동의 출발 구역 (이동 이력에만 존재).
+     * <p>
+     * 이동은 한 건의 이력이 <b>두 구역</b>에 영향을 준다. 기존 {@code bin} 하나로는
+     * "어디서 어디로" 를 표현할 수 없어 출발지를 별도 컬럼으로 둔다.
+     * <p>
+     * 이력을 두 건(출발 차감 / 도착 증가)으로 쪼개는 방식도 가능하지만,
+     * 이동은 <b>하나의 업무 행위</b>이고 총 재고가 변하지 않으므로
+     * 타임라인에 두 줄로 나타나면 오히려 재고가 두 번 움직인 것처럼 보인다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "fromBinId")
+    private WarehouseBin fromBin;
 
     /** 이동 수량 (항상 양수, 증감 방향은 movementType 이 결정) */
     @Column(name = "quantity", nullable = false)
@@ -164,6 +185,36 @@ public class StockMovement {
                 .bin(bin)
                 .quantity(quantity)
                 .orderId(orderId)
+                .memo(memo)
+                .userId(userId)
+                .userName(userName)
+                .createdAt(LocalDateTime.now())
+                .build();
+    }
+
+    /**
+     * 구역 간 이동 이력 생성.
+     * <p>
+     * 창고 안에서 위치만 바뀌는 것이므로 <b>로트 잔여 수량과 품목 총 재고는 변하지 않는다.</b>
+     * ({@code MovementType.MOVE} 의 sign 이 0 인 이유)
+     *
+     * @param fromBin 출발 구역
+     * @param toBin   도착 구역
+     */
+    public static StockMovement move(ProductLot lot,
+                                     WarehouseBin fromBin,
+                                     WarehouseBin toBin,
+                                     int quantity,
+                                     String memo,
+                                     Long userId,
+                                     String userName) {
+        return StockMovement.builder()
+                .movementType(MovementType.MOVE)
+                .product(lot.getProduct())
+                .lot(lot)
+                .bin(toBin)
+                .fromBin(fromBin)
+                .quantity(quantity)
                 .memo(memo)
                 .userId(userId)
                 .userName(userName)

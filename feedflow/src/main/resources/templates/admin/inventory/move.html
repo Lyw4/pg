@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/layout :: head('구역 간 재고 이동')}"></head>
+
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="ff-content">
+
+    <div th:replace="~{fragments/layout :: topbar('재고 관리', '구역 간 재고 이동')}"></div>
+
+    <main class="ff-main">
+
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-1"></i>
+            <span th:text="${successMessage}">이동 완료</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <!-- 이동의 성격을 먼저 알린다 : 총 재고는 변하지 않는다 -->
+        <div class="alert alert-secondary py-2 small">
+            <i class="bi bi-info-circle me-1"></i>
+            구역 간 이동은 창고 안에서 <strong>보관 위치만</strong> 바꿉니다.
+            품목 전체 재고와 로트 잔여 수량은 변하지 않고, 이력에는
+            <span class="badge bg-info text-dark">구역이동</span> 유형으로 기록됩니다.
+        </div>
+
+        <div class="row g-3">
+
+            <!-- 이동 입력 폼 -->
+            <div class="col-12 col-xl-7">
+                <div class="card ff-card">
+                    <div class="card-header bg-white border-0 pt-3">
+                        <span class="fw-bold">
+                            <i class="bi bi-arrows-move me-1"></i>재고 이동
+                        </span>
+                    </div>
+
+                    <div class="card-body">
+                        <form th:object="${stockMoveForm}" th:action="@{/admin/inventory/move}"
+                              method="post" novalidate>
+
+                            <!-- 업무 규칙 위반 등 전역 오류 -->
+                            <div th:if="${#fields.hasGlobalErrors()}" class="alert alert-danger py-2 small">
+                                <p class="mb-0" th:each="err : ${#fields.globalErrors()}" th:text="${err}">오류</p>
+                            </div>
+
+                            <div class="row g-3">
+
+                                <!-- 이동할 재고 (출발지) -->
+                                <div class="col-12">
+                                    <label for="inventoryId" class="form-label ff-required">이동할 재고 (출발 구역)</label>
+                                    <select id="inventoryId" th:field="*{inventoryId}" class="form-select"
+                                            th:classappend="${#fields.hasErrors('inventoryId')} ? 'is-invalid'">
+                                        <option value="">-- 재고를 선택하세요 --</option>
+                                        <option th:each="inv : ${inventories}"
+                                                th:value="${inv.inventoryId}"
+                                                th:text="${inv.binCode} + ' | ' + ${inv.lotNo}
+                                                         + ' | ' + ${inv.productName}
+                                                         + ' (보관 ' + ${inv.quantity} + '포대'
+                                                         + (${inv.expired} ? ', 유통기한 만료' : '') + ')'">
+                                        </option>
+                                    </select>
+                                    <div class="invalid-feedback" th:errors="*{inventoryId}">오류</div>
+                                    <div class="form-text">
+                                        보관 수량이 있는 재고만 표시됩니다.
+                                        <span th:if="${selectedBinId != null}" class="text-primary">
+                                            현재 특정 구역의 재고만 필터링된 상태입니다.
+                                            <a th:href="@{/admin/inventory/move}">전체 보기</a>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- 도착 구역 -->
+                                <div class="col-12">
+                                    <label for="targetBinId" class="form-label ff-required">도착 구역</label>
+                                    <select id="targetBinId" th:field="*{targetBinId}" class="form-select"
+                                            th:classappend="${#fields.hasErrors('targetBinId')} ? 'is-invalid'">
+                                        <option value="">-- 구역을 선택하세요 --</option>
+                                        <option th:each="b : ${bins}"
+                                                th:value="${b.binId}"
+                                                th:text="${b.binCode} + ' | ' + ${b.locationLabel}
+                                                         + ' (최대 ' + ${b.maxCapacity} + '포대)'">
+                                        </option>
+                                    </select>
+                                    <div class="invalid-feedback" th:errors="*{targetBinId}">오류</div>
+                                    <div class="form-text">
+                                        사용 중지된 구역은 목록에 없습니다. 적재 한도를 넘는 이동은 처리되지 않습니다.
+                                    </div>
+                                </div>
+
+                                <!-- 이동 수량 -->
+                                <div class="col-6">
+                                    <label for="quantity" class="form-label ff-required">이동 수량 (포대)</label>
+                                    <input type="number" id="quantity" th:field="*{quantity}"
+                                           class="form-control" min="1"
+                                           th:classappend="${#fields.hasErrors('quantity')} ? 'is-invalid'">
+                                    <div class="invalid-feedback" th:errors="*{quantity}">오류</div>
+                                    <div class="form-text">일부만 옮길 수 있습니다.</div>
+                                </div>
+
+                                <!-- 비고 -->
+                                <div class="col-6">
+                                    <label for="memo" class="form-label">비고</label>
+                                    <input type="text" id="memo" th:field="*{memo}" class="form-control"
+                                           th:classappend="${#fields.hasErrors('memo')} ? 'is-invalid'"
+                                           placeholder="예: 저온 구역으로 재배치">
+                                    <div class="invalid-feedback" th:errors="*{memo}">오류</div>
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-arrows-move me-1"></i>이동 처리
+                                </button>
+                                <a th:href="@{/admin/warehouse-map}" class="btn btn-outline-secondary">창고 도면으로</a>
+                                <a th:href="@{/admin/inventory}" class="btn btn-outline-secondary">재고 현황으로</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 처리 결과 상세 -->
+            <div class="col-12 col-xl-5">
+                <div class="card ff-card" th:if="${moveResult != null}">
+                    <div class="card-header bg-white border-0 pt-3">
+                        <span class="fw-bold text-primary">
+                            <i class="bi bi-clipboard-check me-1"></i>직전 이동 처리 결과
+                        </span>
+                    </div>
+                    <div class="card-body">
+
+                        <!-- 출발 -> 도착 요약 -->
+                        <div class="d-flex align-items-center justify-content-between text-center mb-3">
+                            <div class="flex-fill">
+                                <div class="text-muted small">출발</div>
+                                <div class="ff-code fw-bold" th:text="${moveResult.fromBinCode}">FROM</div>
+                                <div class="small">
+                                    <span th:text="${moveResult.fromQuantityBefore}">0</span>
+                                    &rarr;
+                                    <span class="fw-semibold" th:text="${moveResult.fromQuantityAfter}">0</span>
+                                </div>
+                            </div>
+                            <div class="px-2">
+                                <i class="bi bi-arrow-right fs-4 text-primary"></i>
+                                <div class="badge bg-primary"
+                                     th:text="${#numbers.formatInteger(moveResult.movedQuantity, 1, 'COMMA')} + '포대'">
+                                    0포대
+                                </div>
+                            </div>
+                            <div class="flex-fill">
+                                <div class="text-muted small">도착</div>
+                                <div class="ff-code fw-bold" th:text="${moveResult.toBinCode}">TO</div>
+                                <div class="small">
+                                    <span th:text="${moveResult.toQuantityBefore}">0</span>
+                                    &rarr;
+                                    <span class="fw-semibold" th:text="${moveResult.toQuantityAfter}">0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <table class="table table-sm mb-0">
+                            <tbody>
+                            <tr>
+                                <th class="text-muted" style="width: 140px;">품목</th>
+                                <td>
+                                    <span class="ff-code" th:text="${moveResult.productCode}">CODE</span>
+                                    <span th:text="${moveResult.productName}">품목명</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">로트번호</th>
+                                <td>
+                                    <a th:href="@{/admin/traceability(lotNo=${moveResult.lotNo})}"
+                                       class="ff-code" th:text="${moveResult.lotNo}">LOT</a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">출발 구역</th>
+                                <td>
+                                    <span class="ff-code" th:text="${moveResult.fromBinCode}">BIN</span>
+                                    <span class="text-muted small" th:text="${moveResult.fromBinLocation}">위치</span>
+                                    <span th:if="${moveResult.sourceDepleted}"
+                                          class="badge bg-dark ms-1">전량 이동</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">도착 구역</th>
+                                <td>
+                                    <span class="ff-code" th:text="${moveResult.toBinCode}">BIN</span>
+                                    <span class="text-muted small" th:text="${moveResult.toBinLocation}">위치</span>
+                                    <span class="badge ms-1"
+                                          th:classappend="${moveResult.targetCreated} ? 'bg-primary' : 'bg-info text-dark'"
+                                          th:text="${moveResult.targetCreated} ? '신규 적재' : '수량 합산'">신규</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">도착 구역 여유</th>
+                                <td>
+                                    <span th:text="${#numbers.formatInteger(moveResult.toRemainingCapacity, 1, 'COMMA')}">0</span>
+                                    <span class="text-muted small"
+                                          th:text="'/ 한도 ' + ${#numbers.formatInteger(moveResult.toCapacityLimit, 1, 'COMMA')}">
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr class="table-light">
+                                <th class="text-muted">로트 잔여 수량</th>
+                                <td>
+                                    <span class="fw-semibold"
+                                          th:text="${#numbers.formatInteger(moveResult.lotQuantity, 1, 'COMMA')}">0</span>
+                                    <span class="text-muted small ms-1">변동 없음</span>
+                                </td>
+                            </tr>
+                            <tr class="table-light">
+                                <th class="text-muted">품목 전체 재고</th>
+                                <td>
+                                    <span class="fw-semibold"
+                                          th:text="${#numbers.formatInteger(moveResult.productTotalStock, 1, 'COMMA')}">0</span>
+                                    <span class="text-muted small ms-1">변동 없음</span>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="alert alert-secondary mt-3 mb-0 small">
+                            <i class="bi bi-diagram-2 me-1"></i>
+                            이동 내역은
+                            <a th:href="@{/admin/traceability(lotNo=${moveResult.lotNo})}" class="alert-link">제품 이력 추적</a>
+                            타임라인에서 확인할 수 있습니다.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 결과가 없을 때 안내 -->
+                <div class="card ff-card" th:if="${moveResult == null}">
+                    <div class="card-body text-muted small">
+                        <p class="mb-2 fw-semibold text-dark">
+                            <i class="bi bi-lightbulb me-1"></i>이럴 때 사용합니다
+                        </p>
+                        <ul class="mb-0 ps-3">
+                            <li>입고 대기 구역에 쌓인 물건을 보관 구역으로 옮길 때</li>
+                            <li>유통기한이 임박한 로트를 출고 대기 구역으로 미리 빼둘 때</li>
+                            <li>온도 관리가 필요한 품목을 저온(COLD) 구역으로 재배치할 때</li>
+                            <li>사용 중지 예정인 구역을 비울 때</li>
+                        </ul>
+                        <hr>
+                        <p class="mb-0">
+                            <i class="bi bi-shield-check me-1"></i>
+                            사용 중지된 구역에서 <strong>빼내는</strong> 것은 허용됩니다.
+                            구역을 비우는 작업 자체를 막으면 재고가 갇히기 때문입니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<div th:replace="~{fragments/layout :: scripts}"></div>
+
+</body>
+</html>

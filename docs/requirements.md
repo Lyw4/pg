@@ -67,6 +67,12 @@
 | S2-2 | └ 시점별 잔여 수량 누적 (`MovementType.sign` 활용) | 완료 | `311a9a1` | `TraceEventDto` |
 | S2-3 | └ 이력–재고 불일치 경고 | 완료 | `311a9a1` | `TraceabilityDto` |
 | S2-4 | └ JSON API (타 화면 팝업용) | 완료 | `311a9a1` | `/api/admin/traceability/lots/{lotId}` |
+| S3 | **구역 간 재고 이동 (MOVE)** | 완료 | `PENDING_C3` | `/admin/inventory/move` |
+| S3-1 | └ 총 재고 불변 (위치만 변경) — `lotQuantity`·`totalStock` 미변경 | 완료 | `PENDING_C3` | `InventoryMoveService` |
+| S3-2 | └ 출발/도착 구역 검증 (같은 구역·수량 초과·사용중지·적재 한도) | 완료 | `PENDING_C3` | `WarehouseBin.canAccept()` 재사용 |
+| S3-3 | └ 이력에 출발지+도착지 기록 | 완료 | `PENDING_C3` | `StockMovement.fromBin` |
+| S3-4 | └ 2D 도면 모달에서 이동 화면 진입 | 완료 | `PENDING_C3` | `warehouse-map.js` |
+| S3-5 | └ 이력 추적 타임라인에 `A-01 → B-02` 표시 | 완료 | `PENDING_C3` | `TraceEventDto.isRelocation()` |
 
 ## Could Have (선택)
 
@@ -76,7 +82,7 @@
 |---|---|---|---|
 | C1 | **발주(Purchase Order) 관리** | 미착수 | 입고 처리(M7) 자체는 이미 구현되어 있다. 미구현인 것은 그 **앞단**이다: 공급업체(Supplier) 관리, 발주서 생성·승인, 발주 대비 입고 대조(부분 입고·초과 입고 판정), 매입 단가/금액 집계. `Supplier`·`PurchaseOrder` 엔티티가 없어 신규 도메인 추가가 필요하다. |
 | C2 | 재고 실사(Stocktaking) 및 차이 조정 | 미착수 | M15는 장부끼리(`Product.totalStock` vs `ProductLot.lotQuantity` 합계) 비교다. 실물 카운트를 입력해 장부와의 차이를 조정하는 절차는 없다. `MovementType.ADJUST`(sign 0)가 이미 정의되어 있으나 사용처가 없다. |
-| C3 | 구역 간 재고 이동 | 부분 | `MovementType.MOVE`(sign 0)가 정의되어 있으나 이동을 실행하는 서비스·화면이 없다. 창고 2D 도면에서 구역을 지정해 옮기는 흐름이 자연스럽다. |
+| C3 | ~~구역 간 재고 이동~~ | **완료** | Should Have 표의 S3 항목으로 이동했다. |
 | C4 | 매출/출고 리포트 확장 | 부분 | 대시보드 차트는 최근 7일 고정(`feedflow.dashboard.chart-default-days`)이다. 기간 지정, 축종별·품목별·고객별 집계, CSV 내보내기가 없다. |
 
 ## 명시적 제외 범위
@@ -90,7 +96,7 @@
 
 ## 검증 상태
 
-- 단위/통합 테스트 **153건** (`src/test`, 13개 테스트 클래스)
+- 단위/통합 테스트 **167건** (`src/test`, 14개 테스트 클래스)
 - 시드 데이터(`data.sql`)는 4가지 정합성을 만족한다. 변경 시 함께 검증해야 한다.
   1. 이력 누적(`SUM(StockMovement × sign)`) = `ProductLot.lotQuantity`
   2. 구역 재고 합계(`SUM(Inventory.quantity)`) = `ProductLot.lotQuantity`
