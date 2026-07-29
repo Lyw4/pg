@@ -41,7 +41,7 @@
 | M8 | 재고 폐기 (ADMIN 전용, 사유 필수) | 완료 | `001d65d` | `/admin/inventory/disposal` |
 | M9 | 입출고 이력 조회 (유형 · 품목 필터, 페이징) | 완료 | `001d65d` | `/admin/inventory/movements` |
 | M10 | FEFO(선입선출) 주문 출고 — 할당 미리보기 → 처리 | 완료 | `001d65d` | `/admin/outbound`, `OutboundService` |
-| M10-1 | └ 주문 목록 상태 필터 (출고대기 · 출고완료 · 배송완료 · 취소 · 전체) | 완료 | `1a5216c` | `OrderListFilter` |
+| M10-1 | └ 주문 목록 상태 필터 (출고대기 · 출고완료 · 배송완료 · 취소 · 전체) | 완료 | `e83f8ac` | `OrderListFilter` |
 | M11 | 직접 출고 (주문과 무관한 출고) | 완료 | `001d65d` | `/admin/outbound/direct` |
 | M12 | 출고(주문) 취소 + 재고 원상 복구 (ADMIN 전용) | 완료 | `f47db83` | `OrderCancellationService` |
 | M12-1 | └ 취소 사유 · 일시 · 처리자 기록 및 화면 표시 | 완료 | `e058e22` | `Order.cancel(reason, userId, userName)` |
