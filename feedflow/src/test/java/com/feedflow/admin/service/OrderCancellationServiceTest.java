@@ -430,6 +430,144 @@ class OrderCancellationServiceTest {
     }
 
     /* ==================================================================
+     * 취소 정보 기록 (감사 추적)
+     * ================================================================== */
+
+    @Nested
+    @DisplayName("취소 정보 기록")
+    class RecordCancellationInfo {
+
+        @Test
+        @DisplayName("출고 전 취소도 사유 · 일시 · 처리자를 주문에 남긴다")
+        void beforeDispatch_recordsCancellationInfo() {
+            // 출고 전 취소는 재고 이력이 생기지 않으므로 주문에 남은 값이 유일한 근거다.
+            Product product = product(100);
+            Order order = order(OrderStatus.READY, product, 20);
+
+            given(orderRepository.findWithItemsById(ORDER_ID)).willReturn(Optional.of(order));
+
+            LocalDateTime before = LocalDateTime.now();
+            orderCancellationService.cancel(ORDER_ID, "고객 변심", USER_ID, USER_NAME);
+            LocalDateTime after = LocalDateTime.now();
+
+            assertThat(order.getCancelReason()).isEqualTo("고객 변심");
+            assertThat(order.getCanceledById()).isEqualTo(USER_ID);
+            assertThat(order.getCanceledByName()).isEqualTo(USER_NAME);
+            assertThat(order.getCanceledAt())
+                    .as("취소 시각이 처리 시점으로 기록된다")
+                    .isNotNull()
+                    .isBetween(before, after);
+
+            // 재고 이력은 여전히 남지 않는다 (재고가 움직이지 않았으므로)
+            verify(stockMovementRepository, never()).save(any(StockMovement.class));
+        }
+
+        @Test
+        @DisplayName("출고 후 취소도 같은 취소 정보를 남긴다 (재고 복구와 무관하게)")
+        void afterDispatch_recordsCancellationInfo() {
+            Product product = product(45);
+            ProductLot lotA = lot(10L, product, "LOT-A", 5);
+            WarehouseBin binA = bin(1L, "A-01", 500);
+            Inventory inventoryA = inventory(100L, lotA, binA, 5);
+
+            Order order = order(OrderStatus.SHIPPED, product, 20);
+
+            given(orderRepository.findWithItemsById(ORDER_ID)).willReturn(Optional.of(order));
+            given(stockMovementRepository.findByOrderIdAndType(ORDER_ID, MovementType.OUTBOUND))
+                    .willReturn(List.of(outbound(1L, lotA, binA, 20)));
+            given(inventoryRepository.findByLot_LotIdAndBin_BinId(10L, 1L))
+                    .willReturn(Optional.of(inventoryA));
+            given(inventoryRepository.sumQuantityByBinId(1L)).willReturn(5L);
+
+            orderCancellationService.cancel(ORDER_ID, "오배송", USER_ID, USER_NAME);
+
+            assertThat(order.getCancelReason()).isEqualTo("오배송");
+            assertThat(order.getCanceledById()).isEqualTo(USER_ID);
+            assertThat(order.getCanceledByName()).isEqualTo(USER_NAME);
+            assertThat(order.getCanceledAt()).isNotNull();
+
+            // 재고 복구도 정상적으로 이뤄진다
+            assertThat(lotA.getLotQuantity()).isEqualTo(25);
+        }
+
+        @Test
+        @DisplayName("사유를 입력하지 않으면 null 로 저장한다")
+        void nullReason_storedAsNull() {
+            Product product = product(100);
+            Order order = order(OrderStatus.PAID, product, 20);
+
+            given(orderRepository.findWithItemsById(ORDER_ID)).willReturn(Optional.of(order));
+
+            orderCancellationService.cancel(ORDER_ID, null, USER_ID, USER_NAME);
+
+            assertThat(order.getCancelReason()).isNull();
+            assertThat(order.getCanceledAt())
+                    .as("사유가 없어도 취소 시각과 처리자는 남는다")
+                    .isNotNull();
+            assertThat(order.getCanceledByName()).isEqualTo(USER_NAME);
+        }
+
+        @Test
+        @DisplayName("공백만 입력된 사유는 null 로 정규화한다")
+        void blankReason_normalizedToNull() {
+            // 빈 문자열을 그대로 저장하면 '사유 있음' 과 구분되지 않는다
+            Product product = product(100);
+            Order order = order(OrderStatus.READY, product, 20);
+
+            given(orderRepository.findWithItemsById(ORDER_ID)).willReturn(Optional.of(order));
+
+            orderCancellationService.cancel(ORDER_ID, "   ", USER_ID, USER_NAME);
+
+            assertThat(order.getCancelReason()).isNull();
+        }
+
+        @Test
+        @DisplayName("사유 앞뒤 공백은 제거해서 저장한다")
+        void reason_trimmed() {
+            Product product = product(100);
+            Order order = order(OrderStatus.READY, product, 20);
+
+            given(orderRepository.findWithItemsById(ORDER_ID)).willReturn(Optional.of(order));
+
+            orderCancellationService.cancel(ORDER_ID, "  재고 부족  ", USER_ID, USER_NAME);
+
+            assertThat(order.getCancelReason()).isEqualTo("재고 부족");
+        }
+
+        @Test
+        @DisplayName("처리 결과 DTO 에도 취소 정보가 담긴다 (화면 표시용)")
+        void resultDto_carriesCancellationInfo() {
+            Product product = product(100);
+            Order order = order(OrderStatus.READY, product, 20);
+
+            given(orderRepository.findWithItemsById(ORDER_ID)).willReturn(Optional.of(order));
+
+            OrderCancelResultDto result =
+                    orderCancellationService.cancel(ORDER_ID, "고객 변심", USER_ID, USER_NAME);
+
+            assertThat(result.getCancelReason()).isEqualTo("고객 변심");
+            assertThat(result.getCanceledByName()).isEqualTo(USER_NAME);
+            assertThat(result.getCanceledAt()).isNotNull();
+            assertThat(result.hasCancelReason()).isTrue();
+        }
+
+        @Test
+        @DisplayName("사유가 없으면 결과 DTO 의 hasCancelReason 이 false 다")
+        void resultDto_withoutReason() {
+            Product product = product(100);
+            Order order = order(OrderStatus.READY, product, 20);
+
+            given(orderRepository.findWithItemsById(ORDER_ID)).willReturn(Optional.of(order));
+
+            OrderCancelResultDto result =
+                    orderCancellationService.cancel(ORDER_ID, null, USER_ID, USER_NAME);
+
+            assertThat(result.hasCancelReason()).isFalse();
+            assertThat(result.getCancelReason()).isNull();
+        }
+    }
+
+    /* ==================================================================
      * 픽스처
      * ================================================================== */
 

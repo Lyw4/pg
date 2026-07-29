@@ -115,6 +115,16 @@ INSERT INTO orders (orderId, userId, totalPrice, discountPrice, finalPrice, ship
 (14, 4, 960000, 60000, 900000, '충남 홍성군 갈산면 양돈로 45',   'DELIVERED', DATEADD('DAY',  -6, CURRENT_TIMESTAMP)),
 (15, 5, 320000,     0, 320000, '전북 김제시 금산면 계사길 8',    'DELIVERED', DATEADD('DAY',  -6, CURRENT_TIMESTAMP));
 
+-- 취소된 주문(#10)의 취소 정보.
+-- 이 주문은 출고 이력(stockMovements)이 없으므로 '출고 전 취소' 사례다.
+-- 재고가 차감된 적이 없어 되돌릴 재고도 없고, 취소 근거는 이 컬럼들뿐이다.
+UPDATE orders
+SET canceledAt     = DATEADD('DAY', -3, CURRENT_TIMESTAMP),
+    cancelReason   = '고객 요청 - 사료 배합 변경으로 재주문',
+    canceledById   = 1,
+    canceledByName = '김책임'
+WHERE orderId = 10;
+
 -- ---------------------------------------------------------------------
 -- 5. 주문 상세 (orderPrice = 주문 당시 단가)
 -- ---------------------------------------------------------------------

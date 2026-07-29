@@ -113,7 +113,10 @@ public class AdminOutboundController {
 
             redirectAttributes.addFlashAttribute(FlashAttr.SUCCESS, result.getSummaryMessage());
             redirectAttributes.addFlashAttribute("cancelResult", result);
-            return "redirect:/admin/outbound";
+
+            // 목록(출고 대기)에는 취소된 주문이 나오지 않으므로 상세 화면으로 돌아간다.
+            // 취소 사유·처리자와 재고 복구 결과를 그 자리에서 확인할 수 있어야 한다.
+            return "redirect:/admin/outbound/orders/" + orderId;
         } catch (BusinessRuleException e) {
             // 이미 취소됨 / 배송 완료 / 구역 한도 초과 등 → 상세 화면에서 사유를 보여준다
             redirectAttributes.addFlashAttribute(FlashAttr.ERROR, e.getMessage());

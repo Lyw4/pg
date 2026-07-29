@@ -89,7 +89,9 @@ public class OrderCancellationService {
                 ? restoreStock(order, reason, userId, userName)
                 : List.of();
 
-        order.cancel();
+        // 재고 복구 여부와 무관하게 취소 사유 · 시각 · 처리자를 주문에 기록한다.
+        // 출고 전 취소는 재고 이력이 생기지 않으므로 여기가 유일한 감사 추적 근거다.
+        order.cancel(reason, userId, userName);
 
         return OrderCancelResultDto.builder()
                 .orderId(order.getOrderId())
@@ -98,6 +100,9 @@ public class OrderCancellationService {
                 .status(order.getStatus())
                 .restoredLines(restoredLines)
                 .stockRestored(stockDeducted)
+                .cancelReason(order.getCancelReason())
+                .canceledAt(order.getCanceledAt())
+                .canceledByName(order.getCanceledByName())
                 .build();
     }
 

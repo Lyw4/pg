@@ -4,6 +4,7 @@ import com.feedflow.domain.OrderStatus;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -27,6 +28,23 @@ public class OrderCancelResultDto {
 
     /** 재고를 실제로 되돌렸는지 (출고 완료 주문이었는지) */
     private final boolean stockRestored;
+
+    /* ------------------------------------------------------------------
+     * 취소 정보 (주문에 기록된 감사 추적 값을 그대로 담는다)
+     * ------------------------------------------------------------------ */
+
+    /** 취소 사유 (미입력 시 null) */
+    private final String cancelReason;
+
+    private final LocalDateTime canceledAt;
+
+    /** 취소 처리자 이름 (로그인 정보가 없으면 null) */
+    private final String canceledByName;
+
+    /** 사유가 입력되었는지 (화면에서 표기를 나눌 때 사용) */
+    public boolean hasCancelReason() {
+        return cancelReason != null && !cancelReason.isBlank();
+    }
 
     public int getRestoredQuantity() {
         return restoredLines.stream()

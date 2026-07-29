@@ -13,6 +13,7 @@ import com.feedflow.common.exception.BusinessRuleException;
 import com.feedflow.common.exception.InsufficientStockException;
 import com.feedflow.common.exception.ResourceNotFoundException;
 import com.feedflow.domain.Inventory;
+import com.feedflow.domain.MovementType;
 import com.feedflow.domain.Order;
 import com.feedflow.domain.OrderItem;
 import com.feedflow.domain.OrderStatus;
@@ -189,6 +190,11 @@ public class OutboundService {
                         .build())
                 .toList();
 
+        // 취소된 주문만 복구 이력을 조회한다 (그 외에는 쿼리를 실행하지 않는다)
+        List<StockMovement> restorations = order.isCanceled()
+                ? stockMovementRepository.findByOrderIdAndType(order.getOrderId(), MovementType.CANCEL)
+                : List.of();
+
         return OrderDispatchPreviewDto.builder()
                 .orderId(order.getOrderId())
                 .customerName(order.getUser().getName())
@@ -203,6 +209,14 @@ public class OutboundService {
                 .dispatchable(order.isDispatchable())
                 .cancelable(order.isCancelable())
                 .stockDeducted(order.isStockDeducted())
+                .canceled(order.isCanceled())
+                .cancelReason(order.getCancelReason())
+                .canceledAt(order.getCanceledAt())
+                .canceledByName(order.getCanceledByName())
+                .restoredQuantity(restorations.stream()
+                        .mapToInt(movement -> Numbers.orZero(movement.getQuantity()))
+                        .sum())
+                .restoredLineCount(restorations.size())
                 .build();
     }
 
