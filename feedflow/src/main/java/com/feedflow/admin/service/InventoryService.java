@@ -1,5 +1,6 @@
 package com.feedflow.admin.service;
 
+import com.feedflow.common.util.Numbers;
 import com.feedflow.common.util.Texts;
 import com.feedflow.admin.dto.DisposalForm;
 import com.feedflow.admin.dto.DisposalResultDto;
@@ -321,15 +322,13 @@ public class InventoryService {
 
     /** 구역 적재 용량 초과 검증 */
     private void validateBinCapacity(WarehouseBin bin, int quantity) {
-        Long stored = inventoryRepository.sumQuantityByBinId(bin.getBinId());
-        int currentQuantity = (stored == null) ? 0 : stored.intValue();
-        int maxCapacity = bin.getMaxCapacity() == null ? 0 : bin.getMaxCapacity();
+        int currentQuantity = (int) Numbers.orZero(inventoryRepository.sumQuantityByBinId(bin.getBinId()));
 
-        if (currentQuantity + quantity > maxCapacity) {
+        if (!bin.canAccept(currentQuantity, quantity)) {
             throw new BusinessRuleException(
                     "구역 [" + bin.getBinCode() + "] 의 최대 적재 수량을 초과합니다."
                             + " (현재 " + currentQuantity + " + 입고 " + quantity
-                            + " > 최대 " + maxCapacity + ")");
+                            + " > 최대 " + bin.capacityLimit() + ")");
         }
     }
 }

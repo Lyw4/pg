@@ -152,6 +152,26 @@ public class WarehouseBin {
         this.memo = memo;
     }
 
+    /**
+     * 이 구역에 수량을 더 넣을 수 있는지 검사한다.
+     * <p>
+     * 입고 · 출고 취소 복구 등 <b>재고를 늘리는 모든 경로가 같은 규칙을 써야</b> 한다.
+     * 서비스마다 따로 구현하면 한쪽만 고쳐져 한도가 새는 일이 생긴다.
+     *
+     * @param currentQuantity 현재 이 구역에 쌓여 있는 수량
+     * @param addQuantity     추가하려는 수량
+     * @return 한도를 넘지 않으면 true
+     */
+    public boolean canAccept(int currentQuantity, int addQuantity) {
+        int limit = maxCapacity == null ? 0 : maxCapacity;
+        return currentQuantity + addQuantity <= limit;
+    }
+
+    /** 적재 한도 (null 이면 0) */
+    public int capacityLimit() {
+        return maxCapacity == null ? 0 : maxCapacity;
+    }
+
     /** 도면 배치 변경 */
     public void updateLayout(Integer posX, Integer posY, Integer posWidth, Integer posHeight) {
         this.posX = posX;

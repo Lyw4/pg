@@ -88,10 +88,10 @@ public class AdminStockSyncController {
                 .toList();
 
         if (adjusted.isEmpty()) {
-            redirectAttributes.addFlashAttribute("infoMessage",
+            redirectAttributes.addFlashAttribute(FlashAttr.INFO,
                     "전체 " + results.size() + "개 품목을 점검했습니다. 보정할 항목이 없습니다.");
         } else {
-            redirectAttributes.addFlashAttribute("successMessage",
+            redirectAttributes.addFlashAttribute(FlashAttr.SUCCESS,
                     "전체 " + results.size() + "개 품목 중 " + adjusted.size() + "건의 재고를 보정했습니다.");
             redirectAttributes.addFlashAttribute("syncResults", adjusted);
         }
@@ -111,10 +111,10 @@ public class AdminStockSyncController {
         StockSyncResultDto result = productService.syncTotalStock(productId);
 
         if (result.isAdjusted()) {
-            redirectAttributes.addFlashAttribute("successMessage", result.getSummaryMessage());
+            redirectAttributes.addFlashAttribute(FlashAttr.SUCCESS, result.getSummaryMessage());
             redirectAttributes.addFlashAttribute("syncResults", List.of(result));
         } else {
-            redirectAttributes.addFlashAttribute("infoMessage", result.getSummaryMessage());
+            redirectAttributes.addFlashAttribute(FlashAttr.INFO, result.getSummaryMessage());
         }
 
         return REDIRECT_SYNC;

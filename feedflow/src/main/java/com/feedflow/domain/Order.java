@@ -117,18 +117,9 @@ public class Order {
         this.status = OrderStatus.CANCELED;
     }
 
-    /** 출고 대기 상태로 변경 */
-    public void markReady() {
-        this.status = OrderStatus.READY;
-    }
-
     /** 출고 완료 처리 */
     public void markShipped() {
         this.status = OrderStatus.SHIPPED;
-    }
-
-    public void changeStatus(OrderStatus status) {
-        this.status = status;
     }
 
     /** 주문 전체 수량 */

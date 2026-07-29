@@ -13,7 +13,6 @@ import com.feedflow.common.exception.BusinessRuleException;
 import com.feedflow.common.exception.InsufficientStockException;
 import com.feedflow.common.exception.ResourceNotFoundException;
 import com.feedflow.domain.Inventory;
-import com.feedflow.domain.MovementType;
 import com.feedflow.domain.Order;
 import com.feedflow.domain.OrderItem;
 import com.feedflow.domain.OrderStatus;

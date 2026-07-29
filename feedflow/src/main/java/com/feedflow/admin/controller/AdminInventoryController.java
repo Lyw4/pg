@@ -114,7 +114,7 @@ public class AdminInventoryController {
 
         try {
             InboundResultDto result = inventoryService.receive(inboundForm, userId, userName);
-            redirectAttributes.addFlashAttribute("successMessage", result.getSummaryMessage());
+            redirectAttributes.addFlashAttribute(FlashAttr.SUCCESS, result.getSummaryMessage());
             redirectAttributes.addFlashAttribute("inboundResult", result);
         } catch (BusinessRuleException e) {
             // 업무 규칙 위반은 폼 전역 오류로 표시하여 입력값을 유지한다.
@@ -164,7 +164,7 @@ public class AdminInventoryController {
                           RedirectAttributes redirectAttributes) {
 
         if (bindingResult.hasErrors()) {
-            redirectAttributes.addFlashAttribute("errorMessage",
+            redirectAttributes.addFlashAttribute(FlashAttr.ERROR,
                     bindingResult.getFieldErrors().stream()
                             .map(error -> error.getDefaultMessage())
                             .findFirst()
@@ -177,9 +177,9 @@ public class AdminInventoryController {
 
         try {
             DisposalResultDto result = inventoryService.dispose(disposalForm, userId, userName);
-            redirectAttributes.addFlashAttribute("successMessage", result.getSummaryMessage());
+            redirectAttributes.addFlashAttribute(FlashAttr.SUCCESS, result.getSummaryMessage());
         } catch (BusinessRuleException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            redirectAttributes.addFlashAttribute(FlashAttr.ERROR, e.getMessage());
         }
 
         return "redirect:/admin/inventory/disposal";

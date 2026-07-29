@@ -105,7 +105,7 @@ public class AdminWarehouseBinController {
             return FORM_VIEW;
         }
 
-        redirectAttributes.addFlashAttribute("successMessage",
+        redirectAttributes.addFlashAttribute(FlashAttr.SUCCESS,
                 "창고 구역 [" + binForm.getBinCode() + "] 을 등록했습니다.");
         return "redirect:/admin/bins";
     }
@@ -143,7 +143,7 @@ public class AdminWarehouseBinController {
             return FORM_VIEW;
         }
 
-        redirectAttributes.addFlashAttribute("successMessage",
+        redirectAttributes.addFlashAttribute(FlashAttr.SUCCESS,
                 "창고 구역 [" + binForm.getBinCode() + "] 을 수정했습니다.");
         return "redirect:/admin/bins";
     }
@@ -182,7 +182,7 @@ public class AdminWarehouseBinController {
                               RedirectAttributes redirectAttributes) {
 
         String binCode = warehouseBinService.changeActive(binId, active);
-        redirectAttributes.addFlashAttribute("successMessage",
+        redirectAttributes.addFlashAttribute(FlashAttr.SUCCESS,
                 "구역 [" + binCode + "] 을 " + (active ? "다시 사용" : "사용 중지") + " 처리했습니다.");
         return "redirect:/admin/bins";
     }

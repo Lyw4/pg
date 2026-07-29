@@ -22,10 +22,6 @@ public class OrderItemPreviewDto {
     /** 출고 전 할당 계획 (재고 변경 없음) */
     private final AllocationPlanDto plan;
 
-    public long getLineAmount() {
-        return orderPrice == null ? 0L : orderPrice * quantity;
-    }
-
     public boolean isFulfillable() {
         return plan != null && plan.isFulfillable();
     }

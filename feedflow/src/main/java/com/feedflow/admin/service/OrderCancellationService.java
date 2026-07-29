@@ -227,13 +227,12 @@ public class OrderCancellationService {
     private void validateBinCapacity(WarehouseBin bin, int quantity) {
         // 재고가 한 건도 없는 구역은 sum() 이 null 을 반환하므로 0 으로 보정한다
         int currentLoad = (int) Numbers.orZero(inventoryRepository.sumQuantityByBinId(bin.getBinId()));
-        int maxCapacity = Numbers.orZero(bin.getMaxCapacity());
 
-        if (currentLoad + quantity > maxCapacity) {
+        if (!bin.canAccept(currentLoad, quantity)) {
             throw new BusinessRuleException(
                     "구역 " + bin.getBinCode() + " 의 적재 한도를 초과해 재고를 되돌릴 수 없습니다."
                             + " (현재 " + currentLoad + " + 복구 " + quantity
-                            + " > 한도 " + maxCapacity + ")");
+                            + " > 한도 " + bin.capacityLimit() + ")");
         }
     }
 

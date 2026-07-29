@@ -77,12 +77,12 @@ public class AdminOutboundController {
 
         try {
             OrderDispatchResultDto result = outboundService.dispatchOrder(orderId, userId, userName);
-            redirectAttributes.addFlashAttribute("successMessage", result.getSummaryMessage());
+            redirectAttributes.addFlashAttribute(FlashAttr.SUCCESS, result.getSummaryMessage());
             redirectAttributes.addFlashAttribute("dispatchResult", result);
             return "redirect:/admin/outbound";
         } catch (BusinessRuleException e) {
             // 재고 부족 등 업무 규칙 위반 → 상세 화면으로 되돌려 원인을 보여준다
-            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            redirectAttributes.addFlashAttribute(FlashAttr.ERROR, e.getMessage());
             return "redirect:/admin/outbound/orders/" + orderId;
         }
     }
@@ -111,12 +111,12 @@ public class AdminOutboundController {
             OrderCancelResultDto result =
                     orderCancellationService.cancel(orderId, reason, userId, userName);
 
-            redirectAttributes.addFlashAttribute("successMessage", result.getSummaryMessage());
+            redirectAttributes.addFlashAttribute(FlashAttr.SUCCESS, result.getSummaryMessage());
             redirectAttributes.addFlashAttribute("cancelResult", result);
             return "redirect:/admin/outbound";
         } catch (BusinessRuleException e) {
             // 이미 취소됨 / 배송 완료 / 구역 한도 초과 등 → 상세 화면에서 사유를 보여준다
-            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            redirectAttributes.addFlashAttribute(FlashAttr.ERROR, e.getMessage());
             return "redirect:/admin/outbound/orders/" + orderId;
         }
     }
@@ -149,7 +149,7 @@ public class AdminOutboundController {
 
         try {
             OutboundResultDto result = outboundService.dispatch(outboundForm, userId, userName);
-            redirectAttributes.addFlashAttribute("successMessage", result.getSummaryMessage());
+            redirectAttributes.addFlashAttribute(FlashAttr.SUCCESS, result.getSummaryMessage());
             redirectAttributes.addFlashAttribute("outboundResult", result);
         } catch (BusinessRuleException e) {
             bindingResult.reject("businessRule", e.getMessage());

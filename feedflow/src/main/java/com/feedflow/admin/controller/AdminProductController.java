@@ -113,7 +113,7 @@ public class AdminProductController {
             return FORM_VIEW;
         }
 
-        redirectAttributes.addFlashAttribute("successMessage",
+        redirectAttributes.addFlashAttribute(FlashAttr.SUCCESS,
                 "품목 [" + productForm.getProductCode() + "] 을 등록했습니다.");
         return "redirect:/admin/products";
     }
@@ -150,7 +150,7 @@ public class AdminProductController {
             return FORM_VIEW;
         }
 
-        redirectAttributes.addFlashAttribute("successMessage",
+        redirectAttributes.addFlashAttribute(FlashAttr.SUCCESS,
                 "품목 [" + productForm.getProductCode() + "] 을 수정했습니다.");
         return "redirect:/admin/products";
     }
@@ -176,7 +176,7 @@ public class AdminProductController {
                               RedirectAttributes redirectAttributes) {
 
         String name = productService.changeActive(productId, active);
-        redirectAttributes.addFlashAttribute("successMessage",
+        redirectAttributes.addFlashAttribute(FlashAttr.SUCCESS,
                 name + " 품목을 " + (active ? "다시 사용" : "사용 중지") + " 처리했습니다.");
         return "redirect:/admin/products";
     }
