@@ -41,7 +41,7 @@ public class ExpiringLotDto {
                 .productId(lot.getProduct().getProductId())
                 .productCode(lot.getProduct().getProductCode())
                 .productName(lot.getProduct().getName())
-                .animalType(lot.getProduct().getAnimalType())
+                .animalType(lot.getProduct().getAnimalType().getDescription())
                 .manufacturedDate(lot.getManufacturedDate())
                 .expirationDate(lot.getExpirationDate())
                 .lotQuantity(lot.getLotQuantity())

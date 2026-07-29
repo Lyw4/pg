@@ -5,6 +5,7 @@ import com.feedflow.admin.dto.WarehouseBinDto;
 import com.feedflow.admin.dto.WarehouseBinForm;
 import com.feedflow.common.exception.DuplicateCodeException;
 import com.feedflow.common.exception.ResourceNotFoundException;
+import com.feedflow.domain.Warehouse;
 import com.feedflow.domain.WarehouseBin;
 import com.feedflow.repository.WarehouseBinRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,8 +28,8 @@ public class WarehouseBinService {
      * 조회
      * ------------------------------------------------------------------ */
 
-    public List<WarehouseBinDto> getBins(String zone, Boolean active) {
-        return warehouseBinRepository.search(Texts.trimToNull(zone), active).stream()
+    public List<WarehouseBinDto> getBins(Warehouse warehouse, String zone, Boolean active) {
+        return warehouseBinRepository.search(warehouse, Texts.trimToNull(zone), active).stream()
                 .map(WarehouseBinDto::from)
                 .toList();
     }
@@ -71,10 +72,16 @@ public class WarehouseBinService {
 
         WarehouseBin bin = WarehouseBin.builder()
                 .binCode(binCode)
+                .warehouse(form.getWarehouse())
                 .zone(Texts.code(form.getZone()))
+                .binPurpose(form.getBinPurpose())
                 .rack(Texts.trim(form.getRack()))
                 .binLevel(form.getBinLevel())
                 .maxCapacity(form.getMaxCapacity())
+                .posX(form.getPosX())
+                .posY(form.getPosY())
+                .posWidth(form.getPosWidth())
+                .posHeight(form.getPosHeight())
                 .memo(Texts.trim(form.getMemo()))
                 .active(form.isActive())
                 .build();
@@ -99,11 +106,14 @@ public class WarehouseBinService {
 
         bin.updateMasterData(
                 binCode,
+                form.getWarehouse(),
                 Texts.code(form.getZone()),
+                form.getBinPurpose(),
                 Texts.trim(form.getRack()),
                 form.getBinLevel(),
                 form.getMaxCapacity(),
                 Texts.trim(form.getMemo()));
+        bin.updateLayout(form.getPosX(), form.getPosY(), form.getPosWidth(), form.getPosHeight());
         bin.changeActive(form.isActive());
     }
 

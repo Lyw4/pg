@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/layout :: head('재고 정합성 점검')}"></head>
+
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="ff-content">
+
+    <div th:replace="~{fragments/layout :: topbar('재고 관리', '재고 정합성 점검')}"></div>
+
+    <main class="ff-main">
+
+        <!-- 처리 결과 메시지 -->
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-1"></i>
+            <span th:text="${successMessage}">처리 완료</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <div th:if="${infoMessage}" class="alert alert-info alert-dismissible fade show" role="alert">
+            <i class="bi bi-info-circle-fill me-1"></i>
+            <span th:text="${infoMessage}">안내</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle-fill me-1"></i>
+            <span th:text="${errorMessage}">처리 실패</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <!-- 보정 상세 결과 (보정 직후에만 표시) -->
+        <div th:if="${syncResults != null and !#lists.isEmpty(syncResults)}"
+             class="card ff-card ff-admin-only mb-3">
+            <div class="card-header bg-white border-0 pt-3">
+                <span class="fw-bold">
+                    <i class="bi bi-clipboard2-check-fill text-success me-1"></i>보정 상세 내역
+                </span>
+                <span class="text-muted small ms-2">
+                    <span th:text="${#lists.size(syncResults)}">0</span>건 변경됨
+                </span>
+            </div>
+            <div class="card-body pt-2">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th style="width: 130px;">품목 코드</th>
+                            <th>품목명</th>
+                            <th class="text-end" style="width: 120px;">보정 전</th>
+                            <th class="text-end" style="width: 120px;">보정 후</th>
+                            <th class="text-end" style="width: 110px;">차이</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="r : ${syncResults}">
+                            <td><span class="ff-code" th:text="${r.productCode}">CODE</span></td>
+                            <td th:text="${r.productName}">품목명</td>
+                            <td class="text-end text-muted text-decoration-line-through"
+                                th:text="${#numbers.formatInteger(r.previousStock, 1, 'COMMA')}">0</td>
+                            <td class="text-end fw-bold text-success"
+                                th:text="${#numbers.formatInteger(r.calculatedStock, 1, 'COMMA')}">0</td>
+                            <td class="text-end">
+                                <span class="badge" th:classappend="${r.statusBadgeClass}"
+                                      th:text="${r.differenceLabel}">0</span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 요약 카드 -->
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-xl-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">점검 대상 품목</div>
+                            <div class="ff-stat-value text-dark"
+                                 th:text="${#numbers.formatInteger(summary.totalProducts, 1, 'COMMA')}">0</div>
+                        </div>
+                        <div class="ff-stat-icon bg-secondary-subtle text-secondary">
+                            <i class="bi bi-box2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-xl-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">불일치 품목</div>
+                            <div class="ff-stat-value"
+                                 th:classappend="${summary.allClean} ? 'text-success' : 'text-danger'"
+                                 th:text="${#numbers.formatInteger(summary.mismatchedCount, 1, 'COMMA')} + '건'">0건</div>
+                        </div>
+                        <div class="ff-stat-icon"
+                             th:classappend="${summary.allClean}
+                                             ? 'bg-success-subtle text-success'
+                                             : 'bg-danger-subtle text-danger'">
+                            <i class="bi" th:classappend="${summary.allClean} ? 'bi-shield-check' : 'bi-shield-exclamation'"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-xl-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">과다 계상 (장부 &gt; 실물)</div>
+                            <div class="ff-stat-value text-danger"
+                                 th:text="${#numbers.formatInteger(summary.overstatedQuantity, 1, 'COMMA')}">0</div>
+                            <div class="text-muted" style="font-size: .72rem;"
+                                 th:text="${summary.overstatedCount} + '개 품목'">0개 품목</div>
+                        </div>
+                        <div class="ff-stat-icon bg-danger-subtle text-danger">
+                            <i class="bi bi-arrow-up-right"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-xl-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">과소 계상 (장부 &lt; 실물)</div>
+                            <div class="ff-stat-value text-warning"
+                                 th:text="${#numbers.formatInteger(summary.understatedQuantity, 1, 'COMMA')}">0</div>
+                            <div class="text-muted" style="font-size: .72rem;"
+                                 th:text="${summary.understatedCount} + '개 품목'">0개 품목</div>
+                        </div>
+                        <div class="ff-stat-icon bg-warning-subtle text-warning">
+                            <i class="bi bi-arrow-down-right"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 점검 결과 목록 -->
+        <div class="card ff-card">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <span class="fw-bold">
+                        <i class="bi bi-shield-check me-1"></i>품목별 재고 정합성
+                    </span>
+                    <span class="text-muted small ms-2">
+                        조회 <span th:text="${#lists.size(rows)}">0</span>건
+                    </span>
+                </div>
+
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-danger" sec:authorize="hasRole('ADMIN')">책임자 전용 기능</span>
+                    <span class="badge bg-secondary" sec:authorize="!hasRole('ADMIN')">조회만 가능</span>
+
+                    <!-- 전체 재계산 : ADMIN 에게만 렌더링 -->
+                    <form th:action="@{/admin/inventory/sync/all}" method="post" class="m-0"
+                          sec:authorize="hasRole('ADMIN')">
+                        <button type="submit" class="btn btn-sm btn-dark"
+                                th:disabled="${summary.allClean}"
+                                onclick="return confirm('전체 품목의 재고를 로트 수량 합계로 맞춥니다. 계속하시겠습니까?');">
+                            <i class="bi bi-arrow-repeat me-1"></i>전체 정합성 재계산
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div class="alert alert-light border small">
+                    <i class="bi bi-info-circle me-1"></i>
+                    품목의 <strong>장부 재고(totalStock)</strong> 는 조회 성능을 위해 비정규화한 값이고,
+                    실제 재고의 근거는 <strong>로트 수량 합계</strong> 입니다.
+                    재계산은 <strong>로트 합계를 정답으로 간주</strong>하여 장부 재고를 덮어씁니다.
+                    (로트 수량 자체는 변경하지 않습니다)
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                        <tr>
+                            <th style="width: 130px;">품목 코드</th>
+                            <th>품목명</th>
+                            <th class="text-end" style="width: 120px;">장부 재고</th>
+                            <th class="text-end" style="width: 130px;">로트 합계</th>
+                            <th class="text-end" style="width: 100px;">차이</th>
+                            <th class="text-center" style="width: 120px;">상태</th>
+                            <th class="text-end" style="width: 110px;">보정</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:if="${#lists.isEmpty(rows)}">
+                            <td colspan="7" class="text-center text-muted py-4">
+                                등록된 품목이 없습니다.
+                            </td>
+                        </tr>
+
+                        <tr th:each="row : ${rows}"
+                            th:classappend="${row.mismatched ? 'table-warning' : (!row.active ? 'ff-row-inactive' : '')}">
+                            <td>
+                                <span class="ff-code" th:text="${row.productCode}">CODE</span>
+                            </td>
+                            <td>
+                                <span th:text="${row.productName}">품목명</span>
+                                <span th:unless="${row.active}"
+                                      class="badge bg-secondary ms-1">사용 중지</span>
+                            </td>
+                            <td class="text-end"
+                                th:classappend="${row.mismatched} ? 'text-danger fw-semibold' : ''"
+                                th:text="${#numbers.formatInteger(row.previousStock, 1, 'COMMA')}">0</td>
+                            <td class="text-end fw-semibold"
+                                th:text="${#numbers.formatInteger(row.calculatedStock, 1, 'COMMA')}">0</td>
+                            <td class="text-end fw-bold"
+                                th:classappend="${row.overstated ? 'text-danger' : (row.understated ? 'text-warning' : 'text-muted')}"
+                                th:text="${row.differenceLabel}">-</td>
+                            <td class="text-center">
+                                <!-- 상태는 텍스트 대신 뱃지로 표기 (정상: 초록 / 과다: 빨강 / 과소: 노랑) -->
+                                <span class="badge" th:classappend="${row.statusBadgeClass}"
+                                      th:text="${row.statusLabel}">정상</span>
+                            </td>
+                            <td class="text-end">
+                                <div sec:authorize="hasRole('ADMIN')">
+                                    <form th:if="${row.mismatched}"
+                                          th:action="@{/admin/inventory/sync/{id}(id=${row.productId})}"
+                                          method="post" class="m-0"
+                                          onsubmit="return confirm('이 품목의 장부 재고를 로트 합계로 보정하시겠습니까?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-arrow-repeat me-1"></i>보정
+                                        </button>
+                                    </form>
+                                    <span th:unless="${row.mismatched}" class="text-success small">
+                                        <i class="bi bi-check2-circle"></i>
+                                    </span>
+                                </div>
+                                <span class="text-muted small" sec:authorize="!hasRole('ADMIN')">-</span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p class="text-muted small mb-0 mt-2">
+                    <i class="bi bi-info-circle me-1"></i>
+                    불일치 항목이 목록 상단에 먼저 표시됩니다. 사용 중지된 품목도 점검 대상에 포함됩니다.
+                </p>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<div th:replace="~{fragments/layout :: scripts}"></div>
+
+</body>
+</html>

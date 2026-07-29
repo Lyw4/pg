@@ -10,7 +10,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -79,10 +78,10 @@ public class AdminController {
 
         try {
             String changedName = employeeService.changeRole(userId, role, loginUserId);
-            redirectAttributes.addFlashAttribute("successMessage",
+            redirectAttributes.addFlashAttribute(FlashAttr.SUCCESS,
                     changedName + " 님의 권한을 " + role.getDescription() + "(" + role.name() + ") 으로 변경했습니다.");
         } catch (IllegalArgumentException | IllegalStateException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            redirectAttributes.addFlashAttribute(FlashAttr.ERROR, e.getMessage());
         }
 
         return "redirect:/admin/employees";

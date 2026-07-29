@@ -2,6 +2,8 @@ package com.feedflow.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -47,9 +49,15 @@ public class Product {
     @Column(name = "name", nullable = false, length = 200)
     private String name;
 
-    /** 축종 (소, 돼지, 닭 ...) */
-    @Column(name = "animalType", nullable = false, length = 50)
-    private String animalType;
+    /** 축종 (소 / 돼지 / 조류) - 취급 범위를 고정하기 위해 enum 으로 관리 */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "animalType", nullable = false, length = 20)
+    private AnimalType animalType;
+
+    /** 품목 구분 (사료 / 영양제) - 이 둘만 취급한다 */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "productType", nullable = false, length = 20)
+    private ProductType productType;
 
     /** 포장 단위 무게(kg) */
     @Column(name = "weightKg", nullable = false)
@@ -97,6 +105,9 @@ public class Product {
 
     @PrePersist
     void prePersist() {
+        if (productType == null) {
+            productType = ProductType.FEED;
+        }
         if (totalStock == null) {
             totalStock = 0;
         }
@@ -114,7 +125,8 @@ public class Product {
      */
     public void updateMasterData(String productCode,
                                  String name,
-                                 String animalType,
+                                 AnimalType animalType,
+                                 ProductType productType,
                                  Integer weightKg,
                                  Long price,
                                  Integer safetyStock,
@@ -122,6 +134,7 @@ public class Product {
         this.productCode = productCode;
         this.name = name;
         this.animalType = animalType;
+        this.productType = productType;
         this.weightKg = weightKg;
         this.price = price;
         this.safetyStock = safetyStock;

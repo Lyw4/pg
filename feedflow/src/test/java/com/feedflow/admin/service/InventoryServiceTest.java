@@ -1,5 +1,6 @@
 package com.feedflow.admin.service;
 
+import com.feedflow.domain.AnimalType;
 import com.feedflow.admin.dto.InboundForm;
 import com.feedflow.admin.dto.InboundResultDto;
 import com.feedflow.common.exception.BusinessRuleException;
@@ -321,7 +322,7 @@ class InventoryServiceTest {
                 .productId(PRODUCT_ID)
                 .productCode("FD-CT-900")
                 .name("구형 육성우 사료(단종)")
-                .animalType("소")
+                .animalType(AnimalType.CATTLE)
                 .weightKg(25)
                 .price(29000L)
                 .totalStock(10)
@@ -434,7 +435,7 @@ class InventoryServiceTest {
                 .productId(PRODUCT_ID)
                 .productCode("FD-CT-001")
                 .name("프리미엄 육성우 배합사료")
-                .animalType("소")
+                .animalType(AnimalType.CATTLE)
                 .weightKg(25)
                 .price(32000L)
                 .totalStock(100)

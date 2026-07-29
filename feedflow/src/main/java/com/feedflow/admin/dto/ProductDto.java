@@ -1,6 +1,7 @@
 package com.feedflow.admin.dto;
 
 import com.feedflow.domain.Product;
+import com.feedflow.domain.ProductType;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -15,7 +16,13 @@ public class ProductDto {
     private final Long productId;
     private final String productCode;
     private final String name;
+
+    /** 축종 한글 라벨 (소 / 돼지 / 조류) */
     private final String animalType;
+
+    /** 품목 구분 (뱃지 표기를 위해 enum 그대로 전달) */
+    private final ProductType productType;
+
     private final Integer weightKg;
     private final Long price;
     private final Integer totalStock;
@@ -30,7 +37,8 @@ public class ProductDto {
                 .productId(product.getProductId())
                 .productCode(product.getProductCode())
                 .name(product.getName())
-                .animalType(product.getAnimalType())
+                .animalType(product.getAnimalType().getDescription())
+                .productType(product.getProductType())
                 .weightKg(product.getWeightKg())
                 .price(product.getPrice())
                 .totalStock(product.getTotalStock())

@@ -40,17 +40,31 @@
                             <div class="form-text">영문/숫자/하이픈만 사용하며, 중복 등록할 수 없습니다. (소문자는 대문자로 저장)</div>
                         </div>
 
-                        <!-- 축종 -->
-                        <div class="col-12 col-md-6">
+                        <!-- 축종 : 취급 범위가 고정되어 있어 선택만 허용 -->
+                        <div class="col-6 col-md-3">
                             <label for="animalType" class="form-label ff-required">축종</label>
-                            <input type="text" id="animalType" th:field="*{animalType}"
-                                   class="form-control" list="animalTypeOptions"
-                                   th:classappend="${#fields.hasErrors('animalType')} ? 'is-invalid'"
-                                   placeholder="예: 소, 돼지, 닭">
-                            <datalist id="animalTypeOptions">
-                                <option th:each="type : ${animalTypes}" th:value="${type}"></option>
-                            </datalist>
+                            <select id="animalType" th:field="*{animalType}" class="form-select"
+                                    th:classappend="${#fields.hasErrors('animalType')} ? 'is-invalid'">
+                                <option value="">선택하세요</option>
+                                <option th:each="type : ${animalTypes}"
+                                        th:value="${type}"
+                                        th:text="${type.description}">소</option>
+                            </select>
                             <div class="invalid-feedback" th:errors="*{animalType}">오류</div>
+                            <div class="form-text">소 · 돼지 · 조류(닭·오리)만 취급합니다.</div>
+                        </div>
+
+                        <!-- 품목 구분 : 사료 / 영양제만 취급 -->
+                        <div class="col-6 col-md-3">
+                            <label for="productType" class="form-label ff-required">품목 구분</label>
+                            <select id="productType" th:field="*{productType}" class="form-select"
+                                    th:classappend="${#fields.hasErrors('productType')} ? 'is-invalid'">
+                                <option th:each="type : ${productTypes}"
+                                        th:value="${type}"
+                                        th:text="${type.description}">사료</option>
+                            </select>
+                            <div class="invalid-feedback" th:errors="*{productType}">오류</div>
+                            <div class="form-text">배합사료와 영양제만 등록할 수 있습니다.</div>
                         </div>
 
                         <!-- 품목명 -->

@@ -13,7 +13,6 @@ import com.feedflow.common.exception.BusinessRuleException;
 import com.feedflow.common.exception.InsufficientStockException;
 import com.feedflow.common.exception.ResourceNotFoundException;
 import com.feedflow.domain.Inventory;
-import com.feedflow.domain.MovementType;
 import com.feedflow.domain.Order;
 import com.feedflow.domain.OrderItem;
 import com.feedflow.domain.OrderStatus;
@@ -32,8 +31,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 선입선출(FEFO) 출고 서비스.
@@ -86,7 +89,7 @@ public class OutboundService {
         int quantity = requirePositive(form.getQuantity());
 
         List<AllocationLineDto> lines =
-                allocateAndDeduct(product, quantity, form.getMemo(), userId, userName, null);
+                allocateAndDeduct(product, quantity, form.getMemo(), userId, userName, null, null);
 
         return OutboundResultDto.builder()
                 .productId(product.getProductId())
@@ -128,7 +131,8 @@ public class OutboundService {
             int quantity = requirePositive(orderItem.getQuantity());
 
             List<AllocationLineDto> lines =
-                    allocateAndDeduct(product, quantity, memo, userId, userName, orderItem);
+                    allocateAndDeduct(product, quantity, memo, userId, userName,
+                            orderItem, order.getOrderId());
 
             results.add(OutboundResultDto.builder()
                     .productId(product.getProductId())
@@ -166,16 +170,22 @@ public class OutboundService {
         Order order = orderRepository.findWithItemsById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("존재하지 않는 주문입니다. id=" + orderId));
 
+        // 주문 항목마다 후보 재고를 조회하면 항목 수만큼 쿼리가 반복된다.
+        // 미리보기는 재고를 변경하지 않으므로 한 번에 모아 조회한 뒤 품목별로 나눠 쓴다.
+        Map<Long, List<Inventory>> candidatesByProductId = findAllocatableCandidates(order);
+
         List<OrderItemPreviewDto> items = order.getOrderItems().stream()
                 .map(item -> OrderItemPreviewDto.builder()
                         .orderItemId(item.getOrderItemId())
                         .productId(item.getProduct().getProductId())
                         .productCode(item.getProduct().getProductCode())
                         .productName(item.getProduct().getName())
-                        .animalType(item.getProduct().getAnimalType())
+                        .animalType(item.getProduct().getAnimalType().getDescription())
                         .quantity(item.getQuantity())
                         .orderPrice(item.getOrderPrice())
-                        .plan(previewAllocation(item.getProduct(), item.getQuantity()))
+                        .plan(previewAllocation(item.getProduct(), item.getQuantity(),
+                                candidatesByProductId.getOrDefault(
+                                        item.getProduct().getProductId(), List.of())))
                         .build())
                 .toList();
 
@@ -191,18 +201,48 @@ public class OutboundService {
                 .createdAt(order.getCreatedAt())
                 .items(items)
                 .dispatchable(order.isDispatchable())
+                .cancelable(order.isCancelable())
+                .stockDeducted(order.isStockDeducted())
                 .build();
     }
 
     /** 품목 + 수량에 대한 FEFO 할당 미리보기 (재고 변경 없음) */
     public AllocationPlanDto previewAllocation(Long productId, int quantity) {
-        return previewAllocation(findProduct(productId), quantity);
+        Product product = findProduct(productId);
+        return previewAllocation(product, quantity,
+                inventoryRepository.findAllocatableByProductId(productId, LocalDate.now()));
     }
 
-    private AllocationPlanDto previewAllocation(Product product, int quantity) {
+    /**
+     * 주문의 모든 항목에 대한 FEFO 후보 재고를 <b>한 번의 쿼리</b>로 가져와 품목별로 묶는다.
+     * <p>
+     * 미리보기는 재고를 변경하지 않으므로 항목마다 다시 조회할 이유가 없다.
+     */
+    private Map<Long, List<Inventory>> findAllocatableCandidates(Order order) {
+        Set<Long> productIds = order.getOrderItems().stream()
+                .map(item -> item.getProduct().getProductId())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        if (productIds.isEmpty()) {
+            // in () 조건은 DB 에 따라 문법 오류가 되므로 쿼리를 아예 실행하지 않는다
+            return Map.of();
+        }
+
+        return inventoryRepository.findAllocatableByProductIds(productIds, LocalDate.now()).stream()
+                .collect(Collectors.groupingBy(
+                        inventory -> inventory.getLot().getProduct().getProductId(),
+                        LinkedHashMap::new,
+                        Collectors.toList()));
+    }
+
+    /**
+     * FEFO 할당 미리보기.
+     *
+     * @param candidates 이미 조회해 둔 출고 후보 재고 (정렬은 {@link #planFefo} 가 보장한다)
+     */
+    private AllocationPlanDto previewAllocation(Product product, int quantity,
+                                               List<Inventory> candidates) {
         LocalDate today = LocalDate.now();
-        List<Inventory> candidates =
-                inventoryRepository.findAllocatableByProductId(product.getProductId(), today);
 
         int available = totalQuantityOf(candidates);
         List<Allocation> allocations = planFefo(candidates, quantity);
@@ -242,12 +282,19 @@ public class OutboundService {
      *
      * @param orderItem 주문 기반 출고인 경우 대표 로트를 기록할 주문 항목 (직접 출고는 null)
      */
+    /**
+     * @param orderId 주문 기반 출고면 주문 번호, 직접 출고면 null.
+     *                {@code orderItem.getOrder()} 로 역참조하지 않고 <b>명시적으로 받는다.</b>
+     *                양방향 연관의 반대편이 채워져 있다는 보장에 기대면 호출 맥락에 따라
+     *                null 참조가 발생할 수 있다.
+     */
     private List<AllocationLineDto> allocateAndDeduct(Product product,
                                                       int quantity,
                                                       String memo,
                                                       Long userId,
                                                       String userName,
-                                                      OrderItem orderItem) {
+                                                      OrderItem orderItem,
+                                                      Long orderId) {
 
         LocalDate today = LocalDate.now();
 
@@ -280,16 +327,9 @@ public class OutboundService {
             inventory.subtractQuantity(take);
             lot.subtractQuantity(take);
 
-            stockMovementRepository.save(StockMovement.builder()
-                    .movementType(MovementType.OUTBOUND)
-                    .product(product)
-                    .lot(lot)
-                    .bin(bin)
-                    .quantity(take)
-                    .memo(memo)
-                    .userId(userId)
-                    .userName(userName)
-                    .build());
+            // 주문 번호를 남겨야 나중에 출고 취소 시 어느 로트/구역으로 되돌릴지 알 수 있다
+            stockMovementRepository.save(
+                    StockMovement.outbound(lot, bin, take, orderId, memo, userId, userName));
 
             // 첫 번째(= 가장 먼저 만료되는) 로트를 주문 항목의 대표 로트로 기록
             if (orderItem != null && sequence == 1) {

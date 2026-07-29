@@ -44,9 +44,4 @@ public class EmployeeDto {
     public String getRoleDescription() {
         return role.getDescription();
     }
-
-    /** 변경 대상 권한 (STAFF <-> ADMIN 토글) */
-    public Role getToggleRole() {
-        return role == Role.ADMIN ? Role.STAFF : Role.ADMIN;
-    }
 }

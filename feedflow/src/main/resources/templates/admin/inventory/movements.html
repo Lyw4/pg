@@ -92,7 +92,12 @@
                                 th:text="${#temporals.format(mv.createdAt, 'yyyy-MM-dd HH:mm')}">-</td>
                             <td><span class="ff-code" th:text="${mv.productCode}">CODE</span></td>
                             <td th:text="${mv.productName}">품목명</td>
-                            <td><span class="ff-code small" th:text="${mv.lotNo}">LOT</span></td>
+                            <td>
+                                <a th:href="@{/admin/traceability(lotNo=${mv.lotNo})}"
+                                   class="ff-code small text-decoration-none"
+                                   th:text="${mv.lotNo}"
+                                   title="이 로트의 이력을 추적합니다">LOT</a>
+                            </td>
                             <td><span class="ff-code" th:text="${mv.binCode} ?: '-'">-</span></td>
                             <td class="text-end fw-semibold"
                                 th:classappend="${mv.quantityTextClass}"

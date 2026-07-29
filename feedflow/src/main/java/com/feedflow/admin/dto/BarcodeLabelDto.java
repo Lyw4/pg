@@ -45,7 +45,7 @@ public class BarcodeLabelDto {
                 .code(product.getProductCode())
                 .productCode(product.getProductCode())
                 .productName(product.getName())
-                .animalType(product.getAnimalType())
+                .animalType(product.getAnimalType().getDescription())
                 .weightKg(product.getWeightKg())
                 .build();
     }
@@ -57,7 +57,7 @@ public class BarcodeLabelDto {
                 .code(lot.getLotNo())
                 .productCode(product.getProductCode())
                 .productName(product.getName())
-                .animalType(product.getAnimalType())
+                .animalType(product.getAnimalType().getDescription())
                 .weightKg(product.getWeightKg())
                 .lotNo(lot.getLotNo())
                 .manufacturedDate(lot.getManufacturedDate())
@@ -66,11 +66,6 @@ public class BarcodeLabelDto {
                 .remainingDays(lot.daysUntilExpiration(today))
                 .build();
     }
-
-    public boolean isLotLabel() {
-        return labelType == LabelType.LOT;
-    }
-
     public String getDDayLabel() {
         return DDay.label(remainingDays);
     }

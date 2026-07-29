@@ -1,5 +1,6 @@
 package com.feedflow.admin.service;
 
+import com.feedflow.domain.AnimalType;
 import com.feedflow.admin.dto.DailySalesRow;
 import com.feedflow.admin.dto.ExpiringLotDto;
 import com.feedflow.admin.dto.SafetyStockAlertDto;
@@ -294,7 +295,7 @@ class DashboardServiceTest {
                 .productId(1L)
                 .productCode(productCode)
                 .name("테스트 사료")
-                .animalType("소")
+                .animalType(AnimalType.CATTLE)
                 .weightKg(25)
                 .price(32000L)
                 .totalStock(totalStock)

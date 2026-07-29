@@ -31,6 +31,16 @@
             <div class="card-body">
                 <form th:action="@{/admin/bins}" method="get" class="row g-2 align-items-end">
                     <div class="col-6 col-md-3">
+                        <label for="warehouse" class="form-label">창고</label>
+                        <select id="warehouse" name="warehouse" class="form-select form-select-sm">
+                            <option value="">전체</option>
+                            <option th:each="wh : ${warehouses}" th:value="${wh}"
+                                    th:text="${wh.description}"
+                                    th:selected="${wh == selectedWarehouse}">제1창고</option>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-md-3">
                         <label for="zone" class="form-label">구역(Zone)</label>
                         <select id="zone" name="zone" class="form-select form-select-sm">
                             <option value="">전체</option>
@@ -78,17 +88,19 @@
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
                         <tr>
-                            <th style="width: 130px;">구역 코드</th>
-                            <th style="width: 200px;">위치</th>
-                            <th class="text-end" style="width: 130px;">최대 적재</th>
+                            <th style="width: 120px;">구역 코드</th>
+                            <th style="width: 210px;">위치</th>
+                            <th class="text-center" style="width: 95px;">용도</th>
+                            <th class="text-center" style="width: 110px;">도면 배치</th>
+                            <th class="text-end" style="width: 110px;">최대 적재</th>
                             <th>비고</th>
-                            <th class="text-center" style="width: 80px;">상태</th>
-                            <th class="text-end" style="width: 170px;">관리</th>
+                            <th class="text-center" style="width: 70px;">상태</th>
+                            <th class="text-end" style="width: 160px;">관리</th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr th:if="${#lists.isEmpty(bins)}">
-                            <td colspan="6" class="text-center text-muted py-4">
+                            <td colspan="8" class="text-center text-muted py-4">
                                 조회된 창고 구역이 없습니다.
                             </td>
                         </tr>
@@ -96,7 +108,13 @@
                         <tr th:each="bin : ${bins}"
                             th:classappend="${bin.active} ? '' : 'ff-row-inactive'">
                             <td><span class="ff-code" th:text="${bin.binCode}">A-01-01</span></td>
-                            <td th:text="${bin.locationLabel}">A구역 · 1랙 · 1단</td>
+                            <td class="small" th:text="${bin.locationLabel}">제1창고 · A구역 · 1랙 · 1단</td>
+                            <td class="text-center">
+                                <span class="badge" th:classappend="${bin.binPurpose.badgeClass}"
+                                      th:text="${bin.binPurpose.description}">보관</span>
+                            </td>
+                            <td class="text-center small text-muted"
+                                th:text="${bin.posX} + ',' + ${bin.posY} + ' (' + ${bin.posWidth} + '×' + ${bin.posHeight} + ')'">1,1 (2×2)</td>
                             <td class="text-end"
                                 th:text="${#numbers.formatInteger(bin.maxCapacity, 1, 'COMMA')} + ' 포대'">0 포대</td>
                             <td class="small text-muted" th:text="${bin.memo} ?: '-'">-</td>

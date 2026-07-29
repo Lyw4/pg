@@ -53,7 +53,7 @@ public record ScanResultDto(
                     product.getProductId(),
                     product.getProductCode(),
                     product.getName(),
-                    product.getAnimalType(),
+                    product.getAnimalType().getDescription(),
                     product.getWeightKg(),
                     product.getPrice(),
                     product.getTotalStock(),

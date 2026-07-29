@@ -1,5 +1,6 @@
 package com.feedflow.admin.service;
 
+import com.feedflow.domain.AnimalType;
 import com.feedflow.admin.dto.DisposalForm;
 import com.feedflow.admin.dto.DisposalResultDto;
 import com.feedflow.common.exception.BusinessRuleException;
@@ -197,7 +198,7 @@ class DisposalServiceTest {
                 .productId(3L)
                 .productCode("FD-CK-001")
                 .name("산란계 전용 배합사료")
-                .animalType("닭")
+                .animalType(AnimalType.POULTRY)
                 .weightKg(25)
                 .price(24000L)
                 .totalStock(totalStock)

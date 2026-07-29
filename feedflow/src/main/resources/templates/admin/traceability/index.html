@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/layout :: head('제품 이력 추적')}"></head>
+
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="ff-content">
+
+    <div th:replace="~{fragments/layout :: topbar('재고 관리', '제품 이력 추적')}"></div>
+
+    <main class="ff-main">
+
+        <!-- 검색 -->
+        <div class="card ff-card ff-filter-card mb-3">
+            <div class="card-body">
+                <form th:action="@{/admin/traceability}" method="get" class="row g-2 align-items-end">
+                    <div class="col-12 col-md-6">
+                        <label for="lotNo" class="form-label">로트번호</label>
+                        <input type="text" id="lotNo" name="lotNo" class="form-control"
+                               th:value="${lotNo}" autofocus
+                               placeholder="예: LOT-CT-2601 (대소문자 구분 없음)">
+                        <div class="form-text">
+                            로트번호로 해당 제품의 입고 · 보관 · 출고 · 출고취소 전 과정을 추적합니다.
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-3 d-flex gap-2">
+                        <button type="submit" class="btn btn-dark flex-grow-1">
+                            <i class="bi bi-search me-1"></i>추적
+                        </button>
+                        <a th:href="@{/admin/traceability}" class="btn btn-outline-secondary">초기화</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 오류 / 검색 결과 없음 -->
+        <div th:if="${errorMessage}" class="alert alert-warning" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+            <span th:text="${errorMessage}">검색 결과가 없습니다.</span>
+        </div>
+
+        <!-- 검색 안내 (첫 진입) -->
+        <div th:if="${trace == null and candidates == null and errorMessage == null}"
+             class="card ff-card">
+            <div class="card-body text-center text-muted py-5">
+                <i class="bi bi-diagram-2 fs-1 d-block mb-3"></i>
+                <p class="mb-1">추적할 <strong>로트번호</strong>를 입력하세요.</p>
+                <p class="small mb-0">
+                    재고 현황 · 입출고 이력 화면에서 로트번호를 확인할 수 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <!-- 후보가 여러 건 : 같은 로트번호를 쓰는 다른 품목이 있는 경우 -->
+        <div th:if="${candidates != null}" class="card ff-card">
+            <div class="card-header bg-white border-0 pt-3">
+                <span class="fw-bold"><i class="bi bi-list-ul me-1"></i>추적할 로트를 선택하세요</span>
+                <span class="text-muted small ms-2">
+                    같은 로트번호를 쓰는 품목이
+                    <span th:text="${#lists.size(candidates)}">0</span>건 있습니다
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <a th:each="c : ${candidates}"
+                       th:href="@{/admin/traceability(lotId=${c.lotId})}"
+                       class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <span>
+                            <span class="ff-code me-2" th:text="${c.productCode}">CODE</span>
+                            <span th:text="${c.productName}">품목명</span>
+                            <span class="badge bg-light text-dark border ms-1" th:text="${c.animalType}">소</span>
+                        </span>
+                        <span class="d-flex align-items-center gap-2">
+                            <span class="badge" th:classappend="${c.dDayBadgeClass}"
+                                  th:text="${c.dDayLabel}">D-30</span>
+                            <span class="small text-muted"
+                                  th:text="'잔여 ' + ${#numbers.formatInteger(c.lotQuantity, 1, 'COMMA')}">잔여 0</span>
+                            <i class="bi bi-chevron-right"></i>
+                        </span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 추적 결과 ================= -->
+        <div th:if="${trace != null}">
+
+            <!-- 로트 요약 -->
+            <div class="card ff-card mb-3">
+                <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <span class="fw-bold">
+                            <i class="bi bi-upc-scan me-1"></i>
+                            <span class="ff-code" th:text="${trace.lotNo}">LOT-CT-2601</span>
+                        </span>
+                        <span class="text-muted small ms-2" th:text="${trace.productCode}">CODE</span>
+                        <span class="ms-1" th:text="${trace.productName}">품목명</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-light text-dark border" th:text="${trace.animalType}">소</span>
+                        <span class="badge bg-light text-dark border" th:text="${trace.productType}">사료</span>
+                        <span class="badge" th:classappend="${trace.dDayBadgeClass}"
+                              th:text="${trace.dDayLabel}">D-30</span>
+                        <span th:if="${trace.depleted}" class="badge bg-secondary">재고 없음</span>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-2">
+                                <div class="text-muted small">제조일 / 유통기한</div>
+                                <div class="fw-semibold small">
+                                    <span th:text="${#temporals.format(trace.manufacturedDate, 'yyyy-MM-dd')}">-</span>
+                                    <i class="bi bi-arrow-right mx-1"></i>
+                                    <span th:text="${#temporals.format(trace.expirationDate, 'yyyy-MM-dd')}">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-2">
+                                <div class="text-muted small">누적 입고 (복구 포함)</div>
+                                <div class="fw-bold text-success"
+                                     th:text="'+' + ${#numbers.formatInteger(trace.totalInbound, 1, 'COMMA')}">+0</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-2">
+                                <div class="text-muted small">누적 출고 / 폐기</div>
+                                <div class="fw-bold text-danger">
+                                    <span th:text="'-' + ${#numbers.formatInteger(trace.totalOutbound, 1, 'COMMA')}">-0</span>
+                                    <span class="text-muted small" th:if="${trace.totalDisposed > 0}"
+                                          th:text="'(폐기 ' + ${trace.totalDisposed} + ')'">(폐기 0)</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-2">
+                                <div class="text-muted small">현재 잔여</div>
+                                <div class="fw-bold"
+                                     th:text="${#numbers.formatInteger(trace.lotQuantity, 1, 'COMMA')}">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 출고취소 발생 안내 -->
+                    <div th:if="${trace.hasCancellation}" class="alert alert-info py-2 small mt-3 mb-0">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>
+                        이 로트에는 출고 취소로 복구된 수량이 있습니다.
+                        (총 <strong th:text="${#numbers.formatInteger(trace.totalCanceled, 1, 'COMMA')}">0</strong>개)
+                    </div>
+
+                    <!-- 이력과 재고가 어긋난 경우 -->
+                    <div th:unless="${trace.balanceMatched}" class="alert alert-danger py-2 small mt-3 mb-0">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        이력을 누적한 수량(<strong th:text="${trace.calculatedBalance}">0</strong>)과
+                        로트 잔여 수량(<strong th:text="${trace.lotQuantity}">0</strong>)이 다릅니다.
+                        이력 없이 재고가 변경되었을 수 있습니다.
+                        <a th:href="@{/admin/inventory/sync}" class="alert-link">재고 정합성 점검</a>에서 확인하세요.
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <!-- 타임라인 -->
+                <div class="col-12 col-xl-7">
+                    <div class="card ff-card h-100">
+                        <div class="card-header bg-white border-0 pt-3">
+                            <span class="fw-bold"><i class="bi bi-clock-history me-1"></i>생애주기 타임라인</span>
+                            <span class="text-muted small ms-2">
+                                <span th:text="${trace.eventCount}">0</span>건 · 오래된 순
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <div th:unless="${trace.hasHistory}" class="text-center text-muted py-4">
+                                <i class="bi bi-inbox d-block fs-3 mb-2"></i>
+                                기록된 이동 이력이 없습니다.
+                            </div>
+
+                            <ul th:if="${trace.hasHistory}" class="ff-timeline">
+                                <li th:each="e : ${trace.timeline}" class="ff-timeline-item">
+                                    <span class="ff-timeline-dot" th:classappend="${e.markerClass}">
+                                        <i class="bi" th:classappend="${e.iconClass}"></i>
+                                    </span>
+
+                                    <div class="ff-timeline-body">
+                                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-1">
+                                            <span>
+                                                <span class="badge" th:classappend="${e.typeBadgeClass}"
+                                                      th:text="${e.typeLabel}">입고</span>
+                                                <span class="ff-timeline-time"
+                                                      th:text="${#temporals.format(e.occurredAt, 'yyyy-MM-dd HH:mm')}">-</span>
+                                            </span>
+                                            <span class="text-nowrap">
+                                                <span class="fw-bold" th:classappend="${e.quantityTextClass}"
+                                                      th:text="${e.signedQuantity}">+0</span>
+                                                <span class="text-muted small ms-1"
+                                                      th:text="'잔여 ' + ${#numbers.formatInteger(e.balanceAfter, 1, 'COMMA')}">잔여 0</span>
+                                            </span>
+                                        </div>
+
+                                        <div class="ff-timeline-meta">
+                                            <span th:if="${e.binCode != null}">
+                                                <i class="bi bi-geo-alt me-1"></i>
+                                                <span class="ff-code" th:text="${e.binCode}">A-01</span>
+                                                <span class="text-muted" th:text="${e.binLocation}">위치</span>
+                                            </span>
+                                            <span th:if="${e.linkedToOrder}">
+                                                <i class="bi bi-receipt ms-2 me-1"></i>
+                                                <a th:href="@{/admin/outbound/orders/{id}(id=${e.orderId})}"
+                                                   th:text="'주문 #' + ${e.orderId}">주문 #0</a>
+                                            </span>
+                                            <span th:if="${e.userName != null}">
+                                                <i class="bi bi-person ms-2 me-1"></i>
+                                                <span th:text="${e.userName}">처리자</span>
+                                            </span>
+                                        </div>
+
+                                        <div th:if="${e.memo != null}" class="ff-timeline-memo"
+                                             th:text="${e.memo}">비고</div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 현재 보관 위치 -->
+                <div class="col-12 col-xl-5">
+                    <div class="card ff-card h-100">
+                        <div class="card-header bg-white border-0 pt-3">
+                            <span class="fw-bold"><i class="bi bi-geo-alt me-1"></i>현재 보관 위치</span>
+                            <span class="text-muted small ms-2">
+                                <span th:text="${trace.storageBinCount}">0</span>개 구역
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <div th:if="${trace.depleted}" class="text-center text-muted py-4">
+                                <i class="bi bi-box2 d-block fs-3 mb-2"></i>
+                                남아 있는 재고가 없습니다.
+                                <div class="small mt-1">전량 출고 또는 폐기되었습니다.</div>
+                            </div>
+
+                            <div th:unless="${trace.depleted}" class="table-responsive">
+                                <table class="table table-sm table-hover align-middle mb-0">
+                                    <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 110px;">구역</th>
+                                        <th>위치</th>
+                                        <th class="text-end" style="width: 90px;">수량</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr th:each="inv : ${trace.currentStorage}">
+                                        <td><span class="ff-code" th:text="${inv.binCode}">A-01</span></td>
+                                        <td class="small text-muted" th:text="${inv.locationLabel}">위치</td>
+                                        <td class="text-end fw-semibold"
+                                            th:text="${#numbers.formatInteger(inv.quantity, 1, 'COMMA')}">0</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="mt-3 d-flex flex-wrap gap-2">
+                                <a th:href="@{/admin/inventory(productId=${trace.productId})}"
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-list-ul me-1"></i>이 품목 재고 현황
+                                </a>
+                                <a th:href="@{/admin/inventory/movements(productId=${trace.productId})}"
+                                   class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-clock-history me-1"></i>이 품목 전체 이력
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<div th:replace="~{fragments/layout :: scripts}"></div>
+
+</body>
+</html>
