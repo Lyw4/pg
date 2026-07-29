@@ -67,12 +67,12 @@
 | S2-2 | └ 시점별 잔여 수량 누적 (`MovementType.sign` 활용) | 완료 | `311a9a1` | `TraceEventDto` |
 | S2-3 | └ 이력–재고 불일치 경고 | 완료 | `311a9a1` | `TraceabilityDto` |
 | S2-4 | └ JSON API (타 화면 팝업용) | 완료 | `311a9a1` | `/api/admin/traceability/lots/{lotId}` |
-| S3 | **구역 간 재고 이동 (MOVE)** | 완료 | `PENDING_C3` | `/admin/inventory/move` |
-| S3-1 | └ 총 재고 불변 (위치만 변경) — `lotQuantity`·`totalStock` 미변경 | 완료 | `PENDING_C3` | `InventoryMoveService` |
-| S3-2 | └ 출발/도착 구역 검증 (같은 구역·수량 초과·사용중지·적재 한도) | 완료 | `PENDING_C3` | `WarehouseBin.canAccept()` 재사용 |
-| S3-3 | └ 이력에 출발지+도착지 기록 | 완료 | `PENDING_C3` | `StockMovement.fromBin` |
-| S3-4 | └ 2D 도면 모달에서 이동 화면 진입 | 완료 | `PENDING_C3` | `warehouse-map.js` |
-| S3-5 | └ 이력 추적 타임라인에 `A-01 → B-02` 표시 | 완료 | `PENDING_C3` | `TraceEventDto.isRelocation()` |
+| S3 | **구역 간 재고 이동 (MOVE)** | 완료 | `a48bb5e` | `/admin/inventory/move` |
+| S3-1 | └ 총 재고 불변 (위치만 변경) — `lotQuantity`·`totalStock` 미변경 | 완료 | `a48bb5e` | `InventoryMoveService` |
+| S3-2 | └ 출발/도착 구역 검증 (같은 구역·수량 초과·사용중지·적재 한도) | 완료 | `a48bb5e` | `WarehouseBin.canAccept()` 재사용 |
+| S3-3 | └ 이력에 출발지+도착지 기록 | 완료 | `a48bb5e` | `StockMovement.fromBin` |
+| S3-4 | └ 2D 도면 모달에서 이동 화면 진입 | 완료 | `a48bb5e` | `warehouse-map.js` |
+| S3-5 | └ 이력 추적 타임라인에 `A-01 → B-02` 표시 | 완료 | `a48bb5e` | `TraceEventDto.isRelocation()` |
 
 ## Could Have (선택)
 
