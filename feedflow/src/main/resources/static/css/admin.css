@@ -946,3 +946,113 @@ body {
         padding: 9px;
     }
 }
+
+
+/* ==================================================================
+ * 제품 이력 추적 - 수직 타임라인
+ *
+ * 왼쪽에 세로선을 두고 이벤트마다 점을 찍는다.
+ * 점 색으로 입고/출고/취소/폐기를 구분해 스크롤만으로 흐름이 읽히게 한다.
+ * ================================================================== */
+
+.ff-timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 .25rem;
+    position: relative;
+}
+
+/* 세로 연결선 */
+.ff-timeline::before {
+    content: '';
+    position: absolute;
+    left: 13px;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    background: #e9ecef;
+}
+
+.ff-timeline-item {
+    position: relative;
+    padding: 0 0 1.1rem 2.35rem;
+}
+
+.ff-timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+/* 이벤트 점 */
+.ff-timeline-dot {
+    position: absolute;
+    left: 0;
+    top: 1px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .78rem;
+    background: #fff;
+    border: 2px solid #ced4da;
+    color: #6c757d;
+    z-index: 1;
+}
+
+.ff-trace-dot-inbound {
+    border-color: #0d6efd;
+    color: #0d6efd;
+}
+
+.ff-trace-dot-outbound {
+    border-color: #cc9a06;
+    color: #997404;
+}
+
+.ff-trace-dot-cancel {
+    border-color: #212529;
+    color: #212529;
+}
+
+.ff-trace-dot-disposal {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.ff-trace-dot-etc {
+    border-color: #6c757d;
+    color: #6c757d;
+}
+
+/* 이벤트 본문 */
+.ff-timeline-body {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: .45rem;
+    padding: .5rem .65rem;
+}
+
+.ff-timeline-time {
+    font-size: .74rem;
+    color: #6c757d;
+    margin-left: .35rem;
+}
+
+.ff-timeline-meta {
+    font-size: .72rem;
+    color: #495057;
+    margin-top: .3rem;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .15rem;
+}
+
+.ff-timeline-memo {
+    font-size: .72rem;
+    color: #6c757d;
+    margin-top: .3rem;
+    padding-top: .3rem;
+    border-top: 1px dashed #e9ecef;
+}

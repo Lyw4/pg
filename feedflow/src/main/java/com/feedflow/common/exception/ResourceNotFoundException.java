@@ -20,4 +20,8 @@ public class ResourceNotFoundException extends RuntimeException {
     public static ResourceNotFoundException ofOrder(Long orderId) {
         return new ResourceNotFoundException("존재하지 않는 주문입니다. id=" + orderId);
     }
+
+    public static ResourceNotFoundException ofProductLot(Long lotId) {
+        return new ResourceNotFoundException("존재하지 않는 로트입니다. id=" + lotId);
+    }
 }

@@ -19,7 +19,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
         AdminWarehouseBinController.class,
         AdminInventoryController.class,
         AdminStockSyncController.class,
-        AdminOutboundController.class
+        AdminOutboundController.class,
+        AdminTraceabilityController.class
 })
 public class AdminViewExceptionHandler {
 

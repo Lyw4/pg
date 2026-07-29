@@ -58,6 +58,27 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     List<StockMovement> findByOrderIdAndType(@Param("orderId") Long orderId,
                                              @Param("movementType") MovementType movementType);
 
+    /**
+     * 특정 로트의 전체 이력 조회 (이력 추적 타임라인용).
+     * <p>
+     * 입고 · 출고 · 출고취소 · 폐기 · 조정을 유형 구분 없이 <b>시간순</b>으로 가져온다.
+     * 같은 시각에 여러 건이 기록될 수 있어({@code createdAt} 이 초 단위로 같을 수 있다)
+     * 발생 순서를 보장하기 위해 {@code movementId} 를 2차 정렬 기준으로 둔다.
+     * <p>
+     * 타임라인이 품목 · 로트 · 구역을 모두 표시하므로 {@code join fetch} 로 한 번에 읽는다.
+     * (건수만큼 쿼리가 반복되는 N+1 을 막는다)
+     */
+    @Query("""
+            select m
+            from StockMovement m
+            join fetch m.product p
+            join fetch m.lot l
+            left join fetch m.bin b
+            where l.lotId = :lotId
+            order by m.createdAt asc, m.movementId asc
+            """)
+    List<StockMovement> findLotHistory(@Param("lotId") Long lotId);
+
     long countByMovementTypeAndCreatedAtBetween(MovementType movementType,
                                                 LocalDateTime start,
                                                 LocalDateTime end);

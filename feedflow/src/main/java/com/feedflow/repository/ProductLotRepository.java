@@ -49,6 +49,20 @@ public interface ProductLotRepository extends JpaRepository<ProductLot, Long> {
             """)
     List<ProductLot> findAllByLotNo(@Param("lotNo") String lotNo);
 
+    /**
+     * 로트 1건 + 품목 조회 (이력 추적 화면용).
+     * <p>
+     * 로트 요약에 품목 코드 · 품목명이 필요하므로 {@code join fetch} 로 함께 가져온다.
+     * {@code findById} 를 쓰면 품목을 만질 때 쿼리가 한 번 더 나간다.
+     */
+    @Query("""
+            select l
+            from ProductLot l
+            join fetch l.product p
+            where l.lotId = :lotId
+            """)
+    Optional<ProductLot> findWithProductById(@Param("lotId") Long lotId);
+
     /** 전체 로트 (라벨 출력용) - 품목코드 → 유통기한 순 */
     @Query("""
             select l
