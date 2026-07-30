@@ -80,7 +80,8 @@ public class WarehouseMapService {
         WarehouseMapRow row = warehouseBinRepository.findWarehouseMapRowByBinId(binId)
                 .orElseThrow(() -> ResourceNotFoundException.ofWarehouseBin(binId));
 
-        List<InventoryDto> inventories = inventoryRepository.search(null, binId, null).stream()
+        // 구역을 지정했으므로 센터 조건은 불필요하다 (구역 하나는 센터 하나에 속한다)
+        List<InventoryDto> inventories = inventoryRepository.search(null, null, binId, null).stream()
                 .map(inventory -> InventoryDto.of(inventory, today))
                 .toList();
 

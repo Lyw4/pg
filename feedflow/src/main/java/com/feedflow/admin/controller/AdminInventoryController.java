@@ -60,22 +60,42 @@ public class AdminInventoryController {
      * 재고 현황
      * ------------------------------------------------------------------ */
 
+    /**
+     * 재고 현황 목록.
+     * <p>
+     * 요약 카드는 <b>전국 기준</b>으로 유지한다. 필터에 따라 카드까지 바뀌면 "전국에 재고가
+     * 얼마나 있는지" 를 볼 방법이 사라진다. 대신 필터가 적용된 목록의 합계는
+     * {@code search} 안에 함께 담아 목록 헤더에 표시한다.
+     *
+     * @param centerId 물류센터 (지정하지 않으면 전국 전체)
+     */
     @GetMapping
-    public String list(@RequestParam(name = "productId", required = false) Long productId,
+    public String list(@RequestParam(name = "centerId", required = false) Long centerId,
+                       @RequestParam(name = "productId", required = false) Long productId,
                        @RequestParam(name = "binId", required = false) Long binId,
                        @RequestParam(name = "zone", required = false) String zone,
                        Model model) {
 
-        model.addAttribute("inventories", inventoryService.getInventories(productId, binId, zone));
+        model.addAttribute("search", inventoryService.getInventories(centerId, productId, binId, zone));
+
+        // 센터별 분포는 목록 필터와 무관하게 집계한다 (다른 센터에도 재고가 있음을 알려야 한다)
+        model.addAttribute("centerStocks", inventoryService.getStockByCenter(productId));
+
         model.addAttribute("stockedLocationCount", inventoryService.getStockedLocationCount());
         model.addAttribute("totalStoredQuantity", inventoryService.getTotalStoredQuantity());
         model.addAttribute("todayInboundCount", inventoryService.getTodayInboundCount());
         model.addAttribute("todayInboundQuantity", inventoryService.getTodayInboundQuantity());
 
         model.addAttribute("products", productService.getActiveProducts());
-        model.addAttribute("bins", warehouseBinService.getActiveBins());
+        model.addAttribute("centers", warehouseBinService.getActiveCenters());
+        model.addAttribute("binsByCenter", warehouseBinService.getActiveBinsByCenter());
         model.addAttribute("zones", warehouseBinService.getZones());
 
+        // 센터와 구역을 모순되게 고르면 결과가 조용히 0건이 된다. 원인을 화면에서 알려준다.
+        model.addAttribute("binOutsideCenter",
+                warehouseBinService.isBinOutsideCenter(centerId, binId));
+
+        model.addAttribute("selectedCenterId", centerId);
         model.addAttribute("selectedProductId", productId);
         model.addAttribute("selectedBinId", binId);
         model.addAttribute("selectedZone", zone);

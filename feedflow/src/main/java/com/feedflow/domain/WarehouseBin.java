@@ -197,16 +197,14 @@ public class WarehouseBin {
     }
 
     /**
-     * 화면 표기용 위치 문자열 (예: 제1창고 · A구역 · 1랙 · 2단)
+     * 센터 안에서의 위치 문자열 (예: A구역 · 1랙 · 2단)
      * <p>
-     * 센터명을 포함하므로 {@code center} 가 초기화된 상태에서 호출해야 한다.
-     * 조회 쿼리에 {@code join fetch center} 가 없으면 구역 수만큼 추가 쿼리가 나간다.
+     * <b>센터명을 포함하지 않는다.</b> 화면이 센터를 이미 별도 컬럼이나 탭으로
+     * 보여주고 있을 때 센터명을 또 붙이면 같은 정보가 두 번 나온다.
+     * 센터명까지 필요하면 {@link #locationLabel()} 을 쓴다.
      */
-    public String locationLabel() {
+    public String zoneLabel() {
         StringBuilder sb = new StringBuilder();
-        if (center != null) {
-            sb.append(center.displayName()).append(" · ");
-        }
         sb.append(zone).append("구역");
         if (rack != null && !rack.isBlank()) {
             sb.append(" · ").append(rack).append("랙");
@@ -215,5 +213,30 @@ public class WarehouseBin {
             sb.append(" · ").append(binLevel).append("단");
         }
         return sb.toString();
+    }
+
+    /**
+     * 센터명까지 포함한 전체 위치 문자열 (예: 제1창고 · A구역 · 1랙 · 2단)
+     * <p>
+     * 센터명을 포함하므로 {@code center} 가 초기화된 상태에서 호출해야 한다.
+     * 조회 쿼리에 {@code join fetch center} 가 없으면 구역 수만큼 추가 쿼리가 나간다.
+     * <p>
+     * 센터가 화면의 다른 곳에 이미 표시되는 경우에는 {@link #zoneLabel()} 을 쓴다.
+     */
+    public String locationLabel() {
+        if (center == null) {
+            return zoneLabel();
+        }
+        return center.displayName() + " · " + zoneLabel();
+    }
+
+    /** 소속 센터명 (센터가 없으면 null — 신규 객체를 조립하는 중일 때만 발생한다) */
+    public String centerName() {
+        return center == null ? null : center.displayName();
+    }
+
+    /** 소속 센터 식별자 (센터가 없으면 null) */
+    public Long centerId() {
+        return center == null ? null : center.getCenterId();
     }
 }

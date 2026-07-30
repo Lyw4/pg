@@ -65,8 +65,13 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
      * 같은 시각에 여러 건이 기록될 수 있어({@code createdAt} 이 초 단위로 같을 수 있다)
      * 발생 순서를 보장하기 위해 {@code movementId} 를 2차 정렬 기준으로 둔다.
      * <p>
-     * 타임라인이 품목 · 로트 · 구역을 모두 표시하므로 {@code join fetch} 로 한 번에 읽는다.
-     * (건수만큼 쿼리가 반복되는 N+1 을 막는다)
+     * 타임라인이 품목 · 로트 · 구역 · <b>센터</b>를 모두 표시하므로 {@code join fetch} 로
+     * 한 번에 읽는다. (건수만큼 쿼리가 반복되는 N+1 을 막는다)
+     * <p>
+     * 구역의 센터까지 함께 읽어야 한다. 구역은 {@code left join} 이므로
+     * <b>센터도 반드시 {@code left join} 이어야 한다.</b> {@code join fetch b.center} 로 쓰면
+     * Hibernate 가 inner join 을 만들어 <b>구역이 없는 이력(출고 · 취소)이 타임라인에서
+     * 통째로 사라진다.</b>
      */
     @Query("""
             select m
@@ -74,7 +79,9 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
             join fetch m.product p
             join fetch m.lot l
             left join fetch m.bin b
+            left join fetch b.center bc
             left join fetch m.fromBin fb
+            left join fetch fb.center fbc
             where l.lotId = :lotId
             order by m.createdAt asc, m.movementId asc
             """)

@@ -225,6 +225,58 @@ class WarehouseBinServiceTest {
     }
 
     /* ------------------------------------------------------------------
+     * 센터 · 구역 조건 모순 판정 (재고 현황 검색)
+     * ------------------------------------------------------------------ */
+
+    @Nested
+    @DisplayName("센터와 구역 조건의 모순 판정")
+    class BinCenterConsistency {
+
+        /**
+         * 검색 화면은 센터와 구역을 독립된 select 두 개로 받는다.
+         * 모순된 조합을 고르면 결과가 조용히 0건이 되어, 재고가 없는 것인지
+         * 조건이 잘못된 것인지 구분할 수 없다.
+         */
+        @Test
+        @DisplayName("선택한 구역이 다른 센터에 속하면 모순으로 판정한다")
+        void detectsMismatch() {
+            given(warehouseBinRepository.findWithCenterById(3L))
+                    .willReturn(Optional.of(bin(3L, "COLD-01", CENTER_2)));
+
+            assertThat(warehouseBinService.isBinOutsideCenter(CENTER_1.getCenterId(), 3L))
+                    .as("제1창고를 골랐는데 제2창고의 구역을 골랐다")
+                    .isTrue();
+        }
+
+        @Test
+        @DisplayName("선택한 구역이 선택한 센터에 속하면 모순이 아니다")
+        void sameCenter_isConsistent() {
+            given(warehouseBinRepository.findWithCenterById(1L))
+                    .willReturn(Optional.of(bin(1L, "A-01", CENTER_1)));
+
+            assertThat(warehouseBinService.isBinOutsideCenter(CENTER_1.getCenterId(), 1L)).isFalse();
+        }
+
+        @Test
+        @DisplayName("센터나 구역 중 하나라도 선택하지 않으면 모순이 아니며 조회하지 않는다")
+        void missingCondition_noQuery() {
+            assertThat(warehouseBinService.isBinOutsideCenter(null, 1L)).isFalse();
+            assertThat(warehouseBinService.isBinOutsideCenter(CENTER_1.getCenterId(), null)).isFalse();
+            assertThat(warehouseBinService.isBinOutsideCenter(null, null)).isFalse();
+
+            verify(warehouseBinRepository, never()).findWithCenterById(any());
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 구역이면 모순으로 보지 않는다 (검색 결과가 비는 것으로 충분하다)")
+        void unknownBin_notMismatch() {
+            given(warehouseBinRepository.findWithCenterById(999L)).willReturn(Optional.empty());
+
+            assertThat(warehouseBinService.isBinOutsideCenter(CENTER_1.getCenterId(), 999L)).isFalse();
+        }
+    }
+
+    /* ------------------------------------------------------------------
      * 픽스처
      * ------------------------------------------------------------------ */
 

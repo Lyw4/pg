@@ -98,6 +98,31 @@ public class WarehouseBinService {
         return warehouseBinRepository.countByActive(true);
     }
 
+    /**
+     * 선택한 구역이 선택한 센터 밖에 있는지 판정한다.
+     * <p>
+     * 검색 화면은 센터와 구역을 <b>독립된 select 두 개</b>로 받는다. 구역 목록은 전국을
+     * 보여주므로 "제1창고 + 제2창고의 COLD-01" 처럼 서로 모순되는 조합을 고를 수 있고,
+     * 그러면 조건을 만족하는 재고가 없어 결과가 조용히 0건이 된다.
+     * <p>
+     * 0건 화면만 보면 <b>재고가 없는 것인지 조건이 잘못된 것인지 구분할 수 없다.</b>
+     * 화면에서 원인을 안내할 수 있도록 이 판정을 제공한다.
+     * <p>
+     * 구역 select 을 센터에 따라 좁히는 방식(JS)을 쓰지 않은 이유는, 그러면 URL 로 직접
+     * 들어온 요청이나 북마크한 조건에서는 여전히 모순이 발생하는데 안내가 없기 때문이다.
+     * 서버가 판정하면 어느 경로로 들어와도 같은 안내가 나간다.
+     *
+     * @return 센터와 구역을 모두 선택했고 그 구역이 다른 센터에 속할 때만 true
+     */
+    public boolean isBinOutsideCenter(Long centerId, Long binId) {
+        if (centerId == null || binId == null) {
+            return false;
+        }
+        return warehouseBinRepository.findWithCenterById(binId)
+                .map(bin -> !centerId.equals(bin.centerId()))
+                .orElse(false);
+    }
+
     /* ------------------------------------------------------------------
      * 등록 / 수정
      * ------------------------------------------------------------------ */

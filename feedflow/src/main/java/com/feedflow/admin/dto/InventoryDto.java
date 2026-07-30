@@ -38,17 +38,37 @@ public class InventoryDto {
     private final long remainingDays;
     private final boolean expired;
 
+    /* 물류센터 */
+    private final Long centerId;
+    private final String centerName;
+
     /* 구역 */
     private final Long binId;
     private final String binCode;
+
+    /**
+     * 센터명까지 포함한 전체 위치 (예: 제1창고 · A구역 · 1랙 · 2단).
+     * <p>
+     * 센터를 별도 컬럼으로 보여주지 않는 화면(바코드 스캔 결과 등)에서 쓴다.
+     */
     private final String locationLabel;
+
+    /**
+     * 센터 안에서의 위치만 (예: A구역 · 1랙 · 2단).
+     * <p>
+     * 재고 현황 목록처럼 <b>센터를 이미 별도 컬럼으로 보여주는</b> 화면에서 쓴다.
+     * 여기서 {@link #locationLabel} 을 쓰면 센터명이 한 행에 두 번 나온다.
+     */
+    private final String binLocationLabel;
 
     /* 수량 */
     private final Integer quantity;
     private final LocalDateTime updatedAt;
 
     /**
-     * @param inventory fetch join 으로 lot / product / bin 이 초기화된 상태여야 한다.
+     * @param inventory fetch join 으로 lot / product / bin / <b>bin.center</b> 가
+     *                  초기화된 상태여야 한다. 센터가 지연 로딩으로 남아 있으면
+     *                  변환하는 행마다 센터 조회 쿼리가 한 번씩 더 나간다.
      * @param today     D-Day 계산 기준일
      */
     public static InventoryDto of(Inventory inventory, LocalDate today) {
@@ -68,9 +88,12 @@ public class InventoryDto {
                 .expirationDate(lot.getExpirationDate())
                 .remainingDays(lot.daysUntilExpiration(today))
                 .expired(lot.isExpired(today))
+                .centerId(bin.centerId())
+                .centerName(bin.centerName())
                 .binId(bin.getBinId())
                 .binCode(bin.getBinCode())
                 .locationLabel(bin.locationLabel())
+                .binLocationLabel(bin.zoneLabel())
                 .quantity(inventory.getQuantity())
                 .updatedAt(inventory.getUpdatedAt())
                 .build();

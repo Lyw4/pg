@@ -70,7 +70,9 @@ public class BarcodeScanService {
 
         // 2) 품목코드 조회
         Product product = findProductByCode(code);
-        List<Inventory> inventories = inventoryRepository.search(product.getProductId(), null, null);
+        // 스캔은 전국 재고를 보여준다. 창고 담당자가 어느 센터에 있든 "이 품목이 어디에
+        // 얼마나 있는지" 를 알아야 하므로 센터로 좁히지 않는다.
+        List<Inventory> inventories = inventoryRepository.search(null, product.getProductId(), null, null);
         return ScanResultDto.ofProduct(product, inventories, today);
     }
 
