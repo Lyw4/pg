@@ -1,11 +1,14 @@
 package com.feedflow.admin.service;
 
+import com.feedflow.admin.dto.WarehouseBinDto;
 import com.feedflow.admin.dto.WarehouseBinForm;
 import com.feedflow.common.exception.DuplicateCodeException;
 import com.feedflow.common.exception.ResourceNotFoundException;
+import com.feedflow.domain.Warehouse;
 import com.feedflow.domain.WarehouseBin;
 import com.feedflow.repository.WarehouseBinRepository;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -13,6 +16,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -120,6 +125,73 @@ class WarehouseBinServiceTest {
     }
 
     /* ------------------------------------------------------------------
+     * 구역 선택 목록 (입고 · 이동 화면의 select)
+     * ------------------------------------------------------------------ */
+
+    @Nested
+    @DisplayName("구역 선택 목록")
+    class ActiveBinList {
+
+        /**
+         * 실제로 있었던 버그: 구역 코드만으로 정렬해 창고가 뒤섞였다.
+         * 제2창고의 COLD-01 이 알파벳 순서상 제1창고의 C-02 와 D-01 사이에 끼어들어
+         * 선택 목록이 "제1창고 C → 제2창고 COLD → 제1창고 D" 순으로 나왔다.
+         */
+        @Test
+        @DisplayName("Repository 가 정렬한 순서(창고 → 구역코드)를 변환 과정에서 흐트러뜨리지 않는다")
+        void preservesRepositoryOrder() {
+            given(warehouseBinRepository.findByActiveTrueOrderByWarehouseAscBinCodeAsc())
+                    .willReturn(List.of(
+                            bin(1L, "C-02", Warehouse.WH1),
+                            bin(2L, "D-01", Warehouse.WH1),
+                            bin(3L, "COLD-01", Warehouse.WH2),
+                            bin(4L, "N-01", Warehouse.WH2)));
+
+            List<WarehouseBinDto> bins = warehouseBinService.getActiveBins();
+
+            assertThat(bins)
+                    .extracting(WarehouseBinDto::getBinCode)
+                    .as("제1창고가 모두 먼저 오고 그다음 제2창고여야 한다")
+                    .containsExactly("C-02", "D-01", "COLD-01", "N-01");
+        }
+
+        @Test
+        @DisplayName("창고별로 묶고 창고 순서를 유지한다")
+        void groupsByWarehouseKeepingOrder() {
+            given(warehouseBinRepository.findByActiveTrueOrderByWarehouseAscBinCodeAsc())
+                    .willReturn(List.of(
+                            bin(1L, "A-01", Warehouse.WH1),
+                            bin(2L, "B-01", Warehouse.WH1),
+                            bin(3L, "COLD-01", Warehouse.WH2)));
+
+            Map<Warehouse, List<WarehouseBinDto>> grouped =
+                    warehouseBinService.getActiveBinsByWarehouse();
+
+            // HashMap 으로 모으면 키 순서가 보장되지 않아 화면에서 제2창고가 먼저 나올 수 있다
+            assertThat(grouped.keySet())
+                    .as("optgroup 순서가 뒤바뀌지 않도록 삽입 순서를 유지해야 한다")
+                    .containsExactly(Warehouse.WH1, Warehouse.WH2);
+
+            assertThat(grouped.get(Warehouse.WH1))
+                    .extracting(WarehouseBinDto::getBinCode)
+                    .containsExactly("A-01", "B-01");
+            assertThat(grouped.get(Warehouse.WH2))
+                    .extracting(WarehouseBinDto::getBinCode)
+                    .containsExactly("COLD-01");
+        }
+
+        @Test
+        @DisplayName("사용 중인 구역이 없으면 빈 목록을 돌려준다")
+        void emptyWhenNoActiveBins() {
+            given(warehouseBinRepository.findByActiveTrueOrderByWarehouseAscBinCodeAsc())
+                    .willReturn(List.of());
+
+            assertThat(warehouseBinService.getActiveBins()).isEmpty();
+            assertThat(warehouseBinService.getActiveBinsByWarehouse()).isEmpty();
+        }
+    }
+
+    /* ------------------------------------------------------------------
      * 픽스처
      * ------------------------------------------------------------------ */
 
@@ -139,6 +211,20 @@ class WarehouseBinServiceTest {
                 .binId(binId)
                 .binCode(binCode)
                 .zone("A")
+                .rack("01")
+                .binLevel(1)
+                .maxCapacity(500)
+                .active(true)
+                .build();
+    }
+
+    /** 창고를 지정하는 픽스처 (선택 목록 정렬 · 그룹핑 검증용) */
+    private WarehouseBin bin(Long binId, String binCode, Warehouse warehouse) {
+        return WarehouseBin.builder()
+                .binId(binId)
+                .binCode(binCode)
+                .warehouse(warehouse)
+                .zone(binCode.split("-")[0])
                 .rack("01")
                 .binLevel(1)
                 .maxCapacity(500)

@@ -42,7 +42,16 @@ public interface WarehouseBinRepository extends JpaRepository<WarehouseBin, Long
     List<String> findDistinctZones();
 
     /** 입고 등 업무 화면의 선택 목록용 (사용 중인 구역만) */
-    List<WarehouseBin> findByActiveTrueOrderByBinCodeAsc();
+    /**
+     * 사용 중인 구역 목록 - <b>창고 순 → 구역 코드 순</b>.
+     * <p>
+     * 구역 코드만으로 정렬하면 창고가 뒤섞인다. 제2창고의 {@code COLD-01} 이
+     * 알파벳 순서상 제1창고의 {@code C-02} 와 {@code D-01} 사이에 끼어들기 때문이다.
+     * 선택 목록에서 창고가 섞이면 다른 건물의 구역을 잘못 고를 수 있다.
+     * <p>
+     * {@code warehouse} 는 {@code EnumType.STRING} 이라 'WH1' &lt; 'WH2' 로 정렬된다.
+     */
+    List<WarehouseBin> findByActiveTrueOrderByWarehouseAscBinCodeAsc();
 
     /** 사용 중인 구역 수 */
     long countByActive(boolean active);
