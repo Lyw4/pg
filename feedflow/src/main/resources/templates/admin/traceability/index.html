@@ -260,6 +260,11 @@
                                                       th:text="${e.signedQuantity}">+0</span>
                                                 <!-- 이동은 총량이 변하지 않으므로 증감이 아니라 '이동' 임을 명시한다 -->
                                                 <span th:if="${e.relocation}" class="text-muted small ms-1">이동</span>
+                                                <!--
+                                                    이관은 두 건의 합이 0 이다. 한 건만 보면 증감이 있는 것처럼
+                                                    보이지만 짝이 맞춰지면 잔여 수량은 원래대로 돌아온다.
+                                                -->
+                                                <span th:if="${e.transferLeg}" class="text-muted small ms-1">이관</span>
                                                 <span class="text-muted small ms-1"
                                                       th:text="'잔여 ' + ${#numbers.formatInteger(e.balanceAfter, 1, 'COMMA')}">잔여 0</span>
                                             </span>
@@ -297,8 +302,40 @@
                                                 <span class="ff-code ms-1" th:text="${e.binCode}">N-01</span>
                                             </span>
 
-                                            <!-- 이동이 아닌 이벤트(입고 · 출고 · 폐기): 센터 + 구역 -->
-                                            <span th:if="${!e.relocation and e.binCode != null}">
+                                            <!--
+                                                정상적으로 기록된 센터 간 이관 (TRANSFER_OUT / TRANSFER_IN).
+                                                출발 센터 -> 운송 중 -> 도착 센터의 어느 구간인지 보여준다.
+                                                위의 '센터 간 이동' 경고와 달리 이쪽은 올바른 이력이다.
+                                            -->
+                                            <!--
+                                                이관 출고 구간: 재고가 실제로 빠져나간 곳은 출발 구역이다.
+                                                도착지는 운송 중 가상 구역이므로 코드를 그대로 보여주면
+                                                같은 센터가 두 번 나와 어색하다. 경유지는 작게 덧붙인다.
+                                            -->
+                                            <span th:if="${e.transferOut}">
+                                                <span class="badge bg-dark me-1">
+                                                    <i class="bi bi-truck me-1"></i>이관 출고
+                                                </span>
+                                                <span class="badge ff-trace-center"
+                                                      th:text="${e.fromCenterName}">제1창고</span>
+                                                <span class="ff-code ms-1" th:text="${e.fromBinCode}">A-01</span>
+                                                <span class="text-muted ms-1">에서 출고 · 운송 시작</span>
+                                            </span>
+
+                                            <!-- 이관 입고 구간: 재고가 실제로 들어온 곳은 도착 구역이다 -->
+                                            <span th:if="${e.transferIn}">
+                                                <span class="badge bg-dark me-1">
+                                                    <i class="bi bi-box-arrow-in-right me-1"></i>이관 입고
+                                                </span>
+                                                <span class="badge ff-trace-center"
+                                                      th:text="${e.centerName}">제2창고</span>
+                                                <span class="ff-code ms-1" th:text="${e.binCode}">N-05</span>
+                                                <span class="text-muted ms-1"
+                                                      th:text="'로 입고 (' + ${e.binLocation} + ')'">로 입고</span>
+                                            </span>
+
+                                            <!-- 이동/이관이 아닌 이벤트(입고 · 출고 · 폐기): 센터 + 구역 -->
+                                            <span th:if="${!e.relocation and !e.transferLeg and e.binCode != null}">
                                                 <span class="badge ff-trace-center me-1"
                                                       th:if="${e.centerKnown}"
                                                       th:text="${e.centerName}">제1창고</span>
@@ -310,7 +347,7 @@
                                                 구역이 없는 이력. 출고는 로트에서 차감만 하고 구역을 기록하지 않는
                                                 경로가 있어 센터를 알 수 없다. 빈칸으로 두면 누락처럼 보이므로 명시한다.
                                             -->
-                                            <span th:if="${e.binCode == null}" class="text-muted">
+                                            <span th:if="${e.binCode == null and !e.transferLeg}" class="text-muted">
                                                 <i class="bi bi-dash-circle me-1"></i>구역 미지정
                                             </span>
                                             <span th:if="${e.linkedToOrder}">

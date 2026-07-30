@@ -4,6 +4,7 @@ import com.feedflow.common.util.Texts;
 import com.feedflow.admin.dto.CenterStockDto;
 import com.feedflow.admin.dto.DisposalForm;
 import com.feedflow.admin.dto.DisposalResultDto;
+import com.feedflow.admin.dto.InTransitStockDto;
 import com.feedflow.admin.dto.InboundForm;
 import com.feedflow.admin.dto.InboundResultDto;
 import com.feedflow.admin.dto.InventoryDto;
@@ -287,6 +288,20 @@ public class InventoryService {
      */
     public List<CenterStockDto> getStockByCenter(Long productId) {
         return CenterStockDto.listOf(inventoryRepository.findStockByCenter(productId));
+    }
+
+    /**
+     * 운송 중 가상 구역에 갇혀 있는 재고.
+     * <p>
+     * 센터 간 이관은 한 트랜잭션에서 출발·도착을 모두 처리하므로 <b>평상시 빈 목록</b>이다.
+     * 비어 있지 않으면 이관 트랜잭션이 중간에 깨졌다는 뜻이다.
+     * <p>
+     * 이 재고는 3계층 불변식을 깨뜨리지 않는다({@code Inventory} 에 정상적으로 들어 있다).
+     * 문제는 <b>어느 센터에서도 팔 수 없는 상태로 갇혀 있다</b>는 점이므로,
+     * 장부 불일치와는 별도 항목으로 보여준다.
+     */
+    public List<InTransitStockDto> getInTransitStock() {
+        return InTransitStockDto.listOf(warehouseBinRepository.findInTransitStock());
     }
 
     /** 입·출고 이력 */

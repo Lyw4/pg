@@ -1076,3 +1076,16 @@ body {
     border: 1px solid #dce3ec;
     font-weight: 500;
 }
+
+/*
+ * 센터 간 이관 타임라인 점.
+ *
+ * 구역 이동(ff-trace-dot-move)과 구분해야 한다. 구역 이동은 창고 안에서 위치만
+ * 바뀌는 일상 작업이고, 센터 간 이관은 재고가 건물을 떠나는 사건이다.
+ * 짙은 색으로 타임라인에서 눈에 걸리게 한다.
+ */
+.ff-trace-dot-transfer {
+    border-color: #212529;
+    color: #212529;
+    background-color: #e9ecef;
+}

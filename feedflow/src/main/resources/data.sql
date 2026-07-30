@@ -215,7 +215,17 @@ INSERT INTO warehouseBins (binId, binCode, centerId, zone, binPurpose, rack, bin
 (37, 'COLD-03', 2, 'COLD', 'STORAGE', '06', 1, 150, 21,  5, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -100, CURRENT_TIMESTAMP)),
 (38, 'COLD-04', 2, 'COLD', 'STORAGE', '06', 2, 150, 24,  5, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -100, CURRENT_TIMESTAMP)),
 (39, 'COLD-05', 2, 'COLD', 'STORAGE', '07', 1, 150, 21,  9, 3, 3, FALSE, '냉각기 교체 중 사용 중지', DATEADD('DAY', -100, CURRENT_TIMESTAMP)),
-(40, 'COLD-06', 2, 'COLD', 'STORAGE', '07', 2, 150, 24,  9, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -100, CURRENT_TIMESTAMP));
+(40, 'COLD-06', 2, 'COLD', 'STORAGE', '07', 2, 150, 24,  9, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -100, CURRENT_TIMESTAMP)),
+
+-- 운송 중(IN_TRANSIT) 가상 구역 - 센터당 1개
+--    센터 간 이관 중인 재고가 머무는 자리다. 이 자리가 없으면 이관 도중 재고가
+--    어디에도 속하지 않아 3계층 불변식이 깨진다.
+--    출발 센터 소속이다 (운송 중 재고는 아직 출발 센터의 책임 아래 있다).
+--    물리적 공간이 아니므로 적재 한도(maxCapacity 0)는 검증하지 않고 2D 도면에도 그리지 않는다.
+--    좌표는 컬럼이 NOT NULL 이라 값만 채운다. 없으면 이관 시점에 자동 생성되지만,
+--    시드로 두면 첫 이관 전에도 구조를 확인할 수 있다.
+(41, 'TRANSIT-WH1', 1, 'TRANSIT', 'IN_TRANSIT', NULL, NULL, 0, 1, 1, 1, 1, TRUE, '센터 간 이관 중인 재고가 머무는 가상 구역 (시스템 자동 생성)', DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
+(42, 'TRANSIT-WH2', 2, 'TRANSIT', 'IN_TRANSIT', NULL, NULL, 0, 1, 1, 1, 1, TRUE, '센터 간 이관 중인 재고가 머무는 가상 구역 (시스템 자동 생성)', DATEADD('DAY', -120, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
 -- 7. 재고 (로트 × 구역) 16건
@@ -332,6 +342,6 @@ ALTER TABLE products ALTER COLUMN productId RESTART WITH 14;
 ALTER TABLE productLots ALTER COLUMN lotId RESTART WITH 35;
 ALTER TABLE orders ALTER COLUMN orderId RESTART WITH 16;
 ALTER TABLE orderItems ALTER COLUMN orderItemId RESTART WITH 17;
-ALTER TABLE warehouseBins ALTER COLUMN binId RESTART WITH 41;
+ALTER TABLE warehouseBins ALTER COLUMN binId RESTART WITH 43;
 ALTER TABLE inventories ALTER COLUMN inventoryId RESTART WITH 37;
 ALTER TABLE stockMovements ALTER COLUMN movementId RESTART WITH 38;

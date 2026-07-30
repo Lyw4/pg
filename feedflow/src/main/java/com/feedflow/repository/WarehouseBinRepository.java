@@ -1,5 +1,6 @@
 package com.feedflow.repository;
 
+import com.feedflow.admin.dto.InTransitStockRow;
 import com.feedflow.admin.dto.WarehouseMapRow;
 import com.feedflow.domain.WarehouseBin;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -52,15 +53,55 @@ public interface WarehouseBinRepository extends JpaRepository<WarehouseBin, Long
      * 선택 목록에서 센터가 섞이면 다른 센터의 구역을 잘못 고를 수 있다.
      * <p>
      * 옵션 라벨에 센터명이 들어가므로 {@code join fetch} 로 센터를 함께 읽는다.
+     * <p>
+     * <b>운송 중 가상 구역은 제외한다.</b> 실재하는 바닥이 아니므로 사용자가 이동
+     * 도착지로 고를 수 있으면 안 된다. 재고를 그곳에 넣는 것은 이관 로직의 권한이다.
      */
     @Query("""
             select b
             from WarehouseBin b
                 join fetch b.center c
             where b.active = true
+              and b.binPurpose <> com.feedflow.domain.BinPurpose.IN_TRANSIT
             order by c.centerCode asc, b.binCode asc
             """)
     List<WarehouseBin> findActiveBinsForSelection();
+
+    /**
+     * 센터의 운송 중(IN_TRANSIT) 가상 구역.
+     * <p>
+     * 센터 간 이관에서 재고가 잠시 머무는 자리다. 센터당 하나만 존재한다.
+     * 없으면 이관 시점에 자동으로 만든다 — 센터는 운영 중에 늘어나므로
+     * 센터를 만들 때마다 사람이 가상 구역을 만들게 하면 빠뜨린다.
+     */
+    @Query("""
+            select b
+            from WarehouseBin b
+                join fetch b.center c
+            where c.centerId = :centerId
+              and b.binPurpose = com.feedflow.domain.BinPurpose.IN_TRANSIT
+            """)
+    Optional<WarehouseBin> findInTransitBin(@Param("centerId") Long centerId);
+
+    /**
+     * 운송 중 구역에 남아 있는 재고 (정합성 점검용).
+     * <p>
+     * 이관은 한 트랜잭션에서 출발·도착을 모두 처리하므로 <b>평상시 잔량은 0</b> 이다.
+     * 0 이 아니면 트랜잭션이 중간에 깨졌거나 도착 처리가 누락된 것이다.
+     * 가상 구역을 관찰할 수 없으면 이런 이상을 알아챌 방법이 없다.
+     */
+    @Query("""
+            select new com.feedflow.admin.dto.InTransitStockRow(
+                       c.centerId, c.name, b.binCode, sum(i.quantity), count(i))
+            from Inventory i
+                join i.bin b
+                join b.center c
+            where b.binPurpose = com.feedflow.domain.BinPurpose.IN_TRANSIT
+              and i.quantity > 0
+            group by c.centerId, c.name, c.centerCode, b.binCode
+            order by c.centerCode asc
+            """)
+    List<InTransitStockRow> findInTransitStock();
 
     /**
      * 구역 1건 + 센터 (센터명을 표시하는 단건 조회용).
@@ -100,6 +141,9 @@ public interface WarehouseBinRepository extends JpaRepository<WarehouseBin, Long
      * <p>
      * 도면은 센터 단위로 그리므로 <b>행마다 센터 정보를 담지 않는다.</b>
      * 어느 센터의 도면인지는 호출한 쪽이 이미 알고 있다.
+     * <p>
+     * <b>물리적 공간이 아닌 구역(운송 중)은 제외한다.</b> 좌표 컬럼이 {@code NOT NULL} 이라
+     * 값은 들어가 있지만, 도면에 그리면 창고에 실재하지 않는 칸이 나타난다.
      *
      * @param centerId 조회할 센터 (null 이면 전체 센터)
      */
@@ -126,6 +170,7 @@ public interface WarehouseBinRepository extends JpaRepository<WarehouseBin, Long
                 left join i.lot l
                 left join l.product p
             where (:centerId is null or b.center.centerId = :centerId)
+              and b.binPurpose <> com.feedflow.domain.BinPurpose.IN_TRANSIT
             group by b.binId, b.binCode, b.zone, b.binPurpose,
                      b.rack, b.binLevel, b.maxCapacity, b.active,
                      b.posX, b.posY, b.posWidth, b.posHeight

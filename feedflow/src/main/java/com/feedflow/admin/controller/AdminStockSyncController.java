@@ -1,7 +1,9 @@
 package com.feedflow.admin.controller;
 
+import com.feedflow.admin.dto.InTransitStockDto;
 import com.feedflow.admin.dto.StockSyncResultDto;
 import com.feedflow.admin.dto.StockSyncSummaryDto;
+import com.feedflow.admin.service.InventoryService;
 import com.feedflow.admin.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -41,6 +43,7 @@ public class AdminStockSyncController {
     private static final String REDIRECT_SYNC = "redirect:/admin/inventory/sync";
 
     private final ProductService productService;
+    private final InventoryService inventoryService;
 
     /** GNB 활성화용 (재고 관리 > 재고 정합성 점검) */
     @ModelAttribute("menu")
@@ -67,6 +70,14 @@ public class AdminStockSyncController {
 
         model.addAttribute("rows", rows);
         model.addAttribute("summary", StockSyncSummaryDto.of(rows));
+
+        // 운송 중 구역에 갇힌 재고. 평상시 비어 있어야 한다.
+        // 이 구역은 도면·선택 목록에서 모두 감춰지므로, 어딘가에서 관찰할 수 있어야
+        // 이관이 중간에 깨진 것을 알아챌 수 있다.
+        List<InTransitStockDto> inTransit = inventoryService.getInTransitStock();
+        model.addAttribute("inTransitRows", inTransit);
+        model.addAttribute("inTransitTotal", InTransitStockDto.totalQuantityOf(inTransit));
+
         return SYNC_VIEW;
     }
 

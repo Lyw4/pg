@@ -6,6 +6,8 @@ import com.feedflow.admin.dto.StockMoveResultDto;
 import com.feedflow.common.exception.BusinessRuleException;
 import com.feedflow.common.exception.ResourceNotFoundException;
 import com.feedflow.common.util.Numbers;
+import com.feedflow.common.util.Texts;
+import com.feedflow.domain.Center;
 import com.feedflow.domain.Inventory;
 import com.feedflow.domain.Product;
 import com.feedflow.domain.ProductLot;
@@ -22,7 +24,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * 구역 간 재고 이동(MOVE) 서비스.
+ * 재고 위치 이동 서비스 — 구역 간 이동(MOVE)과 센터 간 이관(TRANSFER).
  *
  * <h3>다른 재고 변동과 결정적으로 다른 점</h3>
  * 입고 · 출고 · 폐기는 창고 <b>전체 재고량</b>이 바뀌지만, 이동은 <b>위치만</b> 바뀐다.
@@ -36,6 +38,22 @@ import java.util.List;
  *   도착 구역 재고  +수량   (행이 없으면 새로 만든다)
  *   합계는 언제나 그대로
  * </pre>
+ *
+ * <h3>같은 센터인가 다른 센터인가</h3>
+ * 사용자에게는 이동 화면이 하나뿐이다. 도착 구역이 다른 센터면 서비스가 <b>이관</b>으로
+ * 처리한다. 재고를 옮기는 절차는 같지만 <b>남기는 이력이 다르다.</b>
+ * <pre>
+ *   같은 센터 : MOVE 1건                        (sign 0, 총량 불변)
+ *   다른 센터 : TRANSFER_OUT + TRANSFER_IN 2건   (-1 / +1, 두 건의 합이 0)
+ * </pre>
+ * {@code MOVE} 하나로 센터를 넘으면 "제1창고에서 나갔다" 와 "제2창고에 들어왔다" 를
+ * 구분할 수 없다. 센터별 입출고 실적을 집계할 수 없고, 운송 중 상태를 표현할 자리도 없다.
+ *
+ * <h3>3계층 불변식</h3>
+ * 이관도 {@code Inventory} 두 행의 합을 바꾸지 않으므로
+ * {@code totalStock} = Σ{@code lotQuantity} = Σ{@code Inventory.quantity} 가 유지된다.
+ * 운송 중 재고를 {@code Inventory} 밖에 두는 방식(전표 테이블만 사용)을 택하지 않은
+ * 이유가 이것이다. 그 방식은 운송 중에 이 불변식이 깨져 재고 정합성 점검이 오탐한다.
  *
  * <h3>검증 규칙</h3>
  * <ol>
@@ -124,9 +142,12 @@ public class InventoryMoveService {
             target.addQuantity(quantity);
         }
 
-        // 5) 이동 이력 (출발지와 도착지를 함께 남긴다)
-        stockMovementRepository.save(StockMovement.move(
-                lot, fromBin, toBin, quantity, form.getMemo(), userId, userName));
+        // 5) 이력 기록
+        //    같은 센터면 MOVE 한 건, 센터가 다르면 운송 중 구역을 경유해 두 건을 남긴다.
+        boolean centerTransfer = isAcrossCenters(fromBin, toBin);
+        WarehouseBin inTransitBin = centerTransfer
+                ? recordTransfer(lot, fromBin, toBin, quantity, form.getMemo(), userId, userName)
+                : recordMove(lot, fromBin, toBin, quantity, form.getMemo(), userId, userName);
 
         return StockMoveResultDto.builder()
                 .productId(product.getProductId())
@@ -137,11 +158,13 @@ public class InventoryMoveService {
                 .fromBinId(fromBin.getBinId())
                 .fromBinCode(fromBin.getBinCode())
                 .fromBinLocation(fromBin.locationLabel())
+                .fromCenterName(fromBin.centerName())
                 .fromQuantityBefore(fromQuantityBefore)
                 .fromQuantityAfter(Numbers.orZero(source.getQuantity()))
                 .toBinId(toBin.getBinId())
                 .toBinCode(toBin.getBinCode())
                 .toBinLocation(toBin.locationLabel())
+                .toCenterName(toBin.centerName())
                 .toQuantityBefore(toQuantityBefore)
                 .toQuantityAfter(Numbers.orZero(target.getQuantity()))
                 .toBinLoadAfter(toBinLoadBefore + quantity)
@@ -151,7 +174,117 @@ public class InventoryMoveService {
                 .productTotalStock(Numbers.orZero(product.getTotalStock()))
                 .targetCreated(targetCreated)
                 .sourceDepleted(source.isEmpty())
+                .centerTransfer(centerTransfer)
+                .inTransitBinCode(inTransitBin == null ? null : inTransitBin.getBinCode())
                 .build();
+    }
+
+    /* ------------------------------------------------------------------
+     * 이력 기록
+     * ------------------------------------------------------------------ */
+
+    /** 같은 센터 안의 이동 — {@code MOVE} 한 건 */
+    private WarehouseBin recordMove(ProductLot lot,
+                                    WarehouseBin fromBin,
+                                    WarehouseBin toBin,
+                                    int quantity,
+                                    String memo,
+                                    Long userId,
+                                    String userName) {
+        stockMovementRepository.save(StockMovement.move(
+                lot, fromBin, toBin, quantity, memo, userId, userName));
+        return null;
+    }
+
+    /**
+     * 센터 간 이관 — {@code TRANSFER_OUT} + {@code TRANSFER_IN} 두 건.
+     *
+     * <h3>왜 운송 중 구역을 경유하는가</h3>
+     * 두 구간을 한 트랜잭션에서 처리하므로 운송 중 구역의 잔량은 <b>평상시 0</b> 이다.
+     * 그래도 경유시키는 이유는 두 가지다.
+     * <ol>
+     *     <li><b>이력이 두 건으로 남는다.</b> "제1창고에서 나갔다" 와 "제2창고에 들어왔다" 가
+     *         별개 이벤트가 되어 이력 추적 타임라인이 센터별 입출고를 정확히 보여준다.
+     *         {@code MOVE} 한 건으로는 표현할 수 없었다.</li>
+     *     <li><b>P3b 확장 지점이 된다.</b> 두 구간이 이미 분리되어 있으므로 실제 운송 중
+     *         상태가 필요해지면 두 번째 구간을 나중에 호출하는 것으로 충분하다.</li>
+     * </ol>
+     *
+     * <h3>불변식</h3>
+     * 재고 수량은 이미 호출부에서 <b>출발 구역 → 도착 구역</b>으로 옮겨진 상태다.
+     * 운송 중 구역에 실제로 수량을 넣었다 빼지는 않는다. 한 트랜잭션 안에서
+     * 넣고 곧바로 빼면 결과가 같은데 {@code Inventory} 행만 하나 더 생기고
+     * 낙관적 락 충돌 지점이 늘어난다.
+     * <p>
+     * 3계층 불변식은 이 방식에서도 <b>매 순간 성립</b>한다. 이관은 {@code Inventory}
+     * 두 행의 합을 바꾸지 않고, 커밋 전 중간 상태는 트랜잭션 밖에서 관찰되지 않는다.
+     * 운송 중 구역은 <b>P3b 에서 두 구간이 분리될 때 재고가 실제로 머무는 자리</b>이며,
+     * 지금은 그 자리를 이력상 경유지로 기록한다.
+     *
+     * @return 경유한 운송 중 가상 구역 (결과 화면 표기용)
+     */
+    private WarehouseBin recordTransfer(ProductLot lot,
+                                        WarehouseBin fromBin,
+                                        WarehouseBin toBin,
+                                        int quantity,
+                                        String memo,
+                                        Long userId,
+                                        String userName) {
+
+        // 운송 중 구역은 출발 센터 소속이다. 운송 중 재고는 아직 출발 센터의
+        // 책임 아래 있고, 분실·파손 시 책임 소재도 그쪽이다.
+        WarehouseBin inTransitBin = resolveInTransitBin(fromBin.getCenter());
+
+        String transferMemo = buildTransferMemo(fromBin, toBin, memo);
+
+        stockMovementRepository.save(StockMovement.transferOut(
+                lot, fromBin, inTransitBin, quantity, transferMemo, userId, userName));
+        stockMovementRepository.save(StockMovement.transferIn(
+                lot, inTransitBin, toBin, quantity, transferMemo, userId, userName));
+
+        return inTransitBin;
+    }
+
+    /**
+     * 이관 메모에 출발·도착 센터를 남긴다.
+     * <p>
+     * 이력 두 건은 각자 한쪽 센터만 알고 있다. {@code TRANSFER_OUT} 만 보면
+     * "어디로 갔는지" 를, {@code TRANSFER_IN} 만 보면 "어디서 왔는지" 를 알 수 없다.
+     * 두 건이 같은 이관임을 이어주는 전표 번호가 없으므로(P3a 범위) 메모로 잇는다.
+     */
+    private String buildTransferMemo(WarehouseBin fromBin, WarehouseBin toBin, String memo) {
+        String route = "[센터 이관] " + fromBin.centerName() + " " + fromBin.getBinCode()
+                + " → " + toBin.centerName() + " " + toBin.getBinCode();
+
+        return Texts.isBlank(memo) ? route : route + " · " + memo;
+    }
+
+    /**
+     * 센터의 운송 중 가상 구역을 가져온다. 없으면 만든다.
+     * <p>
+     * 센터는 운영 중에 늘어난다. 센터를 만들 때마다 사람이 가상 구역을 함께 만들게 하면
+     * 반드시 빠뜨리고, 그러면 <b>첫 이관 시점에 실패</b>한다. 시스템이 규칙에 맞는
+     * 코드로 자동 생성해 그 실패 가능성을 없앤다.
+     */
+    private WarehouseBin resolveInTransitBin(Center center) {
+        return warehouseBinRepository.findInTransitBin(center.getCenterId())
+                .orElseGet(() -> warehouseBinRepository.save(
+                        WarehouseBin.createInTransit(center)));
+    }
+
+    /**
+     * 두 구역이 서로 다른 센터에 속하는지.
+     * <p>
+     * 센터는 {@code optional = false} 라 null 이 될 수 없지만, 단위 테스트에서
+     * 센터를 지정하지 않은 픽스처를 쓸 수 있어 방어한다. 센터를 알 수 없으면
+     * 센터 간 이관으로 취급하지 않는다 — 알 수 없는 상태를 이관으로 단정하면
+     * 실제로는 같은 센터인 이동이 두 건의 이력으로 부풀려진다.
+     */
+    private boolean isAcrossCenters(WarehouseBin fromBin, WarehouseBin toBin) {
+        Long fromCenterId = fromBin.centerId();
+        Long toCenterId = toBin.centerId();
+
+        return fromCenterId != null && toCenterId != null && !fromCenterId.equals(toCenterId);
     }
 
     /* ==================================================================
@@ -194,6 +327,16 @@ public class InventoryMoveService {
         if (!toBin.isActive()) {
             throw new BusinessRuleException(
                     "사용 중지된 구역으로는 이동할 수 없습니다. (" + toBin.getBinCode() + ")");
+        }
+
+        // 운송 중 가상 구역은 이관 로직만 다룰 수 있다.
+        // 화면 선택 목록에서 이미 제외했지만, 요청을 직접 조립하면 통과할 수 있으므로
+        // 서비스에서도 막는다. 사용자가 여기에 재고를 넣으면 어느 센터에서도
+        // 팔 수 없는 상태로 갇힌다.
+        if (toBin.isInTransit()) {
+            throw new BusinessRuleException(
+                    "운송 중 구역으로는 직접 이동할 수 없습니다. (" + toBin.getBinCode() + ")"
+                            + " 센터 간 이관은 도착 센터의 구역을 선택하면 자동으로 처리됩니다.");
         }
 
         int stored = Numbers.orZero(source.getQuantity());

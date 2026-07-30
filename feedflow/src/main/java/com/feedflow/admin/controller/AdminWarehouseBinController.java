@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -45,10 +46,18 @@ public class AdminWarehouseBinController {
         return warehouseBinService.getActiveCenters();
     }
 
-    /** 구역 용도 선택 목록 */
+    /**
+     * 구역 용도 선택 목록.
+     * <p>
+     * 시스템이 관리하는 용도({@code IN_TRANSIT})는 제외한다. 센터 간 이관 로직이
+     * 정해진 코드 규칙으로 자동 생성하므로, 사람이 손으로 만들면 코드가 어긋나
+     * 이관이 엉뚱한 구역을 찾게 된다.
+     */
     @ModelAttribute("binPurposes")
     public List<BinPurpose> binPurposes() {
-        return List.of(BinPurpose.values());
+        return Arrays.stream(BinPurpose.values())
+                .filter(BinPurpose::isSelectableByUser)
+                .toList();
     }
 
     @ModelAttribute("menu")

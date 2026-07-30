@@ -239,4 +239,53 @@ public class WarehouseBin {
     public Long centerId() {
         return center == null ? null : center.getCenterId();
     }
+
+    /* ------------------------------------------------------------------
+     * 운송 중(IN_TRANSIT) 가상 구역
+     * ------------------------------------------------------------------ */
+
+    /** 운송 중 가상 구역의 코드 접두어 — 코드만 보고 성격을 알 수 있어야 한다 */
+    public static final String IN_TRANSIT_CODE_PREFIX = "TRANSIT-";
+
+    /** 운송 중 가상 구역의 구역(Zone) 이름 */
+    private static final String IN_TRANSIT_ZONE = "TRANSIT";
+
+    /**
+     * 센터의 운송 중 가상 구역을 만든다.
+     * <p>
+     * 센터 간 이관 중인 재고가 머무는 자리다. 이 자리가 없으면 이관 도중 재고가
+     * 어디에도 속하지 않아 <b>3계층 불변식</b>이 깨지고 재고 정합성 점검이 오탐한다.
+     *
+     * <h3>규격</h3>
+     * <ul>
+     *     <li>코드는 {@code TRANSIT-{센터코드}} — 센터당 하나임이 코드에서 드러난다</li>
+     *     <li>{@code maxCapacity = 0} — 물리적 공간이 아니라 한도를 셀 수 없다.
+     *         {@link BinPurpose#isPhysicalSpace()} 가 {@code false} 이므로
+     *         적재 한도 검증 자체를 건너뛴다. 0 이라서 막히는 것이 아니다.</li>
+     *     <li>좌표는 1,1 — 컬럼이 {@code NOT NULL} 이라 값은 필요하지만
+     *         도면 조회에서 제외되므로 그려지지 않는다</li>
+     * </ul>
+     *
+     * @param center 출발 센터 (운송 중 재고는 출발 센터의 책임 아래 있다)
+     */
+    public static WarehouseBin createInTransit(Center center) {
+        return WarehouseBin.builder()
+                .binCode(IN_TRANSIT_CODE_PREFIX + center.getCenterCode())
+                .center(center)
+                .zone(IN_TRANSIT_ZONE)
+                .binPurpose(BinPurpose.IN_TRANSIT)
+                .maxCapacity(0)
+                .posX(1)
+                .posY(1)
+                .posWidth(1)
+                .posHeight(1)
+                .active(true)
+                .memo("센터 간 이관 중인 재고가 머무는 가상 구역 (시스템 자동 생성)")
+                .build();
+    }
+
+    /** 운송 중 가상 구역인지 */
+    public boolean isInTransit() {
+        return binPurpose == BinPurpose.IN_TRANSIT;
+    }
 }

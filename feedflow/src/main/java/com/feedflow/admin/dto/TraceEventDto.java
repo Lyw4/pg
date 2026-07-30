@@ -155,6 +155,7 @@ public class TraceEventDto {
             case CANCEL -> "ff-trace-dot-cancel";
             case DISPOSAL -> "ff-trace-dot-disposal";
             case MOVE -> "ff-trace-dot-move";
+            case TRANSFER_OUT, TRANSFER_IN -> "ff-trace-dot-transfer";
             default -> "ff-trace-dot-etc";
         };
     }
@@ -170,21 +171,41 @@ public class TraceEventDto {
     }
 
     /**
-     * <b>센터를 넘는 이동</b>인지.
+     * <b>{@code MOVE} 로 잘못 기록된</b> 센터 간 이동인지.
      * <p>
-     * 현재 이동 기능({@code MOVE})은 총 재고 불변을 전제로 하지만, 센터가 다르면
-     * <b>한쪽 센터의 재고가 실제로 줄어든다.</b> 즉 {@code MOVE} 로 처리해서는 안 되는
-     * 이동이다. (센터 간 이동은 {@code TRANSFER_OUT}/{@code TRANSFER_IN} 과
-     * 운송 중 상태가 필요하다 — Epic Phase 3)
+     * {@code MOVE} 는 총 재고 불변을 전제하지만, 센터가 다르면 출발 센터의 재고가
+     * 실제로 줄어든다. 즉 {@code MOVE} 로 처리해서는 안 되는 이동이다.
      * <p>
-     * 지금은 이동 화면이 센터를 넘는 선택을 막지 않으므로, 그런 이력이 생기면
-     * 타임라인에서 <b>눈에 띄게 경고로 표시</b>해 조용히 묻히지 않게 한다.
+     * Phase 3a 부터 센터 간 이동은 {@link MovementType#TRANSFER_OUT} /
+     * {@link MovementType#TRANSFER_IN} 으로 기록되므로 <b>새로 생기지 않는다.</b>
+     * 그 이전에 남은 이력을 계속 드러내기 위해 판정을 유지한다.
+     * 이관 경로가 우회되어 다시 {@code MOVE} 로 기록되면 화면에서 즉시 보인다.
      */
     public boolean isCenterTransfer() {
         return isRelocation()
                 && fromCenterId != null
                 && centerId != null
                 && !fromCenterId.equals(centerId);
+    }
+
+    /**
+     * 정상적으로 기록된 센터 간 이관 이력인지 ({@code TRANSFER_OUT} / {@code TRANSFER_IN}).
+     * <p>
+     * {@link #isCenterTransfer()} 와 구분해야 한다. 이쪽은 <b>올바른</b> 이관이고,
+     * 저쪽은 {@code MOVE} 로 잘못 남은 <b>경고 대상</b>이다.
+     */
+    public boolean isTransferLeg() {
+        return movementType.isCenterTransfer();
+    }
+
+    /** 이관 출고 구간인지 (출발 센터에서 나감) */
+    public boolean isTransferOut() {
+        return movementType == MovementType.TRANSFER_OUT;
+    }
+
+    /** 이관 입고 구간인지 (도착 센터로 들어옴) */
+    public boolean isTransferIn() {
+        return movementType == MovementType.TRANSFER_IN;
     }
 
     /**
@@ -195,6 +216,17 @@ public class TraceEventDto {
      */
     public boolean isWithinCenterMove() {
         return isRelocation() && !isCenterTransfer();
+    }
+
+    /**
+     * 위치만 바뀌고 전국 총 재고는 변하지 않는 이벤트인지.
+     * <p>
+     * 화면에서 증감 부호 대신 '이동' · '이관' 으로 표기하는 기준이다.
+     * 이관은 두 건의 합이 0 이므로 한 건만 보면 증감이 있는 것처럼 보이지만,
+     * 로트 잔여 수량은 짝이 맞춰지는 시점에 원래대로 돌아온다.
+     */
+    public boolean isRelocationOnly() {
+        return movementType.isRelocationOnly();
     }
 
     /** 센터 정보가 있는 이벤트인지 (구역이 없는 이력은 센터도 알 수 없다) */
@@ -210,6 +242,9 @@ public class TraceEventDto {
             case CANCEL -> "bi-arrow-counterclockwise";
             case DISPOSAL -> "bi-trash3";
             case MOVE -> "bi-arrows-move";
+            // 센터 간 이관은 트럭으로 나가고 들어온다 (구역 이동과 시각적으로 구분)
+            case TRANSFER_OUT -> "bi-truck";
+            case TRANSFER_IN -> "bi-box-arrow-in-right";
             case ADJUST -> "bi-sliders";
         };
     }
