@@ -74,14 +74,14 @@
 | S3-4 | └ 2D 도면 모달에서 이동 화면 진입 | 완료 | `a48bb5e` | `warehouse-map.js` |
 | S3-5 | └ 이력 추적 타임라인에 `A-01 → B-02` 표시 | 완료 | `a48bb5e` | `TraceEventDto.isRelocation()` |
 
-## Epic: 전국 다중 창고 기반 물류망 확장 (진행 중)
+## Epic: 전국 다중 창고 기반 물류망 확장 (P1 완료)
 
 WMS 1.0 은 **단일 물류센터 안에 창고 건물 2동(`WH1` · `WH2`)** 을 전제로 만들었다.
 이를 **전국 여러 센터(Center)** 구조로 확장한다. 덩치가 커서 4단계로 나눈다.
 
 | Phase | 범위 | 상태 |
 |---|---|---|
-| **P1** | 기초 공사 — `Warehouse` enum → `Center` 엔티티 승격, 구역(Bin) 매핑 전환 | 진행 중 |
+| **P1** | 기초 공사 — `Warehouse` enum → `Center` 엔티티 승격, 구역(Bin) 매핑 전환 | **완료** `8f7aaf8` |
 | **P2** | 검색 및 조회 — 재고·이력 조회에 센터 필터 조건 추가 | 대기 |
 | **P3** | 센터 간 이동 — `TRANSFER_OUT` · `TRANSFER_IN` 신설, 운송 중(In-Transit) 처리 | 대기 |
 | **P4** | 대시보드 및 라우팅 — 센터별 수요 시각화, 스마트 주문 할당 | 대기 |
@@ -96,13 +96,17 @@ WMS 1.0 은 **단일 물류센터 안에 창고 건물 2동(`WH1` · `WH2`)** �
 
 ### Phase 1 상세
 
-| # | 항목 | 상태 | 비고 |
-|---|---|---|---|
-| P1-1 | `Center` 엔티티 신규 (센터ID · 코드 · 센터명 · 지역 · 주소 · 활성 여부) | 진행 중 | `Warehouse` enum 제거 |
-| P1-2 | `WarehouseBin` → `Center` `@ManyToOne` 참조 전환 | 진행 중 | `warehouse` enum 컬럼 → `centerId` FK |
-| P1-3 | 조회 쿼리에 `join fetch center` 적용 (N+1 방지) | 진행 중 | DTO 가 센터명을 표시하므로 필수 |
-| P1-4 | `data.sql` 전면 수정 (`centers` 시드 + 구역 40행 매핑) | 진행 중 | 정합성 4규칙 유지 |
-| P1-5 | 2D 도면 · 구역 관리 · 선택 목록 화면의 센터 참조 전환 | 진행 중 | 창고 탭 → 센터 탭 |
+| # | 항목 | 상태 | 커밋 | 비고 |
+|---|---|---|---|---|
+| P1-1 | `Center` 엔티티 · `CenterRepository` · `CenterDto` 신규 | 완료 | `8f7aaf8` | `domain/Warehouse.java` 파일 삭제 |
+| P1-2 | `WarehouseBin` → `Center` `@ManyToOne` 참조 전환 | 완료 | `8f7aaf8` | `warehouse` enum 컬럼 → `centerId` FK (`optional = false`) |
+| P1-3 | 조회 쿼리에 `join fetch center` 적용 (N+1 방지) | 완료 | `8f7aaf8` | `locationLabel()` 이 센터명을 쓴다 |
+| P1-4 | `data.sql` 전면 수정 (`centers` 시드 2행 + 구역 40행 매핑) | 완료 | `8f7aaf8` | 정합성 4규칙 유지 |
+| P1-5 | 2D 도면 · 구역 관리 · 선택 목록 화면의 센터 참조 전환 | 완료 | `8f7aaf8` | 창고 탭 → 센터 탭, 센터 필터, 센터별 `<optgroup>` |
+| P1-6 | `WarehouseMapRow` 센터 컴포넌트 제거 | 완료 | `8f7aaf8` | 도면은 센터 단위이므로 행마다 담을 필요가 없다 |
+| P1-7 | `WarehouseFacilityDto.forWarehouse` → `forCenter(Long)` | 완료 | `8f7aaf8` | WH1/WH2 배치가 동일해 `switch` 를 걷어냈다 |
+| P1-8 | 운영 중인 센터가 없을 때 빈 도면 처리 | 완료 | `8f7aaf8` | `centerId = null` 조회는 전체 센터 구역을 겹쳐 그린다 |
+| P1-9 | ERD 문서 갱신 (`centers` 테이블 · 관계) | 완료 | `8f7aaf8` | 실제 스키마와 벌어져 있던 컬럼도 함께 동기화 |
 
 > **Phase 1 은 '구조 전환' 이므로 데이터의 의미는 바꾸지 않는다.**
 > 센터 코드(`WH1`/`WH2`)와 이름(제1창고/제2창고)을 그대로 유지해, 화면 결과가
@@ -114,7 +118,8 @@ WMS 1.0 은 **단일 물류센터 안에 창고 건물 2동(`WH1` · `WH2`)** �
 | 항목 | 이유 |
 |---|---|
 | 도면 격자 크기를 센터별 속성으로 이관 | `WarehouseBinForm` 의 `@Max(GRID_COLUMNS)` 가 컴파일 상수를 요구해 폼 검증 방식까지 바꿔야 한다. 센터마다 건물 크기가 다른 것은 사실이지만 P1 범위를 넘는다. |
-| 부대시설(출입구·벽·검수실) 테이블 이관 | 현재 `WarehouseFacilityDto` 의 코드 기반 분기로 동작한다. 센터가 늘면 `centerFacilities` 테이블이 필요하지만 P1 에서는 센터 코드로 분기만 바꾼다. |
+| 부대시설(출입구·벽·검수실) 테이블 이관 | 센터가 늘면 `centerFacilities` 테이블이 필요하다. P1 에서는 `switch` 를 걷어내 **이관 지점을 `forCenter(Long)` 한 곳으로 좁히는 것**까지만 했다. |
+| 센터 간 이동 차단 | 이동 화면의 도착 구역 목록에 **다른 센터의 구역도 나온다.** 센터 간 이동은 총량 불변이 아니므로 P3 에서 `TRANSFER_*` 유형과 함께 구분해 막는다. |
 
 ## Could Have (선택)
 
