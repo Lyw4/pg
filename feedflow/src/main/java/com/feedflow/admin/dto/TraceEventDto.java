@@ -36,8 +36,17 @@ public class TraceEventDto {
      */
     private final int balanceAfter;
 
+    /**
+     * 이 이벤트가 영향을 준 구역.
+     * <p>
+     * 구역 간 이동에서는 <b>도착지</b>다. 출발지는 {@link #fromBinCode} 를 쓴다.
+     */
     private final String binCode;
     private final String binLocation;
+
+    /** 구역 간 이동의 출발 구역 (이동 이벤트에만 값이 있다) */
+    private final String fromBinCode;
+    private final String fromBinLocation;
 
     /** 주문 기반 출고 · 출고 취소면 주문 번호 */
     private final Long orderId;
@@ -62,6 +71,9 @@ public class TraceEventDto {
                 .balanceAfter(balanceAfter)
                 .binCode(movement.getBin() == null ? null : movement.getBin().getBinCode())
                 .binLocation(movement.getBin() == null ? null : movement.getBin().locationLabel())
+                .fromBinCode(movement.getFromBin() == null ? null : movement.getFromBin().getBinCode())
+                .fromBinLocation(movement.getFromBin() == null
+                        ? null : movement.getFromBin().locationLabel())
                 .orderId(movement.getOrderId())
                 .memo(movement.getMemo())
                 .userName(movement.getUserName())
@@ -118,8 +130,19 @@ public class TraceEventDto {
             case OUTBOUND -> "ff-trace-dot-outbound";
             case CANCEL -> "ff-trace-dot-cancel";
             case DISPOSAL -> "ff-trace-dot-disposal";
+            case MOVE -> "ff-trace-dot-move";
             default -> "ff-trace-dot-etc";
         };
+    }
+
+    /**
+     * 구역 간 이동 이벤트인지.
+     * <p>
+     * 이동은 총 재고가 변하지 않고 위치만 바뀌므로 화면에서 "A-01 → B-02" 형태로
+     * 다른 이벤트와 구분해 표시한다.
+     */
+    public boolean isRelocation() {
+        return movementType == MovementType.MOVE && fromBinCode != null;
     }
 
     /** 타임라인 점 아이콘 (Bootstrap Icons) */

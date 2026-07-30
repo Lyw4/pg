@@ -15,6 +15,12 @@
 
     <main class="ff-main">
 
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-1"></i>
+            <span th:text="${successMessage}">처리 완료</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
         <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
             <i class="bi bi-exclamation-circle-fill me-1"></i>
             <span th:text="${errorMessage}">처리 실패</span>
@@ -57,6 +63,70 @@
                     <div class="col-6 col-md-3">
                         <div class="text-muted">총 출고 수량</div>
                         <div class="fw-semibold" th:text="${preview.totalQuantity} + '개'">0개</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!--
+            취소 정보 : 취소된 주문에만 표시.
+            출고 전 취소는 재고 이력이 생기지 않으므로 이 블록이 유일한 취소 근거다.
+        -->
+        <div class="card ff-card mb-3 border-danger" th:if="${preview.canceled}">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                <span class="fw-bold text-danger">
+                    <i class="bi bi-x-octagon-fill me-1"></i>취소 정보
+                </span>
+                <span class="badge bg-dark">주문취소</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 small">
+                    <div class="col-12 col-md-6">
+                        <div class="text-muted">취소 사유</div>
+                        <div class="fw-semibold" th:if="${preview.cancelReasonPresent}"
+                             th:text="${preview.cancelReason}">사유</div>
+                        <div class="text-muted fst-italic" th:unless="${preview.cancelReasonPresent}">
+                            사유가 입력되지 않았습니다.
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted">취소 일시</div>
+                        <div th:if="${preview.canceledAt != null}"
+                             th:text="${#temporals.format(preview.canceledAt, 'yyyy-MM-dd HH:mm')}">-</div>
+                        <div class="text-muted" th:unless="${preview.canceledAt != null}">기록 없음</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted">처리자</div>
+                        <div th:if="${preview.canceledByPresent}" th:text="${preview.canceledByName}">-</div>
+                        <div class="text-muted" th:unless="${preview.canceledByPresent}">기록 없음</div>
+                    </div>
+                </div>
+
+                <hr class="my-3">
+
+                <!-- 재고 복구 결과 : 판단 근거는 주문 상태가 아니라 실제 CANCEL 이력이다 -->
+                <div th:if="${preview.stockRestored}"
+                     class="alert alert-success d-flex align-items-start mb-0 py-2">
+                    <i class="bi bi-arrow-counterclockwise me-2 mt-1"></i>
+                    <div class="small">
+                        출고된 재고를 원래 로트와 구역으로 복구했습니다.
+                        <strong th:text="${preview.restoredLineCount} + '건'">0건</strong> /
+                        총 <strong
+                            th:text="${#numbers.formatInteger(preview.restoredQuantity, 1, 'COMMA')} + '개'">0개</strong>
+                        <span class="text-muted d-block mt-1">
+                            로트별 상세 내역은
+                            <a th:href="@{/admin/traceability}">제품 이력 추적</a> 화면에서 확인할 수 있습니다.
+                        </span>
+                    </div>
+                </div>
+                <div th:unless="${preview.stockRestored}"
+                     class="alert alert-secondary d-flex align-items-start mb-0 py-2">
+                    <i class="bi bi-info-circle me-2 mt-1"></i>
+                    <div class="small">
+                        <strong>재고 변동 없음 (출고 전 취소)</strong>
+                        <span class="text-muted d-block mt-1">
+                            출고 처리 전에 취소되어 재고가 차감된 적이 없습니다. 되돌릴 재고도 없습니다.
+                        </span>
                     </div>
                 </div>
             </div>

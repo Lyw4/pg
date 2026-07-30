@@ -74,6 +74,7 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
             join fetch m.product p
             join fetch m.lot l
             left join fetch m.bin b
+            left join fetch m.fromBin fb
             where l.lotId = :lotId
             order by m.createdAt asc, m.movementId asc
             """)

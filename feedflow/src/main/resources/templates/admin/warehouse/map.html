@@ -332,6 +332,11 @@
                    class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-list-ul me-1"></i>재고 현황에서 보기
                 </a>
+                <!-- 이 구역의 재고를 다른 구역으로 옮긴다. binId 는 JS 가 덧붙인다. -->
+                <a th:href="@{/admin/inventory/move}" id="binDetailMoveLink"
+                   class="btn btn-sm btn-primary">
+                    <i class="bi bi-arrows-move me-1"></i>재고 이동
+                </a>
                 <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">닫기</button>
             </div>
         </div>

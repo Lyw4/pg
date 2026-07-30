@@ -54,6 +54,23 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             """)
     List<Order> findDispatchTargets(@Param("statuses") Collection<OrderStatus> statuses);
 
+    /**
+     * 상태로 필터링한 주문 목록 - <b>최신 주문이 먼저</b>.
+     * <p>
+     * 출고 완료 · 배송 완료 · 취소 이력을 조회할 때 쓴다. 이런 목록은 처리 순서를 따질 이유가
+     * 없고 최근 건을 먼저 보는 것이 자연스러워 {@link #findDispatchTargets} 와 정렬이 반대다.
+     * <p>
+     * 목록이 고객명을 표시하므로 {@code user} 를 함께 읽는다. (건수만큼 쿼리가 반복되는 N+1 방지)
+     */
+    @Query("""
+            select o
+            from Order o
+            join fetch o.user u
+            where o.status in :statuses
+            order by o.createdAt desc
+            """)
+    List<Order> findByStatusesLatestFirst(@Param("statuses") Collection<OrderStatus> statuses);
+
     /** 출고 처리를 위해 주문 + 주문상세 + 품목을 한 번에 조회 */
     @Query("""
             select distinct o

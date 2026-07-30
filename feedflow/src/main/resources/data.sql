@@ -27,7 +27,7 @@ INSERT INTO users (userId, email, password, name, phone, role, createdAt) VALUES
 -- ---------------------------------------------------------------------
 INSERT INTO products (productId, productCode, name, animalType, productType, weightKg, price, totalStock, safetyStock, shelfLifeDays, active, imageUrl, description, version) VALUES
 (1,  'FD-CT-001', '프리미엄 육성우 배합사료', 'CATTLE',  'FEED',       25, 32000,  40,  50, 180, TRUE,  '/images/feed-cattle.png',  '육성기 한우의 골격 형성을 돕는 고단백 배합사료입니다.', 0),
-(2,  'FD-PG-001', '자돈용 배합사료',         'PIG',     'FEED',       20, 28000, 700, 100, 180, TRUE,  '/images/feed-pig.png',     '이유 후 자돈의 소화 흡수율을 높인 프리스타터 사료입니다.', 0),
+(2,  'FD-PG-001', '자돈용 배합사료',         'PIG',     'FEED',       20, 28000, 690, 100, 180, TRUE,  '/images/feed-pig.png',     '이유 후 자돈의 소화 흡수율을 높인 프리스타터 사료입니다.', 0),
 -- productId 3 : 정상 로트 80 + 만료 로트 20 = 100 (안전재고 120 미달 유지)
 (3,  'FD-PL-001', '산란계 전용 배합사료',     'POULTRY', 'FEED',       25, 24000, 100, 120,  90, TRUE,  '/images/feed-chicken.png', '산란율 향상을 위한 칼슘 강화 배합사료입니다.', 0),
 (4,  'FD-CT-002', '번식우 유지 배합사료',     'CATTLE',  'FEED',       25, 30000, 530,  80, 180, TRUE,  NULL, NULL, 0),
@@ -52,7 +52,8 @@ INSERT INTO products (productId, productCode, name, animalType, productType, wei
 INSERT INTO productLots (lotId, productId, lotNo, manufacturedDate, expirationDate, lotQuantity, version) VALUES
 (1, 1, 'LOT-CT-2601', DATEADD('DAY', -175, CURRENT_DATE), DATEADD('DAY',   5, CURRENT_DATE),  20, 0),
 (2, 1, 'LOT-CT-2602', DATEADD('DAY', -155, CURRENT_DATE), DATEADD('DAY',  25, CURRENT_DATE),  20, 0),
-(3, 2, 'LOT-PG-2611', DATEADD('DAY',  -20, CURRENT_DATE), DATEADD('DAY', 160, CURRENT_DATE), 150, 0),
+-- 입고 100 + 50 = 150 에서 주문 #5 출고로 10 이 빠져 잔여 140 (stockMovements 와 일치)
+(3, 2, 'LOT-PG-2611', DATEADD('DAY',  -20, CURRENT_DATE), DATEADD('DAY', 160, CURRENT_DATE), 140, 0),
 (4, 2, 'LOT-PG-2612', DATEADD('DAY',  -10, CURRENT_DATE), DATEADD('DAY', 170, CURRENT_DATE), 150, 0),
 (5, 3, 'LOT-PL-2621', DATEADD('DAY',  -72, CURRENT_DATE), DATEADD('DAY',  18, CURRENT_DATE),  80, 0),
 -- 이미 유통기한이 지난 로트 (대시보드 '만료' 경고 + 출고 대상 제외 확인용)
@@ -114,6 +115,16 @@ INSERT INTO orders (orderId, userId, totalPrice, discountPrice, finalPrice, ship
 (13, 3, 480000,     0, 480000, '경북 상주시 낙동면 목장길 12',   'DELIVERED', DATEADD('DAY',  -5, CURRENT_TIMESTAMP)),
 (14, 4, 960000, 60000, 900000, '충남 홍성군 갈산면 양돈로 45',   'DELIVERED', DATEADD('DAY',  -6, CURRENT_TIMESTAMP)),
 (15, 5, 320000,     0, 320000, '전북 김제시 금산면 계사길 8',    'DELIVERED', DATEADD('DAY',  -6, CURRENT_TIMESTAMP));
+
+-- 취소된 주문(#10)의 취소 정보.
+-- 이 주문은 출고 이력(stockMovements)이 없으므로 '출고 전 취소' 사례다.
+-- 재고가 차감된 적이 없어 되돌릴 재고도 없고, 취소 근거는 이 컬럼들뿐이다.
+UPDATE orders
+SET canceledAt     = DATEADD('DAY', -3, CURRENT_TIMESTAMP),
+    cancelReason   = '고객 요청 - 사료 배합 변경으로 재주문',
+    canceledById   = 1,
+    canceledByName = '김책임'
+WHERE orderId = 10;
 
 -- ---------------------------------------------------------------------
 -- 5. 주문 상세 (orderPrice = 주문 당시 단가)
@@ -207,7 +218,7 @@ INSERT INTO warehouseBins (binId, binCode, warehouse, zone, binPurpose, rack, bi
 INSERT INTO inventories (inventoryId, lotId, binId, quantity, updatedAt, version) VALUES
 (1,  1,  1,  20, DATEADD('DAY', -50, CURRENT_TIMESTAMP), 0),
 (2,  2,  2,  20, DATEADD('DAY', -20, CURRENT_TIMESTAMP), 0),
-(3,  3,  5, 100, DATEADD('DAY', -10, CURRENT_TIMESTAMP), 0),
+(3,  3,  5,  90, DATEADD('DAY', -10, CURRENT_TIMESTAMP), 0),
 (4,  3,  6,  50, DATEADD('DAY', -10, CURRENT_TIMESTAMP), 0),
 (5,  4,  7, 150, DATEADD('DAY',  -5, CURRENT_TIMESTAMP), 0),
 (6,  5,  3,  50, DATEADD('DAY', -35, CURRENT_TIMESTAMP), 0),

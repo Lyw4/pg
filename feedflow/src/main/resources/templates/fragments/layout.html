@@ -88,6 +88,12 @@
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/inventory/move}"
+               th:classappend="${menu == 'inventory' and subMenu == 'move'} ? 'active'">
+                <i class="bi bi-arrows-move me-2"></i>구역 간 이동
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link" th:href="@{/admin/inventory/disposal}"
                th:classappend="${menu == 'inventory' and subMenu == 'disposal'} ? 'active'">
                 <i class="bi bi-trash3 me-2"></i>재고 폐기

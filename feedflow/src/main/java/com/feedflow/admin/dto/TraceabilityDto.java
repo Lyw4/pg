@@ -177,6 +177,16 @@ public class TraceabilityDto {
         return calculatedBalance == lotQuantity;
     }
 
+    /**
+     * 이력 누적값과 로트 잔여 수량의 차이 (절대값).
+     * <p>
+     * 화면에서 "몇 개가 어긋났는지" 를 바로 보여주기 위한 값이다.
+     * 부호는 의미가 없어(어느 쪽이 큰지는 두 수치를 함께 표시한다) 절대값만 쓴다.
+     */
+    public int getBalanceGap() {
+        return Math.abs(lotQuantity - calculatedBalance);
+    }
+
     /** 출고취소가 한 번이라도 있었는지 (타임라인 강조용) */
     public boolean isHasCancellation() {
         return totalCanceled > 0;
