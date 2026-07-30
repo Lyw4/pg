@@ -12,7 +12,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 창고 구역(기준 정보) 관리 서비스.
@@ -42,11 +45,32 @@ public class WarehouseBinService {
         return warehouseBinRepository.findDistinctZones();
     }
 
-    /** 입고 화면 등의 구역 선택 목록 (사용 중인 구역만) */
+    /**
+     * 입고 · 이동 화면 등의 구역 선택 목록 (사용 중인 구역만).
+     * <p>
+     * <b>창고 순 → 구역 코드 순</b>으로 정렬한다. 구역 코드만으로 정렬하면
+     * 제2창고의 {@code COLD-01} 이 제1창고의 {@code C-02} 와 {@code D-01} 사이에 끼어
+     * 창고가 뒤섞인 목록이 된다.
+     */
     public List<WarehouseBinDto> getActiveBins() {
-        return warehouseBinRepository.findByActiveTrueOrderByBinCodeAsc().stream()
+        return warehouseBinRepository.findByActiveTrueOrderByWarehouseAscBinCodeAsc().stream()
                 .map(WarehouseBinDto::from)
                 .toList();
+    }
+
+    /**
+     * 사용 중인 구역을 <b>창고별로 묶은</b> 선택 목록.
+     * <p>
+     * 화면에서 {@code <optgroup>} 으로 렌더링해 창고 경계를 눈으로 구분할 수 있게 한다.
+     * 정렬 순서를 유지해야 하므로 {@link LinkedHashMap} 으로 모은다.
+     * (일반 {@code HashMap} 은 키 순서를 보장하지 않아 창고가 뒤바뀔 수 있다)
+     */
+    public Map<Warehouse, List<WarehouseBinDto>> getActiveBinsByWarehouse() {
+        return getActiveBins().stream()
+                .collect(Collectors.groupingBy(
+                        WarehouseBinDto::getWarehouse,
+                        LinkedHashMap::new,
+                        Collectors.toList()));
     }
 
     public long countActiveBins() {

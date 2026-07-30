@@ -93,7 +93,10 @@ public class AdminInventoryMoveController {
     /** 이동 폼의 재고 목록 / 구역 선택 목록 세팅 */
     private void prepareForm(Model model, Long binId) {
         model.addAttribute("inventories", inventoryMoveService.getMovableInventories(binId));
-        model.addAttribute("bins", warehouseBinService.getActiveBins());
+
+        // 도착 구역은 창고별로 묶어 내려준다 (화면에서 optgroup 으로 렌더링)
+        model.addAttribute("binsByWarehouse", warehouseBinService.getActiveBinsByWarehouse());
+
         model.addAttribute("selectedBinId", binId);
         model.addAttribute("subMenu", "move");
     }
