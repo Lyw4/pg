@@ -21,7 +21,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 재고 위치 이동 서비스 — 구역 간 이동(MOVE)과 센터 간 이관(TRANSFER).
@@ -298,6 +302,13 @@ public class InventoryMoveService {
      * 옮길 것이 없는 행(출고 · 폐기로 0 이 된 재고 행은 삭제하지 않고 남겨둔다)은
      * 자연히 빠진다. 자바에서 다시 걸러내지 않는다.
      *
+     * <h3>정렬이 재고 현황 화면과 다르다</h3>
+     * 재고 현황 목록은 <b>유통기한 순</b>이다. FEFO 출고 순서를 확인하는 화면이기 때문이다.
+     * 이동 화면은 목적이 다르다 — 사용자는 "이 구역의 저 재고를 옮기겠다" 는 의도를 갖고
+     * 들어오므로 <b>구역을 빨리 찾는 것</b>이 중요하다.
+     * 그래서 센터 → 구역 코드 → 유통기한 순으로 정렬한다.
+     * (같은 구역에 여러 로트가 있으면 그 안에서는 급한 것부터)
+     *
      * @param binId 특정 구역의 재고만 볼 때 지정, 전체는 null
      */
     public List<InventoryDto> getMovableInventories(Long binId) {
@@ -306,7 +317,43 @@ public class InventoryMoveService {
         // 구역이 이미 센터를 결정하므로 센터 조건은 필요 없다 (구역 하나는 센터 하나에 속한다)
         return inventoryRepository.search(null, null, binId, null).stream()
                 .map(inventory -> InventoryDto.of(inventory, today))
+                .sorted(MOVABLE_ORDER)
                 .toList();
+    }
+
+    /**
+     * 이동 화면 선택 목록의 정렬 기준.
+     * <p>
+     * Repository 의 {@code search} 정렬(유통기한 우선)을 바꾸지 않고 여기서 다시 세운다.
+     * {@code search} 는 재고 현황 목록도 함께 쓰는데 그 화면은 FEFO 순서가 핵심이라
+     * 쿼리 정렬을 바꾸면 다른 화면이 망가진다.
+     * <p>
+     * 센터명이 null 인 경우(단위 테스트 픽스처)를 뒤로 보내 {@code NullPointerException} 을 막는다.
+     */
+    private static final Comparator<InventoryDto> MOVABLE_ORDER =
+            Comparator.comparing(InventoryDto::getCenterName,
+                            Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(InventoryDto::getBinCode,
+                            Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(InventoryDto::getExpirationDate,
+                            Comparator.nullsLast(Comparator.naturalOrder()));
+
+    /**
+     * 이동 가능한 재고를 <b>센터별로 묶은</b> 선택 목록.
+     * <p>
+     * 화면에서 {@code <optgroup>} 으로 렌더링해 센터 경계를 눈으로 구분할 수 있게 한다.
+     * 묶지 않으면 제1창고의 {@code C-01} 과 제2창고의 {@code N-01} 이 섞여 나와
+     * <b>어느 센터의 재고를 옮기는지 모른 채 이관을 일으킬 수 있다.</b>
+     * 도착 구역 목록과 같은 형태로 맞춰 두 select 를 나란히 읽을 수 있게 한다.
+     * <p>
+     * 정렬 순서를 유지해야 하므로 {@link LinkedHashMap} 으로 모은다.
+     */
+    public Map<String, List<InventoryDto>> getMovableInventoriesByCenter(Long binId) {
+        return getMovableInventories(binId).stream()
+                .collect(Collectors.groupingBy(
+                        dto -> Texts.defaultIfBlank(dto.getCenterName(), "센터 미지정"),
+                        LinkedHashMap::new,
+                        Collectors.toList()));
     }
 
     /* ==================================================================

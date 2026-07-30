@@ -1,5 +1,6 @@
 package com.feedflow.admin.service;
 
+import com.feedflow.admin.dto.InventoryDto;
 import com.feedflow.admin.dto.StockMoveForm;
 import com.feedflow.admin.dto.StockMoveResultDto;
 import com.feedflow.common.exception.BusinessRuleException;
@@ -29,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -517,6 +519,85 @@ class InventoryMoveServiceTest {
                     .as("거부되었으므로 재고가 움직이지 않아야 한다")
                     .isEqualTo(100);
             verify(stockMovementRepository, never()).save(any(StockMovement.class));
+        }
+
+        /**
+         * 실제로 밟은 문제: 출발 재고 목록이 유통기한 순으로만 정렬되어
+         * 제1창고의 C-01 과 제2창고의 N-01 이 뒤섞여 나왔다.
+         * 구역 코드만으로는 센터를 알 수 없어 어느 센터 재고인지 모른 채
+         * 센터 간 이관을 일으킬 수 있었다.
+         */
+        @Test
+        @DisplayName("출발 재고 선택 목록은 센터 → 구역 코드 순으로 정렬된다")
+        void movableInventoriesSortedByCenterThenBin() {
+            Product product = product(500);
+            Center wh1 = center();
+            Center wh2 = otherCenter();
+
+            // Repository 는 유통기한 순으로 내려준다 (재고 현황 화면 기준)
+            given(inventoryRepository.search(null, null, null, null)).willReturn(List.of(
+                    inventory(1L, lot(10L, product, 50), bin(3L, "C-01", 400, true, wh1), 20),
+                    inventory(2L, lot(11L, product, 50), bin(8L, "N-01", 200, true, wh2), 30),
+                    inventory(3L, lot(12L, product, 50), bin(1L, "A-01", 500, true, wh1), 40),
+                    inventory(4L, lot(13L, product, 50), bin(9L, "N-02", 200, true, wh2), 10)));
+
+            List<InventoryDto> movable = inventoryMoveService.getMovableInventories(null);
+
+            assertThat(movable)
+                    .extracting(InventoryDto::getBinCode)
+                    .as("제1창고가 모두 먼저 오고 그 안에서 구역 코드 순이어야 한다")
+                    .containsExactly("A-01", "C-01", "N-01", "N-02");
+        }
+
+        @Test
+        @DisplayName("출발 재고를 센터별로 묶고 센터 순서를 유지한다")
+        void groupsMovableInventoriesByCenter() {
+            Product product = product(500);
+            Center wh1 = center();
+            Center wh2 = otherCenter();
+
+            given(inventoryRepository.search(null, null, null, null)).willReturn(List.of(
+                    inventory(1L, lot(10L, product, 50), bin(8L, "N-01", 200, true, wh2), 30),
+                    inventory(2L, lot(11L, product, 50), bin(1L, "A-01", 500, true, wh1), 40)));
+
+            Map<String, List<InventoryDto>> grouped =
+                    inventoryMoveService.getMovableInventoriesByCenter(null);
+
+            assertThat(grouped.keySet())
+                    .as("optgroup 순서가 뒤바뀌지 않도록 삽입 순서를 유지해야 한다")
+                    .containsExactly("제1창고", "제2창고");
+            assertThat(grouped.get("제1창고"))
+                    .extracting(InventoryDto::getBinCode).containsExactly("A-01");
+            assertThat(grouped.get("제2창고"))
+                    .extracting(InventoryDto::getBinCode).containsExactly("N-01");
+        }
+
+        @Test
+        @DisplayName("같은 구역에 여러 로트가 있으면 유통기한이 급한 것부터 보여준다")
+        void sameBinOrderedByExpiration() {
+            Product product = product(500);
+            Center wh1 = center();
+            WarehouseBin binA = bin(1L, "A-01", 500, true, wh1);
+
+            ProductLot urgent = ProductLot.builder()
+                    .lotId(20L).product(product).lotNo("LOT-URGENT")
+                    .manufacturedDate(LocalDate.now().minusDays(170))
+                    .expirationDate(LocalDate.now().plusDays(10))
+                    .lotQuantity(50).build();
+            ProductLot later = ProductLot.builder()
+                    .lotId(21L).product(product).lotNo("LOT-LATER")
+                    .manufacturedDate(LocalDate.now().minusDays(30))
+                    .expirationDate(LocalDate.now().plusDays(150))
+                    .lotQuantity(50).build();
+
+            given(inventoryRepository.search(null, null, null, null)).willReturn(List.of(
+                    inventory(1L, later, binA, 20),
+                    inventory(2L, urgent, binA, 30)));
+
+            assertThat(inventoryMoveService.getMovableInventories(null))
+                    .extracting(InventoryDto::getLotNo)
+                    .as("같은 구역 안에서는 급한 로트를 먼저 옮기게 안내해야 한다")
+                    .containsExactly("LOT-URGENT", "LOT-LATER");
         }
 
         @Test
