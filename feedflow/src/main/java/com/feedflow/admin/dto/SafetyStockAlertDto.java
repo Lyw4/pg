@@ -1,5 +1,7 @@
 package com.feedflow.admin.dto;
 
+import com.feedflow.common.util.Numbers;
+import com.feedflow.common.StockPolicy;
 import com.feedflow.domain.Product;
 import lombok.Builder;
 import lombok.Getter;
@@ -32,7 +34,7 @@ public class SafetyStockAlertDto {
     public static SafetyStockAlertDto from(Product product) {
         int safety = product.getSafetyStock() == null ? 0 : product.getSafetyStock();
         int total = product.getTotalStock() == null ? 0 : product.getTotalStock();
-        int rate = safety == 0 ? 100 : (int) Math.round(total * 100.0 / safety);
+        int rate = safety == 0 ? StockPolicy.MAX_PERCENT : (int) Math.round(total * 100.0 / safety);
 
         return SafetyStockAlertDto.builder()
                 .productId(product.getProductId())
@@ -44,7 +46,7 @@ public class SafetyStockAlertDto {
                 .totalStock(total)
                 .safetyStock(safety)
                 .shortage(product.shortageQuantity())
-                .stockRate(Math.min(rate, 100))
+                .stockRate(Numbers.cappedPercent(rate))
                 .build();
     }
 }

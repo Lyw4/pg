@@ -16,11 +16,11 @@ import com.feedflow.repository.ProductLotRepository;
 import com.feedflow.repository.ProductRepository;
 import com.feedflow.repository.StockMovementRepository;
 import com.feedflow.repository.WarehouseBinRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -69,8 +69,21 @@ class InventoryServiceTest {
     @Mock
     private StockMovementRepository stockMovementRepository;
 
-    @InjectMocks
     private InventoryService inventoryService;
+
+    /**
+     * {@code BinCapacityChecker} 는 mock 이 아니라 <b>실제 인스턴스</b>를 주입한다.
+     * <p>
+     * 적재 한도 판정은 이 테스트가 검증해야 하는 업무 규칙의 일부다. mock 으로 대체하면
+     * {@code sumQuantityByBinId} 스텁이 무의미해지고 '한도를 넘으면 거부한다' 는
+     * 검증이 껍데기만 남는다. 조회 결과만 mock 으로 주고 판정은 실제 코드가 하게 둔다.
+     */
+    @BeforeEach
+    void setUp() {
+        inventoryService = new InventoryService(productRepository, productLotRepository, warehouseBinRepository,
+                inventoryRepository, stockMovementRepository,
+                new BinCapacityChecker(inventoryRepository));
+    }
 
     /* ==================================================================
      * 시나리오 1 : 동일 로트가 같은 구역에 들어올 때 수량 합산 (UPDATE)
@@ -305,7 +318,7 @@ class InventoryServiceTest {
         assertThatThrownBy(() -> inventoryService.receive(
                 inboundForm(BIN_ID, LOT_NO, 30), USER_ID, USER_NAME))
                 .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("최대 적재 수량을 초과");
+                .hasMessageContaining("적재 한도를 초과");
 
         // 재고가 전혀 변경되지 않아야 한다
         assertThat(product.getTotalStock()).isEqualTo(100);

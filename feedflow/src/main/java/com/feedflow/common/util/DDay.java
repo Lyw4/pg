@@ -1,5 +1,7 @@
 package com.feedflow.common.util;
 
+import com.feedflow.common.StockPolicy;
+
 /**
  * 유통기한 D-Day 표기 유틸.
  * <p>
@@ -19,11 +21,11 @@ package com.feedflow.common.util;
  */
 public final class DDay {
 
-    /** 위험 구간 (일) */
-    private static final int CRITICAL_DAYS = 7;
+    /** 위험 구간 (일) — 도면 뱃지 · 대시보드와 같은 기준을 쓴다 */
+    private static final int CRITICAL_DAYS = StockPolicy.EXPIRY_CRITICAL_DAYS;
 
     /** 주의 구간 (일) */
-    private static final int WARNING_DAYS = 30;
+    private static final int WARNING_DAYS = StockPolicy.EXPIRING_SOON_DAYS;
 
     private static final String BADGE_EXPIRED = "bg-dark";
     private static final String BADGE_CRITICAL = "bg-danger";

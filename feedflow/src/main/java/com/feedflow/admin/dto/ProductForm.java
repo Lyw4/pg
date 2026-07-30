@@ -65,7 +65,7 @@ public class ProductForm {
     @NotNull(message = "유통기한 일수를 입력하세요.")
     @Min(value = 1, message = "유통기한 일수는 1일 이상이어야 합니다.")
     @Max(value = 3650, message = "유통기한 일수는 3650일 이하로 입력하세요.")
-    private Integer shelfLifeDays = 180;
+    private Integer shelfLifeDays = Product.DEFAULT_SHELF_LIFE_DAYS;
 
     /** 사용 여부 (등록 시 기본 true) */
     private boolean active = true;

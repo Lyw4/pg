@@ -20,4 +20,14 @@ public final class Numbers {
     public static int orZero(Integer value) {
         return value == null ? 0 : value;
     }
+
+    /**
+     * 비율을 진행바 표기용 상한({@link StockPolicy#MAX_PERCENT})으로 자른다.
+     * <p>
+     * 적재율은 한도를 넘을 수 있지만 진행바는 100% 에서 멈춰야 레이아웃이 깨지지 않는다.
+     * 세 DTO 가 {@code Math.min(usageRate, 100)} 을 각각 갖고 있었다.
+     */
+    public static int cappedPercent(int rate) {
+        return Math.min(rate, StockPolicy.MAX_PERCENT);
+    }
 }

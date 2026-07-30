@@ -1,6 +1,5 @@
 package com.feedflow.admin.service;
 
-import com.feedflow.common.util.Numbers;
 import com.feedflow.common.util.Texts;
 import com.feedflow.admin.dto.DisposalForm;
 import com.feedflow.admin.dto.DisposalResultDto;
@@ -59,6 +58,7 @@ public class InventoryService {
     private final WarehouseBinRepository warehouseBinRepository;
     private final InventoryRepository inventoryRepository;
     private final StockMovementRepository stockMovementRepository;
+    private final BinCapacityChecker binCapacityChecker;
 
     /* ==================================================================
      * 입고 처리
@@ -95,8 +95,8 @@ public class InventoryService {
                     "사용 중지된 구역에는 입고할 수 없습니다. (" + bin.getBinCode() + ")");
         }
 
-        // 2) 구역 적재 용량 검증
-        validateBinCapacity(bin, quantity);
+        // 2) 구역 적재 용량 검증 (입고 · 이동 · 복구가 같은 규칙을 쓴다)
+        binCapacityChecker.checkCanAccept(bin, quantity, "입고");
 
         // 3) 로트 결정 : 기존 로트에 합산하거나 새 로트를 생성 (유통기한 자동 계산)
         String lotNo = resolveLotNo(form.getLotNo(), product, form.getManufacturedDate());
@@ -320,15 +320,4 @@ public class InventoryService {
                 + "-" + String.format("%02d", sequence);
     }
 
-    /** 구역 적재 용량 초과 검증 */
-    private void validateBinCapacity(WarehouseBin bin, int quantity) {
-        int currentQuantity = (int) Numbers.orZero(inventoryRepository.sumQuantityByBinId(bin.getBinId()));
-
-        if (!bin.canAccept(currentQuantity, quantity)) {
-            throw new BusinessRuleException(
-                    "구역 [" + bin.getBinCode() + "] 의 최대 적재 수량을 초과합니다."
-                            + " (현재 " + currentQuantity + " + 입고 " + quantity
-                            + " > 최대 " + bin.capacityLimit() + ")");
-        }
-    }
 }

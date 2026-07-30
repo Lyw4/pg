@@ -1,5 +1,6 @@
 package com.feedflow.admin.dto;
 
+import com.feedflow.common.util.Numbers;
 import com.feedflow.domain.BinLoadStatus;
 import lombok.Builder;
 import lombok.Getter;
@@ -179,6 +180,6 @@ public class WarehouseMapSummaryDto {
     }
 
     public int getUsageRateCapped() {
-        return Math.min(usageRate, 100);
+        return Numbers.cappedPercent(usageRate);
     }
 }

@@ -22,12 +22,12 @@ import com.feedflow.domain.WarehouseBin;
 import com.feedflow.repository.InventoryRepository;
 import com.feedflow.repository.OrderRepository;
 import com.feedflow.repository.StockMovementRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -74,8 +74,20 @@ class OrderCancellationServiceTest {
     @Mock
     private StockMovementRepository stockMovementRepository;
 
-    @InjectMocks
     private OrderCancellationService orderCancellationService;
+
+    /**
+     * {@code BinCapacityChecker} 는 mock 이 아니라 <b>실제 인스턴스</b>를 주입한다.
+     * <p>
+     * 적재 한도 판정은 이 테스트가 검증해야 하는 업무 규칙의 일부다. mock 으로 대체하면
+     * {@code sumQuantityByBinId} 스텁이 무의미해지고 '한도를 넘으면 거부한다' 는
+     * 검증이 껍데기만 남는다. 조회 결과만 mock 으로 주고 판정은 실제 코드가 하게 둔다.
+     */
+    @BeforeEach
+    void setUp() {
+        orderCancellationService = new OrderCancellationService(orderRepository, inventoryRepository, stockMovementRepository,
+                new BinCapacityChecker(inventoryRepository));
+    }
 
     /* ==================================================================
      * 재고 복구 (핵심)

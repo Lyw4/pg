@@ -45,8 +45,8 @@ import java.util.List;
  *         단 <b>사용 중지된 구역에서 빼내는 것은 허용</b>한다. 구역을 비우는 작업이
  *         바로 사용 중지의 목적이므로 이를 막으면 재고가 갇힌다.</li>
  *     <li>도착 구역의 적재 한도를 넘을 수 없다.
- *         판정은 {@link WarehouseBin#canAccept(int, int)} 를 재사용해
- *         입고 · 출고 취소 복구와 같은 규칙을 쓴다.</li>
+ *         판정은 {@link BinCapacityChecker} 에 위임해 입고 · 출고 취소 복구와
+ *         <b>같은 규칙과 같은 예외 문구</b>를 쓴다.</li>
  * </ol>
  *
  * <h3>동시성</h3>
@@ -62,6 +62,7 @@ public class InventoryMoveService {
     private final InventoryRepository inventoryRepository;
     private final WarehouseBinRepository warehouseBinRepository;
     private final StockMovementRepository stockMovementRepository;
+    private final BinCapacityChecker binCapacityChecker;
 
     /* ==================================================================
      * 이동 처리
@@ -101,7 +102,7 @@ public class InventoryMoveService {
         validateMovable(fromBin, toBin, source, quantity);
 
         // 도착 구역의 전체 적재량. 한도 검증과 결과 표기(남은 여유)에 같은 값을 쓴다.
-        int toBinLoadBefore = validateTargetCapacity(toBin, quantity);
+        int toBinLoadBefore = binCapacityChecker.checkCanAccept(toBin, quantity, "이동");
 
         int fromQuantityBefore = Numbers.orZero(source.getQuantity());
 
@@ -202,28 +203,4 @@ public class InventoryMoveService {
         }
     }
 
-    /**
-     * 도착 구역에 자리가 있는지 확인하고 <b>이동 전 구역 전체 적재량</b>을 돌려준다.
-     * <p>
-     * 판정 규칙은 {@code WarehouseBin} 이 갖고 있다. 입고 · 출고 취소 복구와 같은 규칙을
-     * 써야 하므로 여기서 다시 구현하지 않는다.
-     * <p>
-     * 적재량을 반환하는 이유는 결과 화면의 "남은 여유" 도 같은 값을 기준으로 계산해야
-     * 하기 때문이다. 이 로트의 수량만으로 여유를 계산하면 같은 구역의 다른 로트를
-     * 빼먹어 실제보다 여유가 크게 표시된다.
-     *
-     * @return 이동 전 도착 구역의 전체 적재량
-     */
-    private int validateTargetCapacity(WarehouseBin toBin, int quantity) {
-        // 재고가 한 건도 없는 구역은 sum() 이 null 을 반환하므로 0 으로 보정한다
-        int currentLoad = (int) Numbers.orZero(inventoryRepository.sumQuantityByBinId(toBin.getBinId()));
-
-        if (!toBin.canAccept(currentLoad, quantity)) {
-            throw new BusinessRuleException(
-                    "구역 [" + toBin.getBinCode() + "] 의 적재 한도를 초과합니다."
-                            + " (현재 " + currentLoad + " + 이동 " + quantity
-                            + " > 한도 " + toBin.capacityLimit() + ")");
-        }
-        return currentLoad;
-    }
 }
