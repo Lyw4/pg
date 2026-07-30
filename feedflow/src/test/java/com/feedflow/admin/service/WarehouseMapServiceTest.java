@@ -14,8 +14,8 @@ import com.feedflow.domain.BinPurpose;
 import com.feedflow.domain.Inventory;
 import com.feedflow.domain.Product;
 import com.feedflow.domain.ProductLot;
+import com.feedflow.domain.Center;
 import com.feedflow.domain.ProductType;
-import com.feedflow.domain.Warehouse;
 import com.feedflow.domain.WarehouseBin;
 import com.feedflow.repository.InventoryRepository;
 import com.feedflow.repository.WarehouseBinRepository;
@@ -38,6 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 /**
  * 창고 2D 평면도 서비스 단위 테스트.
@@ -57,6 +58,12 @@ import static org.mockito.BDDMockito.given;
 class WarehouseMapServiceTest {
 
     private static final LocalDate TODAY = LocalDate.of(2026, 7, 28);
+
+    /** 제1창고 (data.sql 시드의 centerId) */
+    private static final Long CENTER_1_ID = 1L;
+
+    /** 제2창고 — COLD 구역이 배치된 센터 */
+    private static final Long CENTER_2_ID = 2L;
 
     @Mock
     private WarehouseBinRepository warehouseBinRepository;
@@ -268,7 +275,7 @@ class WarehouseMapServiceTest {
         @DisplayName("좌표가 없는 옛 데이터도 1,1 기본값으로 도면에 그려진다")
         void missingCoordinates_fallbackToOrigin() {
             WarehouseMapRow noCoords = new WarehouseMapRow(
-                    1L, "A-01", Warehouse.WH1, "A", BinPurpose.STORAGE, "01", 1, 500, true,
+                    1L, "A-01", "A", BinPurpose.STORAGE, "01", 1, 500, true,
                     null, null, null, null, 0L, 0L, 0L, null);
 
             WarehouseBinMapDto target = WarehouseBinMapDto.of(noCoords, TODAY);
@@ -286,22 +293,21 @@ class WarehouseMapServiceTest {
     class FloorPlan {
 
         @Test
-        @DisplayName("창고 한 동의 사각형 · 부대시설 · 구역 요약 · 전체 요약을 함께 내려준다")
+        @DisplayName("센터 한 곳의 사각형 · 부대시설 · 구역 요약 · 전체 요약을 함께 내려준다")
         void returnsFloorPlan() {
-            given(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH1)).willReturn(List.of(
+            given(warehouseBinRepository.findWarehouseMapRows(CENTER_1_ID)).willReturn(List.of(
                     row(10L, "R-01", "R", BinPurpose.RECEIVING, 300, true, 250L, 1L, 1L, null, 1, 4, 4, 3),
                     storageRow(1L, "A-01", "A", 500, true, 240L, 2L, 2L, null, 6, 1, 2, 6),
                     storageRow(2L, "A-02", "A", 500, true, 170L, 1L, 1L, null, 6, 7, 2, 6),
                     storageRow(5L, "B-01", "B", 600, true, 360L, 2L, 1L, null, 9, 1, 7, 2)));
 
-            WarehouseFloorPlanDto plan = warehouseMapService.getFloorPlan(Warehouse.WH1, TODAY);
+            WarehouseFloorPlanDto plan = warehouseMapService.getFloorPlan(CENTER_1_ID, TODAY);
 
-            assertThat(plan.getWarehouse()).isEqualTo(Warehouse.WH1);
             assertThat(plan.getBins()).hasSize(4);
             assertThat(plan.isEmpty()).isFalse();
 
             assertThat(plan.getFacilities())
-                    .as("출입구 · 벽 · 검수실은 DB 가 아니라 창고별 상수로 내려온다")
+                    .as("출입구 · 벽 · 검수실은 DB 가 아니라 센터별 상수로 내려온다")
                     .isNotEmpty()
                     .extracting(WarehouseFacilityDto::getLabel)
                     .contains("입고 출입구", "검수실");
@@ -313,22 +319,34 @@ class WarehouseMapServiceTest {
         }
 
         @Test
-        @DisplayName("구역이 없는 창고는 빈 도면으로 표시한다")
-        void emptyWarehouse() {
-            given(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH2)).willReturn(List.of());
+        @DisplayName("구역이 아직 없는 센터는 빈 도면으로 표시한다")
+        void emptyCenter() {
+            given(warehouseBinRepository.findWarehouseMapRows(CENTER_2_ID)).willReturn(List.of());
 
-            WarehouseFloorPlanDto plan = warehouseMapService.getFloorPlan(Warehouse.WH2, TODAY);
+            WarehouseFloorPlanDto plan = warehouseMapService.getFloorPlan(CENTER_2_ID, TODAY);
 
             assertThat(plan.isEmpty()).isTrue();
             assertThat(plan.getZones()).isEmpty();
             assertThat(plan.getSummary().getUsageRate()).isZero();
         }
 
+        /**
+         * 센터가 늘어나도 조회한 센터의 구역만 도면에 그려져야 한다.
+         * Warehouse enum 시절에는 창고 목록이 상수 두 개로 고정이었지만,
+         * 이제 센터는 DB 에서 관리되므로 조회 조건이 그대로 전달되는지가 중요하다.
+         */
         @Test
-        @DisplayName("탭 구성용 창고 목록은 전체 창고를 그대로 내려준다")
-        void returnsAllWarehouses() {
-            assertThat(warehouseMapService.getWarehouses())
-                    .containsExactly(Warehouse.WH1, Warehouse.WH2);
+        @DisplayName("요청한 센터의 구역만 조회한다")
+        void queriesOnlyRequestedCenter() {
+            given(warehouseBinRepository.findWarehouseMapRows(CENTER_2_ID)).willReturn(List.of(
+                    storageRow(8L, "COLD-01", "COLD", 200, true, 90L, 1L, 1L, null, 9, 1, 7, 2)));
+
+            WarehouseFloorPlanDto plan = warehouseMapService.getFloorPlan(CENTER_2_ID, TODAY);
+
+            assertThat(plan.getBins())
+                    .extracting(WarehouseBinMapDto::getBinCode)
+                    .containsExactly("COLD-01");
+            verify(warehouseBinRepository).findWarehouseMapRows(CENTER_2_ID);
         }
     }
 
@@ -343,13 +361,13 @@ class WarehouseMapServiceTest {
         @Test
         @DisplayName("구역에 속한 사각형들의 경계 상자로 라벨 위치를 계산한다")
         void calculatesBoundingBox() {
-            given(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH1)).willReturn(List.of(
+            given(warehouseBinRepository.findWarehouseMapRows(CENTER_1_ID)).willReturn(List.of(
                     storageRow(5L, "B-01", "B", 600, true, 300L, 1L, 1L, null, 9, 1, 7, 2),
                     storageRow(6L, "B-02", "B", 600, true, 300L, 1L, 1L, null, 9, 4, 7, 2),
                     storageRow(7L, "B-03", "B", 300, true, 0L, 0L, 0L, null, 9, 7, 7, 2)));
 
             WarehouseMapZoneDto zoneB = warehouseMapService
-                    .getFloorPlan(Warehouse.WH1, TODAY).getZones().get(0);
+                    .getFloorPlan(CENTER_1_ID, TODAY).getZones().get(0);
 
             assertThat(zoneB.getPosX()).isEqualTo(9);
             assertThat(zoneB.getPosY()).isEqualTo(1);
@@ -388,12 +406,12 @@ class WarehouseMapServiceTest {
         @Test
         @DisplayName("구역 적재율은 사용 중인 보관 구역만 집계한다")
         void zoneUsageRate_excludesInactiveAndNonStorage() {
-            given(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH1)).willReturn(List.of(
+            given(warehouseBinRepository.findWarehouseMapRows(CENTER_1_ID)).willReturn(List.of(
                     storageRow(1L, "A-01", "A", 500, true, 250L, 1L, 1L, null, 6, 1, 2, 6),
                     storageRow(9L, "A-03", "A", 500, false, 0L, 0L, 0L, null, 6, 13, 2, 6)));
 
             WarehouseMapZoneDto zoneA = warehouseMapService
-                    .getFloorPlan(Warehouse.WH1, TODAY).getZones().get(0);
+                    .getFloorPlan(CENTER_1_ID, TODAY).getZones().get(0);
 
             assertThat(zoneA.getBinCount())
                     .as("도면에는 사용 중지 구역도 그려지므로 칸 수에는 포함된다")
@@ -408,11 +426,11 @@ class WarehouseMapServiceTest {
         @Test
         @DisplayName("구역 요약 진행바 색은 적재율 구간을 따른다")
         void barClassByUsageRate() {
-            given(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH2)).willReturn(List.of(
+            given(warehouseBinRepository.findWarehouseMapRows(CENTER_2_ID)).willReturn(List.of(
                     storageRow(8L, "COLD-01", "COLD", 200, true, 190L, 1L, 1L, null, 9, 1, 7, 2)));
 
             WarehouseMapZoneDto cold = warehouseMapService
-                    .getFloorPlan(Warehouse.WH2, TODAY).getZones().get(0);
+                    .getFloorPlan(CENTER_2_ID, TODAY).getZones().get(0);
 
             assertThat(cold.getUsageRate()).isEqualTo(95);
             assertThat(cold.getBarClass()).isEqualTo("bg-danger");
@@ -430,14 +448,14 @@ class WarehouseMapServiceTest {
         @Test
         @DisplayName("사용 중지 구역과 입고/출고 대기 구역은 수용량 통계에서 제외한다")
         void excludesInactiveAndNonStorage() {
-            given(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH1)).willReturn(List.of(
+            given(warehouseBinRepository.findWarehouseMapRows(CENTER_1_ID)).willReturn(List.of(
                     storageRow(1L, "A-01", "A", 500, true, 240L, 2L, 2L, null, 6, 1, 2, 6),
                     storageRow(8L, "C-01", "C", 200, true, 190L, 2L, 2L, null, 9, 13, 7, 2),
                     row(10L, "R-01", "R", BinPurpose.RECEIVING, 300, true, 250L, 1L, 1L, null, 1, 4, 4, 3),
                     storageRow(9L, "A-03", "A", 400, false, 0L, 0L, 0L, null, 6, 13, 2, 6)));
 
             WarehouseMapSummaryDto summary =
-                    warehouseMapService.getFloorPlan(Warehouse.WH1, TODAY).getSummary();
+                    warehouseMapService.getFloorPlan(CENTER_1_ID, TODAY).getSummary();
 
             assertThat(summary.getTotalBins()).isEqualTo(4);
             assertThat(summary.getActiveBins()).isEqualTo(3);
@@ -459,7 +477,7 @@ class WarehouseMapServiceTest {
         @DisplayName("대기 구역 재고는 적재율에서 빼지만 별도 항목으로 집계해 보여준다")
         void waitingStockIsExcludedButReported() {
             // given : 입고 대기 구역에 250 포대가 실제로 쌓여 있는 상태
-            given(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH1)).willReturn(List.of(
+            given(warehouseBinRepository.findWarehouseMapRows(CENTER_1_ID)).willReturn(List.of(
                     storageRow(1L, "A-01", "A", 500, true, 240L, 1L, 1L, null, 6, 1, 2, 4),
                     row(10L, "R-01", "R", BinPurpose.RECEIVING, 300, true,
                             250L, 1L, 1L, null, 1, 3, 4, 3),
@@ -467,7 +485,7 @@ class WarehouseMapServiceTest {
                             0L, 0L, 0L, null, 1, 6, 4, 2)));
 
             WarehouseMapSummaryDto summary =
-                    warehouseMapService.getFloorPlan(Warehouse.WH1, TODAY).getSummary();
+                    warehouseMapService.getFloorPlan(CENTER_1_ID, TODAY).getSummary();
 
             // 적재율은 보관 구역만
             assertThat(summary.getTotalCapacity()).isEqualTo(500);
@@ -493,12 +511,12 @@ class WarehouseMapServiceTest {
         @Test
         @DisplayName("사용 중지 구역의 수용량도 별도로 집계한다")
         void reportsInactiveCapacity() {
-            given(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH1)).willReturn(List.of(
+            given(warehouseBinRepository.findWarehouseMapRows(CENTER_1_ID)).willReturn(List.of(
                     storageRow(1L, "A-01", "A", 500, true, 240L, 1L, 1L, null, 6, 1, 2, 4),
                     storageRow(9L, "A-03", "A", 400, false, 0L, 0L, 0L, null, 6, 10, 2, 5)));
 
             WarehouseMapSummaryDto summary =
-                    warehouseMapService.getFloorPlan(Warehouse.WH1, TODAY).getSummary();
+                    warehouseMapService.getFloorPlan(CENTER_1_ID, TODAY).getSummary();
 
             assertThat(summary.getInactiveCapacity())
                     .as("보수 중이라 쓸 수 없는 공간을 구분해 보여준다")
@@ -509,13 +527,13 @@ class WarehouseMapServiceTest {
         @Test
         @DisplayName("대기 구역이 비어 있으면 별도 표기를 하지 않는다")
         void noWaitingStock_notReported() {
-            given(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH2)).willReturn(List.of(
+            given(warehouseBinRepository.findWarehouseMapRows(CENTER_2_ID)).willReturn(List.of(
                     storageRow(8L, "N-01", "N", 200, true, 90L, 1L, 1L, null, 9, 1, 5, 3),
                     row(22L, "R-11", "R", BinPurpose.RECEIVING, 300, true,
                             0L, 0L, 0L, null, 1, 3, 4, 3)));
 
             WarehouseMapSummaryDto summary =
-                    warehouseMapService.getFloorPlan(Warehouse.WH2, TODAY).getSummary();
+                    warehouseMapService.getFloorPlan(CENTER_2_ID, TODAY).getSummary();
 
             assertThat(summary.getWaitingLoaded()).isZero();
             assertThat(summary.isHasWaitingStock()).isFalse();
@@ -525,7 +543,7 @@ class WarehouseMapServiceTest {
         @Test
         @DisplayName("포화 / 빈 구역 / 유통기한 임박 구역 개수를 센다")
         void countsBinsByStatus() {
-            given(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH1)).willReturn(List.of(
+            given(warehouseBinRepository.findWarehouseMapRows(CENTER_1_ID)).willReturn(List.of(
                     storageRow(1L, "A-01", "A", 200, true, 190L, 1L, 1L, TODAY.plusDays(5), 6, 1, 2, 6),
                     storageRow(2L, "A-02", "A", 200, true, 180L, 1L, 1L, null, 6, 7, 2, 6),
                     storageRow(3L, "C-01", "C", 400, true, 0L, 0L, 0L, null, 9, 13, 7, 2),
@@ -533,7 +551,7 @@ class WarehouseMapServiceTest {
                     storageRow(9L, "A-03", "A", 400, false, 0L, 0L, 0L, null, 6, 13, 2, 6)));
 
             WarehouseMapSummaryDto summary =
-                    warehouseMapService.getFloorPlan(Warehouse.WH1, TODAY).getSummary();
+                    warehouseMapService.getFloorPlan(CENTER_1_ID, TODAY).getSummary();
 
             assertThat(summary.getFullBins()).isEqualTo(2);
             assertThat(summary.getEmptyBins())
@@ -579,8 +597,8 @@ class WarehouseMapServiceTest {
             assertThat(detail.getBin().getUsageRate()).isEqualTo(95);
             assertThat(detail.getBin().getStatus()).isEqualTo(BinLoadStatus.FULL);
             assertThat(detail.getBin().getLocationLabel())
-                    .as("창고 이름부터 표기해야 어느 건물인지 알 수 있다")
-                    .isEqualTo("제2창고 · COLD구역 · 01랙 · 1단");
+                    .as("도면은 센터 탭 안에서 보므로 센터명을 반복하지 않는다")
+                    .isEqualTo("COLD구역 · 01랙 · 1단");
 
             assertThat(detail.getInventoryCount()).isEqualTo(2);
             assertThat(detail.getInventories())
@@ -659,10 +677,8 @@ class WarehouseMapServiceTest {
                                 Long loaded, Long lotCount, Long productCount,
                                 LocalDate earliestExpiration,
                                 int posX, int posY, int posWidth, int posHeight) {
-        // COLD 구역은 제2창고에 배치되어 있다
-        Warehouse warehouse = "COLD".equals(zone) ? Warehouse.WH2 : Warehouse.WH1;
-
-        return new WarehouseMapRow(binId, binCode, warehouse, zone, purpose, "01", 1,
+        // 도면은 센터 단위로 그리므로 집계 행에는 센터 정보가 담기지 않는다
+        return new WarehouseMapRow(binId, binCode, zone, purpose, "01", 1,
                 maxCapacity, active, posX, posY, posWidth, posHeight,
                 loaded, lotCount, productCount, earliestExpiration);
     }
@@ -695,7 +711,9 @@ class WarehouseMapServiceTest {
         WarehouseBin warehouseBin = WarehouseBin.builder()
                 .binId(8L)
                 .binCode("COLD-01")
-                .warehouse(Warehouse.WH2)
+                .center(Center.builder()
+                        .centerId(CENTER_2_ID).centerCode("WH2").name("제2창고")
+                        .region("수도권").active(true).build())
                 .zone("COLD")
                 .binPurpose(BinPurpose.STORAGE)
                 .rack("01")

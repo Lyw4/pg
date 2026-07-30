@@ -31,12 +31,12 @@
             <div class="card-body">
                 <form th:action="@{/admin/bins}" method="get" class="row g-2 align-items-end">
                     <div class="col-6 col-md-3">
-                        <label for="warehouse" class="form-label">창고</label>
-                        <select id="warehouse" name="warehouse" class="form-select form-select-sm">
+                        <label for="centerId" class="form-label">센터</label>
+                        <select id="centerId" name="centerId" class="form-select form-select-sm">
                             <option value="">전체</option>
-                            <option th:each="wh : ${warehouses}" th:value="${wh}"
-                                    th:text="${wh.description}"
-                                    th:selected="${wh == selectedWarehouse}">제1창고</option>
+                            <option th:each="c : ${centers}" th:value="${c.centerId}"
+                                    th:text="${c.name}"
+                                    th:selected="${c.centerId == selectedCenterId}">제1창고</option>
                         </select>
                     </div>
 

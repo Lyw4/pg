@@ -15,15 +15,15 @@
 
     <main class="ff-main">
 
-        <!-- 창고 전환 탭 -->
+        <!-- 센터 전환 탭 -->
         <ul class="nav nav-tabs ff-warehouse-tabs mb-3">
-            <li class="nav-item" th:each="wh : ${warehouses}">
+            <li class="nav-item" th:each="c : ${centers}">
                 <a class="nav-link"
-                   th:classappend="${wh == selectedWarehouse} ? 'active'"
-                   th:href="@{/admin/warehouse-map(warehouse=${wh})}">
+                   th:classappend="${c.centerId == selectedCenterId} ? 'active'"
+                   th:href="@{/admin/warehouse-map(centerId=${c.centerId})}">
                     <i class="bi bi-building me-1"></i>
-                    <span th:text="${wh.description}">제1창고</span>
-                    <small class="text-muted ms-1" th:text="${wh.note}">상온</small>
+                    <span th:text="${c.name}">제1창고</span>
+                    <small class="text-muted ms-1" th:text="${c.note}">상온</small>
                 </a>
             </li>
         </ul>

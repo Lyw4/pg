@@ -4,8 +4,9 @@ import com.feedflow.admin.dto.WarehouseBinDto;
 import com.feedflow.admin.dto.WarehouseBinForm;
 import com.feedflow.common.exception.DuplicateCodeException;
 import com.feedflow.common.exception.ResourceNotFoundException;
-import com.feedflow.domain.Warehouse;
+import com.feedflow.domain.Center;
 import com.feedflow.domain.WarehouseBin;
+import com.feedflow.repository.CenterRepository;
 import com.feedflow.repository.WarehouseBinRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -34,8 +35,19 @@ import static org.mockito.Mockito.verify;
 @DisplayName("WarehouseBinService 단위 테스트")
 class WarehouseBinServiceTest {
 
+    private static final Center CENTER_1 = Center.builder()
+            .centerId(1L).centerCode("WH1").name("제1창고").region("수도권")
+            .note("상온 · 배합사료").active(true).build();
+
+    private static final Center CENTER_2 = Center.builder()
+            .centerId(2L).centerCode("WH2").name("제2창고").region("수도권")
+            .note("저온 · 영양제").active(true).build();
+
     @Mock
     private WarehouseBinRepository warehouseBinRepository;
+
+    @Mock
+    private CenterRepository centerRepository;
 
     @InjectMocks
     private WarehouseBinService warehouseBinService;
@@ -46,6 +58,7 @@ class WarehouseBinServiceTest {
         // given
         WarehouseBinForm form = binForm("A-04-01", "a");
         given(warehouseBinRepository.existsByBinCode("A-04-01")).willReturn(false);
+        given(centerRepository.findById(1L)).willReturn(Optional.of(CENTER_1));
         given(warehouseBinRepository.save(any(WarehouseBin.class))).willReturn(bin(10L, "A-04-01"));
 
         // when
@@ -62,6 +75,9 @@ class WarehouseBinServiceTest {
         assertThat(saved.getZone())
                 .as("구역(Zone)도 대문자로 정규화되어야 한다")
                 .isEqualTo("A");
+        assertThat(saved.getCenter())
+                .as("폼에서 선택한 센터가 연결되어야 한다")
+                .isSameAs(CENTER_1);
         assertThat(saved.getBinLevel()).isEqualTo(1);
         assertThat(saved.getMaxCapacity()).isEqualTo(400);
         assertThat(saved.isActive()).isTrue();
@@ -84,11 +100,28 @@ class WarehouseBinServiceTest {
     }
 
     @Test
+    @DisplayName("존재하지 않는 센터를 지정해 등록하면 ResourceNotFoundException 이 발생하고 저장되지 않는다")
+    void create_centerNotFound_throwsException() {
+        // given
+        WarehouseBinForm form = binForm("A-04-01", "A");
+        form.setCenterId(999L);
+        given(warehouseBinRepository.existsByBinCode("A-04-01")).willReturn(false);
+        given(centerRepository.findById(999L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> warehouseBinService.create(form))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("존재하지 않는 물류센터");
+
+        verify(warehouseBinRepository, never()).save(any(WarehouseBin.class));
+    }
+
+    @Test
     @DisplayName("다른 구역이 사용 중인 코드로 변경하면 DuplicateCodeException 이 발생한다")
     void update_duplicateCode_throwsException() {
         // given
         WarehouseBin target = bin(1L, "A-01-01");
-        given(warehouseBinRepository.findById(1L)).willReturn(Optional.of(target));
+        given(warehouseBinRepository.findWithCenterById(1L)).willReturn(Optional.of(target));
         given(warehouseBinRepository.existsByBinCodeAndBinIdNot("B-01-01", 1L)).willReturn(true);
 
         // when & then
@@ -101,7 +134,7 @@ class WarehouseBinServiceTest {
     @Test
     @DisplayName("존재하지 않는 구역을 수정하면 ResourceNotFoundException 이 발생한다")
     void update_notFound_throwsException() {
-        given(warehouseBinRepository.findById(999L)).willReturn(Optional.empty());
+        given(warehouseBinRepository.findWithCenterById(999L)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> warehouseBinService.update(999L, binForm("Z-01-01", "Z")))
                 .isInstanceOf(ResourceNotFoundException.class)
@@ -113,7 +146,7 @@ class WarehouseBinServiceTest {
     void changeActive_deactivate() {
         // given
         WarehouseBin target = bin(1L, "A-01-01");
-        given(warehouseBinRepository.findById(1L)).willReturn(Optional.of(target));
+        given(warehouseBinRepository.findWithCenterById(1L)).willReturn(Optional.of(target));
 
         // when
         String binCode = warehouseBinService.changeActive(1L, false);
@@ -133,19 +166,19 @@ class WarehouseBinServiceTest {
     class ActiveBinList {
 
         /**
-         * 실제로 있었던 버그: 구역 코드만으로 정렬해 창고가 뒤섞였다.
+         * 실제로 있었던 버그: 구역 코드만으로 정렬해 센터가 뒤섞였다.
          * 제2창고의 COLD-01 이 알파벳 순서상 제1창고의 C-02 와 D-01 사이에 끼어들어
          * 선택 목록이 "제1창고 C → 제2창고 COLD → 제1창고 D" 순으로 나왔다.
          */
         @Test
-        @DisplayName("Repository 가 정렬한 순서(창고 → 구역코드)를 변환 과정에서 흐트러뜨리지 않는다")
+        @DisplayName("Repository 가 정렬한 순서(센터 → 구역코드)를 변환 과정에서 흐트러뜨리지 않는다")
         void preservesRepositoryOrder() {
-            given(warehouseBinRepository.findByActiveTrueOrderByWarehouseAscBinCodeAsc())
+            given(warehouseBinRepository.findActiveBinsForSelection())
                     .willReturn(List.of(
-                            bin(1L, "C-02", Warehouse.WH1),
-                            bin(2L, "D-01", Warehouse.WH1),
-                            bin(3L, "COLD-01", Warehouse.WH2),
-                            bin(4L, "N-01", Warehouse.WH2)));
+                            bin(1L, "C-02", CENTER_1),
+                            bin(2L, "D-01", CENTER_1),
+                            bin(3L, "COLD-01", CENTER_2),
+                            bin(4L, "N-01", CENTER_2)));
 
             List<WarehouseBinDto> bins = warehouseBinService.getActiveBins();
 
@@ -156,26 +189,26 @@ class WarehouseBinServiceTest {
         }
 
         @Test
-        @DisplayName("창고별로 묶고 창고 순서를 유지한다")
+        @DisplayName("센터별로 묶고 센터 순서를 유지한다")
         void groupsByWarehouseKeepingOrder() {
-            given(warehouseBinRepository.findByActiveTrueOrderByWarehouseAscBinCodeAsc())
+            given(warehouseBinRepository.findActiveBinsForSelection())
                     .willReturn(List.of(
-                            bin(1L, "A-01", Warehouse.WH1),
-                            bin(2L, "B-01", Warehouse.WH1),
-                            bin(3L, "COLD-01", Warehouse.WH2)));
+                            bin(1L, "A-01", CENTER_1),
+                            bin(2L, "B-01", CENTER_1),
+                            bin(3L, "COLD-01", CENTER_2)));
 
-            Map<Warehouse, List<WarehouseBinDto>> grouped =
-                    warehouseBinService.getActiveBinsByWarehouse();
+            Map<String, List<WarehouseBinDto>> grouped =
+                    warehouseBinService.getActiveBinsByCenter();
 
             // HashMap 으로 모으면 키 순서가 보장되지 않아 화면에서 제2창고가 먼저 나올 수 있다
             assertThat(grouped.keySet())
                     .as("optgroup 순서가 뒤바뀌지 않도록 삽입 순서를 유지해야 한다")
-                    .containsExactly(Warehouse.WH1, Warehouse.WH2);
+                    .containsExactly("제1창고", "제2창고");
 
-            assertThat(grouped.get(Warehouse.WH1))
+            assertThat(grouped.get("제1창고"))
                     .extracting(WarehouseBinDto::getBinCode)
                     .containsExactly("A-01", "B-01");
-            assertThat(grouped.get(Warehouse.WH2))
+            assertThat(grouped.get("제2창고"))
                     .extracting(WarehouseBinDto::getBinCode)
                     .containsExactly("COLD-01");
         }
@@ -183,11 +216,11 @@ class WarehouseBinServiceTest {
         @Test
         @DisplayName("사용 중인 구역이 없으면 빈 목록을 돌려준다")
         void emptyWhenNoActiveBins() {
-            given(warehouseBinRepository.findByActiveTrueOrderByWarehouseAscBinCodeAsc())
+            given(warehouseBinRepository.findActiveBinsForSelection())
                     .willReturn(List.of());
 
             assertThat(warehouseBinService.getActiveBins()).isEmpty();
-            assertThat(warehouseBinService.getActiveBinsByWarehouse()).isEmpty();
+            assertThat(warehouseBinService.getActiveBinsByCenter()).isEmpty();
         }
     }
 
@@ -198,6 +231,7 @@ class WarehouseBinServiceTest {
     private WarehouseBinForm binForm(String binCode, String zone) {
         WarehouseBinForm form = new WarehouseBinForm();
         form.setBinCode(binCode);
+        form.setCenterId(CENTER_1.getCenterId());
         form.setZone(zone);
         form.setRack("04");
         form.setBinLevel(1);
@@ -210,6 +244,7 @@ class WarehouseBinServiceTest {
         return WarehouseBin.builder()
                 .binId(binId)
                 .binCode(binCode)
+                .center(CENTER_1)
                 .zone("A")
                 .rack("01")
                 .binLevel(1)
@@ -218,12 +253,12 @@ class WarehouseBinServiceTest {
                 .build();
     }
 
-    /** 창고를 지정하는 픽스처 (선택 목록 정렬 · 그룹핑 검증용) */
-    private WarehouseBin bin(Long binId, String binCode, Warehouse warehouse) {
+    /** 센터를 지정하는 픽스처 (선택 목록 정렬 · 그룹핑 검증용) */
+    private WarehouseBin bin(Long binId, String binCode, Center center) {
         return WarehouseBin.builder()
                 .binId(binId)
                 .binCode(binCode)
-                .warehouse(warehouse)
+                .center(center)
                 .zone(binCode.split("-")[0])
                 .rack("01")
                 .binLevel(1)

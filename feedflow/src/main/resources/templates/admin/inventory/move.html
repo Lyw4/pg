@@ -79,15 +79,15 @@
                                 <div class="col-12">
                                     <label for="targetBinId" class="form-label ff-required">도착 구역</label>
                                     <!--
-                                        창고별로 optgroup 으로 묶는다.
+                                        센터별로 optgroup 으로 묶는다.
                                         구역 코드만으로 정렬하면 제2창고 COLD-01 이 제1창고 C-02 와 D-01 사이에
-                                        끼어들어 창고가 뒤섞인다. 다른 건물의 구역을 잘못 고르는 것을 막는다.
+                                        끼어들어 센터가 뒤섞인다. 다른 센터의 구역을 잘못 고르는 것을 막는다.
                                     -->
                                     <select id="targetBinId" th:field="*{targetBinId}" class="form-select"
                                             th:classappend="${#fields.hasErrors('targetBinId')} ? 'is-invalid'">
                                         <option value="">-- 구역을 선택하세요 --</option>
-                                        <optgroup th:each="group : ${binsByWarehouse}"
-                                                  th:label="${group.key.description}">
+                                        <optgroup th:each="group : ${binsByCenter}"
+                                                  th:label="${group.key}">
                                             <option th:each="b : ${group.value}"
                                                     th:value="${b.binId}"
                                                     th:text="${b.binCode} + ' | ' + ${b.zone} + '구역'
@@ -99,7 +99,7 @@
                                     </select>
                                     <div class="invalid-feedback" th:errors="*{targetBinId}">오류</div>
                                     <div class="form-text">
-                                        창고별로 묶여 있습니다. 사용 중지된 구역은 목록에 없고,
+                                        센터별로 묶여 있습니다. 사용 중지된 구역은 목록에 없고,
                                         적재 한도를 넘는 이동은 처리되지 않습니다.
                                     </div>
                                 </div>

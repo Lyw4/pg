@@ -94,8 +94,8 @@ public class AdminInventoryMoveController {
     private void prepareForm(Model model, Long binId) {
         model.addAttribute("inventories", inventoryMoveService.getMovableInventories(binId));
 
-        // 도착 구역은 창고별로 묶어 내려준다 (화면에서 optgroup 으로 렌더링)
-        model.addAttribute("binsByWarehouse", warehouseBinService.getActiveBinsByWarehouse());
+        // 도착 구역은 센터별로 묶어 내려준다 (화면에서 optgroup 으로 렌더링)
+        model.addAttribute("binsByCenter", warehouseBinService.getActiveBinsByCenter());
 
         model.addAttribute("selectedBinId", binId);
         model.addAttribute("subMenu", "move");

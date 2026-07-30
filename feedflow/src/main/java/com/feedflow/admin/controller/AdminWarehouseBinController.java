@@ -1,10 +1,10 @@
 package com.feedflow.admin.controller;
 
+import com.feedflow.admin.dto.CenterDto;
 import com.feedflow.admin.dto.WarehouseBinForm;
 import com.feedflow.admin.service.WarehouseBinService;
 import com.feedflow.common.exception.DuplicateCodeException;
 import com.feedflow.domain.BinPurpose;
-import com.feedflow.domain.Warehouse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -39,10 +39,10 @@ public class AdminWarehouseBinController {
         return warehouseBinService.getZones();
     }
 
-    /** 창고 선택 목록 */
-    @ModelAttribute("warehouses")
-    public List<Warehouse> warehouses() {
-        return List.of(Warehouse.values());
+    /** 센터 선택 목록 (운영 중인 센터만) */
+    @ModelAttribute("centers")
+    public List<CenterDto> centers() {
+        return warehouseBinService.getActiveCenters();
     }
 
     /** 구역 용도 선택 목록 */
@@ -61,14 +61,14 @@ public class AdminWarehouseBinController {
      * ------------------------------------------------------------------ */
 
     @GetMapping
-    public String list(@RequestParam(name = "warehouse", required = false) Warehouse warehouse,
+    public String list(@RequestParam(name = "centerId", required = false) Long centerId,
                        @RequestParam(name = "zone", required = false) String zone,
                        @RequestParam(name = "active", required = false) Boolean active,
                        Model model) {
 
-        model.addAttribute("bins", warehouseBinService.getBins(warehouse, zone, active));
+        model.addAttribute("bins", warehouseBinService.getBins(centerId, zone, active));
         model.addAttribute("activeBinCount", warehouseBinService.countActiveBins());
-        model.addAttribute("selectedWarehouse", warehouse);
+        model.addAttribute("selectedCenterId", centerId);
         model.addAttribute("selectedZone", zone);
         model.addAttribute("selectedActive", active);
         return LIST_VIEW;

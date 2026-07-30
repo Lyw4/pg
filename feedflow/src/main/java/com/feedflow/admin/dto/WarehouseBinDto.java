@@ -1,7 +1,6 @@
 package com.feedflow.admin.dto;
 
 import com.feedflow.domain.BinPurpose;
-import com.feedflow.domain.Warehouse;
 import com.feedflow.domain.WarehouseBin;
 import lombok.Builder;
 import lombok.Getter;
@@ -17,7 +16,11 @@ public class WarehouseBinDto {
 
     private final Long binId;
     private final String binCode;
-    private final Warehouse warehouse;
+    /** 소속 센터 (선택 상자 값) */
+    private final Long centerId;
+
+    /** 소속 센터명 (화면 표기) */
+    private final String centerName;
     private final String zone;
     private final BinPurpose binPurpose;
     private final String rack;
@@ -39,7 +42,8 @@ public class WarehouseBinDto {
         return WarehouseBinDto.builder()
                 .binId(bin.getBinId())
                 .binCode(bin.getBinCode())
-                .warehouse(bin.getWarehouse())
+                .centerId(bin.getCenter().getCenterId())
+                .centerName(bin.getCenter().displayName())
                 .zone(bin.getZone())
                 .binPurpose(bin.getBinPurpose())
                 .rack(bin.getRack())

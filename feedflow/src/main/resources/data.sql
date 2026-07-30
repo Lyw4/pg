@@ -8,6 +8,16 @@
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
+-- 0. 물류센터 : 구역(warehouseBins)이 FK 로 참조하므로 가장 먼저 넣는다
+--    원래 Warehouse enum(WH1/WH2) 이었으나 전국 확장을 위해 엔티티로 승격했다.
+--    Phase 1 은 '구조 전환' 이므로 코드와 이름을 그대로 유지해
+--    화면 결과가 이전과 같은지로 회귀를 판정할 수 있게 한다.
+-- ---------------------------------------------------------------------
+INSERT INTO centers (centerId, centerCode, name, region, address, note, active, createdAt) VALUES
+(1, 'WH1', '제1창고', '수도권', '경기 안성시 공도읍 물류로 15', '상온 · 배합사료', TRUE, DATEADD('DAY', -400, CURRENT_TIMESTAMP)),
+(2, 'WH2', '제2창고', '수도권', '경기 안성시 공도읍 물류로 22', '저온 · 영양제',   TRUE, DATEADD('DAY', -360, CURRENT_TIMESTAMP));
+
+-- ---------------------------------------------------------------------
 -- 1. 사용자 : 사원(ADMIN 1, STAFF 1) + 고객(USER 3)
 -- ---------------------------------------------------------------------
 INSERT INTO users (userId, email, password, name, phone, role, createdAt) VALUES
@@ -161,51 +171,51 @@ INSERT INTO orderItems (orderItemId, orderId, productId, lotId, quantity, orderP
 --      STORAGE   : 보관 (적재율 통계 포함)
 --      RECEIVING : 입고 대기 / SHIPPING : 출고 대기 (통계 제외)
 -- ---------------------------------------------------------------------
-INSERT INTO warehouseBins (binId, binCode, warehouse, zone, binPurpose, rack, binLevel, maxCapacity, posX, posY, posWidth, posHeight, active, memo, createdAt) VALUES
--- ===== 제1창고 (WH1) : 하역장(1~4열) | 벽(5열) | 보관 구역(6~26열) =====
-(10, 'R-01', 'WH1', 'R', 'RECEIVING', '01', 1, 300,  1,  3, 4, 3, TRUE,  '입고 검수 전 대기 구역',   DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
-(11, 'H-01', 'WH1', 'H', 'STORAGE',   '01', 1, 700,  1,  6, 4, 2, TRUE,  '대형 파렛트 구역',         DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
-(12, 'H-02', 'WH1', 'H', 'STORAGE',   '02', 1, 700,  1,  8, 4, 2, TRUE,  NULL,                       DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
-(1,  'A-01', 'WH1', 'A', 'STORAGE',   '01', 1, 500,  6,  1, 2, 4, TRUE,  '입고 동선 우선 구역',      DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
-(2,  'A-02', 'WH1', 'A', 'STORAGE',   '01', 2, 500,  6,  5, 2, 5, TRUE,  NULL,                       DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
-(9,  'A-03', 'WH1', 'A', 'STORAGE',   '01', 3, 400,  6, 10, 2, 5, FALSE, '천장 누수 보수 중 사용 중지', DATEADD('DAY', -90, CURRENT_TIMESTAMP)),
-(5,  'B-01', 'WH1', 'B', 'STORAGE',   '01', 1, 600,  9,  1, 5, 3, TRUE,  '대량 파렛트 적재 구역',    DATEADD('DAY', -200, CURRENT_TIMESTAMP)),
-(6,  'B-02', 'WH1', 'B', 'STORAGE',   '01', 2, 600,  9,  5, 5, 3, TRUE,  NULL,                       DATEADD('DAY', -200, CURRENT_TIMESTAMP)),
-(7,  'B-03', 'WH1', 'B', 'STORAGE',   '02', 1, 300,  9,  9, 5, 3, TRUE,  NULL,                       DATEADD('DAY', -200, CURRENT_TIMESTAMP)),
-(13, 'B-04', 'WH1', 'B', 'STORAGE',   '02', 2, 300,  9, 12, 5, 3, TRUE,  NULL,                       DATEADD('DAY', -200, CURRENT_TIMESTAMP)),
-(3,  'C-01', 'WH1', 'C', 'STORAGE',   '01', 1, 400, 15,  1, 5, 3, TRUE,  NULL,                       DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
-(4,  'C-02', 'WH1', 'C', 'STORAGE',   '01', 2, 400, 15,  5, 5, 3, TRUE,  NULL,                       DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
-(14, 'D-01', 'WH1', 'D', 'STORAGE',   '01', 1, 500, 15,  9, 5, 3, TRUE,  NULL,                       DATEADD('DAY', -180, CURRENT_TIMESTAMP)),
-(15, 'D-02', 'WH1', 'D', 'STORAGE',   '01', 2, 500, 15, 12, 5, 3, TRUE,  NULL,                       DATEADD('DAY', -180, CURRENT_TIMESTAMP)),
-(16, 'E-01', 'WH1', 'E', 'STORAGE',   '01', 1, 450, 21,  1, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -150, CURRENT_TIMESTAMP)),
-(17, 'E-02', 'WH1', 'E', 'STORAGE',   '01', 2, 450, 24,  1, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -150, CURRENT_TIMESTAMP)),
-(18, 'E-03', 'WH1', 'E', 'STORAGE',   '02', 1, 250, 21,  5, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -150, CURRENT_TIMESTAMP)),
-(19, 'E-04', 'WH1', 'E', 'STORAGE',   '02', 2, 250, 24,  5, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -150, CURRENT_TIMESTAMP)),
-(20, 'E-05', 'WH1', 'E', 'STORAGE',   '03', 1, 250, 21,  9, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -150, CURRENT_TIMESTAMP)),
-(21, 'E-06', 'WH1', 'E', 'STORAGE',   '03', 2, 250, 24,  9, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -150, CURRENT_TIMESTAMP)),
--- ===== 제2창고 (WH2) : 저온 창고. COLD 구역을 이 창고에 배치 =====
-(22, 'R-11',    'WH2', 'R',    'RECEIVING', '01', 1, 300,  1,  3, 4, 3, TRUE,  '저온 입고 대기(사전 냉각)', DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
-(23, 'S-01',    'WH2', 'S',    'SHIPPING',  '01', 1, 400,  1,  6, 4, 2, TRUE,  '출고 피킹 집합 구역',       DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
-(24, 'S-02',    'WH2', 'S',    'SHIPPING',  '02', 1, 400,  1,  8, 4, 2, TRUE,  NULL,                        DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
-(25, 'K-01',    'WH2', 'K',    'STORAGE',   '01', 1, 350,  6,  1, 2, 4, TRUE,  '상온 병행 보관 구역',       DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
-(26, 'K-02',    'WH2', 'K',    'STORAGE',   '01', 2, 350,  6,  5, 2, 5, TRUE,  NULL,                        DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
-(27, 'K-03',    'WH2', 'K',    'STORAGE',   '01', 3, 350,  6, 10, 2, 5, TRUE,  NULL,                        DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+INSERT INTO warehouseBins (binId, binCode, centerId, zone, binPurpose, rack, binLevel, maxCapacity, posX, posY, posWidth, posHeight, active, memo, createdAt) VALUES
+-- ===== 제1창고 (centerId=1) : 하역장(1~4열) | 벽(5열) | 보관 구역(6~26열) =====
+(10, 'R-01', 1, 'R', 'RECEIVING', '01', 1, 300,  1,  3, 4, 3, TRUE,  '입고 검수 전 대기 구역',   DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
+(11, 'H-01', 1, 'H', 'STORAGE',   '01', 1, 700,  1,  6, 4, 2, TRUE,  '대형 파렛트 구역',         DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
+(12, 'H-02', 1, 'H', 'STORAGE',   '02', 1, 700,  1,  8, 4, 2, TRUE,  NULL,                       DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
+(1,  'A-01', 1, 'A', 'STORAGE',   '01', 1, 500,  6,  1, 2, 4, TRUE,  '입고 동선 우선 구역',      DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
+(2,  'A-02', 1, 'A', 'STORAGE',   '01', 2, 500,  6,  5, 2, 5, TRUE,  NULL,                       DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
+(9,  'A-03', 1, 'A', 'STORAGE',   '01', 3, 400,  6, 10, 2, 5, FALSE, '천장 누수 보수 중 사용 중지', DATEADD('DAY', -90, CURRENT_TIMESTAMP)),
+(5,  'B-01', 1, 'B', 'STORAGE',   '01', 1, 600,  9,  1, 5, 3, TRUE,  '대량 파렛트 적재 구역',    DATEADD('DAY', -200, CURRENT_TIMESTAMP)),
+(6,  'B-02', 1, 'B', 'STORAGE',   '01', 2, 600,  9,  5, 5, 3, TRUE,  NULL,                       DATEADD('DAY', -200, CURRENT_TIMESTAMP)),
+(7,  'B-03', 1, 'B', 'STORAGE',   '02', 1, 300,  9,  9, 5, 3, TRUE,  NULL,                       DATEADD('DAY', -200, CURRENT_TIMESTAMP)),
+(13, 'B-04', 1, 'B', 'STORAGE',   '02', 2, 300,  9, 12, 5, 3, TRUE,  NULL,                       DATEADD('DAY', -200, CURRENT_TIMESTAMP)),
+(3,  'C-01', 1, 'C', 'STORAGE',   '01', 1, 400, 15,  1, 5, 3, TRUE,  NULL,                       DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
+(4,  'C-02', 1, 'C', 'STORAGE',   '01', 2, 400, 15,  5, 5, 3, TRUE,  NULL,                       DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
+(14, 'D-01', 1, 'D', 'STORAGE',   '01', 1, 500, 15,  9, 5, 3, TRUE,  NULL,                       DATEADD('DAY', -180, CURRENT_TIMESTAMP)),
+(15, 'D-02', 1, 'D', 'STORAGE',   '01', 2, 500, 15, 12, 5, 3, TRUE,  NULL,                       DATEADD('DAY', -180, CURRENT_TIMESTAMP)),
+(16, 'E-01', 1, 'E', 'STORAGE',   '01', 1, 450, 21,  1, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -150, CURRENT_TIMESTAMP)),
+(17, 'E-02', 1, 'E', 'STORAGE',   '01', 2, 450, 24,  1, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -150, CURRENT_TIMESTAMP)),
+(18, 'E-03', 1, 'E', 'STORAGE',   '02', 1, 250, 21,  5, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -150, CURRENT_TIMESTAMP)),
+(19, 'E-04', 1, 'E', 'STORAGE',   '02', 2, 250, 24,  5, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -150, CURRENT_TIMESTAMP)),
+(20, 'E-05', 1, 'E', 'STORAGE',   '03', 1, 250, 21,  9, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -150, CURRENT_TIMESTAMP)),
+(21, 'E-06', 1, 'E', 'STORAGE',   '03', 2, 250, 24,  9, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -150, CURRENT_TIMESTAMP)),
+-- ===== 제2창고 (centerId=2) : 저온 창고. COLD 구역을 이 창고에 배치 =====
+(22, 'R-11',    2,     'R',    'RECEIVING', '01', 1, 300,  1,  3, 4, 3, TRUE,  '저온 입고 대기(사전 냉각)', DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(23, 'S-01',    2,     'S',    'SHIPPING',  '01', 1, 400,  1,  6, 4, 2, TRUE,  '출고 피킹 집합 구역',       DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(24, 'S-02',    2,     'S',    'SHIPPING',  '02', 1, 400,  1,  8, 4, 2, TRUE,  NULL,                        DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(25, 'K-01',    2,     'K',    'STORAGE',   '01', 1, 350,  6,  1, 2, 4, TRUE,  '상온 병행 보관 구역',       DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(26, 'K-02',    2,     'K',    'STORAGE',   '01', 2, 350,  6,  5, 2, 5, TRUE,  NULL,                        DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(27, 'K-03',    2,     'K',    'STORAGE',   '01', 3, 350,  6, 10, 2, 5, TRUE,  NULL,                        DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
 -- 상온 보관 구역 (N) : 9~19열. 일반 배합사료 · 영양제 상온 보관
-(8,  'N-01', 'WH2', 'N', 'STORAGE', '01', 1, 200,  9,  1, 5, 3, TRUE,  '상온 보관 구역',   DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
-(28, 'N-02', 'WH2', 'N', 'STORAGE', '01', 2, 200,  9,  5, 5, 3, TRUE,  NULL,               DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
-(29, 'N-03', 'WH2', 'N', 'STORAGE', '02', 1, 200,  9,  9, 5, 3, TRUE,  NULL,               DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
-(30, 'N-04', 'WH2', 'N', 'STORAGE', '02', 2, 200,  9, 12, 5, 3, TRUE,  NULL,               DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
-(31, 'N-05', 'WH2', 'N', 'STORAGE', '03', 1, 200, 15,  1, 5, 3, TRUE,  NULL,               DATEADD('DAY', -110, CURRENT_TIMESTAMP)),
-(32, 'N-06', 'WH2', 'N', 'STORAGE', '03', 2, 200, 15,  5, 5, 3, TRUE,  NULL,               DATEADD('DAY', -110, CURRENT_TIMESTAMP)),
-(33, 'N-07', 'WH2', 'N', 'STORAGE', '04', 1, 250, 15,  9, 5, 3, TRUE,  NULL,               DATEADD('DAY', -110, CURRENT_TIMESTAMP)),
-(34, 'N-08', 'WH2', 'N', 'STORAGE', '04', 2, 250, 15, 12, 5, 3, TRUE,  NULL,               DATEADD('DAY', -110, CURRENT_TIMESTAMP)),
+(8,  'N-01', 2, 'N', 'STORAGE', '01', 1, 200,  9,  1, 5, 3, TRUE,  '상온 보관 구역',   DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(28, 'N-02', 2, 'N', 'STORAGE', '01', 2, 200,  9,  5, 5, 3, TRUE,  NULL,               DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(29, 'N-03', 2, 'N', 'STORAGE', '02', 1, 200,  9,  9, 5, 3, TRUE,  NULL,               DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(30, 'N-04', 2, 'N', 'STORAGE', '02', 2, 200,  9, 12, 5, 3, TRUE,  NULL,               DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(31, 'N-05', 2, 'N', 'STORAGE', '03', 1, 200, 15,  1, 5, 3, TRUE,  NULL,               DATEADD('DAY', -110, CURRENT_TIMESTAMP)),
+(32, 'N-06', 2, 'N', 'STORAGE', '03', 2, 200, 15,  5, 5, 3, TRUE,  NULL,               DATEADD('DAY', -110, CURRENT_TIMESTAMP)),
+(33, 'N-07', 2, 'N', 'STORAGE', '04', 1, 250, 15,  9, 5, 3, TRUE,  NULL,               DATEADD('DAY', -110, CURRENT_TIMESTAMP)),
+(34, 'N-08', 2, 'N', 'STORAGE', '04', 2, 250, 15, 12, 5, 3, TRUE,  NULL,               DATEADD('DAY', -110, CURRENT_TIMESTAMP)),
 -- 저온 보관 구역 (COLD) : 21~26열. 온도 관리가 필요한 품목만 적재
-(35, 'COLD-01', 'WH2', 'COLD', 'STORAGE', '05', 1, 300, 21,  1, 3, 3, TRUE,  '저온 보관(영양제) 구역',   DATEADD('DAY', -110, CURRENT_TIMESTAMP)),
-(36, 'COLD-02', 'WH2', 'COLD', 'STORAGE', '05', 2, 300, 24,  1, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -110, CURRENT_TIMESTAMP)),
-(37, 'COLD-03', 'WH2', 'COLD', 'STORAGE', '06', 1, 150, 21,  5, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -100, CURRENT_TIMESTAMP)),
-(38, 'COLD-04', 'WH2', 'COLD', 'STORAGE', '06', 2, 150, 24,  5, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -100, CURRENT_TIMESTAMP)),
-(39, 'COLD-05', 'WH2', 'COLD', 'STORAGE', '07', 1, 150, 21,  9, 3, 3, FALSE, '냉각기 교체 중 사용 중지', DATEADD('DAY', -100, CURRENT_TIMESTAMP)),
-(40, 'COLD-06', 'WH2', 'COLD', 'STORAGE', '07', 2, 150, 24,  9, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -100, CURRENT_TIMESTAMP));
+(35, 'COLD-01', 2, 'COLD', 'STORAGE', '05', 1, 300, 21,  1, 3, 3, TRUE,  '저온 보관(영양제) 구역',   DATEADD('DAY', -110, CURRENT_TIMESTAMP)),
+(36, 'COLD-02', 2, 'COLD', 'STORAGE', '05', 2, 300, 24,  1, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -110, CURRENT_TIMESTAMP)),
+(37, 'COLD-03', 2, 'COLD', 'STORAGE', '06', 1, 150, 21,  5, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -100, CURRENT_TIMESTAMP)),
+(38, 'COLD-04', 2, 'COLD', 'STORAGE', '06', 2, 150, 24,  5, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -100, CURRENT_TIMESTAMP)),
+(39, 'COLD-05', 2, 'COLD', 'STORAGE', '07', 1, 150, 21,  9, 3, 3, FALSE, '냉각기 교체 중 사용 중지', DATEADD('DAY', -100, CURRENT_TIMESTAMP)),
+(40, 'COLD-06', 2, 'COLD', 'STORAGE', '07', 2, 150, 24,  9, 3, 3, TRUE,  NULL,                       DATEADD('DAY', -100, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
 -- 7. 재고 (로트 × 구역) 16건
@@ -316,6 +326,7 @@ INSERT INTO stockMovements (movementId, movementType, productId, lotId, binId, q
 -- 9. IDENTITY 시퀀스 재시작
 --    (명시적 ID 로 INSERT 했으므로, 이후 JPA 저장 시 PK 충돌을 막는다)
 -- ---------------------------------------------------------------------
+ALTER TABLE centers ALTER COLUMN centerId RESTART WITH 3;
 ALTER TABLE users ALTER COLUMN userId RESTART WITH 6;
 ALTER TABLE products ALTER COLUMN productId RESTART WITH 14;
 ALTER TABLE productLots ALTER COLUMN lotId RESTART WITH 35;

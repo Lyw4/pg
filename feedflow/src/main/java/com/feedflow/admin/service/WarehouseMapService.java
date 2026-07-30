@@ -9,7 +9,6 @@ import com.feedflow.admin.dto.WarehouseMapRow;
 import com.feedflow.admin.dto.WarehouseMapSummaryDto;
 import com.feedflow.admin.dto.WarehouseMapZoneDto;
 import com.feedflow.common.exception.ResourceNotFoundException;
-import com.feedflow.domain.Warehouse;
 import com.feedflow.repository.InventoryRepository;
 import com.feedflow.repository.WarehouseBinRepository;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +30,7 @@ import java.util.Map;
  * 실제 창고 도면처럼 표현할 수 있다.
  * <p>
  * 출입구 · 벽 · 검수실은 재고를 보관하지 않는 건물 구조물이라 DB 가 아니라
- * {@link WarehouseFacilityDto#forWarehouse} 상수로 관리한다.
+ * {@link WarehouseFacilityDto#forCenter} 상수로 관리한다.
  *
  * <p>모두 조회 전용이다. 재고를 변경하지 않는다.</p>
  */
@@ -48,28 +47,22 @@ public class WarehouseMapService {
      * ------------------------------------------------------------------ */
 
     /**
-     * 창고 한 동의 평면도를 조회한다.
+     * 센터 한 곳의 평면도를 조회한다.
      *
-     * @param warehouse 조회할 창고 (null 이면 전체 창고의 구역이 한 도면에 섞이므로 권장하지 않음)
-     * @param today     D-Day 계산 기준일
+     * @param centerId 조회할 센터 (null 이면 전체 센터의 구역이 한 도면에 섞이므로 권장하지 않음)
+     * @param today    D-Day 계산 기준일
      */
-    public WarehouseFloorPlanDto getFloorPlan(Warehouse warehouse, LocalDate today) {
-        List<WarehouseBinMapDto> bins = warehouseBinRepository.findWarehouseMapRows(warehouse).stream()
+    public WarehouseFloorPlanDto getFloorPlan(Long centerId, LocalDate today) {
+        List<WarehouseBinMapDto> bins = warehouseBinRepository.findWarehouseMapRows(centerId).stream()
                 .map(row -> WarehouseBinMapDto.of(row, today))
                 .toList();
 
         return WarehouseFloorPlanDto.builder()
-                .warehouse(warehouse)
                 .bins(bins)
-                .facilities(WarehouseFacilityDto.forWarehouse(warehouse))
+                .facilities(WarehouseFacilityDto.forCenter(centerId))
                 .zones(toZoneSummaries(bins))
                 .summary(WarehouseMapSummaryDto.of(bins))
                 .build();
-    }
-
-    /** 화면 탭 구성용 창고 목록 */
-    public List<Warehouse> getWarehouses() {
-        return List.of(Warehouse.values());
     }
 
     /* ------------------------------------------------------------------

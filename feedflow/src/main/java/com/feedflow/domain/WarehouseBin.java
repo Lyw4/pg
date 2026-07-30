@@ -4,9 +4,12 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
@@ -43,10 +46,18 @@ public class WarehouseBin {
     @Column(name = "binCode", nullable = false, unique = true, length = 30)
     private String binCode;
 
-    /** 소속 창고(동) — 2D 도면은 창고 단위로 그린다 */
-    @Enumerated(EnumType.STRING)
-    @Column(name = "warehouse", nullable = false, length = 20)
-    private Warehouse warehouse;
+    /**
+     * 소속 물류센터 — 2D 도면은 센터 단위로 그린다.
+     * <p>
+     * 원래 {@code Warehouse} enum 이었으나 전국 단위로 확장하면서 엔티티로 승격했다.
+     * 센터는 운영 중에 늘고 줄어들어 enum 으로는 값을 추가할 수 없다.
+     * <p>
+     * {@code LAZY} 이므로 센터명을 표시하는 조회는 {@code join fetch} 로 함께 읽어야 한다.
+     * ({@link #locationLabel()} 이 센터명을 쓴다)
+     */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "centerId", nullable = false)
+    private Center center;
 
     /** 구역(Zone) 예: A, B, COLD */
     @Column(name = "zone", nullable = false, length = 20)
@@ -112,9 +123,9 @@ public class WarehouseBin {
         if (maxCapacity == null) {
             maxCapacity = 0;
         }
-        if (warehouse == null) {
-            warehouse = Warehouse.WH1;
-        }
+        // center 는 optional=false 이므로 기본값을 넣지 않는다.
+        // 어느 센터에 속하는지는 업무상 반드시 지정해야 하고, 임의의 센터로
+        // 채우면 엉뚱한 도면에 구역이 나타난다. 비어 있으면 저장 단계에서 실패시킨다.
         if (binPurpose == null) {
             binPurpose = BinPurpose.STORAGE;
         }
@@ -135,7 +146,7 @@ public class WarehouseBin {
 
     /** 기준 정보 수정 */
     public void updateMasterData(String binCode,
-                                 Warehouse warehouse,
+                                 Center center,
                                  String zone,
                                  BinPurpose binPurpose,
                                  String rack,
@@ -143,7 +154,7 @@ public class WarehouseBin {
                                  Integer maxCapacity,
                                  String memo) {
         this.binCode = binCode;
-        this.warehouse = warehouse;
+        this.center = center;
         this.zone = zone;
         this.binPurpose = binPurpose;
         this.rack = rack;
@@ -185,11 +196,16 @@ public class WarehouseBin {
         this.active = active;
     }
 
-    /** 화면 표기용 위치 문자열 (예: 제1창고 · A구역 · 1랙 · 2단) */
+    /**
+     * 화면 표기용 위치 문자열 (예: 제1창고 · A구역 · 1랙 · 2단)
+     * <p>
+     * 센터명을 포함하므로 {@code center} 가 초기화된 상태에서 호출해야 한다.
+     * 조회 쿼리에 {@code join fetch center} 가 없으면 구역 수만큼 추가 쿼리가 나간다.
+     */
     public String locationLabel() {
         StringBuilder sb = new StringBuilder();
-        if (warehouse != null) {
-            sb.append(warehouse.getDescription()).append(" · ");
+        if (center != null) {
+            sb.append(center.displayName()).append(" · ");
         }
         sb.append(zone).append("구역");
         if (rack != null && !rack.isBlank()) {

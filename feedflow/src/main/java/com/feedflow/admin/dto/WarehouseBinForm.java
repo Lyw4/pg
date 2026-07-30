@@ -1,7 +1,6 @@
 package com.feedflow.admin.dto;
 
 import com.feedflow.domain.BinPurpose;
-import com.feedflow.domain.Warehouse;
 import com.feedflow.domain.WarehouseBin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -41,8 +40,15 @@ public class WarehouseBinForm {
     @Pattern(regexp = "^[A-Za-z0-9-]+$", message = "구역 코드는 영문/숫자/하이픈(-)만 사용할 수 있습니다.")
     private String binCode;
 
-    @NotNull(message = "창고를 선택하세요.")
-    private Warehouse warehouse = Warehouse.WH1;
+    /**
+     * 소속 물류센터.
+     * <p>
+     * 기본값을 두지 않는다. 예전에는 {@code Warehouse.WH1} 을 기본값으로 뒀지만,
+     * 센터가 여러 곳이 되면 '기본 센터' 라는 개념 자체가 성립하지 않는다.
+     * 등록자가 반드시 고르게 해 엉뚱한 센터에 구역이 생기는 것을 막는다.
+     */
+    @NotNull(message = "센터를 선택하세요.")
+    private Long centerId;
 
     @NotBlank(message = "구역(Zone)을 입력하세요.")
     @Size(max = 20, message = "구역은 20자 이내로 입력하세요.")
@@ -94,7 +100,7 @@ public class WarehouseBinForm {
         WarehouseBinForm form = new WarehouseBinForm();
         form.binId = bin.getBinId();
         form.binCode = bin.getBinCode();
-        form.warehouse = bin.getWarehouse();
+        form.centerId = bin.getCenter().getCenterId();
         form.zone = bin.getZone();
         form.binPurpose = bin.getBinPurpose();
         form.rack = bin.getRack();

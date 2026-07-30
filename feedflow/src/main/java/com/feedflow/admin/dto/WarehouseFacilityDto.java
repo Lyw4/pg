@@ -1,6 +1,5 @@
 package com.feedflow.admin.dto;
 
-import com.feedflow.domain.Warehouse;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -66,25 +65,30 @@ public class WarehouseFacilityDto {
     }
 
     /**
-     * 창고별 부대시설 배치.
+     * 센터 부대시설 배치.
      * <p>
-     * 두 창고 모두 왼쪽에 하역장(출입구 · 검수실)을 두고 세로 벽으로 보관 구역과 나눈다.
+     * 왼쪽에 하역장(입·출고 출입구와 검수실)을 두고 세로 벽으로 보관 구역과 나눈다.
+     *
+     * <h3>왜 센터별 분기가 없는가</h3>
+     * 원래 {@code Warehouse} enum 으로 {@code switch} 하고 있었지만 <b>WH1 과 WH2 의 배치가
+     * 완전히 동일</b>했다. 분기가 형태만 남아 있어 그대로 옮기면 센터가 늘어날 때마다
+     * 같은 목록을 복사하게 된다. 공통 배치 하나로 합쳤다.
+     * <p>
+     * 센터마다 실제로 배치가 달라지면 이 상수를 {@code centerFacilities} 테이블로
+     * 옮겨야 한다. 코드에 센터별 분기를 늘리는 방식은 전국 단위에서 유지되지 않는다.
+     * (재고를 보관하지 않는 구조물이라 {@code WarehouseBin} 으로 등록하면
+     *  적재율 통계와 입고 대상 목록이 오염되므로 별도 관리가 맞다)
+     *
+     * @param centerId 센터 식별자. null 이면 도면을 그릴 대상이 없으므로 빈 목록.
      */
-    public static List<WarehouseFacilityDto> forWarehouse(Warehouse warehouse) {
-        if (warehouse == null) {
+    public static List<WarehouseFacilityDto> forCenter(Long centerId) {
+        if (centerId == null) {
             return List.of();
         }
-        return switch (warehouse) {
-            case WH1 -> List.of(
-                    of("입고 출입구", FacilityType.DOOR, 1, 1, 4, 2),
-                    of("하역장 벽", FacilityType.WALL, 5, 1, 1, 14),
-                    of("출고 출입구", FacilityType.DOOR, 1, 10, 4, 2),
-                    of("검수실", FacilityType.INSPECTION, 1, 12, 4, 3));
-            case WH2 -> List.of(
-                    of("입고 출입구", FacilityType.DOOR, 1, 1, 4, 2),
-                    of("하역장 벽", FacilityType.WALL, 5, 1, 1, 14),
-                    of("출고 출입구", FacilityType.DOOR, 1, 10, 4, 2),
-                    of("검수실", FacilityType.INSPECTION, 1, 12, 4, 3));
-        };
+        return List.of(
+                of("입고 출입구", FacilityType.DOOR, 1, 1, 4, 2),
+                of("하역장 벽", FacilityType.WALL, 5, 1, 1, 14),
+                of("출고 출입구", FacilityType.DOOR, 1, 10, 4, 2),
+                of("검수실", FacilityType.INSPECTION, 1, 12, 4, 3));
     }
 }
