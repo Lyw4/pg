@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>불량품 관리 | Feed Flow</title><link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header th:replace="~{fragments :: header('defects')}"></header>
+<main class="container defect-page">
+    <section class="page-head"><div><p class="eyebrow">QUALITY CONTROL</p><h1>불량품 관리</h1>
+        <p>불량 재고를 즉시 격리하고 검사부터 최종 처리까지 추적합니다.</p></div>
+        <span class="defect-open-count">미처리 <strong th:text="${openDefectCount}">0</strong>건</span></section>
+    <div class="alert success" th:if="${message}" th:text="${message}"></div>
+    <div class="alert error" th:if="${error}" th:text="${error}"></div>
+    <div th:fragment="defectContent">
+    <section class="panel"><div class="panel-title"><div><p class="eyebrow">NEW DEFECT</p>
+        <h2>불량품 등록</h2><p>등록 수량은 선택한 LOT의 정상 가용 재고에서 차감됩니다.</p></div></div>
+        <form class="defect-form" method="post" th:action="@{/inventory/defects}">
+            <label>상품 / LOT<select name="lotId" required><option value="">LOT를 선택하세요</option>
+                <option th:each="lot : ${defectLots}" th:value="${lot.lotId}"
+                    th:text="|${lot.product.name} / ${lot.lotNo} (가용 ${lot.lotQuantity - reservedLotStocks.getOrDefault(lot.lotId, 0)})|"></option></select></label>
+            <label>불량 수량<input type="number" name="quantity" min="1" required></label>
+            <label>불량 유형<select name="defectType" required><option th:each="type : ${defectTypes}"
+                th:value="${type}" th:text="${type.label}"></option></select></label>
+            <label>발생 단계<select name="occurrenceStage" required><option th:each="stage : ${occurrenceStages}"
+                th:value="${stage}" th:text="${stage.label}"></option></select></label>
+            <label>발생 일시<input type="datetime-local" name="occurredAt"></label>
+            <label>등록자<input type="text" name="reporter" maxlength="100" required></label>
+            <label class="defect-wide">상세 내용<textarea name="description" rows="3" maxlength="1000"
+                placeholder="불량 상태와 발견 경위를 입력하세요." required></textarea></label>
+            <div class="defect-wide"><button type="submit" class="primary">불량 등록 및 격리</button></div>
+        </form>
+    </section>
+    <section class="panel"><div class="panel-title"><div><p class="eyebrow">DEFECT HISTORY</p>
+        <h2>불량 처리 현황</h2><p>격리된 수량과 판정 결과를 확인할 수 있습니다.</p></div></div>
+        <div class="table-wrap"><table class="defect-table"><thead><tr><th>불량 번호</th><th>상품 / LOT</th>
+            <th>수량</th><th>유형 / 단계</th><th>내용</th><th>상태</th><th>처리</th></tr></thead><tbody>
+        <tr th:each="record : ${records}">
+            <td><strong th:text="${record.defectNo}">DF-0000</strong><small
+                th:text="${#temporals.format(record.occurredAt, 'yyyy-MM-dd HH:mm')}"></small></td>
+            <td><strong th:text="${record.lot.product.name}">상품</strong><small th:text="${record.lot.lotNo}">LOT</small></td>
+            <td><strong th:text="${record.quantity}">0</strong></td>
+            <td><span th:text="${record.defectType.label}">유형</span><small th:text="${record.occurrenceStage.label}">단계</small></td>
+            <td><span th:text="${record.description}">내용</span><small th:text="|등록: ${record.reporter}|"></small></td>
+            <td><span class="defect-status" th:classappend="${record.status.name().toLowerCase()}"
+                th:text="${record.status.label}">격리</span><small th:if="${record.resolutionType != null}"
+                th:text="${record.resolutionType.label}"></small></td>
+            <td><form th:if="${record.status.name() == 'QUARANTINED'}" method="post"
+                th:action="@{/inventory/defects/{id}/inspect(id=${record.defectId})}">
+                <button type="submit" class="ghost">검사 시작</button></form>
+                <form th:if="${record.status.name() != 'RESOLVED'}" class="resolve-form" method="post"
+                    th:action="@{/inventory/defects/{id}/resolve(id=${record.defectId})}">
+                    <select name="resolutionType" required><option value="">판정 선택</option><option
+                        th:each="resolution : ${resolutionTypes}" th:value="${resolution}"
+                        th:text="${resolution.label}"></option></select>
+                    <input name="processor" placeholder="담당자" required>
+                    <input name="resolutionNote" placeholder="처리 내용" required>
+                    <button type="submit" class="primary">처리 완료</button></form>
+                <div th:if="${record.status.name() == 'RESOLVED'}" class="resolution-result">
+                    <strong th:text="${record.processor}">담당자</strong><span th:text="${record.resolutionNote}">처리 내용</span></div></td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(records)}"><td colspan="7" class="defect-empty">등록된 불량 내역이 없습니다.</td></tr>
+        </tbody></table></div>
+    </section>
+    </div>
+</main>
+</body></html>

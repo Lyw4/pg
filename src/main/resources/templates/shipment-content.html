@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="shipmentContent" class="shipment-content">
+    <div class="shipment-subtabs" role="tablist" aria-label="출고 관리 구분">
+        <button type="button" class="shipment-subtab active"
+            data-shipment-view="active" role="tab" aria-selected="true">
+            출고 현황
+            <span th:text="${#lists.size(activeShipments) + #lists.size(activeOutboundLogs)}">0</span>
+        </button>
+        <button type="button" class="shipment-subtab"
+            data-shipment-view="cancelled" role="tab" aria-selected="false">
+            취소 내역
+            <span th:text="${#lists.size(cancelledShipments) + #lists.size(cancelledOutboundLogs)}">0</span>
+        </button>
+    </div>
+
+    <div class="shipment-subpanel" data-shipment-panel="active">
+    <div class="panel-title">
+        <div><p class="summary-eyebrow">OUTBOUND WORK</p>
+            <h2>출고 작업 관리</h2>
+            <p>유통 관리에서 생성된 출고 지시를 피킹·검수·출고 완료 순서로 처리합니다.</p>
+        </div>
+        <span class="summary-count"><strong th:text="${activeShipmentCount}">0</strong>건 진행 중</span>
+    </div>
+    <div class="table-wrap">
+        <table class="shipment-table">
+            <thead><tr><th>출고 번호</th><th>주문</th><th>출고 상품</th>
+                <th>담당자</th><th>상태</th><th>작업</th></tr></thead>
+            <tbody>
+            <tr th:each="shipment : ${activeShipments}">
+                <td><strong th:text="${shipment.shipmentNo}">SHP</strong>
+                    <small th:text="${#temporals.format(shipment.createdAt, 'yyyy-MM-dd HH:mm')}"></small></td>
+                <td th:text="|#${shipment.order.orderId}|">#1</td>
+                <td><div class="shipment-item" th:each="item : ${shipmentItems[shipment.shipmentId]}">
+                    <strong th:text="${item.product.name}">상품</strong>
+                    <span th:text="|${item.lot.lotNo} · ${item.pickedQuantity}/${item.plannedQuantity}포|"></span>
+                </div></td>
+                <td th:text="${shipment.worker}">담당자</td>
+                <td><span class="defect-status" th:text="${shipment.status.label}">출고 지시</span>
+                    <small th:if="${shipment.shippedAt != null}"
+                        th:text="${#temporals.format(shipment.shippedAt, 'yyyy-MM-dd HH:mm')}"></small></td>
+                <td>
+                    <form class="shipment-action" th:if="${shipment.status.name() == 'DIRECTED'}"
+                        method="post" th:action="@{/shipments/{id}/picking(id=${shipment.shipmentId})}">
+                        <input name="worker" placeholder="피킹 담당자" required>
+                        <button class="ghost">피킹 시작</button></form>
+                    <form class="shipment-action" th:if="${shipment.status.name() == 'PICKING'}"
+                        method="post" th:action="@{/shipments/{id}/inspect(id=${shipment.shipmentId})}">
+                        <input name="worker" placeholder="검수 담당자" required>
+                        <button class="ghost">검수 완료</button></form>
+                    <form class="shipment-action" th:if="${shipment.status.name() == 'INSPECTED'}"
+                        method="post" th:action="@{/shipments/{id}/complete(id=${shipment.shipmentId})}">
+                        <input name="worker" placeholder="출고 담당자" required>
+                        <button class="primary">출고 완료</button></form>
+                    <form class="shipment-action" th:if="${shipment.status.name() != 'SHIPPED'
+                            and shipment.status.name() != 'CANCELLED'}"
+                        method="post" th:action="@{/shipments/{id}/cancel(id=${shipment.shipmentId})}">
+                        <input name="note" placeholder="취소 사유" required>
+                        <button class="danger-outline">취소</button></form>
+                    <span th:if="${shipment.status.name() == 'SHIPPED'}">배송 정보 등록 가능</span>
+                    <form class="shipment-action" th:if="${shipment.status.name() == 'SHIPPED'}"
+                        method="post"
+                        th:action="@{/shipments/{id}/cancel-completed(id=${shipment.shipmentId})}">
+                        <input name="note" placeholder="완료 출고 취소 사유" required>
+                        <button class="danger-outline">출고 취소</button>
+                    </form>
+                    <span th:if="${shipment.status.name() == 'CANCELLED'}" th:text="${shipment.note}">취소</span>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(activeShipments)}"><td colspan="6" class="defect-empty">
+                유통 관리에서 생성된 출고 지시가 없습니다.</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="panel-title shipment-history-title">
+        <div><p class="summary-eyebrow">OUTBOUND HISTORY</p>
+            <h2>최근 출고 내역</h2>
+            <p>전체 재고의 출고 버튼과 주문 출고 완료로 차감된 LOT 내역입니다.</p>
+        </div>
+        <span class="summary-count"><strong th:text="${#lists.size(activeOutboundLogs)}">0</strong>건</span>
+    </div>
+    <div class="table-wrap">
+        <table class="outbound-history-table">
+            <thead><tr><th>출고 일시</th><th>상품</th><th>LOT</th>
+                <th>출고 수량</th><th>구분</th><th>출고 사유</th></tr></thead>
+            <tbody>
+            <tr th:each="log : ${activeOutboundLogs}">
+                <td th:text="${#temporals.format(log.createdAt, 'yyyy-MM-dd HH:mm')}">일시</td>
+                <td><strong th:text="${log.lot.product.name}">상품</strong></td>
+                <td th:text="${log.lot.lotNo}">LOT</td>
+                <td><strong class="danger" th:text="${-log.changedQty}">0</strong> 포</td>
+                <td><span class="badge blue"
+                    th:text="${#strings.startsWith(log.reason, 'SHP-')} ? '주문 출고' : '직접 출고'">
+                    직접 출고</span>
+                    <span class="badge red" th:if="${log.cancelled}">취소됨</span></td>
+                <td><span th:text="${log.reason}">출고 사유</span>
+                    <small th:if="${log.cancelled}"
+                        th:text="|취소: ${log.cancelReason} (${#temporals.format(log.cancelledAt, 'yyyy-MM-dd HH:mm')})|"></small>
+                    <form class="shipment-action outbound-cancel-form"
+                        th:if="${!log.cancelled and !#strings.startsWith(log.reason, 'SHP-')}"
+                        method="post"
+                        th:action="@{/inventory/outbounds/{id}/cancel(id=${log.logId})}">
+                        <input name="cancelReason" placeholder="출고 취소 사유" required>
+                        <button class="danger-outline">출고 취소</button>
+                    </form>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(activeOutboundLogs)}"><td colspan="6" class="defect-empty">
+                아직 출고 처리된 재고가 없습니다.</td></tr>
+            </tbody>
+        </table>
+    </div>
+    </div>
+
+    <div class="shipment-subpanel" data-shipment-panel="cancelled" hidden>
+    <div class="panel-title shipment-history-title cancelled-history-title">
+        <div><p class="summary-eyebrow">CANCELLED OUTBOUND</p>
+            <h2>출고 취소 내역</h2>
+            <p>취소되어 재고가 원복된 주문 출고와 직접 출고 내역입니다.</p>
+        </div>
+        <span class="summary-count">
+            <strong th:text="${#lists.size(cancelledShipments) + #lists.size(cancelledOutboundLogs)}">0</strong>건
+        </span>
+    </div>
+    <div class="table-wrap">
+        <table class="cancelled-outbound-table">
+            <thead><tr><th>구분</th><th>출고 번호 / 상품</th><th>주문 / LOT</th>
+                <th>취소 수량</th><th>취소 일시</th><th>취소 사유</th></tr></thead>
+            <tbody>
+            <tr th:each="shipment : ${cancelledShipments}">
+                <td><span class="badge red">주문 출고 취소</span></td>
+                <td><strong th:text="${shipment.shipmentNo}">SHP</strong></td>
+                <td th:text="|주문 #${shipment.order.orderId}|">주문</td>
+                <td th:text="|${#aggregates.sum(shipmentItems[shipment.shipmentId].![pickedQuantity])} 포|">0 포</td>
+                <td th:text="${#temporals.format(
+                    shipment.cancelledAt != null ? shipment.cancelledAt : shipment.createdAt,
+                    'yyyy-MM-dd HH:mm')}">일시</td>
+                <td th:text="${shipment.note}">취소 사유</td>
+            </tr>
+            <tr th:each="log : ${cancelledOutboundLogs}">
+                <td><span class="badge red">직접 출고 취소</span></td>
+                <td><strong th:text="${log.lot.product.name}">상품</strong></td>
+                <td th:text="${log.lot.lotNo}">LOT</td>
+                <td th:text="|${-log.changedQty} 포|">0 포</td>
+                <td th:text="${#temporals.format(log.cancelledAt, 'yyyy-MM-dd HH:mm')}">일시</td>
+                <td th:text="${log.cancelReason}">취소 사유</td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(cancelledShipments) and #lists.isEmpty(cancelledOutboundLogs)}">
+                <td colspan="6" class="defect-empty">출고 취소 내역이 없습니다.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${lot.lotNo + ' LOT 추적 | Feed Flow'}">
+        LOT 추적 | Feed Flow
+    </title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <script defer th:src="@{/js/app.js}"></script>
+</head>
+
+<body>
+
+    <header th:replace="~{fragments :: header('inventory')}"></header>
+
+    <main class="container lot-detail-page">
+
+        <div class="detail-breadcrumb">
+            <a th:href="@{/inventory(view='activeLots')}">활성 LOT</a>
+            <span>›</span>
+            <span th:text="${lot.product.animalType}">카테고리</span>
+            <span>›</span>
+            <strong th:text="${lot.lotNo}">LOT 번호</strong>
+        </div>
+
+        <div
+            class="alert success"
+            th:if="${message}"
+            th:text="${message}">
+        </div>
+
+        <div
+            class="alert error"
+            th:if="${error}"
+            th:text="${error}">
+        </div>
+
+        <section class="lot-trace-hero">
+
+            <div class="lot-trace-main">
+                <div class="lot-trace-topline">
+                    <span
+                        class="product-category"
+                        th:text="${lot.product.animalType}">
+                        카테고리
+                    </span>
+                    <span
+                        class="lot-status-badge large"
+                        th:classappend="${lotStatus.cssClass}"
+                        th:text="${lotStatus.label}">
+                        정상
+                    </span>
+                </div>
+
+                <p class="summary-eyebrow">LOT TRACEABILITY</p>
+                <h1 th:text="${lot.lotNo}">LOT-CATTLE-20260727-001</h1>
+                <p class="lot-product-name">
+                    <a
+                        th:href="@{/products/{id}(id=${lot.product.productId})}"
+                        th:text="${lot.product.name}">
+                        상품명
+                    </a>
+                    <span th:text="|· ${lot.product.manufacturer.companyName}|">
+                        · 제조사
+                    </span>
+                </p>
+
+                <dl class="lot-facts">
+                    <div>
+                        <dt>생산일</dt>
+                        <dd th:text="${lot.manufacturedDate}">2026-07-01</dd>
+                    </div>
+                    <div>
+                        <dt>유통기한</dt>
+                        <dd th:text="${lot.expirationDate}">2027-01-01</dd>
+                    </div>
+                    <div>
+                        <dt>남은 기간</dt>
+                        <dd
+                            th:text="${lotStatus.daysRemaining < 0
+                                ? '만료 후 ' + (-lotStatus.daysRemaining) + '일'
+                                : lotStatus.daysRemaining + '일'}">
+                            120일
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>창고 위치</dt>
+                        <dd
+                            th:text="${#strings.isEmpty(lot.warehouseLocation)
+                                ? '위치 미지정'
+                                : lot.warehouseLocation}">
+                            A창고-01번 선반
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+
+            <aside class="lot-print-label" aria-label="LOT 바코드 라벨">
+                <div class="lot-label-brand">
+                    <strong>FEED FLOW</strong>
+                    <span>PRODUCT TRACE LABEL</span>
+                </div>
+                <p th:text="${lot.product.manufacturer.companyName}">
+                    제조사
+                </p>
+                <h2 th:text="${lot.product.name}">상품명</h2>
+                <img
+                    class="lot-barcode"
+                    th:src="${barcodeDataUri}"
+                    th:alt="|${lot.lotNo} Code 39 바코드|">
+                <div class="lot-label-dates">
+                    <span th:text="|생산 ${lot.manufacturedDate}|">생산일</span>
+                    <span th:text="|기한 ${lot.expirationDate}|">유통기한</span>
+                </div>
+                <strong
+                    class="lot-label-location"
+                    th:text="${#strings.isEmpty(lot.warehouseLocation)
+                        ? 'LOCATION: UNASSIGNED'
+                        : lot.warehouseLocation}">
+                    A창고-01번 선반
+                </strong>
+                <button
+                    type="button"
+                    class="primary lot-label-print-button"
+                    data-print-lot-label>
+                    바코드 라벨 인쇄
+                </button>
+            </aside>
+
+        </section>
+
+        <section class="detail-stock-cards lot-stock-cards">
+            <article>
+                <span>최초 입고량</span>
+                <strong th:text="|${initialReceivedQuantity} 포|">0 포</strong>
+            </article>
+            <article>
+                <span>현재 수량</span>
+                <strong th:text="|${lot.lotQuantity} 포|">0 포</strong>
+            </article>
+            <article>
+                <span>예약 재고</span>
+                <strong th:text="|${reservedQuantity} 포|">0 포</strong>
+            </article>
+            <article>
+                <span>가용 재고</span>
+                <strong th:text="|${availableQuantity} 포|">0 포</strong>
+            </article>
+        </section>
+
+        <section class="lot-operation-grid">
+
+            <article class="panel lot-operation-card">
+                <div class="panel-title">
+                    <div>
+                        <h2>창고 위치 관리</h2>
+                        <p>피킹 시 찾기 쉬운 위치 코드로 관리합니다.</p>
+                    </div>
+                </div>
+                <form
+                    method="post"
+                    class="lot-inline-form"
+                    th:action="@{/inventory/lots/{id}/location(id=${lot.lotId})}">
+                    <label>
+                        위치 코드
+                        <input
+                            name="warehouseLocation"
+                            maxlength="50"
+                            required
+                            th:value="${lot.warehouseLocation}"
+                            placeholder="예: A창고-03번 선반">
+                    </label>
+                    <button type="submit" class="primary">위치 저장</button>
+                </form>
+            </article>
+
+            <article class="panel lot-operation-card">
+                <div class="panel-title">
+                    <div>
+                        <h2>재고 실사</h2>
+                        <p>실제 수량을 입력하면 차이만큼 자동 조정됩니다.</p>
+                    </div>
+                </div>
+                <form
+                    method="post"
+                    class="lot-inline-form"
+                    th:action="@{/inventory/lots/{id}/audit(id=${lot.lotId})}">
+                    <div class="form-grid">
+                        <label>
+                            실제 수량
+                            <input
+                                type="number"
+                                name="actualQuantity"
+                                min="0"
+                                required
+                                th:value="${lot.lotQuantity}">
+                        </label>
+                        <label>
+                            실사 사유
+                            <input
+                                name="reason"
+                                value="정기 재고 실사"
+                                placeholder="실사 사유">
+                        </label>
+                    </div>
+                    <small th:text="|예약 재고 ${reservedQuantity}포 미만으로는 조정할 수 없습니다.|">
+                        예약 재고 안내
+                    </small>
+                    <button type="submit" class="primary">실사 반영</button>
+                </form>
+            </article>
+
+        </section>
+
+        <section class="panel lot-history-panel">
+            <div class="panel-title">
+                <div>
+                    <p class="summary-eyebrow">STOCK AUDIT TRAIL</p>
+                    <h2>LOT 재고 이력</h2>
+                    <p>입고·출고·불량·실사·조정 이력을 시간순으로 추적합니다.</p>
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>일시</th>
+                            <th>구분</th>
+                            <th>변동</th>
+                            <th>사유</th>
+                            <th>상태</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="log : ${lotLogs}">
+                            <td th:text="${#temporals.format(log.createdAt, 'yyyy-MM-dd HH:mm')}">
+                                일시
+                            </td>
+                            <td>
+                                <span
+                                    class="history-type"
+                                    th:text="${log.changeType.label}">
+                                    입고
+                                </span>
+                            </td>
+                            <td>
+                                <strong
+                                    th:classappend="${log.changedQty < 0} ? 'danger' : ''"
+                                    th:text="${log.changedQty > 0
+                                        ? '+' + log.changedQty
+                                        : log.changedQty}">
+                                    +10
+                                </strong>
+                            </td>
+                            <td th:text="${log.reason}">변경 사유</td>
+                            <td>
+                                <span
+                                    class="badge"
+                                    th:classappend="${log.cancelled} ? 'red' : 'green'"
+                                    th:text="${log.cancelled} ? '취소됨' : '정상'">
+                                    정상
+                                </span>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(lotLogs)}">
+                            <td colspan="5" class="empty">재고 이력이 없습니다.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="lot-operation-grid lot-bottom-grid">
+
+            <article class="panel lot-history-panel">
+                <div class="panel-title">
+                    <div>
+                        <h2>입고 취소 관리</h2>
+                        <p>미사용 수량이 충분한 입고 건만 안전하게 취소됩니다.</p>
+                    </div>
+                </div>
+
+                <div class="lot-inbound-list">
+                    <form
+                        method="post"
+                        class="lot-inbound-item"
+                        th:each="log : ${inboundLogs}"
+                        th:action="@{/inventory/lots/{lotId}/inbounds/{logId}/cancel(
+                            lotId=${lot.lotId}, logId=${log.logId})}">
+                        <div>
+                            <strong
+                                th:text="|입고 #${log.logId} · ${log.changedQty}포|">
+                                입고
+                            </strong>
+                            <span
+                                th:text="${#temporals.format(log.createdAt, 'yyyy-MM-dd HH:mm')}">
+                                일시
+                            </span>
+                        </div>
+                        <span
+                            class="badge red"
+                            th:if="${log.cancelled}">
+                            취소 완료
+                        </span>
+                        <div
+                            class="inbound-cancel-controls"
+                            th:unless="${log.cancelled}">
+                            <input
+                                name="cancelReason"
+                                required
+                                placeholder="입고 취소 사유">
+                            <button
+                                type="submit"
+                                class="danger-outline inbound-cancel-button">
+                                입고 취소
+                            </button>
+                        </div>
+                    </form>
+                    <p
+                        class="empty"
+                        th:if="${#lists.isEmpty(inboundLogs)}">
+                        입고 이력이 없습니다.
+                    </p>
+                </div>
+            </article>
+
+            <article class="panel lot-history-panel">
+                <div class="panel-title">
+                    <div>
+                        <h2>불량 추적</h2>
+                        <p>이 LOT에서 발생한 불량과 처리 상태입니다.</p>
+                    </div>
+                </div>
+
+                <div class="lot-defect-list">
+                    <article th:each="record : ${defectRecords}">
+                        <div>
+                            <strong th:text="${record.defectNo}">불량 번호</strong>
+                            <span th:text="|${record.defectType.label} · ${record.quantity}포|">
+                                불량 유형
+                            </span>
+                        </div>
+                        <span
+                            class="badge blue"
+                            th:text="${record.status.label}">
+                            처리 상태
+                        </span>
+                    </article>
+                    <p
+                        class="empty"
+                        th:if="${#lists.isEmpty(defectRecords)}">
+                        이 LOT의 불량 이력이 없습니다.
+                    </p>
+                </div>
+            </article>
+
+        </section>
+
+    </main>
+
+</body>
+</html>

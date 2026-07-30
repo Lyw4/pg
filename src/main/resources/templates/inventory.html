@@ -1,0 +1,2612 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1">
+
+    <title>재고 관리 | Feed Flow</title>
+
+    <!-- 기존 CSS 연결 -->
+    <link
+        rel="stylesheet"
+        th:href="@{/css/app.css}">
+
+    <!-- 카테고리 탭 및 모달 JavaScript 연결 -->
+    <script
+        defer
+        th:src="@{/js/app.js}">
+    </script>
+</head>
+
+<body>
+
+    <!-- 공통 상단 메뉴 -->
+    <header
+        th:replace="~{fragments :: header('inventory')}">
+    </header>
+
+    <main class="container inventory-page">
+
+        <!-- 페이지 제목 -->
+        <section class="page-head">
+
+            <div>
+                <p class="eyebrow">
+                    INVENTORY CONTROL
+                </p>
+
+                <h1>재고 관리</h1>
+
+                <p>
+                    LOT 단위로 입고하고 유통기한이 빠른 재고부터 출고합니다.
+                </p>
+            </div>
+
+            <button
+                type="button"
+                class="primary"
+                data-open="receiveModal">
+                + 신규 입고
+            </button>
+
+        </section>
+
+        <!-- 성공 메시지 -->
+        <div
+            class="alert success"
+            th:if="${message}"
+            th:text="${message}">
+        </div>
+
+        <!-- 오류 메시지 -->
+        <div
+            class="alert error"
+            th:if="${error}"
+            th:text="${error}">
+        </div>
+
+        <section class="inventory-alert-center" aria-label="재고 알림">
+            <div class="inventory-alert-heading">
+                <div>
+                    <p class="summary-eyebrow">SMART ALERTS</p>
+                    <h2>재고 알림</h2>
+                </div>
+                <span>확인이 필요한 항목을 자동 집계합니다.</span>
+            </div>
+
+            <div class="inventory-alert-grid">
+                <a
+                    class="inventory-alert-card warning"
+                    th:href="@{/inventory(view='lowStock')}">
+                    <span>창고 재고 부족</span>
+                    <strong th:text="${warehouseLowStockCount}">0</strong>
+                    <small>권장량보다 부족한 창고·상품</small>
+                </a>
+
+                <a
+                    class="inventory-alert-card caution"
+                    th:href="@{/inventory(view='expiry')}">
+                    <span>30일 이내</span>
+                    <strong th:text="${expiringSoonLotCount}">0</strong>
+                    <small>유통기한 임박 LOT</small>
+                </a>
+
+                <a
+                    class="inventory-alert-card danger"
+                    th:href="@{/inventory(view='expiry')}">
+                    <span>유통기한 만료</span>
+                    <strong th:text="${expiredLotCount}">0</strong>
+                    <small>즉시 확인할 LOT</small>
+                </a>
+
+                <a
+                    class="inventory-alert-card neutral"
+                    th:href="@{/inventory(view='activeLots')}">
+                    <span>위치 미지정</span>
+                    <strong th:text="${unlocatedLotCount}">0</strong>
+                    <small>창고 위치가 없는 LOT</small>
+                </a>
+            </div>
+        </section>
+
+        <!-- 클릭 가능한 재고 요약 카드 -->
+        <section
+            class="stats inventory-stats"
+            aria-label="재고 요약 보기">
+
+            <button
+                type="button"
+                class="stat-card summary-card active"
+                data-summary-view="registered"
+                aria-selected="true">
+
+                <span>등록 상품</span>
+
+                <strong th:text="${#lists.size(products)}">
+                    0
+                </strong>
+
+                <small>전체 상품 보기</small>
+            </button>
+
+            <button
+                type="button"
+                class="stat-card summary-card"
+                data-summary-view="stock"
+                aria-selected="false">
+
+                <span>전체 재고</span>
+
+                <strong
+                    th:text="${#numbers.formatInteger(
+                        totalWarehouseCurrentStock, 0, 'COMMA')}">
+                    80,545
+                </strong>
+
+                <small>5개 창고 실재고 보기</small>
+            </button>
+
+            <button
+                type="button"
+                class="stat-card summary-card"
+                data-summary-view="lowStock"
+                aria-selected="false">
+
+                <span>부족 재고</span>
+
+                <strong
+                    class="danger"
+                    th:text="${warehouseLowStockCount}">
+                    0
+                </strong>
+
+                <small>창고별 보충 품목 보기</small>
+            </button>
+
+            <button
+                type="button"
+                class="stat-card summary-card"
+                data-summary-view="activeLots"
+                aria-selected="false">
+
+                <span>활성 LOT</span>
+
+                <strong th:text="${#lists.size(activeLots)}">
+                    0
+                </strong>
+
+                <small>재고 보유 LOT 보기</small>
+            </button>
+
+            <button
+                type="button"
+                class="stat-card summary-card warehouse-stat-card"
+                data-summary-view="warehouses"
+                aria-selected="false">
+
+                <span>창고 관리</span>
+
+                <strong th:text="${#lists.size(warehouses)}">
+                    5
+                </strong>
+
+                <small
+                    th:text="|월 ${#numbers.formatInteger(
+                        totalWarehouseMonthlyPlan, 0, 'COMMA')}포 배치 계획|">
+                    월 109,741포 배치 계획
+                </small>
+            </button>
+
+            <button
+                type="button"
+                class="stat-card summary-card recurring-stat-card"
+                data-summary-view="recurring"
+                aria-selected="false">
+
+                <span>정기 배송</span>
+
+                <strong th:text="${activeRecurringCount}">
+                    0
+                </strong>
+
+                <small>협력사별 월간 입고 일정</small>
+            </button>
+
+            <button
+                type="button"
+                class="stat-card summary-card shipment-stat-card"
+                data-summary-view="shipments"
+                aria-selected="false">
+
+                <span>출고 관리</span>
+
+                <strong th:text="${activeShipmentCount}">0</strong>
+
+                <small>피킹·검수·출고 처리</small>
+            </button>
+
+            <button
+                type="button"
+                class="stat-card summary-card defect-stat-card"
+                data-summary-view="defects"
+                aria-selected="false">
+
+                <span>불량품 관리</span>
+
+                <strong class="danger" th:text="${openDefectCount}">
+                    0
+                </strong>
+
+                <small>격리·검사·처리 현황</small>
+            </button>
+
+            <button
+                type="button"
+                class="stat-card summary-card expiry-stat-card"
+                data-summary-view="expiry"
+                aria-selected="false">
+
+                <div class="expiry-stat-head">
+                    <span>유통기한 임박</span>
+                    <span class="expiry-stat-label">1개월 이내</span>
+                </div>
+
+                <strong th:text="${#lists.size(expiringLots)}">
+                    0
+                </strong>
+
+                <small>임박 및 만료 LOT 보기</small>
+            </button>
+
+        </section>
+
+        <!-- 요약 카드 상세 영역 -->
+        <section class="panel summary-detail-panel">
+
+            <div
+                class="summary-view"
+                data-summary-panel="registered">
+
+                <div class="panel-title">
+                    <div>
+                        <p class="summary-eyebrow">PRODUCT LIST</p>
+                        <h2>등록 상품</h2>
+                        <p>현재 등록된 모든 상품의 기본정보입니다.</p>
+                    </div>
+                    <span class="summary-count">
+                        <strong th:text="${#lists.size(products)}">0</strong>개
+                    </span>
+                </div>
+
+                <div class="table-wrap">
+                    <table id="registeredProductTable">
+                        <thead>
+                            <tr>
+                                <th>상품명</th>
+                                <th>카테고리</th>
+                                <th>제조사</th>
+                                <th>중량</th>
+                                <th>LOT 현황</th>
+                                <th>최근 유통기한</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                th:each="product : ${products}"
+                                th:data-category="${product.animalType}"
+                                th:with="lotSummary=${productLotSummaries[product.productId]}">
+                                <td>
+                                    <a
+                                        class="product-link"
+                                        th:href="@{/products/{id}(id=${product.productId})}"
+                                        th:text="${product.name}">
+                                        상품명
+                                    </a>
+                                </td>
+                                <td><span class="product-category" th:text="${product.animalType}">카테고리</span></td>
+                                <td th:text="${product.manufacturer.companyName}">제조사</td>
+                                <td th:text="|${product.weightKg} kg|">20 kg</td>
+                                <td>
+                                    <div
+                                        class="registered-lot-summary"
+                                        th:if="${lotSummary.activeLotCount > 0}">
+                                        <strong th:text="|${lotSummary.activeLotCount}개 LOT|">
+                                            0개 LOT
+                                        </strong>
+                                        <small th:text="|총 ${lotSummary.totalQuantity}포|">
+                                            총 0포
+                                        </small>
+                                    </div>
+                                    <span
+                                        class="registered-lot-empty"
+                                        th:if="${lotSummary.activeLotCount == 0}">
+                                        활성 LOT 없음
+                                    </span>
+                                </td>
+                                <td>
+                                    <a
+                                        class="registered-lot-expiry"
+                                        th:if="${lotSummary.nearestExpirationLot != null}"
+                                        th:href="@{/inventory/lots/{id}(
+                                            id=${lotSummary.nearestExpirationLot.lotId})}">
+                                        <strong
+                                            th:text="${lotSummary.nearestExpirationLot.expirationDate}">
+                                            2026-12-31
+                                        </strong>
+                                        <small
+                                            th:text="${lotSummary.nearestExpirationLot.lotNo}">
+                                            LOT-001
+                                        </small>
+                                    </a>
+                                    <span
+                                        class="registered-lot-empty"
+                                        th:if="${lotSummary.nearestExpirationLot == null}">
+                                        -
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="product-row-actions">
+                                        <a
+                                            class="ghost detail-table-link"
+                                            th:href="@{/products/{id}(id=${product.productId})}">
+                                            상세보기
+                                        </a>
+
+                                        <form
+                                            method="post"
+                                            class="product-delete-form"
+                                            th:action="@{/inventory/products/{id}/delete(id=${product.productId})}"
+                                            th:data-product-name="${product.name}">
+                                            <button
+                                                type="submit"
+                                                class="danger-outline product-delete-button">
+                                                삭제
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div
+                class="summary-view warehouse-inventory-view"
+                data-summary-panel="stock"
+                hidden>
+
+                <div class="panel-title">
+                    <div>
+                        <p class="summary-eyebrow">WAREHOUSE INVENTORY</p>
+                        <h2>5개 거점 전체 재고</h2>
+                        <p>
+                            기존 상품 합산 재고 대신 거점 창고별
+                            실제 보유량을 관리합니다.
+                        </p>
+                    </div>
+
+                    <span class="warehouse-plan-basis">
+                        창고 기준 통합 재고
+                    </span>
+                </div>
+
+                <div class="warehouse-kpi-grid warehouse-stock-kpi-grid">
+                    <article>
+                        <span>전체 현재고</span>
+                        <strong
+                            th:text="|${#numbers.formatInteger(
+                                totalWarehouseCurrentStock, 0, 'COMMA')}포|">
+                            80,545포
+                        </strong>
+                        <small>5개 거점 실재고 합계</small>
+                    </article>
+                    <article>
+                        <span>권장 보유량</span>
+                        <strong
+                            th:text="|${#numbers.formatInteger(
+                                totalWarehouseTargetStock, 0, 'COMMA')}포|">
+                            80,545포
+                        </strong>
+                        <small>22일 운영 기준</small>
+                    </article>
+                    <article>
+                        <span>보충 필요 품목</span>
+                        <strong
+                            th:classappend="${warehouseLowStockCount > 0}
+                                ? ' danger'"
+                            th:text="|${warehouseLowStockCount}개|">
+                            0개
+                        </strong>
+                        <small>권장 보유량 미만인 창고·상품</small>
+                    </article>
+                </div>
+
+                <div
+                    class="warehouse-selector warehouse-stock-selector"
+                    role="tablist"
+                    aria-label="전체 재고 창고 선택">
+
+                    <button
+                        type="button"
+                        class="warehouse-selector-card warehouse-stock-selector-card"
+                        th:each="warehouse, status : ${warehouses}"
+                        th:classappend="${status.first} ? ' active'"
+                        th:data-warehouse="${warehouse.code}"
+                        th:data-warehouse-name="${warehouse.name}"
+                        role="tab"
+                        th:attr="aria-selected=${status.first}">
+
+                        <span class="warehouse-code"
+                            th:text="${warehouse.code}">
+                            W01
+                        </span>
+
+                        <strong th:text="${warehouse.name}">
+                            예산 고덕 창고
+                        </strong>
+
+                        <small th:text="${warehouse.serviceArea}">
+                            담당 권역
+                        </small>
+
+                        <dl>
+                            <div>
+                                <dt>현재고</dt>
+                                <dd
+                                    th:text="|${#numbers.formatInteger(
+                                        warehouseSummaries[warehouse.code]
+                                            .currentStockQuantity,
+                                        0, 'COMMA')}포|">
+                                    0포
+                                </dd>
+                            </div>
+                            <div>
+                                <dt>권장량</dt>
+                                <dd
+                                    th:text="|${#numbers.formatInteger(
+                                        warehouseSummaries[warehouse.code]
+                                            .targetStockQuantity,
+                                        0, 'COMMA')}포|">
+                                    0포
+                                </dd>
+                            </div>
+                            <div>
+                                <dt>보충 필요</dt>
+                                <dd
+                                    th:classappend="${warehouseSummaries[
+                                        warehouse.code].lowStockProductCount > 0}
+                                        ? ' danger'"
+                                    th:text="|${warehouseSummaries[
+                                        warehouse.code].lowStockProductCount}개|">
+                                    0개
+                                </dd>
+                            </div>
+                        </dl>
+                    </button>
+                </div>
+
+                <div class="warehouse-table-heading">
+                    <div>
+                        <span>선택 창고</span>
+                        <strong data-selected-stock-warehouse-name>
+                            예산 고덕 창고
+                        </strong>
+                    </div>
+
+                    <div
+                        class="category-tabs warehouse-stock-category-tabs"
+                        role="tablist"
+                        aria-label="전체 재고 축종 선택">
+
+                        <button
+                            type="button"
+                            class="category-tab active"
+                            data-category="all"
+                            role="tab"
+                            aria-selected="true">
+                            전체 <span>30</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="category-tab"
+                            data-category="소"
+                            role="tab"
+                            aria-selected="false">
+                            소 <span>10</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="category-tab"
+                            data-category="돼지"
+                            role="tab"
+                            aria-selected="false">
+                            돼지 <span>10</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="category-tab"
+                            data-category="조류(닭/오리)"
+                            role="tab"
+                            aria-selected="false">
+                            조류 <span>10</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-wrap warehouse-stock-wrap">
+                    <table
+                        id="warehouseStockTable"
+                        class="warehouse-stock-table"
+                        data-no-auto-pager>
+                        <thead>
+                            <tr>
+                                <th>창고</th>
+                                <th>축종</th>
+                                <th>배합사료</th>
+                                <th>현재고</th>
+                                <th>권장량</th>
+                                <th>차이</th>
+                                <th>충족률</th>
+                                <th>상태</th>
+                                <th>월 계획</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                th:each="allocation : ${warehouseAllocations}"
+                                th:data-warehouse="${allocation.warehouse.code}"
+                                th:data-category="${allocation.product.animalType}">
+                                <td>
+                                    <span class="warehouse-row-code"
+                                        th:text="${allocation.warehouse.code}">
+                                        W01
+                                    </span>
+                                    <small
+                                        th:text="${allocation.warehouse.name}">
+                                        예산 고덕 창고
+                                    </small>
+                                </td>
+                                <td>
+                                    <span
+                                        class="product-category"
+                                        th:text="${allocation.product.animalType}">
+                                        소
+                                    </span>
+                                </td>
+                                <td>
+                                    <a
+                                        class="product-link"
+                                        th:href="@{/products/{id}(
+                                            id=${allocation.product.productId})}"
+                                        th:text="${allocation.product.name}">
+                                        상품명
+                                    </a>
+                                    <small
+                                        th:text="|${allocation.product.manufacturer.companyName}
+                                            · ${allocation.product.weightKg}㎏|">
+                                        제조사 · 20㎏
+                                    </small>
+                                </td>
+                                <td>
+                                    <strong class="warehouse-current-stock"
+                                        th:text="${#numbers.formatInteger(
+                                            allocation.currentStockQuantity,
+                                            0, 'COMMA')}">
+                                        0
+                                    </strong> 포
+                                </td>
+                                <td
+                                    th:text="|${#numbers.formatInteger(
+                                        allocation.targetStockQuantity,
+                                        0, 'COMMA')}포|">
+                                    0포
+                                </td>
+                                <td>
+                                    <strong
+                                        class="warehouse-stock-gap"
+                                        th:classappend="${allocation.stockGapQuantity < 0}
+                                            ? ' negative'
+                                            : (${allocation.stockGapQuantity > 0}
+                                                ? ' positive' : '')"
+                                        th:text="${allocation.stockGapQuantity > 0}
+                                            ? |+${#numbers.formatInteger(
+                                                allocation.stockGapQuantity,
+                                                0, 'COMMA')}포|
+                                            : |${#numbers.formatInteger(
+                                                allocation.stockGapQuantity,
+                                                0, 'COMMA')}포|">
+                                        0포
+                                    </strong>
+                                </td>
+                                <td>
+                                    <div class="warehouse-stock-rate">
+                                        <span>
+                                            <i
+                                                th:style="|width:
+                                                    ${allocation.stockRate > 100
+                                                        ? 100
+                                                        : allocation.stockRate}%|">
+                                            </i>
+                                        </span>
+                                        <strong
+                                            th:text="|${allocation.stockRate}%|">
+                                            100%
+                                        </strong>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span
+                                        class="warehouse-stock-status"
+                                        th:classappend="${allocation.stockStatusCssClass}"
+                                        th:text="${allocation.stockStatusLabel}">
+                                        적정
+                                    </span>
+                                </td>
+                                <td
+                                    th:text="|${#numbers.formatInteger(
+                                        allocation.monthlyPlannedQuantity,
+                                        0, 'COMMA')}포|">
+                                    0포
+                                </td>
+                                <td>
+                                    <button
+                                        type="button"
+                                        class="ghost warehouse-stock-adjust-button"
+                                        th:data-id="${allocation.allocationId}"
+                                        th:data-name="|${allocation.warehouse.name} · ${allocation.product.name}|"
+                                        th:data-current="${allocation.currentStockQuantity}"
+                                        th:data-target="${allocation.targetStockQuantity}">
+                                        재고 조정
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p class="warehouse-plan-note warehouse-stock-note">
+                    전체 재고는 기존 상품 단순 합계가 아니라 5개 거점의
+                    실제 보유 수량만 집계합니다. 권장량 미만 품목은
+                    ‘보충 필요’로 자동 표시됩니다.
+                </p>
+            </div>
+
+            <div
+                class="summary-view"
+                data-summary-panel="lowStock"
+                hidden>
+
+                <div class="panel-title">
+                    <div>
+                        <p class="summary-eyebrow danger-text">LOW STOCK</p>
+                        <h2>창고별 부족 재고</h2>
+                        <p>5개 거점에서 현재고가 권장 보유량보다 적은 품목입니다.</p>
+                    </div>
+                    <span class="summary-count danger-count">
+                        <strong th:text="${warehouseLowStockCount}">0</strong>개
+                    </span>
+                </div>
+
+                <div
+                    class="table-wrap"
+                    th:unless="${#lists.isEmpty(warehouseLowStockAllocations)}">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>창고</th>
+                                <th>축종</th>
+                                <th>배합사료</th>
+                                <th>현재 재고</th>
+                                <th>권장 보유</th>
+                                <th>부족 수량</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                th:each="allocation : ${warehouseLowStockAllocations}"
+                                th:data-category="${allocation.product.animalType}">
+                                <td>
+                                    <span
+                                        class="warehouse-row-code"
+                                        th:text="${allocation.warehouse.code}">
+                                        W01
+                                    </span>
+                                    <small
+                                        th:text="${allocation.warehouse.name}">
+                                        창고명
+                                    </small>
+                                </td>
+                                <td>
+                                    <span
+                                        class="product-category"
+                                        th:text="${allocation.product.animalType}">
+                                        축종
+                                    </span>
+                                </td>
+                                <td>
+                                    <strong th:text="${allocation.product.name}">
+                                        상품명
+                                    </strong>
+                                    <small
+                                        th:text="${allocation.product.manufacturer.companyName}">
+                                        제조사
+                                    </small>
+                                </td>
+                                <td>
+                                    <strong
+                                        class="danger"
+                                        th:text="|${#numbers.formatInteger(
+                                            allocation.currentStockQuantity,
+                                            0, 'COMMA')}포|">
+                                        0포
+                                    </strong>
+                                </td>
+                                <td
+                                    th:text="|${#numbers.formatInteger(
+                                        allocation.targetStockQuantity,
+                                        0, 'COMMA')}포|">
+                                    0포
+                                </td>
+                                <td>
+                                    <strong
+                                        class="danger"
+                                        th:text="|${#numbers.formatInteger(
+                                            -allocation.stockGapQuantity,
+                                            0, 'COMMA')}포|">
+                                        0포
+                                    </strong>
+                                </td>
+                                <td>
+                                    <button
+                                        type="button"
+                                        class="ghost warehouse-stock-adjust-button"
+                                        th:data-id="${allocation.allocationId}"
+                                        th:data-name="|${allocation.warehouse.name} · ${allocation.product.name}|"
+                                        th:data-current="${allocation.currentStockQuantity}"
+                                        th:data-target="${allocation.targetStockQuantity}">
+                                        재고 조정
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div
+                    class="summary-empty"
+                    th:if="${#lists.isEmpty(warehouseLowStockAllocations)}">
+                    <strong>부족 재고가 없습니다.</strong>
+                    <p>현재 5개 창고의 모든 상품이 권장 보유량을 충족합니다.</p>
+                </div>
+            </div>
+
+            <div
+                class="summary-view"
+                data-summary-panel="activeLots"
+                hidden>
+
+                <div class="panel-title">
+                    <div>
+                        <p class="summary-eyebrow">ACTIVE LOT</p>
+                        <h2>활성 LOT</h2>
+                        <p>현재 수량이 남아 있는 LOT를 유통기한 순으로 표시합니다.</p>
+                    </div>
+                    <span class="summary-count">
+                        <strong th:text="${#lists.size(activeLots)}">0</strong>개
+                    </span>
+                </div>
+
+                <div class="category-toolbar active-lot-category-toolbar">
+                    <div
+                        class="category-tabs active-lot-category-tabs"
+                        role="tablist"
+                        aria-label="활성 LOT 카테고리">
+
+                        <button
+                            type="button"
+                            class="category-tab active"
+                            data-category="all"
+                            role="tab"
+                            aria-selected="true"
+                            aria-controls="activeLotTable">
+                            전체
+                            <span th:text="${#lists.size(activeLots)}">0</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            class="category-tab"
+                            data-category="소"
+                            role="tab"
+                            aria-selected="false"
+                            aria-controls="activeLotTable">
+                            소
+                            <span
+                                th:text="${#lists.size(activeLots.?[product.animalType == '소'])}">
+                                0
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            class="category-tab"
+                            data-category="돼지"
+                            role="tab"
+                            aria-selected="false"
+                            aria-controls="activeLotTable">
+                            돼지
+                            <span
+                                th:text="${#lists.size(activeLots.?[product.animalType == '돼지'])}">
+                                0
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            class="category-tab"
+                            data-category="조류(닭/오리)"
+                            role="tab"
+                            aria-selected="false"
+                            aria-controls="activeLotTable">
+                            조류
+                            <span
+                                th:text="${#lists.size(activeLots.?[product.animalType == '조류(닭/오리)'])}">
+                                0
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            class="category-tab"
+                            data-category="영양제"
+                            role="tab"
+                            aria-selected="false"
+                            aria-controls="activeLotTable">
+                            영양제
+                            <span
+                                th:text="${#lists.size(activeLots.?[product.animalType == '영양제'])}">
+                                0
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table id="activeLotTable">
+                        <thead>
+                            <tr>
+                                <th>LOT 번호</th>
+                                <th>상품명</th>
+                                <th>카테고리</th>
+                                <th>생산일</th>
+                                <th>유통기한</th>
+                                <th>창고 위치</th>
+                                <th>수량</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                th:each="lot : ${activeLots}"
+                                th:data-category="${lot.product.animalType}">
+                                <td>
+                                    <a
+                                        class="product-link lot-detail-link"
+                                        th:href="@{/inventory/lots/{id}(id=${lot.lotId})}"
+                                        th:text="${lot.lotNo}">
+                                        LOT
+                                    </a>
+                                </td>
+                                <td th:text="${lot.product.name}">상품명</td>
+                                <td th:text="${lot.product.animalType}">카테고리</td>
+                                <td th:text="${lot.manufacturedDate}">생산일</td>
+                                <td>
+                                    <span th:text="${lot.expirationDate}">유통기한</span>
+                                    <span
+                                        class="lot-status-badge"
+                                        th:classappend="${lotExpiryStatuses[lot.lotId].cssClass}"
+                                        th:text="${lotExpiryStatuses[lot.lotId].label}">
+                                        정상
+                                    </span>
+                                </td>
+                                <td>
+                                    <span
+                                        class="warehouse-location"
+                                        th:classappend="${#strings.isEmpty(lot.warehouseLocation)
+                                            ? 'unassigned'
+                                            : ''}"
+                                        th:text="${#strings.isEmpty(lot.warehouseLocation)
+                                            ? '위치 미지정'
+                                            : lot.warehouseLocation}">
+                                        A창고-01번 선반
+                                    </span>
+                                </td>
+                                <td><strong th:text="${lot.lotQuantity}">0</strong> 포</td>
+                                <td>
+                                    <div class="product-row-actions">
+                                        <a
+                                            class="ghost detail-table-link"
+                                            th:href="@{/inventory/lots/{id}(id=${lot.lotId})}">
+                                            상세
+                                        </a>
+                                        <button type="button"
+                                            class="icon adjust-button"
+                                            th:data-id="${lot.lotId}"
+                                            th:data-name="${lot.lotNo}">±</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div
+                class="summary-view warehouse-summary-view"
+                data-summary-panel="warehouses"
+                hidden>
+
+                <div class="panel-title">
+                    <div>
+                        <p class="summary-eyebrow warehouse-eyebrow">
+                            WAREHOUSE NETWORK
+                        </p>
+                        <h2>5개 거점 창고 관리</h2>
+                        <p>
+                            거점과 축종을 선택해 상품별 월 배치량과
+                            22일 권장 보유량을 관리합니다.
+                        </p>
+                    </div>
+
+                    <span class="warehouse-plan-basis">
+                        초기 시장점유율 1% 기준
+                    </span>
+                </div>
+
+                <div class="warehouse-kpi-grid">
+                    <article>
+                        <span>운영 창고</span>
+                        <strong th:text="|${#lists.size(warehouses)}곳|">
+                            5곳
+                        </strong>
+                        <small>중부·호남·영남 권역</small>
+                    </article>
+                    <article>
+                        <span>월 총 배치량</span>
+                        <strong
+                            th:text="|${#numbers.formatInteger(
+                                totalWarehouseMonthlyPlan, 0, 'COMMA')}포|">
+                            109,741포
+                        </strong>
+                        <small>상품별 월 2회 분할 입고</small>
+                    </article>
+                    <article>
+                        <span>권장 보유량</span>
+                        <strong
+                            th:text="|${#numbers.formatInteger(
+                                totalWarehouseTargetStock, 0, 'COMMA')}포|">
+                            80,545포
+                        </strong>
+                        <small>15일 운영분 + 7일 안전재고</small>
+                    </article>
+                </div>
+
+                <div
+                    class="warehouse-selector"
+                    role="tablist"
+                    aria-label="거점 창고 선택">
+
+                    <button
+                        type="button"
+                        class="warehouse-selector-card"
+                        th:each="warehouse, status : ${warehouses}"
+                        th:classappend="${status.first} ? ' active'"
+                        th:data-warehouse="${warehouse.code}"
+                        th:data-warehouse-name="${warehouse.name}"
+                        role="tab"
+                        th:attr="aria-selected=${status.first}">
+
+                        <span class="warehouse-code"
+                            th:text="${warehouse.code}">
+                            W01
+                        </span>
+
+                        <strong th:text="${warehouse.name}">
+                            예산 고덕 창고
+                        </strong>
+
+                        <small th:text="${warehouse.address}">
+                            창고 주소
+                        </small>
+
+                        <dl>
+                            <div>
+                                <dt>담당 권역</dt>
+                                <dd th:text="${warehouse.serviceArea}">
+                                    충남 서북부
+                                </dd>
+                            </div>
+                            <div>
+                                <dt>월 배치</dt>
+                                <dd
+                                    th:text="|${#numbers.formatInteger(
+                                        warehouseSummaries[warehouse.code]
+                                            .monthlyPlannedQuantity,
+                                        0, 'COMMA')}포|">
+                                    0포
+                                </dd>
+                            </div>
+                            <div>
+                                <dt>운영 중심</dt>
+                                <dd th:text="${warehouse.operationFocus}">
+                                    양계·양돈 중심
+                                </dd>
+                            </div>
+                        </dl>
+                    </button>
+                </div>
+
+                <div class="warehouse-table-heading">
+                    <div>
+                        <span>선택 창고</span>
+                        <strong data-selected-warehouse-name>
+                            예산 고덕 창고
+                        </strong>
+                    </div>
+
+                    <div
+                        class="category-tabs warehouse-category-tabs"
+                        role="tablist"
+                        aria-label="창고 상품 축종 선택">
+
+                        <button
+                            type="button"
+                            class="category-tab active"
+                            data-category="all"
+                            role="tab"
+                            aria-selected="true">
+                            전체 <span>30</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="category-tab"
+                            data-category="소"
+                            role="tab"
+                            aria-selected="false">
+                            소 <span>10</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="category-tab"
+                            data-category="돼지"
+                            role="tab"
+                            aria-selected="false">
+                            돼지 <span>10</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="category-tab"
+                            data-category="조류(닭/오리)"
+                            role="tab"
+                            aria-selected="false">
+                            조류 <span>10</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-wrap warehouse-allocation-wrap">
+                    <table
+                        id="warehouseAllocationTable"
+                        class="warehouse-allocation-table"
+                        data-no-auto-pager>
+                        <thead>
+                            <tr>
+                                <th>창고</th>
+                                <th>축종</th>
+                                <th>배합사료</th>
+                                <th>중량</th>
+                                <th>월 배치</th>
+                                <th>1차 입고</th>
+                                <th>2차 입고</th>
+                                <th>권장 보유</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                th:each="allocation : ${warehouseAllocations}"
+                                th:data-warehouse="${allocation.warehouse.code}"
+                                th:data-category="${allocation.product.animalType}">
+                                <td>
+                                    <span class="warehouse-row-code"
+                                        th:text="${allocation.warehouse.code}">
+                                        W01
+                                    </span>
+                                    <small
+                                        th:text="${allocation.warehouse.name}">
+                                        예산 고덕 창고
+                                    </small>
+                                </td>
+                                <td>
+                                    <span
+                                        class="product-category"
+                                        th:text="${allocation.product.animalType}">
+                                        소
+                                    </span>
+                                </td>
+                                <td>
+                                    <a
+                                        class="product-link"
+                                        th:href="@{/products/{id}(
+                                            id=${allocation.product.productId})}"
+                                        th:text="${allocation.product.name}">
+                                        상품명
+                                    </a>
+                                    <small
+                                        th:text="${allocation.product.manufacturer.companyName}">
+                                        제조사
+                                    </small>
+                                </td>
+                                <td
+                                    th:text="|${allocation.product.weightKg}㎏|">
+                                    20㎏
+                                </td>
+                                <td>
+                                    <strong
+                                        th:text="${#numbers.formatInteger(
+                                            allocation.monthlyPlannedQuantity,
+                                            0, 'COMMA')}">
+                                        0
+                                    </strong> 포
+                                </td>
+                                <td
+                                    th:text="|${#numbers.formatInteger(
+                                        allocation.firstDeliveryQuantity,
+                                        0, 'COMMA')}포|">
+                                    0포
+                                </td>
+                                <td
+                                    th:text="|${#numbers.formatInteger(
+                                        allocation.secondDeliveryQuantity,
+                                        0, 'COMMA')}포|">
+                                    0포
+                                </td>
+                                <td>
+                                    <strong class="warehouse-target-stock"
+                                        th:text="${#numbers.formatInteger(
+                                            allocation.targetStockQuantity,
+                                            0, 'COMMA')}">
+                                        0
+                                    </strong> 포
+                                </td>
+                                <td>
+                                    <button
+                                        type="button"
+                                        class="ghost warehouse-plan-edit-button"
+                                        th:data-id="${allocation.allocationId}"
+                                        th:data-name="|${allocation.warehouse.name} · ${allocation.product.name}|"
+                                        th:data-monthly="${allocation.monthlyPlannedQuantity}"
+                                        th:data-target="${allocation.targetStockQuantity}">
+                                        계획 수정
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p class="warehouse-plan-note">
+                    월 배치량은 지역 사육 규모의 1% 수요를 기준으로 한
+                    초기 계획입니다. 계약 농가와 실제 출고량이 확정되면
+                    각 상품의 계획 수정에서 조정해 주세요.
+                </p>
+            </div>
+
+            <div
+                class="summary-view recurring-warehouse-view"
+                data-summary-panel="recurring"
+                hidden>
+
+                <div class="panel-title">
+                    <div>
+                        <p class="summary-eyebrow recurring-eyebrow">
+                            MONTHLY DELIVERY
+                        </p>
+                        <h2>5개 창고 월간 정기 입고</h2>
+                        <p>
+                            창고별 1·2차 기준일에 맞춰 매월 들어오는
+                            사료와 다음 입고일을 관리합니다.
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="primary"
+                        data-open="recurringCreateModal">
+                        + 일정 등록
+                    </button>
+                </div>
+
+                <div
+                    class="warehouse-selector recurring-warehouse-selector"
+                    role="tablist"
+                    aria-label="정기 입고 창고 선택">
+
+                    <button
+                        type="button"
+                        class="warehouse-selector-card recurring-warehouse-card"
+                        th:each="warehouse, status : ${warehouses}"
+                        th:classappend="${status.first} ? ' active'"
+                        th:data-warehouse="${warehouse.code}"
+                        th:data-warehouse-name="${warehouse.name}"
+                        role="tab"
+                        th:attr="aria-selected=${status.first}">
+
+                        <span
+                            class="warehouse-code"
+                            th:text="${warehouse.code}">
+                            W01
+                        </span>
+
+                        <strong th:text="${warehouse.name}">
+                            예산 고덕 창고
+                        </strong>
+
+                        <small th:text="${warehouse.serviceArea}">
+                            담당 권역
+                        </small>
+
+                        <dl>
+                            <div>
+                                <dt>입고 기준일</dt>
+                                <dd
+                                    th:text="${recurringWarehouseSummaries[
+                                        warehouse.code].deliveryDays}">
+                                    1일 · 15일
+                                </dd>
+                            </div>
+                            <div>
+                                <dt>월 예정</dt>
+                                <dd
+                                    th:text="|${#numbers.formatInteger(
+                                        recurringWarehouseSummaries[
+                                            warehouse.code].monthlyQuantity,
+                                        0, 'COMMA')}포|">
+                                    0포
+                                </dd>
+                            </div>
+                            <div>
+                                <dt>운영 일정</dt>
+                                <dd
+                                    th:text="|${recurringWarehouseSummaries[
+                                        warehouse.code].activeScheduleCount}건|">
+                                    60건
+                                </dd>
+                            </div>
+                        </dl>
+                    </button>
+                </div>
+
+                <div class="warehouse-table-heading">
+                    <div>
+                        <span>선택 창고</span>
+                        <strong data-selected-recurring-warehouse-name>
+                            예산 고덕 창고
+                        </strong>
+                    </div>
+
+                    <div
+                        class="category-tabs recurring-warehouse-category-tabs"
+                        role="tablist"
+                        aria-label="정기 입고 축종 선택">
+
+                        <button
+                            type="button"
+                            class="category-tab active"
+                            data-category="all"
+                            role="tab"
+                            aria-selected="true">
+                            전체 <span>60</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="category-tab"
+                            data-category="소"
+                            role="tab"
+                            aria-selected="false">
+                            소 <span>20</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="category-tab"
+                            data-category="돼지"
+                            role="tab"
+                            aria-selected="false">
+                            돼지 <span>20</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="category-tab"
+                            data-category="조류(닭/오리)"
+                            role="tab"
+                            aria-selected="false">
+                            조류 <span>20</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div
+                    class="table-wrap recurring-warehouse-wrap"
+                    th:unless="${#lists.isEmpty(recurringDeliveries)}">
+
+                    <table
+                        id="recurringWarehouseTable"
+                        class="recurring-table recurring-warehouse-table"
+                        data-no-auto-pager>
+                        <thead>
+                            <tr>
+                                <th>상태</th>
+                                <th>창고</th>
+                                <th>협력사</th>
+                                <th>상품</th>
+                                <th>축종</th>
+                                <th>회차</th>
+                                <th>월 입고일</th>
+                                <th>예정 수량</th>
+                                <th>다음 배송</th>
+                                <th>최근 입고</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <tr
+                                th:each="delivery : ${recurringDeliveries}"
+                                th:data-warehouse="${delivery.warehouse.code}"
+                                th:data-category="${delivery.product.animalType}"
+                                th:classappend="${delivery.active}
+                                    ? ''
+                                    : 'inactive-row'">
+
+                                <td>
+                                    <span
+                                        class="badge"
+                                        th:classappend="${delivery.active}
+                                            ? 'green'
+                                            : 'red'"
+                                        th:text="${delivery.active}
+                                            ? '운영 중'
+                                            : '중지'">
+                                        운영 중
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span
+                                        class="warehouse-row-code"
+                                        th:text="${delivery.warehouse.code}">
+                                        W01
+                                    </span>
+                                    <small
+                                        th:text="${delivery.warehouse.name}">
+                                        창고명
+                                    </small>
+                                </td>
+
+                                <td>
+                                    <strong
+                                        th:text="${delivery.manufacturer.companyName}">
+                                        협력사
+                                    </strong>
+                                </td>
+
+                                <td>
+                                    <a
+                                        class="product-link"
+                                        th:href="@{/products/{id}(id=${delivery.product.productId})}"
+                                        th:text="${delivery.product.name}">
+                                        상품명
+                                    </a>
+
+                                    <small
+                                        th:if="${delivery.notes != null and !#strings.isEmpty(delivery.notes)}"
+                                        th:text="${delivery.notes}">
+                                        메모
+                                    </small>
+                                </td>
+
+                                <td>
+                                    <span
+                                        class="product-category"
+                                        th:text="${delivery.product.animalType}">
+                                        카테고리
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span
+                                        class="recurring-sequence"
+                                        th:text="${delivery.deliverySequenceLabel}">
+                                        1차
+                                    </span>
+                                </td>
+
+                                <td th:text="|매월 ${delivery.deliveryDay}일|">
+                                    매월 1일
+                                </td>
+
+                                <td>
+                                    <span
+                                        class="safety-stock-plan-label"
+                                        th:if="${delivery.safetyStockBased}">
+                                        부족분 자동
+                                    </span>
+
+                                    <span th:unless="${delivery.safetyStockBased}">
+                                        <strong th:text="${delivery.quantity}">
+                                            0
+                                        </strong>
+                                        포
+                                    </span>
+
+                                    <small
+                                        class="stock-reference"
+                                        th:if="${delivery.safetyStockBased}"
+                                        th:text="|현재 ${delivery.product.totalStock} / 안전 ${delivery.product.safetyStock} 포|">
+                                        현재 0 / 안전 0 포
+                                    </small>
+                                </td>
+
+                                <td>
+                                    <strong
+                                        class="next-delivery-date"
+                                        th:text="${delivery.nextDeliveryDate}">
+                                        2026-08-01
+                                    </strong>
+                                </td>
+
+                                <td
+                                    th:text="${delivery.lastReceivedDate == null
+                                        ? '-'
+                                        : delivery.lastReceivedDate}">
+                                    -
+                                </td>
+
+                                <td>
+                                    <div class="recurring-actions">
+                                        <button
+                                            type="button"
+                                            class="ghost recurring-receive-button"
+                                            th:if="${delivery.active
+                                                and (!delivery.safetyStockBased
+                                                or delivery.product.totalStock
+                                                    <= delivery.product.safetyStock)}"
+                                            th:data-id="${delivery.recurringDeliveryId}"
+                                            th:data-name="|${delivery.warehouse.name} · ${delivery.product.name} (${delivery.deliverySequenceLabel})|"
+                                            th:data-shelf-life-months="${delivery.product.effectiveShelfLifeMonths}"
+                                            th:data-product-id="${delivery.product.productId}"
+                                            th:data-category="${delivery.product.animalType}"
+                                            th:data-quantity-text="${delivery.safetyStockBased
+                                                ? '안전재고 부족분: '
+                                                    + (delivery.product.safetyStock - delivery.product.totalStock)
+                                                    + ' 포'
+                                                : '예정 입고 수량: '
+                                                    + delivery.quantity
+                                                    + ' 포 · '
+                                                    + delivery.warehouse.name}"
+                                            th:text="${delivery.safetyStockBased}
+                                                ? '부족분 입고'
+                                                : '입고 처리'">
+                                            입고 처리
+                                        </button>
+
+                                        <form
+                                            method="post"
+                                            th:if="${delivery.active
+                                                and delivery.safetyStockBased
+                                                and delivery.product.totalStock
+                                                    > delivery.product.safetyStock}"
+                                            th:action="@{/inventory/recurring/review}">
+
+                                            <input
+                                                type="hidden"
+                                                name="recurringDeliveryId"
+                                                th:value="${delivery.recurringDeliveryId}">
+
+                                            <button class="ghost">
+                                                확인 완료
+                                            </button>
+                                        </form>
+
+                                        <form
+                                            method="post"
+                                            th:action="@{/inventory/recurring/toggle}">
+
+                                            <input
+                                                type="hidden"
+                                                name="recurringDeliveryId"
+                                                th:value="${delivery.recurringDeliveryId}">
+
+                                            <button
+                                                class="icon"
+                                                th:text="${delivery.active}
+                                                    ? '중지'
+                                                    : '재개'">
+                                                중지
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div
+                    class="summary-empty"
+                    th:if="${#lists.isEmpty(recurringDeliveries)}">
+
+                    <strong>
+                        등록된 정기 배송 일정이 없습니다.
+                    </strong>
+
+                    <p>
+                        창고와 상품을 선택해 월간 입고 기준일과
+                        수량을 등록해 주세요.
+                    </p>
+                </div>
+            </div>
+
+            <div
+                class="summary-view defect-summary-view"
+                data-summary-panel="defects"
+                hidden>
+                <div th:replace="~{defects :: defectContent}"></div>
+            </div>
+
+            <div class="summary-view" data-summary-panel="shipments" hidden>
+                <div th:replace="~{shipment-content :: shipmentContent}"></div>
+            </div>
+
+        </section>
+
+<section
+    class="panel expiry-panel"
+    id="expiryManagement"
+    data-inventory-panel="expiry"
+    role="tabpanel"
+    aria-labelledby="expiryInventoryTab"
+    hidden>
+
+    <div class="panel-title expiry-title">
+
+        <div>
+            <p class="expiry-eyebrow">
+                EXPIRATION ALERT
+            </p>
+
+            <h2>유통기한 임박 LOT 관리</h2>
+
+            <p>
+                유통기한이 지났거나 한 달 이내로 남은
+                활성 LOT를 확인합니다.
+            </p>
+        </div>
+
+        <span class="expiry-count">
+
+            <strong
+                th:text="${#lists.size(expiringLots)}">
+                0
+            </strong>
+
+            개 LOT
+
+        </span>
+
+    </div>
+
+    <!-- 임박 LOT가 있을 때 -->
+    <div
+        class="table-wrap"
+        th:unless="${#lists.isEmpty(expiringLots)}">
+
+        <table class="expiry-table">
+
+            <thead>
+                <tr>
+                    <th>위험도</th>
+                    <th>LOT 번호</th>
+                    <th>상품명</th>
+                    <th>카테고리</th>
+                    <th>남은 기간</th>
+                    <th>유통기한</th>
+                    <th>현재 재고</th>
+                    <th>재고 조정</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                <tr
+                    th:each="item : ${expiringLots}"
+                    th:data-category="${item.lot.product.animalType}"
+                    th:classappend="${item.expired}
+                        ? 'expired-row'
+                        : 'expiring-row'">
+
+                    <!-- 위험도 -->
+                    <td>
+                        <span
+                            class="expiry-badge expired"
+                            th:if="${item.expired}">
+                            만료
+                        </span>
+
+                        <span
+                            class="expiry-badge soon"
+                            th:unless="${item.expired}">
+                            임박
+                        </span>
+                    </td>
+
+                    <!-- LOT 번호 -->
+                    <td>
+                        <strong
+                            th:text="${item.lot.lotNo}">
+                            LOT 번호
+                        </strong>
+                    </td>
+
+                    <!-- 상품명 -->
+                    <td
+                        th:text="${item.lot.product.name}">
+                        상품명
+                    </td>
+
+                    <!-- 카테고리 -->
+                    <td>
+                        <span
+                            class="product-category"
+                            th:text="${item.lot.product.animalType}">
+                            카테고리
+                        </span>
+                    </td>
+
+                    <!-- 남은 기간 -->
+                    <td>
+                        <strong
+                            class="days-left"
+                            th:classappend="${item.expired}
+                                ? 'overdue'"
+                            th:text="${item.expired}
+                                ? |${-item.daysRemaining}일 경과|
+                                : |D-${item.daysRemaining}|">
+                            D-30
+                        </strong>
+                    </td>
+
+                    <!-- 유통기한 -->
+                    <td
+                        th:text="${item.lot.expirationDate}">
+                        2026-08-27
+                    </td>
+
+                    <!-- 현재 재고 -->
+                    <td>
+                        <strong
+                            th:text="${item.lot.lotQuantity}">
+                            0
+                        </strong>
+
+                        포
+                    </td>
+
+                    <!-- LOT 조정 -->
+                    <td>
+                        <button
+                            type="button"
+                            class="icon adjust-button"
+                            th:data-id="${item.lot.lotId}"
+                            th:data-name="${item.lot.lotNo}">
+                            ±
+                        </button>
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    <!-- 임박 LOT가 없을 때 -->
+    <div
+        class="expiry-empty"
+        th:if="${#lists.isEmpty(expiringLots)}">
+
+        <strong>
+            유통기한 임박 재고가 없습니다.
+        </strong>
+
+        <p>
+            현재 모든 활성 LOT의 유통기한이
+            한 달 이상 남았습니다.
+        </p>
+
+    </div>
+
+</section>
+
+        <!-- 기존 상품 totalStock 표는 창고 재고 전환으로 제거 -->
+        <section
+            class="panel product-panel"
+            id="productInventory"
+            th:remove="all"
+            data-inventory-panel="products"
+            role="tabpanel"
+            aria-labelledby="productInventoryTab">
+
+            <div class="panel-title">
+
+                <div>
+                    <h2>카테고리별 상품 재고</h2>
+
+                    <p>
+                        카테고리를 선택하여 상품과 재고 상태를 확인합니다.
+                    </p>
+                </div>
+
+                <input
+                    type="search"
+                    class="search"
+                    id="stockSearch"
+                    placeholder="상품명 또는 제조사 검색">
+
+            </div>
+
+            <!-- 카테고리 탭 -->
+            <div class="category-toolbar">
+
+                <div
+                    class="category-tabs"
+                    role="tablist"
+                    aria-label="사료 카테고리">
+
+                    <button
+                        type="button"
+                        class="category-tab active"
+                        data-category="all"
+                        role="tab"
+                        aria-selected="true">
+
+                        전체
+
+                        <span th:text="${#lists.size(products)}">
+                            0
+                        </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        class="category-tab"
+                        data-category="소"
+                        role="tab"
+                        aria-selected="false">
+
+                        소
+
+                        <span
+                            th:text="${#lists.size(products.?[animalType == '소'])}">
+                            0
+                        </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        class="category-tab"
+                        data-category="돼지"
+                        role="tab"
+                        aria-selected="false">
+
+                        돼지
+
+                        <span
+                            th:text="${#lists.size(products.?[animalType == '돼지'])}">
+                            0
+                        </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        class="category-tab"
+                        data-category="조류(닭/오리)"
+                        role="tab"
+                        aria-selected="false">
+
+                        조류
+
+                        <span
+                            th:text="${#lists.size(products.?[animalType == '조류(닭/오리)'])}">
+                            0
+                        </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        class="category-tab"
+                        data-category="영양제"
+                        role="tab"
+                        aria-selected="false">
+
+                        영양제
+
+                        <span
+                            th:text="${#lists.size(products.?[animalType == '영양제'])}">
+                            0
+                        </span>
+                    </button>
+
+                </div>
+
+                <p class="filter-result">
+
+                    총
+
+                    <strong
+                        id="visibleProductCount"
+                        th:text="${#lists.size(products)}">
+                        0
+                    </strong>
+
+                    개 상품
+
+                </p>
+
+            </div>
+
+            <!-- 상품 테이블 -->
+            <div class="table-wrap">
+
+                <table id="stockTable">
+
+                    <thead>
+                        <tr>
+                            <th>상품명</th>
+                            <th>카테고리</th>
+                            <th>제조사</th>
+                            <th>현재 재고</th>
+                            <th>예약 재고</th>
+                            <th>가용 재고</th>
+                            <th>안전 재고</th>
+                            <th>상태</th>
+                            <th>출고</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        <tr
+                            th:each="p : ${products}"
+                            th:data-category="${p.animalType}">
+
+                            <td>
+                                <a
+                                    class="product-link"
+                                    th:href="@{/products/{id}(id=${p.productId})}"
+                                    th:text="${p.name}">
+                                    상품명
+                                </a>
+
+                                <small th:text="|${p.weightKg} kg|">
+                                    20 kg
+                                </small>
+                            </td>
+
+                            <td>
+                                <span
+                                    class="product-category"
+                                    th:text="${p.animalType}">
+                                    소
+                                </span>
+                            </td>
+
+                            <td
+                                th:text="${p.manufacturer.companyName}">
+                                제조사
+                            </td>
+
+                            <td>
+                                <strong th:text="${p.totalStock}">
+                                    0
+                                </strong>
+                                포
+                            </td>
+
+                            <td>
+                                <strong class="reserved-stock"
+                                    th:text="${reservedStocks[p.productId]}">0</strong> 포
+                            </td>
+
+                            <td>
+                                <strong class="available-stock"
+                                    th:classappend="${availableStocks[p.productId] <= p.safetyStock} ? ' danger'"
+                                    th:text="${availableStocks[p.productId]}">0</strong> 포
+                            </td>
+
+                            <td th:text="|${p.safetyStock} 포|">
+                                0 포
+                            </td>
+
+                            <td>
+                                <span
+                                    class="badge"
+                                    th:classappend="${availableStocks[p.productId] <= p.safetyStock} ? 'red' : 'green'"
+                                    th:text="${availableStocks[p.productId] <= p.safetyStock} ? '보충 필요' : '정상'">
+                                    정상
+                                </span>
+                            </td>
+
+                            <td>
+                                <button
+                                    type="button"
+                                    class="ghost release-button"
+                                    th:data-id="${p.productId}"
+                                    th:data-name="${p.name}">
+                                    출고
+                                </button>
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            <!-- 필터 결과 없음 -->
+            <div
+                class="filter-empty"
+                id="productFilterEmpty"
+                hidden>
+
+                <strong>
+                    조건에 맞는 상품이 없습니다.
+                </strong>
+
+                <p>
+                    다른 카테고리를 선택하거나 검색어를 변경해 주세요.
+                </p>
+
+            </div>
+
+        </section>
+
+        <!-- LOT 재고와 최근 이력 -->
+        <div class="grid inventory-legacy-grid">
+
+            <!-- LOT 재고 -->
+            <section class="panel">
+
+                <div class="panel-title">
+                    <div>
+                        <h2>LOT 재고</h2>
+
+                        <p>
+                            유통기한 오름차순(FIFO)
+                        </p>
+                    </div>
+                </div>
+
+                <div class="table-wrap compact">
+
+                    <table>
+
+                        <thead>
+                            <tr>
+                                <th>LOT 번호</th>
+                                <th>상품</th>
+                                <th>유통기한</th>
+                                <th>수량</th>
+                                <th>조정</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            <tr th:each="lot : ${normalLots}">
+
+                                <td th:text="${lot.lotNo}">
+                                    LOT 번호
+                                </td>
+
+                                <td th:text="${lot.product.name}">
+                                    상품명
+                                </td>
+
+                                <td th:text="${lot.expirationDate}">
+                                    유통기한
+                                </td>
+
+                                <td th:text="|${lot.lotQuantity} 포|">
+                                    0 포
+                                </td>
+
+                                <td>
+                                    <button
+                                        type="button"
+                                        class="icon adjust-button"
+                                        th:data-id="${lot.lotId}"
+                                        th:data-name="${lot.lotNo}">
+                                        ±
+                                    </button>
+                                </td>
+
+                            </tr>
+
+                            <tr th:if="${#lists.isEmpty(normalLots)}">
+                                <td
+                                    colspan="5"
+                                    class="empty">
+                                    일반 LOT 재고가 없습니다.
+                                </td>
+                            </tr>
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </section>
+
+            <!-- 최근 재고 이력 -->
+            <section class="panel">
+
+                <div class="panel-title">
+                    <div>
+                        <h2>최근 재고 이력</h2>
+
+                        <p>
+                            입고·출고·조정 감사 로그
+                        </p>
+                    </div>
+                </div>
+
+                <div class="timeline">
+
+                    <article th:each="log : ${logs}">
+
+                        <span
+                            class="dot"
+                            th:classappend="${log.changeType.name().toLowerCase()}">
+                        </span>
+
+                        <div>
+                            <strong
+                                th:text="|${log.lot.product.name} · ${log.lot.lotNo}|">
+                                상품명 · LOT
+                            </strong>
+
+                            <p>
+                                <b
+                                    th:text="${log.changedQty > 0 ? '+' + log.changedQty : log.changedQty}">
+                                    0
+                                </b>
+
+                                <span th:text="${log.reason}">
+                                    변경 사유
+                                </span>
+                            </p>
+                        </div>
+
+                        <time
+                            th:text="${#temporals.format(log.createdAt, 'MM-dd HH:mm')}">
+                            날짜
+                        </time>
+
+                    </article>
+
+                </div>
+
+            </section>
+
+        </div>
+
+    </main>
+
+    <!-- =========================================
+         창고 현재고 조정 모달
+    ========================================== -->
+    <dialog id="warehouseStockModal">
+
+        <form
+            method="post"
+            th:action="@{/inventory/warehouses/stock/update}">
+
+            <div class="modal-head">
+                <h2>창고 현재고 조정</h2>
+
+                <button
+                    type="button"
+                    data-close>
+                    ×
+                </button>
+            </div>
+
+            <input
+                type="hidden"
+                name="allocationId">
+
+            <p class="selected-name"></p>
+
+            <label>
+                현재 보유 수량
+
+                <input
+                    type="number"
+                    name="currentStockQuantity"
+                    min="0"
+                    required>
+            </label>
+
+            <p class="modal-help warehouse-stock-modal-help">
+                권장 보유량 <strong data-warehouse-target-stock>0포</strong>와
+                비교해 부족·적정·과잉 상태가 자동 계산됩니다.
+            </p>
+
+            <button class="primary full">
+                현재고 저장
+            </button>
+
+        </form>
+    </dialog>
+
+    <!-- =========================================
+         창고 상품 배치 계획 수정 모달
+    ========================================== -->
+    <dialog id="warehousePlanModal">
+
+        <form
+            method="post"
+            th:action="@{/inventory/warehouses/allocations/update}">
+
+            <div class="modal-head">
+                <h2>창고 배치 계획 수정</h2>
+
+                <button
+                    type="button"
+                    data-close>
+                    ×
+                </button>
+            </div>
+
+            <input
+                type="hidden"
+                name="allocationId">
+
+            <p class="selected-name"></p>
+
+            <div class="form-grid">
+                <label>
+                    월 배치량
+
+                    <input
+                        type="number"
+                        name="monthlyPlannedQuantity"
+                        min="0"
+                        required>
+                </label>
+
+                <label>
+                    권장 보유량
+
+                    <input
+                        type="number"
+                        name="targetStockQuantity"
+                        min="0"
+                        required>
+                </label>
+            </div>
+
+            <p class="modal-help">
+                권장 보유량의 기본값은 15일 운영분과
+                7일 안전재고를 합한 22일분입니다.
+            </p>
+
+            <button class="primary full">
+                배치 계획 저장
+            </button>
+
+        </form>
+    </dialog>
+
+    <!-- =========================================
+         신규 입고 모달
+    ========================================== -->
+    <dialog id="receiveModal">
+
+        <form
+            method="post"
+            th:action="@{/inventory/receive}">
+
+            <div class="modal-head">
+                <h2>신규 입고 등록</h2>
+
+                <button
+                    type="button"
+                    data-close>
+                    ×
+                </button>
+            </div>
+
+            <label>
+                상품
+
+                <select
+                    name="productId"
+                    required>
+
+                    <option
+                        th:each="p : ${products}"
+                        th:value="${p.productId}"
+                        th:text="|[${p.animalType}] ${p.name}|">
+                        상품명
+                    </option>
+
+                </select>
+            </label>
+
+            <label>
+                LOT 번호
+
+                <input
+                    name="lotNo"
+                    required
+                    placeholder="LOT-260701">
+            </label>
+
+            <div class="form-grid">
+
+                <label>
+                    제조일
+
+                    <input
+                        type="date"
+                        name="manufacturedDate"
+                        required>
+                </label>
+
+                <label>
+                    유통기한
+
+                    <input
+                        type="date"
+                        name="expirationDate"
+                        required>
+                </label>
+
+            </div>
+
+            <label>
+                입고 수량
+
+                <input
+                    type="number"
+                    name="quantity"
+                    min="1"
+                    required>
+            </label>
+
+            <label>
+                입고 사유
+
+                <input
+                    name="reason"
+                    value="정상 입고"
+                    required>
+            </label>
+
+            <button class="primary full">
+                입고 등록
+            </button>
+
+        </form>
+
+    </dialog>
+
+    <!-- =========================================
+         FIFO 출고 모달
+    ========================================== -->
+    <dialog id="releaseModal">
+
+        <form
+            method="post"
+            th:action="@{/inventory/release}">
+
+            <div class="modal-head">
+                <h2>FIFO 출고</h2>
+
+                <button
+                    type="button"
+                    data-close>
+                    ×
+                </button>
+            </div>
+
+            <input
+                type="hidden"
+                name="productId">
+
+            <p class="selected-name"></p>
+
+            <label>
+                출고 수량
+
+                <input
+                    type="number"
+                    name="quantity"
+                    min="1"
+                    required>
+            </label>
+
+            <label>
+                출고 사유
+
+                <input
+                    name="reason"
+                    value="주문 출고"
+                    required>
+            </label>
+
+            <button class="primary full">
+                출고 처리
+            </button>
+
+        </form>
+
+    </dialog>
+
+    <!-- =========================================
+         LOT 재고 조정 모달
+    ========================================== -->
+    <dialog id="adjustModal">
+
+        <form
+            method="post"
+            th:action="@{/inventory/adjust}">
+
+            <div class="modal-head">
+                <h2>LOT 재고 조정</h2>
+
+                <button
+                    type="button"
+                    data-close>
+                    ×
+                </button>
+            </div>
+
+            <input
+                type="hidden"
+                name="lotId">
+
+            <p class="selected-name"></p>
+
+            <label>
+                변경 수량
+
+                <input
+                    type="number"
+                    name="changedQty"
+                    placeholder="-3 또는 5"
+                    required>
+            </label>
+
+            <label>
+                조정 사유
+
+                <input
+                    name="reason"
+                    placeholder="파손, 실사 차이 등"
+                    required>
+            </label>
+
+            <button class="primary full">
+                재고 조정
+            </button>
+
+        </form>
+
+    </dialog>
+
+    <!-- =========================================
+         월간 정기 배송 일정 등록 모달
+    ========================================== -->
+    <dialog id="recurringCreateModal">
+
+        <form
+            method="post"
+            th:action="@{/inventory/recurring/create}">
+
+            <div class="modal-head">
+                <h2>월간 정기 배송 등록</h2>
+
+                <button
+                    type="button"
+                    data-close>
+                    ×
+                </button>
+            </div>
+
+            <label>
+                입고 창고
+
+                <select
+                    name="warehouseId"
+                    required>
+
+                    <option
+                        value=""
+                        selected
+                        disabled>
+                        창고를 선택해 주세요
+                    </option>
+
+                    <option
+                        th:each="warehouse : ${warehouses}"
+                        th:value="${warehouse.warehouseId}"
+                        th:text="|[${warehouse.code}] ${warehouse.name}|">
+                        [W01] 예산 고덕 창고
+                    </option>
+                </select>
+            </label>
+
+            <label>
+                협력사 · 상품
+
+                <select
+                    name="productId"
+                    required>
+
+                    <option
+                        value=""
+                        selected
+                        disabled>
+                        상품을 선택해 주세요
+                    </option>
+
+                    <option
+                        th:each="p : ${products}"
+                        th:if="${p.animalType != '영양제'}"
+                        th:value="${p.productId}"
+                        th:text="|[${p.manufacturer.companyName}] ${p.name}|">
+                        [협력사] 상품명
+                    </option>
+                </select>
+            </label>
+
+            <div class="form-grid">
+                <label>
+                    월 입고일
+
+                    <input
+                        type="number"
+                        name="deliveryDay"
+                        min="1"
+                        max="28"
+                        placeholder="1 ~ 28"
+                        required>
+                </label>
+
+                <label>
+                    예정 수량
+
+                    <input
+                        type="number"
+                        name="quantity"
+                        min="1"
+                        placeholder="포 단위"
+                        required>
+                </label>
+            </div>
+
+            <p class="modal-help">
+                창고별 기본 일정 외에 추가 입고가 필요할 때 등록합니다.
+                월 입고일은 1일부터 28일까지 사용할 수 있습니다.
+            </p>
+
+            <label>
+                메모
+
+                <input
+                    name="notes"
+                    placeholder="창고 도착 시간, 담당자, 배송 조건 등">
+            </label>
+
+            <button class="primary full">
+                정기 배송 등록
+            </button>
+        </form>
+    </dialog>
+
+    <!-- =========================================
+         정기 배송 실제 입고 처리 모달
+    ========================================== -->
+    <dialog id="recurringReceiveModal">
+
+        <form
+            method="post"
+            th:action="@{/inventory/recurring/receive}">
+
+            <div class="modal-head">
+                <h2>정기 배송 입고 처리</h2>
+
+                <button
+                    type="button"
+                    data-close>
+                    ×
+                </button>
+            </div>
+
+            <input
+                type="hidden"
+                name="recurringDeliveryId">
+
+            <p class="selected-name"></p>
+            <p class="recurring-quantity-info"></p>
+
+            <label>
+                LOT 번호
+
+                <input
+                    name="lotNo"
+                    placeholder="생산일 선택 시 자동 생성"
+                    readonly
+                    required>
+                <small class="shelf-life-hint">
+                    카테고리와 생산일 기준으로 자동 생성됩니다.
+                </small>
+            </label>
+
+            <div class="form-grid">
+                <label>
+                    제조일
+
+                    <input
+                        type="date"
+                        name="manufacturedDate"
+                        required>
+                </label>
+
+                <label>
+                    유통기한
+
+                    <input
+                        type="date"
+                        name="expirationDate"
+                        readonly
+                        required>
+
+                    <small class="shelf-life-hint expiration-hint">
+                        제조일을 선택하면 상품 기준 유통기한이 자동 적용됩니다.
+                    </small>
+                </label>
+            </div>
+
+            <button class="primary full">
+                예정 수량 입고 처리
+            </button>
+        </form>
+    </dialog>
+
+</body>
+</html>

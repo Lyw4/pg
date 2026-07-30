@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+	<header th:fragment="header(active)" class="topbar">
+		<a class="brand" th:href="@{/inventory}">
+			<span class="brand-mark">F</span>
+			<span>FEED FLOW <small>배합사료 유통관리</small></span>
+		</a>
+		<nav>
+			<a th:href="@{/inventory}" th:classappend="${active == 'inventory'} ? 'active'">재고 관리</a>
+			<a th:href="@{/distribution}" th:classappend="${active == 'distribution'} ? 'active'">유통 관리</a>
+			<a th:href="@{/h2-console}" target="_blank">H2 DB</a>
+		</nav>
+	</header>
+</body>
+</html>

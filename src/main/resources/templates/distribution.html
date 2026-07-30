@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>유통 관리 | Feed Flow</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <script src="https://t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+    <script
+        th:if="${!#strings.isEmpty(kakaoMapsJavascriptKey)}"
+        th:src="|https://dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoMapsJavascriptKey}&amp;libraries=services&amp;autoload=false|">
+    </script>
+    <script defer th:src="@{/js/app.js}"></script>
+</head>
+
+<body>
+
+    <header th:replace="~{fragments :: header('distribution')}"></header>
+
+    <main class="container distribution-page">
+
+        <section class="page-head distribution-page-head">
+            <div>
+                <p class="eyebrow">DISTRIBUTION CONTROL</p>
+                <h1>유통 관리</h1>
+                <p>주문부터 LOT 출고, 택배 인계와 배송 완료까지 통합 추적합니다.</p>
+            </div>
+            <div class="distribution-head-actions">
+                <button
+                    type="button"
+                    class="primary"
+                    data-open="demoOrderModal">
+                    + 테스트 주문 생성
+                </button>
+                <div class="distribution-head-summary">
+                    <span>배송 완료율</span>
+                    <strong
+                        th:text="${allDeliveryCount == 0
+                            ? '0%'
+                            : #numbers.formatDecimal(
+                                deliveredDeliveryCount * 100.0 / allDeliveryCount,
+                                1, 0) + '%'}">
+                        0%
+                    </strong>
+                </div>
+            </div>
+        </section>
+
+        <div class="alert success" th:if="${message}" th:text="${message}"></div>
+        <div class="alert error" th:if="${error}" th:text="${error}"></div>
+
+        <section class="distribution-dashboard" aria-label="배송 현황">
+            <button
+                type="button"
+                class="distribution-kpi total active"
+                data-delivery-view="all"
+                aria-selected="true">
+                <span>전체 배송</span>
+                <strong th:text="|${allProgressCompleted} / ${allProgressTotal}|">0 / 0</strong>
+                <small th:text="|진행 중 ${allProgressTotal - allProgressCompleted}건|">진행 중 0건</small>
+                <i class="kpi-progress"><b th:style="|width: ${allProgressTotal == 0 ? 0 : allProgressCompleted * 100.0 / allProgressTotal}%|"></b></i>
+            </button>
+            <button
+                type="button"
+                class="distribution-kpi ready"
+                data-delivery-view="ready"
+                aria-selected="false">
+                <span>배송 준비</span>
+                <strong th:text="|${readyProgressCompleted} / ${readyProgressTotal}|">0 / 0</strong>
+                <small th:text="|진행 중 ${readyProgressTotal - readyProgressCompleted}건|">진행 중 0건</small>
+                <i class="kpi-progress"><b th:style="|width: ${readyProgressTotal == 0 ? 0 : readyProgressCompleted * 100.0 / readyProgressTotal}%|"></b></i>
+            </button>
+            <button
+                type="button"
+                class="distribution-kpi picked"
+                data-delivery-view="picked_up"
+                aria-selected="false">
+                <span>택배 인계</span>
+                <strong th:text="|${pickedProgressCompleted} / ${pickedProgressTotal}|">0 / 0</strong>
+                <small th:text="|진행 중 ${pickedProgressTotal - pickedProgressCompleted}건|">진행 중 0건</small>
+                <i class="kpi-progress"><b th:style="|width: ${pickedProgressTotal == 0 ? 0 : pickedProgressCompleted * 100.0 / pickedProgressTotal}%|"></b></i>
+            </button>
+            <button
+                type="button"
+                class="distribution-kpi transit"
+                data-delivery-view="in_transit"
+                aria-selected="false">
+                <span>배송 중</span>
+                <strong th:text="|${transitProgressCompleted} / ${transitProgressTotal}|">0 / 0</strong>
+                <small th:text="|진행 중 ${transitProgressTotal - transitProgressCompleted}건|">진행 중 0건</small>
+                <i class="kpi-progress"><b th:style="|width: ${transitProgressTotal == 0 ? 0 : transitProgressCompleted * 100.0 / transitProgressTotal}%|"></b></i>
+            </button>
+            <button
+                type="button"
+                class="distribution-kpi completed"
+                data-delivery-view="delivered"
+                aria-selected="false">
+                <span>배송 완료</span>
+                <strong th:text="|${deliveredProgressCompleted} / ${deliveredProgressTotal}|">0 / 0</strong>
+                <small th:text="|진행 중 ${deliveredProgressTotal - deliveredProgressCompleted}건|">진행 중 0건</small>
+                <i class="kpi-progress"><b th:style="|width: ${deliveredProgressTotal == 0 ? 0 : deliveredProgressCompleted * 100.0 / deliveredProgressTotal}%|"></b></i>
+            </button>
+            <button
+                type="button"
+                class="distribution-kpi delayed"
+                data-delivery-view="delayed"
+                aria-selected="false"
+                th:classappend="${delayedDeliveryCount > 0} ? 'has-alert' : ''">
+                <span>배송 지연</span>
+                <strong th:text="|${delayedProgressCompleted} / ${delayedProgressTotal}|">0 / 0</strong>
+                <small th:text="|진행 중 ${delayedProgressTotal - delayedProgressCompleted}건|">진행 중 0건</small>
+                <i class="kpi-progress"><b th:style="|width: ${delayedProgressTotal == 0 ? 0 : delayedProgressCompleted * 100.0 / delayedProgressTotal}%|"></b></i>
+            </button>
+            <button
+                type="button"
+                class="distribution-kpi cancelled"
+                data-delivery-view="cancelled"
+                aria-selected="false">
+                <span>취소 배송</span>
+                <strong th:text="|${cancelledProgressCompleted} / ${cancelledProgressTotal}|">0 / 0</strong>
+                <small th:text="|진행 중 ${cancelledProgressTotal - cancelledProgressCompleted}건|">진행 중 0건</small>
+                <i class="kpi-progress"><b th:style="|width: ${cancelledProgressTotal == 0 ? 0 : cancelledProgressCompleted * 100.0 / cancelledProgressTotal}%|"></b></i>
+            </button>
+            <button
+                type="button"
+                class="distribution-kpi returns"
+                data-delivery-view="returns"
+                aria-selected="false">
+                <span>회수 관리</span>
+                <strong th:text="|${returnProgressCompleted} / ${returnProgressTotal}|">0 / 0</strong>
+                <small th:text="|진행 중 ${returnProgressTotal - returnProgressCompleted}건|">진행 중 0건</small>
+                <i class="kpi-progress"><b th:style="|width: ${returnProgressTotal == 0 ? 0 : returnProgressCompleted * 100.0 / returnProgressTotal}%|"></b></i>
+            </button>
+            <button
+                type="button"
+                class="distribution-kpi cancelled-order"
+                data-delivery-view="cancelled_orders"
+                aria-selected="false">
+                <span>취소 주문</span>
+                <strong th:text="|${cancelledOrderProgressCompleted} / ${cancelledOrderProgressTotal}|">0 / 0</strong>
+                <small th:text="|진행 중 ${cancelledOrderProgressTotal - cancelledOrderProgressCompleted}건|">진행 중 0건</small>
+                <i class="kpi-progress"><b th:style="|width: ${cancelledOrderProgressTotal == 0 ? 0 : cancelledOrderProgressCompleted * 100.0 / cancelledOrderProgressTotal}%|"></b></i>
+            </button>
+        </section>
+
+        <section
+            class="panel distribution-panel"
+            data-delivery-panel="ready"
+            hidden>
+            <div class="panel-title">
+                <div>
+                    <p class="summary-eyebrow">ORDER TO SHIPMENT</p>
+                    <h2>주문 및 출고 준비</h2>
+                    <p>출고 완료 후 운송사를 지정하고 배송을 시작합니다.</p>
+                </div>
+                <span class="summary-count">
+                    <strong th:text="${readyDeliveryCount}">0</strong>건
+                </span>
+            </div>
+
+            <div class="table-wrap">
+                <table class="distribution-order-table">
+                    <thead>
+                        <tr>
+                            <th>주문번호</th>
+                            <th>주문일</th>
+                            <th>배송지</th>
+                            <th>결제금액</th>
+                            <th>주문상태</th>
+                            <th>출고 작업</th>
+                            <th>배송 등록</th>
+                            <th class="order-management-heading">
+                                <span>주문 관리</span>
+                                <small>취소·재고 처리</small>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="order : ${readyDeliveryOrders}">
+                            <td>
+                                <strong th:text="|#${order.orderId}|">#1</strong>
+                                <small
+                                    class="demo-order-label"
+                                    th:if="${order.userId == 0}">
+                                    TEST
+                                </small>
+                            </td>
+                            <td th:text="${#temporals.format(
+                                order.createdAt, 'yyyy-MM-dd HH:mm')}">
+                                주문일
+                            </td>
+                            <td>
+                                <span
+                                    class="distribution-address"
+                                    th:text="${order.shippingAddress}">
+                                    배송지
+                                </span>
+                                <small
+                                    th:if="${!#strings.isEmpty(order.recipientName)}"
+                                    th:text="|${order.recipientName}
+                                        · ${order.recipientPhone}|">
+                                    수령인
+                                </small>
+                            </td>
+                            <td th:text="|${#numbers.formatInteger(
+                                order.finalPrice, 0, 'COMMA')}원|">
+                                0원
+                            </td>
+                            <td>
+                                <span
+                                    class="badge blue"
+                                    th:text="${order.status}">
+                                    상태
+                                </span>
+                            </td>
+                            <td>
+                                <form
+                                    class="shipment-action"
+                                    method="post"
+                                    th:if="${shipmentByOrder[order.orderId] == null}"
+                                    th:action="@{/distribution/shipments}">
+                                    <input
+                                        type="hidden"
+                                        name="orderId"
+                                        th:value="${order.orderId}">
+                                    <input
+                                        name="worker"
+                                        placeholder="출고 담당자"
+                                        required>
+                                    <input name="note" placeholder="출고 메모">
+                                    <button class="ghost">출고 지시</button>
+                                </form>
+                                <a
+                                    class="shipment-status-link"
+                                    th:if="${shipmentByOrder[order.orderId] != null}"
+                                    th:href="@{/inventory(view='shipments')}"
+                                    th:text="|${shipmentByOrder[order.orderId].shipmentNo}
+                                        · ${shipmentByOrder[order.orderId].status.label}|">
+                                    출고 상태
+                                </a>
+                            </td>
+                            <td>
+                                <button
+                                    type="button"
+                                    class="ghost delivery-button"
+                                    th:if="${shipmentByOrder[order.orderId] != null
+                                        and shipmentByOrder[order.orderId].status.name() == 'SHIPPED'
+                                        and deliveryByOrder[order.orderId] == null
+                                        and order.status.name() != 'DELIVERED'}"
+                                    th:data-id="${order.orderId}"
+                                    th:data-name="|주문 #${order.orderId}|">
+                                    운송장 등록
+                                </button>
+                                <a
+                                    class="shipment-status-link"
+                                    th:if="${deliveryByOrder[order.orderId] != null}"
+                                    th:href="@{/distribution/deliveries/{id}(
+                                        id=${deliveryByOrder[order.orderId].deliveryId})}">
+                                    배송 추적
+                                </a>
+                                <span
+                                    class="distribution-muted"
+                                    th:if="${deliveryByOrder[order.orderId] == null
+                                        and (shipmentByOrder[order.orderId] == null
+                                        or shipmentByOrder[order.orderId].status.name() != 'SHIPPED')}">
+                                    출고 완료 후 가능
+                                </span>
+                            </td>
+                            <td class="order-management-column">
+                                <div class="ready-order-cancel">
+                                    <span class="ready-order-cancel-status">
+                                        <i></i>
+                                        취소 가능
+                                    </span>
+                                    <button
+                                        type="button"
+                                        class="order-cancel-button ready-order-cancel-button"
+                                        th:data-id="${order.orderId}"
+                                        th:data-name="|주문 #${order.orderId}|"
+                                        th:data-stage="${shipmentByOrder[order.orderId] != null
+                                            and shipmentByOrder[order.orderId].status.name() == 'SHIPPED'
+                                            ? '출고된 LOT 재고를 원복하고 주문을 취소합니다.'
+                                            : '예약 재고를 해제하고 주문을 취소합니다.'}">
+                                        <span class="ready-order-cancel-icon">×</span>
+                                        <span class="ready-order-cancel-copy">
+                                            <strong>주문 취소</strong>
+                                            <small
+                                                th:text="${shipmentByOrder[order.orderId] != null
+                                                    and shipmentByOrder[order.orderId].status.name() == 'SHIPPED'
+                                                    ? 'LOT 재고 자동 원복'
+                                                    : '예약 재고 자동 해제'}">
+                                                예약 재고 자동 해제
+                                            </small>
+                                        </span>
+                                        <span class="ready-order-cancel-arrow">›</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(readyDeliveryOrders)}">
+                            <td colspan="8" class="empty">
+                                운송장 등록을 기다리는 배송이 없습니다.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section
+            class="panel distribution-panel cancelled-order-panel"
+            data-delivery-panel="cancelled_orders"
+            hidden>
+            <div class="panel-title cancelled-order-title">
+                <div>
+                    <p class="summary-eyebrow">CANCELLED ORDERS</p>
+                    <h2>취소 주문 내역</h2>
+                    <p>취소 사유부터 예약 해제·출고 재고 원복 결과까지 한눈에 확인합니다.</p>
+                </div>
+            </div>
+
+            <div class="cancelled-order-overview">
+                <article>
+                    <span class="cancelled-overview-icon count">×</span>
+                    <div>
+                        <small>취소 주문</small>
+                        <strong th:text="|${cancelledOrderCount}건|">0건</strong>
+                    </div>
+                </article>
+                <article>
+                    <span class="cancelled-overview-icon amount">₩</span>
+                    <div>
+                        <small>취소 주문 금액</small>
+                        <strong th:text="|${#numbers.formatInteger(
+                            cancelledOrderTotalAmount, 0, 'COMMA')}원|">
+                            0원
+                        </strong>
+                    </div>
+                </article>
+                <article>
+                    <span class="cancelled-overview-icon stock">↺</span>
+                    <div>
+                        <small>재고 반영</small>
+                        <strong th:text="|${cancelledOrderCount}건 완료|">
+                            0건 완료
+                        </strong>
+                    </div>
+                </article>
+            </div>
+
+            <div class="cancelled-order-tools">
+                <div>
+                    <strong>취소 처리 목록</strong>
+                    <small>최신 취소 주문부터 표시됩니다.</small>
+                </div>
+                <input
+                    type="search"
+                    id="cancelledOrderSearch"
+                    placeholder="주문번호, 수령인, 주소, 취소 사유 검색"
+                    aria-label="취소 주문 검색">
+            </div>
+
+            <div class="table-wrap">
+                <table class="cancelled-order-table">
+                    <thead>
+                        <tr>
+                            <th>주문번호</th>
+                            <th>주문일</th>
+                            <th>수령인·배송지</th>
+                            <th>결제금액</th>
+                            <th>상품</th>
+                            <th>취소 정보</th>
+                            <th>처리 결과</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            th:each="order : ${cancelledOrders}"
+                            data-cancelled-order-row>
+                            <td>
+                                <div class="cancelled-order-number">
+                                    <span>×</span>
+                                    <div>
+                                        <strong th:text="|#${order.orderId}|">
+                                            #1
+                                        </strong>
+                                        <small
+                                            class="demo-order-label"
+                                            th:if="${order.userId == 0}">
+                                            TEST
+                                        </small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td th:text="${#temporals.format(
+                                order.createdAt, 'yyyy-MM-dd HH:mm')}">
+                                주문일
+                            </td>
+                            <td>
+                                <strong th:text="${order.recipientName == null
+                                    ? '수령인 미등록'
+                                    : order.recipientName}">
+                                    수령인
+                                </strong>
+                                <small th:text="${order.shippingAddress}">
+                                    배송지
+                                </small>
+                            </td>
+                            <td th:text="|${#numbers.formatInteger(
+                                order.finalPrice, 0, 'COMMA')}원|">
+                                0원
+                            </td>
+                            <td th:text="|${cancelledOrderItemCounts[
+                                order.orderId]}개 품목|">
+                                상품
+                            </td>
+                            <td>
+                                <span
+                                    class="cancelled-reason"
+                                    th:text="${order.cancellationReason}">
+                                    취소 사유
+                                </span>
+                                <small>
+                                    <b th:text="${order.cancellationManager}">
+                                        담당자
+                                    </b>
+                                    <span th:text="| · ${#temporals.format(
+                                        order.cancelledAt,
+                                        'yyyy-MM-dd HH:mm')}|">
+                                        취소 일시
+                                    </span>
+                                </small>
+                            </td>
+                            <td>
+                                <span class="order-cancel-result">
+                                    주문 취소 완료
+                                </span>
+                                <small>예약 해제 또는 출고 재고 원복 완료</small>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(cancelledOrders)}">
+                            <td colspan="7" class="empty">
+                                취소된 주문이 없습니다.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p id="cancelledOrderFilterEmpty" class="empty" hidden>
+                검색 조건에 맞는 취소 주문이 없습니다.
+            </p>
+        </section>
+
+        <section
+            class="panel distribution-panel"
+            data-delivery-panel="tracking">
+            <div class="panel-title">
+                <div>
+                    <p class="summary-eyebrow">DELIVERY TRACKING</p>
+                    <h2 id="deliveryPanelTitle">전체 배송</h2>
+                    <p id="deliveryPanelDescription">
+                        배송번호를 선택하면 출고 LOT와 전체 처리 이력을 확인할 수 있습니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="distribution-table-tools">
+                <input
+                    type="search"
+                    id="deliverySearch"
+                    placeholder="배송번호, 주문번호, 운송사, 운송장 검색"
+                    aria-label="배송 검색">
+                <select id="deliveryStatusFilter" aria-label="배송 상태 필터">
+                    <option value="all">전체 상태</option>
+                    <option
+                        th:each="status : ${deliveryStatuses}"
+                        th:value="${status.name()}"
+                        th:text="${status.label}">
+                        상태
+                    </option>
+                    <option value="DELAYED">배송 지연</option>
+                </select>
+            </div>
+
+            <div class="table-wrap">
+                <table id="deliveryTrackingTable">
+                    <thead>
+                        <tr>
+                            <th>배송번호</th>
+                            <th>주문</th>
+                            <th>운송 정보</th>
+                            <th>출고 시각</th>
+                            <th>도착 예정</th>
+                            <th>진행 상태</th>
+                            <th>상태 변경</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            th:each="delivery : ${deliveries}"
+                            th:data-status="${delivery.status.name()}"
+                            th:data-return-status="${delivery.returnStatus == null
+                                ? ''
+                                : delivery.returnStatus.name()}"
+                            th:data-delayed="${delivery.delayed}">
+                            <td>
+                                <a
+                                    class="delivery-number-link"
+                                    th:href="@{/distribution/deliveries/{id}(
+                                        id=${delivery.deliveryId})}"
+                                    th:text="|DLV-${#numbers.formatInteger(
+                                        delivery.deliveryId, 5)}|">
+                                    DLV-00001
+                                </a>
+                                <span
+                                    class="delivery-delay-label"
+                                    th:if="${delivery.delayed}">
+                                    지연
+                                </span>
+                            </td>
+                            <td>
+                                <strong th:text="|#${delivery.order.orderId}|">
+                                    주문
+                                </strong>
+                                <small
+                                    th:text="${delivery.order.shippingAddress}">
+                                    배송지
+                                </small>
+                            </td>
+                            <td>
+                                <strong th:text="${delivery.carrierName}">
+                                    운송사
+                                </strong>
+                                <small th:text="${delivery.trackingNumber}">
+                                    운송장
+                                </small>
+                            </td>
+                            <td th:text="${delivery.shippedAt == null
+                                ? '-'
+                                : #temporals.format(
+                                    delivery.shippedAt, 'yyyy-MM-dd HH:mm')}">
+                                출고 시각
+                            </td>
+                            <td>
+                                <span th:text="${delivery.expectedDeliveryAt == null
+                                    ? '-'
+                                    : #temporals.format(
+                                        delivery.expectedDeliveryAt, 'yyyy-MM-dd HH:mm')}">
+                                    예정일
+                                </span>
+                            </td>
+                            <td>
+                                <div class="delivery-progress-cell">
+                                    <div class="delivery-progress-track">
+                                        <span
+                                            th:style="|width: ${delivery.status.progress}%|">
+                                        </span>
+                                    </div>
+                                    <span
+                                        class="delivery-status-badge"
+                                        th:classappend="${delivery.status.name().toLowerCase()}"
+                                        th:text="${delivery.status.label}">
+                                        배송 상태
+                                    </span>
+                                    <span
+                                        class="return-status-badge"
+                                        th:if="${delivery.returnStatus != null}"
+                                        th:text="${delivery.returnStatus.label}">
+                                        회수 상태
+                                    </span>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="delivery-row-actions">
+                                    <a
+                                        class="ghost detail-table-link"
+                                        th:href="@{/distribution/deliveries/{id}(
+                                            id=${delivery.deliveryId})}">
+                                        상세 추적
+                                    </a>
+
+                                    <form
+                                        method="post"
+                                        th:if="${delivery.status.name() == 'READY'}"
+                                        th:action="@{/distribution/status}">
+                                        <input type="hidden" name="deliveryId"
+                                            th:value="${delivery.deliveryId}">
+                                        <input type="hidden" name="status"
+                                            value="PICKED_UP">
+                                        <input type="hidden" name="note"
+                                            value="택배사 인계 완료">
+                                        <button class="ghost">택배 인계</button>
+                                    </form>
+
+                                    <form
+                                        method="post"
+                                        th:if="${delivery.status.name() == 'PICKED_UP'}"
+                                        th:action="@{/distribution/status}">
+                                        <input type="hidden" name="deliveryId"
+                                            th:value="${delivery.deliveryId}">
+                                        <input type="hidden" name="status"
+                                            value="IN_TRANSIT">
+                                        <input type="hidden" name="note"
+                                            value="배송지로 이동 시작">
+                                        <button class="primary compact">
+                                            배송 중 처리
+                                        </button>
+                                    </form>
+
+                                    <details
+                                        class="delivery-action-details"
+                                        th:if="${delivery.status.name() == 'PICKED_UP'
+                                            or delivery.status.name() == 'IN_TRANSIT'}">
+                                        <summary>운송장 수정</summary>
+                                        <form
+                                            method="post"
+                                            th:action="@{/distribution/deliveries/{id}/tracking(
+                                                id=${delivery.deliveryId})}">
+                                            <input
+                                                name="carrierName"
+                                                required
+                                                th:value="${delivery.carrierName}"
+                                                placeholder="운송사">
+                                            <input
+                                                name="trackingNumber"
+                                                required
+                                                th:value="${delivery.trackingNumber}"
+                                                placeholder="운송장">
+                                            <button class="ghost">수정 저장</button>
+                                        </form>
+                                    </details>
+
+                                    <form
+                                        method="post"
+                                        th:if="${delivery.status.name() == 'IN_TRANSIT'}"
+                                        th:action="@{/distribution/status}">
+                                        <input type="hidden" name="deliveryId"
+                                            th:value="${delivery.deliveryId}">
+                                        <input type="hidden" name="status"
+                                            value="DELIVERED">
+                                        <input type="hidden" name="note"
+                                            value="수령처 인도 완료">
+                                        <button class="primary compact">
+                                            배송 완료
+                                        </button>
+                                    </form>
+
+                                    <details
+                                        class="delivery-action-details return"
+                                        th:if="${delivery.status.name() == 'DELIVERED'
+                                            and delivery.returnStatus == null}">
+                                        <summary>회수 요청</summary>
+                                        <form
+                                            method="post"
+                                            th:action="@{/distribution/deliveries/{id}/returns(
+                                                id=${delivery.deliveryId})}">
+                                            <input name="manager" required
+                                                placeholder="회수 담당자">
+                                            <input name="reason" required
+                                                placeholder="고객 요청, 오배송 등 회수 사유">
+                                            <button class="danger-outline">
+                                                회수 접수
+                                            </button>
+                                        </form>
+                                    </details>
+
+                                    <form
+                                        method="post"
+                                        th:if="${delivery.returnStatus != null
+                                            and delivery.returnStatus.name() == 'REQUESTED'}"
+                                        th:action="@{/distribution/deliveries/{id}/returns/start(
+                                            id=${delivery.deliveryId})}">
+                                        <button class="primary compact">회수 시작</button>
+                                    </form>
+
+                                    <form
+                                        method="post"
+                                        th:if="${delivery.returnStatus != null
+                                            and delivery.returnStatus.name() == 'COLLECTING'}"
+                                        th:action="@{/distribution/deliveries/{id}/returns/receive(
+                                            id=${delivery.deliveryId})}">
+                                        <button class="primary compact">회수 완료·검수</button>
+                                    </form>
+
+                                    <details
+                                        class="delivery-action-details return-inspection"
+                                        th:if="${delivery.returnStatus != null
+                                            and delivery.returnStatus.name() == 'INSPECTING'}">
+                                        <summary>검수 결과 처리</summary>
+                                        <form
+                                            method="post"
+                                            th:action="@{/distribution/deliveries/{id}/returns/inspect(
+                                                id=${delivery.deliveryId})}">
+                                            <input name="inspector" required
+                                                placeholder="검수 담당자">
+                                            <select name="result" required>
+                                                <option value="NORMAL">정상 · 재고 복구</option>
+                                                <option value="DEFECT">불량 · 격리 등록</option>
+                                            </select>
+                                            <select name="defectType">
+                                                <option value="">불량 유형(불량 시 선택)</option>
+                                                <option
+                                                    th:each="type : ${defectTypes}"
+                                                    th:value="${type.name()}"
+                                                    th:text="${type.label}">
+                                                    불량 유형
+                                                </option>
+                                            </select>
+                                            <input name="note" required
+                                                placeholder="포장·내용물 검수 결과">
+                                            <button class="primary compact">검수 반영</button>
+                                        </form>
+                                    </details>
+
+                                    <div
+                                        class="return-result-summary"
+                                        th:if="${delivery.returnStatus != null
+                                            and delivery.returnStatus.name() == 'COMPLETED'}">
+                                        <strong>회수 처리 완료</strong>
+                                        <small th:text="${delivery.returnInspectionResult}">
+                                            검수 결과
+                                        </small>
+                                    </div>
+
+                                    <details
+                                        class="delivery-action-details delay"
+                                        th:if="${delivery.delayed}">
+                                        <summary>예정일 수정</summary>
+                                        <form
+                                            method="post"
+                                            th:action="@{/distribution/deliveries/{id}/reschedule(
+                                                id=${delivery.deliveryId})}">
+                                            <input
+                                                type="datetime-local"
+                                                name="expectedAt"
+                                                required>
+                                            <input
+                                                name="reason"
+                                                required
+                                                th:value="${delivery.delayReason}"
+                                                placeholder="지연 및 변경 사유">
+                                            <button class="ghost">일정 저장</button>
+                                        </form>
+                                    </details>
+
+                                    <button
+                                        type="button"
+                                        class="danger-outline delivery-cancel-button"
+                                        th:if="${delivery.status.name() != 'DELIVERED'
+                                            and delivery.status.name() != 'CANCELLED'}"
+                                        th:data-id="${delivery.deliveryId}"
+                                        th:data-name="|DLV-${#numbers.formatInteger(
+                                            delivery.deliveryId, 5)}|">
+                                        배송 취소
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        class="danger-outline order-cancel-button"
+                                        th:if="${delivery.status.name() != 'DELIVERED'}"
+                                        th:data-id="${delivery.order.orderId}"
+                                        th:data-name="|주문 #${delivery.order.orderId}|"
+                                        data-stage="배송을 종료하고 출고된 LOT 재고까지 원복합니다.">
+                                        주문 취소
+                                    </button>
+
+                                    <form
+                                        method="post"
+                                        class="redelivery-form"
+                                        th:if="${delivery.status.name() == 'CANCELLED'}"
+                                        th:action="@{/distribution/deliveries/{id}/reactivate(
+                                            id=${delivery.deliveryId})}">
+                                        <input
+                                            name="carrierName"
+                                            required
+                                            placeholder="재배송 운송사">
+                                        <input
+                                            name="trackingNumber"
+                                            required
+                                            placeholder="새 운송장 번호">
+                                        <button class="primary compact">
+                                            재배송 등록
+                                        </button>
+                                    </form>
+
+                                    <div
+                                        class="delivery-cancel-summary"
+                                        th:if="${delivery.status.name() == 'CANCELLED'}">
+                                        <span th:text="|담당 ${delivery.cancellationManager}|">
+                                            취소 담당
+                                        </span>
+                                        <small th:text="${delivery.cancellationReason}">
+                                            취소 사유
+                                        </small>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(deliveries)}">
+                            <td colspan="7" class="empty">
+                                등록된 배송이 없습니다.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p id="deliveryFilterEmpty" class="empty" hidden>
+                조건에 맞는 배송이 없습니다.
+            </p>
+        </section>
+
+    </main>
+
+    <dialog id="demoOrderModal" class="demo-order-modal">
+        <form method="post" th:action="@{/distribution/demo-orders}">
+            <div class="modal-head">
+                <div>
+                    <p class="summary-eyebrow">DEMO ORDER</p>
+                    <h2>테스트 주문 생성</h2>
+                </div>
+                <button type="button" data-close>×</button>
+            </div>
+
+            <div class="modal-warning demo">
+                로그인 없이 발표 흐름을 확인하는 주문입니다. 생성 즉시 결제 완료 및
+                예약 재고로 반영됩니다.
+            </div>
+
+            <label>
+                주문 LOT
+                <select name="lotId" id="demoOrderLot" required>
+                    <option value="">상품과 LOT를 선택하세요</option>
+                    <option
+                        th:each="lot : ${orderableLots}"
+                        th:value="${lot.lotId}"
+                        th:data-available="${availableLotStocks[lot.lotId]}"
+                        th:data-price="${lot.product.price}"
+                        th:text="|[${lot.product.animalType}] ${lot.product.name}
+                            · ${lot.lotNo} · 가용 ${availableLotStocks[lot.lotId]}포|">
+                        상품 LOT
+                    </option>
+                </select>
+            </label>
+
+            <div class="demo-order-stock-info" id="demoOrderStockInfo">
+                LOT를 선택하면 가용 수량과 주문 금액이 표시됩니다.
+            </div>
+
+            <div class="form-grid">
+                <label>
+                    주문 수량
+                    <input
+                        type="number"
+                        name="quantity"
+                        id="demoOrderQuantity"
+                        min="1"
+                        value="1"
+                        required>
+                </label>
+                <label>
+                    할인 금액
+                    <input
+                        type="number"
+                        name="discountPrice"
+                        id="demoOrderDiscount"
+                        min="0"
+                        value="0"
+                        step="100">
+                </label>
+            </div>
+
+            <div class="form-grid">
+                <label>
+                    수령인
+                    <input name="recipientName" required placeholder="홍길동">
+                </label>
+                <label>
+                    연락처
+                    <input
+                        name="recipientPhone"
+                        required
+                        placeholder="010-1234-5678">
+                </label>
+            </div>
+
+            <div class="demo-address-section">
+                <div class="demo-address-heading">
+                    <div>
+                        <strong>배송지</strong>
+                        <small>카카오 주소 검색으로 정확한 기본주소를 선택하세요.</small>
+                    </div>
+                    <button
+                        type="button"
+                        class="ghost"
+                        id="demoAddressSearch">
+                        주소 검색
+                    </button>
+                </div>
+
+                <div class="demo-postal-row">
+                    <input
+                        name="postalCode"
+                        id="demoPostalCode"
+                        readonly
+                        required
+                        placeholder="우편번호">
+                    <span id="demoAddressSelectionStatus">
+                        선택된 주소가 없습니다.
+                    </span>
+                </div>
+
+                <input
+                    id="demoSelectedAddress"
+                    readonly
+                    placeholder="선택한 기본주소">
+                <input
+                    name="roadAddress"
+                    id="demoRoadAddress"
+                    type="hidden">
+                <input
+                    name="jibunAddress"
+                    id="demoJibunAddress"
+                    type="hidden">
+                <input
+                    name="detailAddress"
+                    id="demoDetailAddress"
+                    placeholder="상세주소 (동·호수, 건물명 등)">
+                <input name="latitude" id="demoLatitude" type="hidden">
+                <input name="longitude" id="demoLongitude" type="hidden">
+
+                <div id="demoAddressMap" class="demo-address-map" hidden></div>
+                <p id="demoMapHint" class="demo-map-hint">
+                    지도 미리보기는 카카오 JavaScript 키 설정 시 활성화됩니다.
+                </p>
+            </div>
+
+            <label>
+                배송 요청사항
+                <textarea
+                    name="deliveryRequest"
+                    rows="2"
+                    placeholder="도착 전 연락 부탁드립니다."></textarea>
+            </label>
+
+            <div class="demo-order-total">
+                <span>예상 결제 금액</span>
+                <strong id="demoOrderTotal">0원</strong>
+            </div>
+
+            <button
+                class="primary full"
+                th:disabled="${#lists.isEmpty(orderableLots)}">
+                결제 완료 주문 생성
+            </button>
+            <p
+                class="empty"
+                th:if="${#lists.isEmpty(orderableLots)}">
+                주문 가능한 가용 LOT 재고가 없습니다.
+            </p>
+        </form>
+    </dialog>
+
+    <dialog id="deliveryModal">
+        <form method="post" th:action="@{/distribution/register}">
+            <div class="modal-head">
+                <h2>운송장 등록</h2>
+                <button type="button" data-close>×</button>
+            </div>
+            <input type="hidden" name="orderId">
+            <p class="selected-name"></p>
+            <label>
+                운송사
+                <input name="carrierName" placeholder="CJ대한통운" required>
+            </label>
+            <label>
+                운송장 번호
+                <input name="trackingNumber" placeholder="1234-5678-9012" required>
+            </label>
+            <button class="primary full">배송 시작</button>
+        </form>
+    </dialog>
+
+    <dialog id="deliveryCancelModal">
+        <form
+            method="post"
+            th:action="@{/distribution/deliveries/0/cancel}"
+            data-delivery-cancel-form>
+            <div class="modal-head">
+                <h2>배송 취소</h2>
+                <button type="button" data-close>×</button>
+            </div>
+            <input type="hidden" name="deliveryId">
+            <p class="selected-name"></p>
+            <div class="modal-warning">
+                배송만 취소하며 출고된 LOT 재고는 자동 원복되지 않습니다.
+            </div>
+            <label>
+                취소 담당자
+                <input name="manager" required placeholder="담당자 이름">
+            </label>
+            <label>
+                취소 사유
+                <textarea
+                    name="reason"
+                    rows="3"
+                    required
+                    placeholder="배송 취소 사유를 입력하세요"></textarea>
+            </label>
+            <button class="danger full">배송 취소 확정</button>
+        </form>
+    </dialog>
+
+    <dialog id="orderCancelModal">
+        <form
+            method="post"
+            th:action="@{/distribution/orders/0/cancel}"
+            data-order-cancel-form>
+            <div class="modal-head">
+                <div>
+                    <p class="summary-eyebrow">ORDER CANCELLATION</p>
+                    <h2>주문 취소</h2>
+                </div>
+                <button type="button" data-close>×</button>
+            </div>
+            <input type="hidden" name="orderId">
+            <p class="selected-name"></p>
+            <div class="modal-warning order-cancel-warning">
+                <strong>주문과 연결된 재고를 함께 처리합니다.</strong>
+                <span data-order-cancel-stage>
+                    예약 재고를 해제하거나 출고된 LOT 재고를 원복합니다.
+                </span>
+            </div>
+            <label>
+                취소 담당자
+                <input name="manager" required placeholder="담당자 이름">
+            </label>
+            <label>
+                주문 취소 사유
+                <textarea
+                    name="reason"
+                    rows="3"
+                    required
+                    placeholder="예: 고객 요청, 주소 오류, 주문 중복"></textarea>
+            </label>
+            <button class="danger full">주문 취소 확정</button>
+        </form>
+    </dialog>
+
+</body>
+</html>
