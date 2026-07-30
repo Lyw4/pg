@@ -155,11 +155,6 @@ public class OutboundService {
      * 조회 / 미리보기
      * ================================================================== */
 
-    /** 출고 대상 주문 목록 (결제완료 / 출고대기) */
-    public List<OrderSummaryDto> getDispatchTargets() {
-        return getOrders(OrderListFilter.WAITING);
-    }
-
     /**
      * 상태 필터에 맞는 주문 목록.
      * <p>

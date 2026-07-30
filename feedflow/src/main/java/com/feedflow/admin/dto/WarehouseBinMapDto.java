@@ -1,5 +1,7 @@
 package com.feedflow.admin.dto;
 
+import com.feedflow.common.StockPolicy;
+import com.feedflow.common.util.Numbers;
 import com.feedflow.common.util.DDay;
 import com.feedflow.domain.BinPurpose;
 import com.feedflow.domain.BinLoadStatus;
@@ -20,8 +22,8 @@ import java.time.temporal.ChronoUnit;
 @Builder
 public class WarehouseBinMapDto {
 
-    /** 유통기한 임박 알림 기준 (일) — 대시보드 경고와 동일하게 30일 */
-    private static final long EXPIRING_SOON_DAYS = 30;
+    /** 유통기한 임박 알림 기준 (일) — 대시보드 · D-Day 뱃지와 같은 기준을 쓴다 */
+    private static final long EXPIRING_SOON_DAYS = StockPolicy.EXPIRING_SOON_DAYS;
 
     private final Long binId;
     private final String binCode;
@@ -197,7 +199,7 @@ public class WarehouseBinMapDto {
 
     /** 진행바 너비용 (100% 초과 시에도 막대는 100 에서 멈춘다) */
     public int getUsageRateCapped() {
-        return Math.min(usageRate, 100);
+        return Numbers.cappedPercent(usageRate);
     }
 
     /** 가장 임박한 유통기한 D-Day 라벨 */

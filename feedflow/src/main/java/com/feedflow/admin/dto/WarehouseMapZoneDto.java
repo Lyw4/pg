@@ -1,5 +1,7 @@
 package com.feedflow.admin.dto;
 
+import com.feedflow.domain.BinLoadStatus;
+import com.feedflow.common.util.Numbers;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -104,15 +106,20 @@ public class WarehouseMapZoneDto {
     }
 
     public int getUsageRateCapped() {
-        return Math.min(usageRate, 100);
+        return Numbers.cappedPercent(usageRate);
     }
 
-    /** 구역 요약 진행바 색 */
+    /**
+     * 구역 요약 진행바 색.
+     * <p>
+     * 구간 경계는 {@link BinLoadStatus} 의 상수를 쓴다. 도면 타일 색과 여기서 쓰는
+     * 기준이 갈리면 같은 구역이 타일과 요약 카드에서 다른 색으로 보인다.
+     */
     public String getBarClass() {
-        if (usageRate >= 90) {
+        if (usageRate >= BinLoadStatus.FULL_THRESHOLD) {
             return "bg-danger";
         }
-        if (usageRate >= 60) {
+        if (usageRate >= BinLoadStatus.NORMAL_THRESHOLD) {
             return "bg-warning";
         }
         return "bg-success";
