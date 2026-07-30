@@ -1,5 +1,7 @@
 package com.feedflow.common.util;
 
+import com.feedflow.common.StockPolicy;
+
 /**
  * 숫자 null 처리 유틸.
  * <p>
