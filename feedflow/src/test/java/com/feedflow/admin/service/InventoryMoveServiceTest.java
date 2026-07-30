@@ -95,7 +95,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, fromBin, 100);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(2L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(toBin));
             given(inventoryRepository.findByLot_LotIdAndBin_BinId(lot.getLotId(), 2L))
                     .willReturn(Optional.empty());
             given(inventoryRepository.sumQuantityByBinId(2L)).willReturn(50L);
@@ -148,7 +148,7 @@ class InventoryMoveServiceTest {
             Inventory target = inventory(101L, lot, toBin, 40);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(2L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(toBin));
             given(inventoryRepository.findByLot_LotIdAndBin_BinId(lot.getLotId(), 2L))
                     .willReturn(Optional.of(target));
             given(inventoryRepository.sumQuantityByBinId(2L)).willReturn(40L);
@@ -179,7 +179,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, fromBin, 60);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(2L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(toBin));
             given(inventoryRepository.findByLot_LotIdAndBin_BinId(lot.getLotId(), 2L))
                     .willReturn(Optional.empty());
             given(inventoryRepository.sumQuantityByBinId(2L)).willReturn(0L);
@@ -207,7 +207,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, inactiveFrom, 80);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(2L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(toBin));
             given(inventoryRepository.findByLot_LotIdAndBin_BinId(lot.getLotId(), 2L))
                     .willReturn(Optional.empty());
             given(inventoryRepository.sumQuantityByBinId(2L)).willReturn(0L);
@@ -241,7 +241,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, fromBin, 100);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(2L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(toBin));
             given(inventoryRepository.findByLot_LotIdAndBin_BinId(lot.getLotId(), 2L))
                     .willReturn(Optional.empty());
             given(inventoryRepository.sumQuantityByBinId(2L)).willReturn(0L);
@@ -300,7 +300,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, bin, 100);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(1L)).willReturn(Optional.of(bin));
+            given(warehouseBinRepository.findWithCenterById(1L)).willReturn(Optional.of(bin));
 
             assertThatThrownBy(() ->
                     inventoryMoveService.move(form(INVENTORY_ID, 1L, 10), USER_ID, USER_NAME))
@@ -321,7 +321,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, fromBin, 50);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(2L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(toBin));
 
             assertThatThrownBy(() ->
                     inventoryMoveService.move(form(INVENTORY_ID, 2L, 51), USER_ID, USER_NAME))
@@ -343,7 +343,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, fromBin, 100);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(2L)).willReturn(Optional.of(inactiveTo));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(inactiveTo));
 
             assertThatThrownBy(() ->
                     inventoryMoveService.move(form(INVENTORY_ID, 2L, 10), USER_ID, USER_NAME))
@@ -361,7 +361,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, fromBin, 100);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(2L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(toBin));
             given(inventoryRepository.sumQuantityByBinId(2L)).willReturn(80L);  // 이미 80
 
             // 80 + 30 = 110 > 100
@@ -384,7 +384,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, fromBin, 100);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(2L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(toBin));
             given(inventoryRepository.findByLot_LotIdAndBin_BinId(lot.getLotId(), 2L))
                     .willReturn(Optional.empty());
             given(inventoryRepository.sumQuantityByBinId(2L)).willReturn(80L);
@@ -441,7 +441,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, fromBin, 100);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(999L)).willReturn(Optional.empty());
+            given(warehouseBinRepository.findWithCenterById(999L)).willReturn(Optional.empty());
 
             assertThatThrownBy(() ->
                     inventoryMoveService.move(form(INVENTORY_ID, 999L, 10), USER_ID, USER_NAME))
