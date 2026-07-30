@@ -7,6 +7,10 @@ AnimalType	products.animalType	PIG	PIG	돼지	자돈 · 육성돈 · 임신돈
 AnimalType	products.animalType	POULTRY	POULTRY	조류	닭 · 오리 통합
 ProductType	products.productType	FEED	FEED	사료	배합사료
 ProductType	products.productType	SUPPLEMENT	SUPPLEMENT	영양제	포장 단위 작고 유통기한 길다
+BinPurpose	warehouseBins.binPurpose	STORAGE	STORAGE	보관	적재율 통계에 포함
+BinPurpose	warehouseBins.binPurpose	RECEIVING	RECEIVING	입고 대기	도면에는 그리되 적재율 통계 제외
+BinPurpose	warehouseBins.binPurpose	SHIPPING	SHIPPING	출고 대기	도면에는 그리되 적재율 통계 제외
+BinPurpose	warehouseBins.binPurpose	INSPECTION	INSPECTION	검수	도면에는 그리되 적재율 통계 제외
 OrderStatus	orders.status	PAID	PAID	결제완료	출고 대상
 OrderStatus	orders.status	READY	READY	출고대기	출고 대상
 OrderStatus	orders.status	SHIPPED	SHIPPED	출고완료	FEFO 출고 처리 후

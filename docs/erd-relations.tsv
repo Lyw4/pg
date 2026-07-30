@@ -7,5 +7,7 @@ products	stockMovements	productId	1 : N	필수	@ManyToOne(LAZY)	품목별 입출
 productLots	inventories	lotId	1 : N	필수	@ManyToOne(LAZY)	로트가 여러 구역에 분산 적재 가능
 productLots	orderItems	lotId	1 : N	선택(nullable)	@ManyToOne(LAZY)	FEFO 대표 로트
 productLots	stockMovements	lotId	1 : N	필수	@ManyToOne(LAZY)	모든 이력은 로트에 귀속
+centers	warehouseBins	centerId	1 : N	필수	@ManyToOne(LAZY, optional=false)	센터 1곳에 구역 여러 개 / 2D 도면은 센터 단위로 1장
 warehouseBins	inventories	binId	1 : N	필수	@ManyToOne(LAZY)	구역에 여러 로트 적재
-warehouseBins	stockMovements	binId	1 : N	선택(nullable)	@ManyToOne(LAZY)	이력의 대상 구역
+warehouseBins	stockMovements	binId	1 : N	선택(nullable)	@ManyToOne(LAZY)	이력의 대상(도착) 구역
+warehouseBins	stockMovements	fromBinId	1 : N	선택(nullable)	@ManyToOne(LAZY)	구역 간 이동(MOVE)의 출발 구역

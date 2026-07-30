@@ -1,12 +1,14 @@
 package com.feedflow.admin.service;
 
-import com.feedflow.common.util.Texts;
+import com.feedflow.admin.dto.CenterDto;
 import com.feedflow.admin.dto.WarehouseBinDto;
 import com.feedflow.admin.dto.WarehouseBinForm;
 import com.feedflow.common.exception.DuplicateCodeException;
 import com.feedflow.common.exception.ResourceNotFoundException;
-import com.feedflow.domain.Warehouse;
+import com.feedflow.common.util.Texts;
+import com.feedflow.domain.Center;
 import com.feedflow.domain.WarehouseBin;
+import com.feedflow.repository.CenterRepository;
 import com.feedflow.repository.WarehouseBinRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,9 @@ import java.util.stream.Collectors;
 
 /**
  * 창고 구역(기준 정보) 관리 서비스.
+ * <p>
+ * 구역은 반드시 하나의 물류센터에 속한다. 센터는 {@code Warehouse} enum 이었다가
+ * 전국 확장을 위해 {@link Center} 엔티티로 승격되었다.
  */
 @Service
 @RequiredArgsConstructor
@@ -26,13 +31,19 @@ import java.util.stream.Collectors;
 public class WarehouseBinService {
 
     private final WarehouseBinRepository warehouseBinRepository;
+    private final CenterRepository centerRepository;
 
     /* ------------------------------------------------------------------
      * 조회
      * ------------------------------------------------------------------ */
 
-    public List<WarehouseBinDto> getBins(Warehouse warehouse, String zone, Boolean active) {
-        return warehouseBinRepository.search(warehouse, Texts.trimToNull(zone), active).stream()
+    /**
+     * 구역 목록 검색.
+     *
+     * @param centerId 센터 (null 이면 전체)
+     */
+    public List<WarehouseBinDto> getBins(Long centerId, String zone, Boolean active) {
+        return warehouseBinRepository.search(centerId, Texts.trimToNull(zone), active).stream()
                 .map(WarehouseBinDto::from)
                 .toList();
     }
@@ -45,30 +56,40 @@ public class WarehouseBinService {
         return warehouseBinRepository.findDistinctZones();
     }
 
+    /** 화면 선택 상자 · 도면 탭 구성용 센터 목록 (운영 중인 센터만) */
+    public List<CenterDto> getActiveCenters() {
+        return centerRepository.findByActiveTrueOrderByCenterCodeAsc().stream()
+                .map(CenterDto::from)
+                .toList();
+    }
+
     /**
      * 입고 · 이동 화면 등의 구역 선택 목록 (사용 중인 구역만).
      * <p>
-     * <b>창고 순 → 구역 코드 순</b>으로 정렬한다. 구역 코드만으로 정렬하면
+     * <b>센터 순 → 구역 코드 순</b>으로 정렬한다. 구역 코드만으로 정렬하면
      * 제2창고의 {@code COLD-01} 이 제1창고의 {@code C-02} 와 {@code D-01} 사이에 끼어
-     * 창고가 뒤섞인 목록이 된다.
+     * 센터가 뒤섞인 목록이 된다.
      */
     public List<WarehouseBinDto> getActiveBins() {
-        return warehouseBinRepository.findByActiveTrueOrderByWarehouseAscBinCodeAsc().stream()
+        return warehouseBinRepository.findActiveBinsForSelection().stream()
                 .map(WarehouseBinDto::from)
                 .toList();
     }
 
     /**
-     * 사용 중인 구역을 <b>창고별로 묶은</b> 선택 목록.
+     * 사용 중인 구역을 <b>센터별로 묶은</b> 선택 목록.
      * <p>
-     * 화면에서 {@code <optgroup>} 으로 렌더링해 창고 경계를 눈으로 구분할 수 있게 한다.
+     * 화면에서 {@code <optgroup>} 으로 렌더링해 센터 경계를 눈으로 구분할 수 있게 한다.
      * 정렬 순서를 유지해야 하므로 {@link LinkedHashMap} 으로 모은다.
-     * (일반 {@code HashMap} 은 키 순서를 보장하지 않아 창고가 뒤바뀔 수 있다)
+     * (일반 {@code HashMap} 은 키 순서를 보장하지 않아 센터가 뒤바뀔 수 있다)
+     * <p>
+     * 키를 센터명(문자열)으로 쓰는 이유는 {@code optgroup} 라벨이 곧 센터명이고,
+     * 엔티티나 DTO 를 키로 두면 {@code equals}/{@code hashCode} 동작에 묶이기 때문이다.
      */
-    public Map<Warehouse, List<WarehouseBinDto>> getActiveBinsByWarehouse() {
+    public Map<String, List<WarehouseBinDto>> getActiveBinsByCenter() {
         return getActiveBins().stream()
                 .collect(Collectors.groupingBy(
-                        WarehouseBinDto::getWarehouse,
+                        WarehouseBinDto::getCenterName,
                         LinkedHashMap::new,
                         Collectors.toList()));
     }
@@ -84,7 +105,8 @@ public class WarehouseBinService {
     /**
      * 창고 구역 등록.
      *
-     * @throws DuplicateCodeException 구역 코드가 이미 존재하는 경우
+     * @throws DuplicateCodeException    구역 코드가 이미 존재하는 경우
+     * @throws ResourceNotFoundException 지정한 센터가 없는 경우
      */
     @Transactional
     public Long create(WarehouseBinForm form) {
@@ -96,7 +118,7 @@ public class WarehouseBinService {
 
         WarehouseBin bin = WarehouseBin.builder()
                 .binCode(binCode)
-                .warehouse(form.getWarehouse())
+                .center(findCenter(form.getCenterId()))
                 .zone(Texts.code(form.getZone()))
                 .binPurpose(form.getBinPurpose())
                 .rack(Texts.trim(form.getRack()))
@@ -116,7 +138,7 @@ public class WarehouseBinService {
     /**
      * 창고 구역 수정.
      *
-     * @throws ResourceNotFoundException 구역이 존재하지 않는 경우
+     * @throws ResourceNotFoundException 구역 또는 센터가 존재하지 않는 경우
      * @throws DuplicateCodeException    변경한 구역 코드가 다른 구역에서 이미 사용 중인 경우
      */
     @Transactional
@@ -130,7 +152,7 @@ public class WarehouseBinService {
 
         bin.updateMasterData(
                 binCode,
-                form.getWarehouse(),
+                findCenter(form.getCenterId()),
                 Texts.code(form.getZone()),
                 form.getBinPurpose(),
                 Texts.trim(form.getRack()),
@@ -152,8 +174,19 @@ public class WarehouseBinService {
      * 내부 헬퍼
      * ------------------------------------------------------------------ */
 
+    /**
+     * 구역 조회.
+     * <p>
+     * 센터를 함께 읽는다. 수정 폼과 목록이 센터명을 표시하므로 지연 로딩으로 두면
+     * 호출마다 쿼리가 한 번 더 나간다.
+     */
     private WarehouseBin findBin(Long binId) {
-        return warehouseBinRepository.findById(binId)
+        return warehouseBinRepository.findWithCenterById(binId)
                 .orElseThrow(() -> ResourceNotFoundException.ofWarehouseBin(binId));
+    }
+
+    private Center findCenter(Long centerId) {
+        return centerRepository.findById(centerId)
+                .orElseThrow(() -> ResourceNotFoundException.ofCenter(centerId));
     }
 }

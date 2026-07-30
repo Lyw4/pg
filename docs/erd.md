@@ -2,7 +2,7 @@
 
 배합사료 유통 관리 플랫폼 데이터 모델. B2C 쇼핑몰과 WMS(관리자 창고 시스템)가 하나의 DB를 공유한다.
 
-- 테이블 8개 / 컬럼 68개 / 관계 10건
+- 테이블 9개 / 컬럼 88개 / 관계 12건
 - 물리 명명 규칙: `PhysicalNamingStrategyStandardImpl` 적용 → **DB 컬럼도 camelCase 유지**
 - 예약어 회피를 위해 `users`, `orders`, `binLevel` 만 이름을 변경
 
@@ -20,8 +20,10 @@ erDiagram
     productLots    ||--o{ inventories    : "구역에 적재된다"
     productLots    |o--o{ orderItems     : "FEFO 대표 로트"
     productLots    ||--o{ stockMovements : "이력이 쌓인다"
+    centers        ||--o{ warehouseBins  : "구역을 보유한다"
     warehouseBins  ||--o{ inventories    : "재고를 보관한다"
     warehouseBins  |o--o{ stockMovements : "이력의 대상 구역"
+    warehouseBins  |o--o{ stockMovements : "이동 이력의 출발 구역"
 
     users {
         bigint    userId    PK "IDENTITY"
@@ -31,6 +33,17 @@ erDiagram
         varchar   phone        "nullable"
         varchar   role         "USER / STAFF / ADMIN"
         timestamp createdAt    "NOT NULL"
+    }
+
+    centers {
+        bigint    centerId   PK "IDENTITY"
+        varchar   centerCode UK "업무 식별자 정렬 기준"
+        varchar   name          "화면 표기명 예 제1창고"
+        varchar   region        "권역 예 수도권"
+        varchar   address       "nullable"
+        varchar   note          "보관 정책 요약 예 상온 배합사료"
+        boolean   active        "false = 운영 중지"
+        timestamp createdAt     "NOT NULL"
     }
 
     products {
@@ -63,7 +76,13 @@ erDiagram
     warehouseBins {
         bigint    binId       PK "IDENTITY"
         varchar   binCode     UK "예 A-01-02"
+        bigint    centerId    FK "소속 물류센터 NOT NULL"
         varchar   zone           "A / B / COLD"
+        varchar   binPurpose     "STORAGE / RECEIVING / SHIPPING / INSPECTION"
+        int       posX           "2D 도면 좌상단 열"
+        int       posY           "2D 도면 좌상단 행"
+        int       posWidth       "2D 도면 가로 칸 수"
+        int       posHeight      "2D 도면 세로 칸 수"
         varchar   rack           "nullable"
         int       binLevel       "level 예약어 회피"
         int       maxCapacity    "적재 한도"
@@ -90,6 +109,10 @@ erDiagram
         varchar   shippingAddress    "NOT NULL"
         varchar   status             "PAID / READY / SHIPPED / DELIVERED / CANCELED"
         timestamp createdAt          "NOT NULL"
+        timestamp canceledAt         "nullable 취소 일시"
+        varchar   cancelReason       "nullable 취소 사유"
+        bigint    canceledById       "FK 아님 처리자 스냅샷"
+        varchar   canceledByName     "FK 아님 이력 보존"
     }
 
     orderItems {
@@ -106,15 +129,45 @@ erDiagram
         varchar   movementType    "INBOUND / OUTBOUND / DISPOSAL / MOVE / ADJUST"
         bigint    productId    FK "NOT NULL"
         bigint    lotId        FK "NOT NULL"
-        bigint    binId        FK "nullable"
+        bigint    binId        FK "nullable 대상(도착) 구역"
+        bigint    fromBinId    FK "nullable MOVE 출발 구역"
         int       quantity        "항상 양수"
         varchar   memo            "nullable"
         varchar   reason          "폐기 사유 enum"
+        bigint    orderId         "FK 아님 주문 참조 스냅샷"
         bigint    userId          "FK 아님 처리자 스냅샷"
         varchar   userName        "FK 아님 이력 보존"
         timestamp createdAt       "NOT NULL"
     }
 ```
+
+## 물류센터와 구역 (Center → Bin)
+
+원래 창고는 `Warehouse` enum(`WH1` · `WH2`) 이었다. 물류센터 한 곳 안의 건물 2동을 가리키기에는 충분했지만,
+**전국 단위가 되면 센터는 운영 중에 늘고 줄어든다.** enum 은 값을 추가할 때마다 코드를 다시 배포해야 하므로
+`centers` 테이블로 승격하고 `warehouseBins.centerId` 로 참조한다.
+
+```mermaid
+flowchart LR
+    C1["centers<br/>WH1 제1창고<br/>수도권"] --> B1["warehouseBins<br/>A · B · C · D 구역"]
+    C2["centers<br/>WH2 제2창고<br/>수도권"] --> B2["warehouseBins<br/>COLD · N 구역"]
+    B1 --> I1["inventories<br/>구역별 실물 수량"]
+    B2 --> I1
+    I1 --> T["products.totalStock<br/><b>전국 합계</b>"]
+
+    style C1 fill:#cfe2ff,stroke:#084298
+    style C2 fill:#cfe2ff,stroke:#084298
+    style T fill:#fff3cd,stroke:#856404
+```
+
+- **2D 도면은 센터 단위로 한 장씩** 그린다. 서로 떨어진 센터의 구역이 한 도면에 섞이면 실제 위치를 오해한다.
+- 구역 선택 상자는 `centerCode → binCode` 순으로 정렬하고 `<optgroup>` 으로 센터를 나눈다.
+  구역 코드만으로 정렬하면 제2창고의 `COLD-01` 이 제1창고의 `C-02` 와 `D-01` 사이에 끼어든다.
+- `warehouseBins.centerId` 는 `optional = false` 다. 기본 센터를 두지 않는다 —
+  센터가 여러 곳이면 '기본 센터'라는 개념 자체가 성립하지 않고, 임의로 채우면 엉뚱한 도면에 구역이 나타난다.
+- `products.totalStock` 은 **센터별로 나누지 않고 전국 합계를 유지**한다.
+  B2C 쇼핑몰이 이 값을 '판매 가능 수량'으로 읽고 있어 의미를 바꾸면 연동이 깨진다.
+  센터별 가용 재고는 `inventories` 를 센터 기준으로 집계해서 구한다.
 
 ## 재고가 3단으로 관리되는 구조
 

@@ -5,7 +5,6 @@ import com.feedflow.common.util.Numbers;
 import com.feedflow.common.util.DDay;
 import com.feedflow.domain.BinPurpose;
 import com.feedflow.domain.BinLoadStatus;
-import com.feedflow.domain.Warehouse;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -27,7 +26,6 @@ public class WarehouseBinMapDto {
 
     private final Long binId;
     private final String binCode;
-    private final Warehouse warehouse;
     private final String zone;
     private final BinPurpose binPurpose;
     private final String rack;
@@ -70,7 +68,6 @@ public class WarehouseBinMapDto {
         return WarehouseBinMapDto.builder()
                 .binId(row.binId())
                 .binCode(row.binCode())
-                .warehouse(row.warehouse())
                 .zone(row.zone())
                 .binPurpose(row.purpose())
                 .rack(row.rack())
@@ -231,12 +228,14 @@ public class WarehouseBinMapDto {
         return DDay.badgeClass(earliestRemainingDays);
     }
 
-    /** 위치 표기 (제1창고 · A구역 · 01랙 · 1단) */
+    /**
+     * 위치 표기 (A구역 · 01랙 · 1단)
+     * <p>
+     * 도면은 센터 단위로 그리므로 센터명을 붙이지 않는다. 타일마다 같은 센터명이
+     * 반복되면 툴팁만 길어지고 정보가 늘지 않는다. 어느 센터인지는 화면 탭이 알려준다.
+     */
     public String getLocationLabel() {
         StringBuilder sb = new StringBuilder();
-        if (warehouse != null) {
-            sb.append(warehouse.getDescription()).append(" · ");
-        }
         sb.append(zone).append("구역");
         if (rack != null && !rack.isBlank()) {
             sb.append(" · ").append(rack).append("랙");

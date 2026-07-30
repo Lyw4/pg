@@ -1,16 +1,18 @@
 package com.feedflow.admin.dto;
 
 import com.feedflow.domain.BinPurpose;
-import com.feedflow.domain.Warehouse;
 
 import java.time.LocalDate;
 
 /**
- * 창고 2D 도면 집계 결과 (Repository JPQL 전용 DTO).
+ * 센터 2D 도면 집계 결과 (Repository JPQL 전용 DTO).
  * <p>
  * 구역 하나당 한 행이 내려온다. 재고가 전혀 없는 구역도 포함되며 이때 적재량은 0 이다.
  * 구역 수만큼 재고 합계 쿼리를 반복(N+1)하지 않기 위해 {@code left join} + {@code group by} 로
  * DB 단에서 집계한다.
+ * <p>
+ * 도면은 <b>센터 단위로 그리므로 행마다 센터 정보를 담지 않는다.</b>
+ * 어느 센터의 도면인지는 조회를 요청한 쪽이 이미 알고 있다.
  *
  * @param loadedQuantity      적재 수량 합계 (재고 없으면 0)
  * @param lotCount            보관 중인 서로 다른 로트 수
@@ -20,7 +22,6 @@ import java.time.LocalDate;
 public record WarehouseMapRow(
         Long binId,
         String binCode,
-        Warehouse warehouse,
         String zone,
         BinPurpose binPurpose,
         String rack,

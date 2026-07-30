@@ -3,11 +3,11 @@ package com.feedflow.repository;
 import com.feedflow.admin.dto.WarehouseMapRow;
 import com.feedflow.domain.AnimalType;
 import com.feedflow.domain.BinPurpose;
+import com.feedflow.domain.Center;
 import com.feedflow.domain.Inventory;
 import com.feedflow.domain.Product;
 import com.feedflow.domain.ProductLot;
 import com.feedflow.domain.ProductType;
-import com.feedflow.domain.Warehouse;
 import com.feedflow.domain.WarehouseBin;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -63,8 +63,15 @@ class WarehouseMapRepositoryTest {
     private Product feed;
     private Product supplement;
 
+    /** 구역은 센터 없이 존재할 수 없으므로(optional = false) 먼저 만들어 둔다 */
+    private Center center1;
+    private Center center2;
+
     @BeforeEach
     void setUp() {
+        center1 = persistCenter("WH1", "제1창고");
+        center2 = persistCenter("WH2", "제2창고");
+
         feed = persistProduct("FD-CT-001", "육성우 사료", AnimalType.CATTLE, ProductType.FEED);
         supplement = persistProduct("SP-CT-001", "한우 영양제", AnimalType.CATTLE, ProductType.SUPPLEMENT);
     }
@@ -178,33 +185,33 @@ class WarehouseMapRepositoryTest {
     }
 
     @Test
-    @DisplayName("창고를 지정하면 해당 창고의 구역만 조회한다")
-    void filtersByWarehouse() {
-        persistBin("A-01", Warehouse.WH1, "A", BinPurpose.STORAGE, 500, true);
-        persistBin("B-01", Warehouse.WH1, "B", BinPurpose.STORAGE, 600, true);
-        persistBin("COLD-01", Warehouse.WH2, "COLD", BinPurpose.STORAGE, 200, true);
+    @DisplayName("센터를 지정하면 해당 센터의 구역만 조회한다")
+    void filtersByCenter() {
+        persistBin("A-01", center1, "A", BinPurpose.STORAGE, 500, true);
+        persistBin("B-01", center1, "B", BinPurpose.STORAGE, 600, true);
+        persistBin("COLD-01", center2, "COLD", BinPurpose.STORAGE, 200, true);
 
-        assertThat(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH1))
-                .as("서로 다른 건물의 구역이 한 도면에 섞이면 실제 위치를 오해한다")
+        assertThat(warehouseBinRepository.findWarehouseMapRows(center1.getCenterId()))
+                .as("서로 떨어진 센터의 구역이 한 도면에 섞이면 실제 위치를 오해한다")
                 .extracting(WarehouseMapRow::binCode)
                 .containsExactly("A-01", "B-01");
 
-        assertThat(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH2))
+        assertThat(warehouseBinRepository.findWarehouseMapRows(center2.getCenterId()))
                 .extracting(WarehouseMapRow::binCode)
                 .containsExactly("COLD-01");
 
         assertThat(warehouseBinRepository.findWarehouseMapRows(null))
-                .as("창고가 null 이면 전체 조회")
+                .as("센터가 null 이면 전체 조회")
                 .hasSize(3);
     }
 
     @Test
     @DisplayName("입고 대기 등 보관 외 용도 구역도 도면에 그려지도록 조회에 포함한다")
     void includesNonStorageBin() {
-        persistBin("R-01", Warehouse.WH1, "R", BinPurpose.RECEIVING, 300, true);
-        persistBin("S-01", Warehouse.WH1, "S", BinPurpose.SHIPPING, 400, true);
+        persistBin("R-01", center1, "R", BinPurpose.RECEIVING, 300, true);
+        persistBin("S-01", center1, "S", BinPurpose.SHIPPING, 400, true);
 
-        assertThat(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH1))
+        assertThat(warehouseBinRepository.findWarehouseMapRows(center1.getCenterId()))
                 .extracting(WarehouseMapRow::purpose)
                 .containsExactly(BinPurpose.RECEIVING, BinPurpose.SHIPPING);
     }
@@ -228,7 +235,7 @@ class WarehouseMapRepositoryTest {
         persistBinAt("A-01", 6, 1, 2, 6);
         persistBinAt("D-01", 17, 1, 7, 2);
 
-        assertThat(warehouseBinRepository.findWarehouseMapRows(Warehouse.WH1))
+        assertThat(warehouseBinRepository.findWarehouseMapRows(center1.getCenterId()))
                 .as("도면을 위에서 아래로 읽는 순서와 같아야 구역 라벨 배치가 자연스럽다")
                 .extracting(WarehouseMapRow::binCode)
                 .containsExactly("A-01", "D-01", "C-01");
@@ -254,6 +261,15 @@ class WarehouseMapRepositoryTest {
      * 픽스처
      * ------------------------------------------------------------------ */
 
+    private Center persistCenter(String centerCode, String name) {
+        return entityManager.persist(Center.builder()
+                .centerCode(centerCode)
+                .name(name)
+                .region("수도권")
+                .active(true)
+                .build());
+    }
+
     private Product persistProduct(String code, String name, AnimalType animalType, ProductType productType) {
         return entityManager.persist(Product.builder()
                 .productCode(code)
@@ -271,14 +287,14 @@ class WarehouseMapRepositoryTest {
 
     /** 보관 구역 (제1창고, 좌표는 순서대로 자동 배정) */
     private WarehouseBin persistBin(String binCode, String zone, int maxCapacity, boolean active) {
-        return persistBin(binCode, Warehouse.WH1, zone, BinPurpose.STORAGE, maxCapacity, active);
+        return persistBin(binCode, center1, zone, BinPurpose.STORAGE, maxCapacity, active);
     }
 
     /** 좌표를 직접 지정하는 보관 구역 (정렬 검증용) */
     private WarehouseBin persistBinAt(String binCode, int posX, int posY, int posWidth, int posHeight) {
         return entityManager.persist(WarehouseBin.builder()
                 .binCode(binCode)
-                .warehouse(Warehouse.WH1)
+                .center(center1)
                 .zone(binCode.substring(0, 1))
                 .binPurpose(BinPurpose.STORAGE)
                 .rack("01")
@@ -292,13 +308,13 @@ class WarehouseMapRepositoryTest {
                 .build());
     }
 
-    private WarehouseBin persistBin(String binCode, Warehouse warehouse, String zone,
+    private WarehouseBin persistBin(String binCode, Center center, String zone,
                                     BinPurpose binPurpose, int maxCapacity, boolean active) {
         // 좌표는 겹치지만 집계 쿼리 검증에는 영향이 없으므로 순번으로 단순 배정한다
         int seq = ++binSequence;
         return entityManager.persist(WarehouseBin.builder()
                 .binCode(binCode)
-                .warehouse(warehouse)
+                .center(center)
                 .zone(zone)
                 .binPurpose(binPurpose)
                 .rack("01")

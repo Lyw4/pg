@@ -1,6 +1,5 @@
 package com.feedflow.admin.dto;
 
-import com.feedflow.domain.Warehouse;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -18,8 +17,6 @@ public class WarehouseFloorPlanDto {
     /** 도면 격자 크기 — 좌표 입력 검증({@link WarehouseBinForm})과 같은 값을 써야 한다 */
     public static final int GRID_COLUMNS = WarehouseBinForm.GRID_COLUMNS;
     public static final int GRID_ROWS = WarehouseBinForm.GRID_ROWS;
-
-    private final Warehouse warehouse;
 
     /** 구역 사각형 */
     private final List<WarehouseBinMapDto> bins;
@@ -57,5 +54,21 @@ public class WarehouseFloorPlanDto {
 
     public boolean isEmpty() {
         return bins.isEmpty();
+    }
+
+    /**
+     * 보여줄 센터가 없을 때의 빈 도면.
+     * <p>
+     * 운영 중인 센터가 하나도 없을 수 있다(전부 운영 중지). 이때 조회 조건을 {@code null} 로
+     * 넘기면 Repository 가 <b>전체 센터의 구역을 한 도면에 겹쳐</b> 내려줘 실제 위치를 오해하게 된다.
+     * 화면은 "표시할 센터가 없음" 상태를 그려야 하므로 DB 를 건드리지 않고 빈 도면을 만든다.
+     */
+    public static WarehouseFloorPlanDto empty() {
+        return WarehouseFloorPlanDto.builder()
+                .bins(List.of())
+                .facilities(List.of())
+                .zones(List.of())
+                .summary(WarehouseMapSummaryDto.of(List.of()))
+                .build();
     }
 }

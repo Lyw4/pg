@@ -12,7 +12,7 @@ import com.feedflow.domain.Product;
 import com.feedflow.domain.ProductLot;
 import com.feedflow.domain.ProductType;
 import com.feedflow.domain.StockMovement;
-import com.feedflow.domain.Warehouse;
+import com.feedflow.domain.Center;
 import com.feedflow.domain.WarehouseBin;
 import com.feedflow.repository.InventoryRepository;
 import com.feedflow.repository.StockMovementRepository;
@@ -496,7 +496,7 @@ class InventoryMoveServiceTest {
         return WarehouseBin.builder()
                 .binId(binId)
                 .binCode(binCode)
-                .warehouse(Warehouse.WH1)
+                .center(center())
                 .zone(binCode.substring(0, 1))
                 .binPurpose(BinPurpose.STORAGE)
                 .rack("01")
@@ -519,4 +519,22 @@ class InventoryMoveServiceTest {
                 .updatedAt(LocalDateTime.now())
                 .build();
     }
+
+    /**
+     * 테스트용 센터 픽스처.
+     * <p>
+     * {@code Warehouse} enum 이 {@link Center} 엔티티로 승격되어 구역마다 센터가 필요하다.
+     * DB 에 저장하지 않는 단위 테스트이므로 빌더로 만든 객체를 그대로 쓴다.
+     */
+    private Center center() {
+        return Center.builder()
+                .centerId(1L)
+                .centerCode("WH1")
+                .name("제1창고")
+                .region("수도권")
+                .note("상온 · 배합사료")
+                .active(true)
+                .build();
+    }
+
 }

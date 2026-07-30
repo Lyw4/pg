@@ -1,7 +1,6 @@
 package com.feedflow.repository;
 
 import com.feedflow.admin.dto.WarehouseMapRow;
-import com.feedflow.domain.Warehouse;
 import com.feedflow.domain.WarehouseBin;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -20,20 +19,24 @@ public interface WarehouseBinRepository extends JpaRepository<WarehouseBin, Long
 
     /**
      * 구역 목록 검색.
+     * <p>
+     * 목록이 센터명을 표시하므로 {@code join fetch center} 로 함께 읽는다.
+     * 없으면 구역 수만큼 센터 조회 쿼리가 추가로 나간다(N+1).
      *
-     * @param warehouse 창고 (null 이면 전체)
-     * @param zone      구역 (null 이면 전체)
-     * @param active    사용 여부 (null 이면 전체)
+     * @param centerId 센터 (null 이면 전체)
+     * @param zone     구역 (null 이면 전체)
+     * @param active   사용 여부 (null 이면 전체)
      */
     @Query("""
             select b
             from WarehouseBin b
-            where (:warehouse is null or b.warehouse = :warehouse)
+                join fetch b.center c
+            where (:centerId is null or c.centerId = :centerId)
               and (:zone is null or b.zone = :zone)
               and (:active is null or b.active = :active)
-            order by b.warehouse asc, b.binCode asc
+            order by c.centerCode asc, b.binCode asc
             """)
-    List<WarehouseBin> search(@Param("warehouse") Warehouse warehouse,
+    List<WarehouseBin> search(@Param("centerId") Long centerId,
                               @Param("zone") String zone,
                               @Param("active") Boolean active);
 
@@ -41,27 +44,47 @@ public interface WarehouseBinRepository extends JpaRepository<WarehouseBin, Long
     @Query("select distinct b.zone from WarehouseBin b order by b.zone asc")
     List<String> findDistinctZones();
 
-    /** 입고 등 업무 화면의 선택 목록용 (사용 중인 구역만) */
     /**
-     * 사용 중인 구역 목록 - <b>창고 순 → 구역 코드 순</b>.
+     * 사용 중인 구역 목록 - <b>센터 순 → 구역 코드 순</b> (입고 · 이동 등 선택 목록용).
      * <p>
-     * 구역 코드만으로 정렬하면 창고가 뒤섞인다. 제2창고의 {@code COLD-01} 이
+     * 구역 코드만으로 정렬하면 센터가 뒤섞인다. 제2창고의 {@code COLD-01} 이
      * 알파벳 순서상 제1창고의 {@code C-02} 와 {@code D-01} 사이에 끼어들기 때문이다.
-     * 선택 목록에서 창고가 섞이면 다른 건물의 구역을 잘못 고를 수 있다.
+     * 선택 목록에서 센터가 섞이면 다른 센터의 구역을 잘못 고를 수 있다.
      * <p>
-     * {@code warehouse} 는 {@code EnumType.STRING} 이라 'WH1' &lt; 'WH2' 로 정렬된다.
+     * 옵션 라벨에 센터명이 들어가므로 {@code join fetch} 로 센터를 함께 읽는다.
      */
-    List<WarehouseBin> findByActiveTrueOrderByWarehouseAscBinCodeAsc();
+    @Query("""
+            select b
+            from WarehouseBin b
+                join fetch b.center c
+            where b.active = true
+            order by c.centerCode asc, b.binCode asc
+            """)
+    List<WarehouseBin> findActiveBinsForSelection();
+
+    /**
+     * 구역 1건 + 센터 (센터명을 표시하는 단건 조회용).
+     * <p>
+     * {@code findById} 로 읽으면 센터가 지연 로딩이라 {@code locationLabel()} 호출 시
+     * 쿼리가 한 번 더 나간다. 결과 화면이 센터명을 쓰는 경로에서는 이 메서드를 쓴다.
+     */
+    @Query("""
+            select b
+            from WarehouseBin b
+                join fetch b.center c
+            where b.binId = :binId
+            """)
+    Optional<WarehouseBin> findWithCenterById(@Param("binId") Long binId);
 
     /** 사용 중인 구역 수 */
     long countByActive(boolean active);
 
     /* ------------------------------------------------------------------
-     * 창고 2D 도면 집계
+     * 센터 2D 도면 집계
      * ------------------------------------------------------------------ */
 
     /**
-     * 창고 한 동의 구역별 적재 현황 집계 (2D 도면용).
+     * 센터 한 곳의 구역별 적재 현황 집계 (2D 도면용).
      * <p>
      * 구역마다 재고 합계 쿼리를 따로 날리면 N+1 이 되므로 {@code left join} + {@code group by} 로
      * DB 단에서 한 번에 집계한다.
@@ -74,14 +97,16 @@ public interface WarehouseBinRepository extends JpaRepository<WarehouseBin, Long
      * {@code i.lot} / {@code l.product} 도 명시적 {@code left join} 으로 연결한다.
      * 경로 표현식({@code i.lot.lotId})을 쓰면 Hibernate 가 inner join 을 만들어
      * 같은 이유로 빈 구역이 탈락한다.
+     * <p>
+     * 도면은 센터 단위로 그리므로 <b>행마다 센터 정보를 담지 않는다.</b>
+     * 어느 센터의 도면인지는 호출한 쪽이 이미 알고 있다.
      *
-     * @param warehouse 조회할 창고 (null 이면 전체 창고)
+     * @param centerId 조회할 센터 (null 이면 전체 센터)
      */
     @Query("""
             select new com.feedflow.admin.dto.WarehouseMapRow(
                        b.binId,
                        b.binCode,
-                       b.warehouse,
                        b.zone,
                        b.binPurpose,
                        b.rack,
@@ -100,23 +125,22 @@ public interface WarehouseBinRepository extends JpaRepository<WarehouseBin, Long
                 left join Inventory i on i.bin = b and i.quantity > 0
                 left join i.lot l
                 left join l.product p
-            where (:warehouse is null or b.warehouse = :warehouse)
-            group by b.binId, b.binCode, b.warehouse, b.zone, b.binPurpose,
+            where (:centerId is null or b.center.centerId = :centerId)
+            group by b.binId, b.binCode, b.zone, b.binPurpose,
                      b.rack, b.binLevel, b.maxCapacity, b.active,
                      b.posX, b.posY, b.posWidth, b.posHeight
             order by b.posY asc, b.posX asc
             """)
-    List<WarehouseMapRow> findWarehouseMapRows(@Param("warehouse") Warehouse warehouse);
+    List<WarehouseMapRow> findWarehouseMapRows(@Param("centerId") Long centerId);
 
     /**
      * 구역 1건의 적재 현황 집계 (모달 상세용).
-     * 집계 규칙은 {@link #findWarehouseMapRows(Warehouse)} 과 동일하다.
+     * 집계 규칙은 {@link #findWarehouseMapRows(Long)} 과 동일하다.
      */
     @Query("""
             select new com.feedflow.admin.dto.WarehouseMapRow(
                        b.binId,
                        b.binCode,
-                       b.warehouse,
                        b.zone,
                        b.binPurpose,
                        b.rack,
@@ -136,7 +160,7 @@ public interface WarehouseBinRepository extends JpaRepository<WarehouseBin, Long
                 left join i.lot l
                 left join l.product p
             where b.binId = :binId
-            group by b.binId, b.binCode, b.warehouse, b.zone, b.binPurpose,
+            group by b.binId, b.binCode, b.zone, b.binPurpose,
                      b.rack, b.binLevel, b.maxCapacity, b.active,
                      b.posX, b.posY, b.posWidth, b.posHeight
             """)

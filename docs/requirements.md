@@ -74,6 +74,53 @@
 | S3-4 | └ 2D 도면 모달에서 이동 화면 진입 | 완료 | `a48bb5e` | `warehouse-map.js` |
 | S3-5 | └ 이력 추적 타임라인에 `A-01 → B-02` 표시 | 완료 | `a48bb5e` | `TraceEventDto.isRelocation()` |
 
+## Epic: 전국 다중 창고 기반 물류망 확장 (P1 완료)
+
+WMS 1.0 은 **단일 물류센터 안에 창고 건물 2동(`WH1` · `WH2`)** 을 전제로 만들었다.
+이를 **전국 여러 센터(Center)** 구조로 확장한다. 덩치가 커서 4단계로 나눈다.
+
+| Phase | 범위 | 상태 |
+|---|---|---|
+| **P1** | 기초 공사 — `Warehouse` enum → `Center` 엔티티 승격, 구역(Bin) 매핑 전환 | **완료** `8f7aaf8` |
+| **P2** | 검색 및 조회 — 재고·이력 조회에 센터 필터 조건 추가 | 대기 |
+| **P3** | 센터 간 이동 — `TRANSFER_OUT` · `TRANSFER_IN` 신설, 운송 중(In-Transit) 처리 | 대기 |
+| **P4** | 대시보드 및 라우팅 — 센터별 수요 시각화, 스마트 주문 할당 | 대기 |
+
+### 확정된 정책
+
+| 항목 | 결정 | 근거 |
+|---|---|---|
+| **`Product.totalStock`** | **전국 합계로 유지** | B2C 쇼핑몰이 이 컬럼을 '판매 가능 수량' 으로 쓰고 있다. 센터별로 쪼개면 연동이 깨진다. 센터별 가용 재고는 **동적 쿼리 · 별도 집계**로 푼다. |
+| 재고 3계층 불변식 | 유지 | `totalStock` = Σ`lotQuantity` = Σ`Inventory.quantity`. 센터가 늘어도 성립한다(전국 합계 기준). |
+| 센터 간 이동에 `MOVE` 재사용 | **금지** | `MOVE` 는 sign 0(총량 불변)이지만 센터 간에는 한쪽 센터의 재고가 실제로 줄어든다. P3 에서 별도 유형을 만든다. |
+
+### Phase 1 상세
+
+| # | 항목 | 상태 | 커밋 | 비고 |
+|---|---|---|---|---|
+| P1-1 | `Center` 엔티티 · `CenterRepository` · `CenterDto` 신규 | 완료 | `8f7aaf8` | `domain/Warehouse.java` 파일 삭제 |
+| P1-2 | `WarehouseBin` → `Center` `@ManyToOne` 참조 전환 | 완료 | `8f7aaf8` | `warehouse` enum 컬럼 → `centerId` FK (`optional = false`) |
+| P1-3 | 조회 쿼리에 `join fetch center` 적용 (N+1 방지) | 완료 | `8f7aaf8` | `locationLabel()` 이 센터명을 쓴다 |
+| P1-4 | `data.sql` 전면 수정 (`centers` 시드 2행 + 구역 40행 매핑) | 완료 | `8f7aaf8` | 정합성 4규칙 유지 |
+| P1-5 | 2D 도면 · 구역 관리 · 선택 목록 화면의 센터 참조 전환 | 완료 | `8f7aaf8` | 창고 탭 → 센터 탭, 센터 필터, 센터별 `<optgroup>` |
+| P1-6 | `WarehouseMapRow` 센터 컴포넌트 제거 | 완료 | `8f7aaf8` | 도면은 센터 단위이므로 행마다 담을 필요가 없다 |
+| P1-7 | `WarehouseFacilityDto.forWarehouse` → `forCenter(Long)` | 완료 | `8f7aaf8` | WH1/WH2 배치가 동일해 `switch` 를 걷어냈다 |
+| P1-8 | 운영 중인 센터가 없을 때 빈 도면 처리 | 완료 | `8f7aaf8` | `centerId = null` 조회는 전체 센터 구역을 겹쳐 그린다 |
+| P1-9 | ERD 문서 갱신 (`centers` 테이블 · 관계) | 완료 | `8f7aaf8` | 실제 스키마와 벌어져 있던 컬럼도 함께 동기화 |
+
+> **Phase 1 은 '구조 전환' 이므로 데이터의 의미는 바꾸지 않는다.**
+> 센터 코드(`WH1`/`WH2`)와 이름(제1창고/제2창고)을 그대로 유지해, 화면 결과가
+> 이전과 동일한지로 회귀를 판정할 수 있게 한다. 전국 센터 코드 체계 재정의는
+> P2 이후에 데이터만 교체하면 된다.
+
+### Phase 1 에서 의도적으로 미루는 것
+
+| 항목 | 이유 |
+|---|---|
+| 도면 격자 크기를 센터별 속성으로 이관 | `WarehouseBinForm` 의 `@Max(GRID_COLUMNS)` 가 컴파일 상수를 요구해 폼 검증 방식까지 바꿔야 한다. 센터마다 건물 크기가 다른 것은 사실이지만 P1 범위를 넘는다. |
+| 부대시설(출입구·벽·검수실) 테이블 이관 | 센터가 늘면 `centerFacilities` 테이블이 필요하다. P1 에서는 `switch` 를 걷어내 **이관 지점을 `forCenter(Long)` 한 곳으로 좁히는 것**까지만 했다. |
+| 센터 간 이동 차단 | 이동 화면의 도착 구역 목록에 **다른 센터의 구역도 나온다.** 센터 간 이동은 총량 불변이 아니므로 P3 에서 `TRANSFER_*` 유형과 함께 구분해 막는다. |
+
 ## Could Have (선택)
 
 우선순위 순. 아직 착수하지 않았다.
@@ -96,7 +143,7 @@
 
 ## 검증 상태
 
-- 단위/통합 테스트 **167건** (`src/test`, 14개 테스트 클래스)
+- 단위/통합 테스트 **181건** (`src/test`, 16개 테스트 클래스)
 - 시드 데이터(`data.sql`)는 4가지 정합성을 만족한다. 변경 시 함께 검증해야 한다.
   1. 이력 누적(`SUM(StockMovement × sign)`) = `ProductLot.lotQuantity`
   2. 구역 재고 합계(`SUM(Inventory.quantity)`) = `ProductLot.lotQuantity`
