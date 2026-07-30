@@ -608,10 +608,41 @@ class InventoryMoveServiceTest {
             WarehouseBin transit = inTransitBin(41L, center());
 
             assertThat(transit.capacityLimit()).isZero();
-            assertThat(transit.getBinPurpose().isPhysicalSpace()).isFalse();
+            assertThat(transit.hasCapacityLimit()).isFalse();
             assertThat(binCapacityChecker.checkCanAccept(transit, 9999, "이관"))
                     .as("한도 검증을 건너뛰므로 예외 없이 현재 적재량을 돌려준다")
                     .isZero();
+        }
+
+        /**
+         * 한도 면제를 판정하려면 용도를 봐야 하는데, 저장되기 전 객체는 용도가 비어 있을 수 있다
+         * ({@code @PrePersist} 가 아직 실행되지 않은 상태).
+         * <p>
+         * 이때 <b>면제하는 쪽으로 기울면 적재 한도가 조용히 새어 나간다.</b>
+         * 알 수 없는 상태를 이유로 안전 장치를 끄지 않는다는 것을 고정한다.
+         */
+        @Test
+        @DisplayName("용도를 알 수 없는 구역은 한도를 면제하지 않고 그대로 검증한다")
+        void unknownPurposeStillEnforcesLimit() {
+            WarehouseBin noPurpose = WarehouseBin.builder()
+                    .binId(99L)
+                    .binCode("A-99")
+                    .center(center())
+                    .zone("A")
+                    .maxCapacity(100)
+                    .active(true)
+                    .build();
+
+            assertThat(noPurpose.getBinPurpose()).isNull();
+            assertThat(noPurpose.hasCapacityLimit())
+                    .as("용도를 모르면 한도가 있는 것으로 본다 (안전한 기본값)")
+                    .isTrue();
+
+            given(inventoryRepository.sumQuantityByBinId(99L)).willReturn(90L);
+
+            assertThatThrownBy(() -> binCapacityChecker.checkCanAccept(noPurpose, 20, "입고"))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("적재 한도를 초과합니다");
         }
     }
 

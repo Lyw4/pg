@@ -288,4 +288,20 @@ public class WarehouseBin {
     public boolean isInTransit() {
         return binPurpose == BinPurpose.IN_TRANSIT;
     }
+
+    /**
+     * 적재 한도를 검증해야 하는 구역인지.
+     * <p>
+     * 운송 중 가상 구역은 창고 바닥이 아니라 트럭 위라서 면적이 없다. 한도를 셀 수 없으므로
+     * 검증 대상이 아니다. ({@link BinPurpose#isPhysicalSpace()})
+     * <p>
+     * <b>용도를 알 수 없으면 한도가 있는 것으로 본다.</b> {@code binPurpose} 는
+     * {@code nullable = false} 이고 {@link #prePersist()} 가 기본값을 채우므로 저장된
+     * 구역은 항상 값이 있지만, 아직 저장되지 않은 객체는 비어 있을 수 있다.
+     * 그때 한도 검증을 <b>건너뛰는 쪽으로 기울면 안 된다</b> — 알 수 없는 상태를 이유로
+     * 안전 장치를 끄면 적재 한도가 조용히 새어 나간다. 막는 쪽이 안전한 기본값이다.
+     */
+    public boolean hasCapacityLimit() {
+        return binPurpose == null || binPurpose.isPhysicalSpace();
+    }
 }

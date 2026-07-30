@@ -61,7 +61,10 @@ public class BinCapacityChecker {
         // 트럭에 실려 있는 재고에 "몇 포대까지" 라는 바닥 면적은 존재하지 않는다.
         // maxCapacity 를 크게 잡아 우회하지 않고 검증 자체를 건너뛴다 —
         // 임의의 큰 수는 언젠가 넘고, 넘었을 때 왜 막혔는지 알 수 없다.
-        if (!bin.getBinPurpose().isPhysicalSpace()) {
+        //
+        // 판정은 도메인에 맡긴다. 용도를 알 수 없는 구역은 한도가 있는 것으로 보므로
+        // 검증이 조용히 꺼지지 않는다. (WarehouseBin.hasCapacityLimit)
+        if (!bin.hasCapacityLimit()) {
             return currentLoad;
         }
 
