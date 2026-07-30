@@ -585,7 +585,7 @@ class WarehouseMapServiceTest {
             given(warehouseBinRepository.findWarehouseMapRowByBinId(8L)).willReturn(Optional.of(
                     storageRow(8L, "COLD-01", "COLD", 200, true, 190L, 2L, 2L,
                             LocalDate.of(2026, 8, 5), 9, 1, 7, 2)));
-            given(inventoryRepository.search(null, 8L, null)).willReturn(List.of(
+            given(inventoryRepository.search(null, null, 8L, null)).willReturn(List.of(
                     inventory(1L, "FD-CT-001", "육성우 사료", "LOT-CT-2601",
                             LocalDate.of(2026, 8, 5), 90),
                     inventory(2L, "SP-CT-001", "한우 영양제", "LOT-SP-2651",
@@ -615,7 +615,7 @@ class WarehouseMapServiceTest {
             given(warehouseBinRepository.findWarehouseMapRowByBinId(3L)).willReturn(Optional.of(
                     storageRow(3L, "C-01", "C", 400, true, 20L, 1L, 1L,
                             LocalDate.of(2026, 7, 23), 9, 13, 7, 2)));
-            given(inventoryRepository.search(null, 3L, null)).willReturn(List.of(
+            given(inventoryRepository.search(null, null, 3L, null)).willReturn(List.of(
                     inventory(1L, "FD-PL-001", "산란계 사료", "LOT-PL-2620",
                             LocalDate.of(2026, 7, 23), 20)));
 
@@ -630,7 +630,7 @@ class WarehouseMapServiceTest {
         void emptyBin_returnsNoInventories() {
             given(warehouseBinRepository.findWarehouseMapRowByBinId(3L)).willReturn(Optional.of(
                     storageRow(3L, "C-01", "C", 400, true, 0L, 0L, 0L, null, 9, 13, 7, 2)));
-            given(inventoryRepository.search(null, 3L, null)).willReturn(List.of());
+            given(inventoryRepository.search(null, null, 3L, null)).willReturn(List.of());
 
             BinDetailDto detail = warehouseMapService.getBinDetail(3L, TODAY);
 

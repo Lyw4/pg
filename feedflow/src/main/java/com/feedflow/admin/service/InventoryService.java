@@ -1,11 +1,13 @@
 package com.feedflow.admin.service;
 
 import com.feedflow.common.util.Texts;
+import com.feedflow.admin.dto.CenterStockDto;
 import com.feedflow.admin.dto.DisposalForm;
 import com.feedflow.admin.dto.DisposalResultDto;
 import com.feedflow.admin.dto.InboundForm;
 import com.feedflow.admin.dto.InboundResultDto;
 import com.feedflow.admin.dto.InventoryDto;
+import com.feedflow.admin.dto.InventorySearchDto;
 import com.feedflow.admin.dto.StockMovementDto;
 import com.feedflow.common.exception.BusinessRuleException;
 import com.feedflow.common.exception.ResourceNotFoundException;
@@ -252,12 +254,39 @@ public class InventoryService {
      * 조회
      * ================================================================== */
 
-    /** 재고 현황 (로트 × 구역) */
-    public List<InventoryDto> getInventories(Long productId, Long binId, String zone) {
+    /**
+     * 재고 현황 (로트 × 구역).
+     * <p>
+     * 목록과 함께 <b>그 목록에 대한 집계</b>를 돌려준다. 화면 상단 요약 카드는 전국 기준이라
+     * 센터 필터를 걸면 카드와 목록 합계가 어긋나 보이기 때문이다.
+     *
+     * @param centerId  물류센터 (null 이면 전국 전체)
+     * @param productId 품목 (null 이면 전체)
+     * @param binId     구역 (null 이면 전체)
+     * @param zone      구역 그룹 (null 이면 전체)
+     */
+    public InventorySearchDto getInventories(Long centerId, Long productId, Long binId, String zone) {
         LocalDate today = LocalDate.now();
-        return inventoryRepository.search(productId, binId, Texts.trimToNull(zone)).stream()
+
+        List<InventoryDto> rows = inventoryRepository
+                .search(centerId, productId, binId, Texts.trimToNull(zone)).stream()
                 .map(inventory -> InventoryDto.of(inventory, today))
                 .toList();
+
+        return InventorySearchDto.of(rows);
+    }
+
+    /**
+     * 센터별 재고 분포.
+     * <p>
+     * <b>목록 필터와 무관하게</b> 집계한다. 목록을 자바에서 그룹핑하면 센터를 하나 고른 순간
+     * 분포도 그 센터 하나로 줄어들어 "다른 센터에도 재고가 있다" 는 사실을 알 수 없다.
+     * 센터를 고를 근거를 주는 것이 이 집계의 목적이다.
+     *
+     * @param productId 품목 (null 이면 전체 품목) — 품목 필터는 분포에도 그대로 적용한다
+     */
+    public List<CenterStockDto> getStockByCenter(Long productId) {
+        return CenterStockDto.listOf(inventoryRepository.findStockByCenter(productId));
     }
 
     /** 입·출고 이력 */

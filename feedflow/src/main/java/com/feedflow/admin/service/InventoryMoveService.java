@@ -95,8 +95,8 @@ public class InventoryMoveService {
         Product product = lot.getProduct();
         WarehouseBin fromBin = source.getBin();
 
-        // 2) 도착 구역
-        WarehouseBin toBin = warehouseBinRepository.findById(form.getTargetBinId())
+        // 2) 도착 구역 (결과 화면이 위치 라벨에 센터명을 쓰므로 센터까지 함께 읽는다)
+        WarehouseBin toBin = warehouseBinRepository.findWithCenterById(form.getTargetBinId())
                 .orElseThrow(() -> ResourceNotFoundException.ofWarehouseBin(form.getTargetBinId()));
 
         validateMovable(fromBin, toBin, source, quantity);
@@ -170,7 +170,8 @@ public class InventoryMoveService {
     public List<InventoryDto> getMovableInventories(Long binId) {
         LocalDate today = LocalDate.now();
 
-        return inventoryRepository.search(null, binId, null).stream()
+        // 구역이 이미 센터를 결정하므로 센터 조건은 필요 없다 (구역 하나는 센터 하나에 속한다)
+        return inventoryRepository.search(null, null, binId, null).stream()
                 .map(inventory -> InventoryDto.of(inventory, today))
                 .toList();
     }

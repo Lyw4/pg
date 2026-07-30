@@ -2,6 +2,7 @@ package com.feedflow.admin.dto;
 
 import com.feedflow.domain.MovementType;
 import com.feedflow.domain.StockMovement;
+import com.feedflow.domain.WarehouseBin;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -42,11 +43,27 @@ public class TraceEventDto {
      * 구역 간 이동에서는 <b>도착지</b>다. 출발지는 {@link #fromBinCode} 를 쓴다.
      */
     private final String binCode;
+
+    /** 구역 위치 (센터명 제외 — 센터는 {@link #centerName} 으로 따로 표시한다) */
     private final String binLocation;
+
+    /**
+     * 이 행위가 일어난 물류센터.
+     * <p>
+     * 전국 단위에서는 "언제 · 얼마나" 만으로는 이력을 읽을 수 없다.
+     * <b>어느 센터에서 일어난 일인지</b> 가 함께 있어야 물류 흐름을 복원할 수 있다.
+     * 구역이 없는 이력(로트 단위 조정 등)에서는 null 이다.
+     */
+    private final Long centerId;
+    private final String centerName;
 
     /** 구역 간 이동의 출발 구역 (이동 이벤트에만 값이 있다) */
     private final String fromBinCode;
     private final String fromBinLocation;
+
+    /** 출발 구역의 센터 (이동 이벤트에만 값이 있다) */
+    private final Long fromCenterId;
+    private final String fromCenterName;
 
     /** 주문 기반 출고 · 출고 취소면 주문 번호 */
     private final Long orderId;
@@ -62,6 +79,9 @@ public class TraceEventDto {
      * @param balanceAfter 이 이벤트 직후의 로트 잔여 수량
      */
     public static TraceEventDto of(StockMovement movement, int sequence, int balanceAfter) {
+        WarehouseBin bin = movement.getBin();
+        WarehouseBin fromBin = movement.getFromBin();
+
         return TraceEventDto.builder()
                 .sequence(sequence)
                 .movementId(movement.getMovementId())
@@ -69,11 +89,15 @@ public class TraceEventDto {
                 .occurredAt(movement.getCreatedAt())
                 .quantity(movement.getQuantity() == null ? 0 : movement.getQuantity())
                 .balanceAfter(balanceAfter)
-                .binCode(movement.getBin() == null ? null : movement.getBin().getBinCode())
-                .binLocation(movement.getBin() == null ? null : movement.getBin().locationLabel())
-                .fromBinCode(movement.getFromBin() == null ? null : movement.getFromBin().getBinCode())
-                .fromBinLocation(movement.getFromBin() == null
-                        ? null : movement.getFromBin().locationLabel())
+                .binCode(bin == null ? null : bin.getBinCode())
+                // 센터를 별도로 표시하므로 위치 라벨에서는 센터명을 뺀다
+                .binLocation(bin == null ? null : bin.zoneLabel())
+                .centerId(bin == null ? null : bin.centerId())
+                .centerName(bin == null ? null : bin.centerName())
+                .fromBinCode(fromBin == null ? null : fromBin.getBinCode())
+                .fromBinLocation(fromBin == null ? null : fromBin.zoneLabel())
+                .fromCenterId(fromBin == null ? null : fromBin.centerId())
+                .fromCenterName(fromBin == null ? null : fromBin.centerName())
                 .orderId(movement.getOrderId())
                 .memo(movement.getMemo())
                 .userName(movement.getUserName())
@@ -143,6 +167,39 @@ public class TraceEventDto {
      */
     public boolean isRelocation() {
         return movementType == MovementType.MOVE && fromBinCode != null;
+    }
+
+    /**
+     * <b>센터를 넘는 이동</b>인지.
+     * <p>
+     * 현재 이동 기능({@code MOVE})은 총 재고 불변을 전제로 하지만, 센터가 다르면
+     * <b>한쪽 센터의 재고가 실제로 줄어든다.</b> 즉 {@code MOVE} 로 처리해서는 안 되는
+     * 이동이다. (센터 간 이동은 {@code TRANSFER_OUT}/{@code TRANSFER_IN} 과
+     * 운송 중 상태가 필요하다 — Epic Phase 3)
+     * <p>
+     * 지금은 이동 화면이 센터를 넘는 선택을 막지 않으므로, 그런 이력이 생기면
+     * 타임라인에서 <b>눈에 띄게 경고로 표시</b>해 조용히 묻히지 않게 한다.
+     */
+    public boolean isCenterTransfer() {
+        return isRelocation()
+                && fromCenterId != null
+                && centerId != null
+                && !fromCenterId.equals(centerId);
+    }
+
+    /**
+     * 센터 안에서의 이동인지 (출발지와 도착지가 같은 센터).
+     * <p>
+     * 이 경우 화면은 센터명을 한 번만 쓰고 구역만 {@code A-01 → B-02} 로 보여준다.
+     * 양쪽에 같은 센터명을 반복하면 정보가 늘지 않고 줄만 길어진다.
+     */
+    public boolean isWithinCenterMove() {
+        return isRelocation() && !isCenterTransfer();
+    }
+
+    /** 센터 정보가 있는 이벤트인지 (구역이 없는 이력은 센터도 알 수 없다) */
+    public boolean isCenterKnown() {
+        return centerName != null;
     }
 
     /** 타임라인 점 아이콘 (Bootstrap Icons) */

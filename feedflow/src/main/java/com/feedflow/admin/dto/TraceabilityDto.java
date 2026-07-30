@@ -9,7 +9,9 @@ import lombok.Getter;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 로트 하나의 생애주기 추적 결과.
@@ -83,6 +85,19 @@ public class TraceabilityDto {
     /** 시간순 타임라인 */
     private final List<TraceEventDto> timeline;
 
+    /* ---------------- 물류센터 ---------------- */
+
+    /**
+     * 이 로트가 <b>거쳐 간</b> 센터명 (이력 발생 순서).
+     * <p>
+     * 현재 보관 위치만 보면 이미 다 빠져나간 센터를 알 수 없다.
+     * "이 로트가 어느 센터들을 통과했는가" 는 회수(recall) 범위를 정할 때 필요하다.
+     */
+    private final List<String> involvedCenterNames;
+
+    /** 현재 재고가 남아 있는 센터명 (센터 코드 순) */
+    private final List<String> currentCenterNames;
+
     /**
      * 추적 결과를 조립한다.
      *
@@ -128,6 +143,8 @@ public class TraceabilityDto {
                         : timeline.get(timeline.size() - 1).getOccurredAt())
                 .currentStorage(currentStorage)
                 .timeline(timeline)
+                .involvedCenterNames(collectInvolvedCenters(timeline))
+                .currentCenterNames(collectCurrentCenters(currentStorage))
                 .build();
     }
 
@@ -136,6 +153,42 @@ public class TraceabilityDto {
                 .filter(event -> event.getMovementType() == type)
                 .mapToInt(TraceEventDto::getQuantity)
                 .sum();
+    }
+
+    /**
+     * 타임라인에 등장한 센터를 <b>발생 순서대로</b> 중복 없이 모은다.
+     * <p>
+     * 이동 이벤트는 출발지 센터가 도착지보다 먼저다. 순서를 유지해야
+     * "제1창고에서 제2창고로 갔다" 는 흐름이 읽힌다.
+     * 정렬해 버리면 통과 순서가 사라지므로 {@link LinkedHashSet} 을 쓴다.
+     */
+    private static List<String> collectInvolvedCenters(List<TraceEventDto> timeline) {
+        Set<String> centers = new LinkedHashSet<>();
+        for (TraceEventDto event : timeline) {
+            if (event.getFromCenterName() != null) {
+                centers.add(event.getFromCenterName());
+            }
+            if (event.getCenterName() != null) {
+                centers.add(event.getCenterName());
+            }
+        }
+        return List.copyOf(centers);
+    }
+
+    /**
+     * 현재 재고가 남아 있는 센터를 중복 없이 모은다.
+     * <p>
+     * {@code currentStorage} 는 Repository 에서 이미 센터 코드 순으로 정렬되어 오므로
+     * 삽입 순서를 유지하면 그 정렬이 그대로 보존된다.
+     */
+    private static List<String> collectCurrentCenters(List<InventoryDto> currentStorage) {
+        Set<String> centers = new LinkedHashSet<>();
+        for (InventoryDto row : currentStorage) {
+            if (row.getCenterName() != null) {
+                centers.add(row.getCenterName());
+            }
+        }
+        return List.copyOf(centers);
     }
 
     /* ------------------------------------------------------------------
@@ -190,5 +243,39 @@ public class TraceabilityDto {
     /** 출고취소가 한 번이라도 있었는지 (타임라인 강조용) */
     public boolean isHasCancellation() {
         return totalCanceled > 0;
+    }
+
+    /* ------------------------------------------------------------------
+     * 물류센터 표기
+     * ------------------------------------------------------------------ */
+
+    /** 현재 재고가 남아 있는 센터 수 */
+    public int getCurrentCenterCount() {
+        return currentCenterNames.size();
+    }
+
+    /**
+     * 재고가 여러 센터에 나뉘어 있는지.
+     * <p>
+     * 나뉘어 있으면 한 센터의 재고만 보고 "이만큼 있다" 고 판단할 수 없다.
+     * 화면에서 분산 상태를 명시해야 한다.
+     */
+    public boolean isSplitAcrossCenters() {
+        return currentCenterNames.size() > 1;
+    }
+
+    /** 센터를 넘는 이동이 이력에 있는지 (Phase 3 이전에는 발생해서는 안 되는 이력이다) */
+    public boolean isHasCenterTransfer() {
+        return timeline.stream().anyMatch(TraceEventDto::isCenterTransfer);
+    }
+
+    /** 현재 보관 센터 요약 문구 (예: 제1창고, 제2창고) */
+    public String getCurrentCenterSummary() {
+        return currentCenterNames.isEmpty() ? "-" : String.join(", ", currentCenterNames);
+    }
+
+    /** 거쳐 간 센터 요약 문구 */
+    public String getInvolvedCenterSummary() {
+        return involvedCenterNames.isEmpty() ? "-" : String.join(" → ", involvedCenterNames);
     }
 }

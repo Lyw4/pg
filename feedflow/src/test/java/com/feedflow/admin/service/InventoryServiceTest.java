@@ -3,6 +3,11 @@ package com.feedflow.admin.service;
 import com.feedflow.domain.AnimalType;
 import com.feedflow.admin.dto.InboundForm;
 import com.feedflow.admin.dto.InboundResultDto;
+import com.feedflow.admin.dto.CenterStockDto;
+import com.feedflow.admin.dto.CenterStockRow;
+import com.feedflow.admin.dto.InventoryDto;
+import com.feedflow.admin.dto.InventorySearchDto;
+import com.feedflow.domain.Center;
 import com.feedflow.common.exception.BusinessRuleException;
 import com.feedflow.common.exception.ResourceNotFoundException;
 import com.feedflow.domain.Inventory;
@@ -18,6 +23,7 @@ import com.feedflow.repository.StockMovementRepository;
 import com.feedflow.repository.WarehouseBinRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -25,10 +31,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
@@ -83,6 +91,190 @@ class InventoryServiceTest {
         inventoryService = new InventoryService(productRepository, productLotRepository, warehouseBinRepository,
                 inventoryRepository, stockMovementRepository,
                 new BinCapacityChecker(inventoryRepository));
+    }
+
+    /* ==================================================================
+     * 재고 현황 센터 필터 (Epic Phase 2)
+     * ================================================================== */
+
+    @Nested
+    @DisplayName("재고 현황 센터 필터")
+    class CenterFilter {
+
+        private static final Long CENTER_1 = 1L;
+        private static final Long CENTER_2 = 2L;
+
+        @Test
+        @DisplayName("선택한 센터를 Repository 조건으로 그대로 전달한다")
+        void passesCenterIdToRepository() {
+            given(inventoryRepository.search(CENTER_1, null, null, null)).willReturn(List.of());
+
+            inventoryService.getInventories(CENTER_1, null, null, null);
+
+            verify(inventoryRepository).search(CENTER_1, null, null, null);
+        }
+
+        @Test
+        @DisplayName("센터를 지정하지 않으면 null 을 넘겨 전국을 조회한다")
+        void nullCenterMeansNationwide() {
+            given(inventoryRepository.search(null, null, null, null)).willReturn(List.of());
+
+            inventoryService.getInventories(null, null, null, null);
+
+            verify(inventoryRepository).search(null, null, null, null);
+        }
+
+        @Test
+        @DisplayName("구역(Zone) 검색어의 앞뒤 공백은 제거하고 빈 문자열은 조건에서 제외한다")
+        void normalizesZoneKeyword() {
+            given(inventoryRepository.search(null, null, null, "A")).willReturn(List.of());
+            given(inventoryRepository.search(null, null, null, null)).willReturn(List.of());
+
+            inventoryService.getInventories(null, null, null, "  A  ");
+            inventoryService.getInventories(null, null, null, "   ");
+
+            verify(inventoryRepository).search(null, null, null, "A");
+            verify(inventoryRepository).search(null, null, null, null);
+        }
+
+        /**
+         * 화면 상단 요약 카드는 전국 기준이라 센터 필터를 걸면 카드와 목록이 어긋나 보인다.
+         * 목록 자체의 합계를 함께 내려줘야 사용자가 오해하지 않는다.
+         */
+        @Test
+        @DisplayName("조회 결과의 수량 합계와 센터 수를 함께 집계한다")
+        void aggregatesSearchResult() {
+            Product product = product(180);
+            ProductLot lot = lot(product, 100);
+
+            WarehouseBin here = binIn(10L, "A-01", center(CENTER_1, "WH1", "제1창고"));
+            WarehouseBin there = binIn(20L, "N-01", center(CENTER_2, "WH2", "제2창고"));
+
+            given(inventoryRepository.search(null, null, null, null)).willReturn(List.of(
+                    inventory(lot, here, 60),
+                    inventory(lot, there, 40)));
+
+            InventorySearchDto search = inventoryService.getInventories(null, null, null, null);
+
+            assertThat(search.getRowCount()).isEqualTo(2);
+            assertThat(search.getTotalQuantity()).isEqualTo(100);
+            assertThat(search.getCenterCount()).isEqualTo(2);
+            assertThat(search.getBinCount()).isEqualTo(2);
+            assertThat(search.isAcrossCenters())
+                    .as("여러 센터가 섞였으면 화면이 센터 컬럼을 강조해야 한다")
+                    .isTrue();
+            assertThat(search.isEmpty()).isFalse();
+        }
+
+        @Test
+        @DisplayName("한 센터의 재고만 조회되면 여러 센터에 걸친 것으로 보지 않는다")
+        void singleCenter_notAcrossCenters() {
+            Product product = product(180);
+            ProductLot lot = lot(product, 50);
+            Center center = center(CENTER_1, "WH1", "제1창고");
+
+            given(inventoryRepository.search(CENTER_1, null, null, null)).willReturn(List.of(
+                    inventory(lot, binIn(10L, "A-01", center), 30),
+                    inventory(lot, binIn(11L, "B-01", center), 20)));
+
+            InventorySearchDto search = inventoryService.getInventories(CENTER_1, null, null, null);
+
+            assertThat(search.getCenterCount()).isEqualTo(1);
+            assertThat(search.getBinCount())
+                    .as("같은 센터의 구역 두 곳은 구역 2개로 센다")
+                    .isEqualTo(2);
+            assertThat(search.isAcrossCenters()).isFalse();
+            assertThat(search.getTotalQuantity()).isEqualTo(50);
+        }
+
+        @Test
+        @DisplayName("조회 결과가 없으면 집계는 모두 0 이다")
+        void emptyResult_zeroAggregates() {
+            given(inventoryRepository.search(CENTER_2, null, null, null)).willReturn(List.of());
+
+            InventorySearchDto search = inventoryService.getInventories(CENTER_2, null, null, null);
+
+            assertThat(search.isEmpty()).isTrue();
+            assertThat(search.getRowCount()).isZero();
+            assertThat(search.getTotalQuantity()).isZero();
+            assertThat(search.getCenterCount()).isZero();
+            assertThat(search.isAcrossCenters()).isFalse();
+            assertThat(search.isHasExpired()).isFalse();
+        }
+
+        /**
+         * 분포는 목록 필터와 무관하게 집계한다. 목록을 그룹핑하면 센터를 하나 고른 순간
+         * 분포도 그 센터 하나로 줄어들어 "다른 센터에도 재고가 있다" 는 사실을 알 수 없다.
+         */
+        @Test
+        @DisplayName("센터별 분포는 전국 합계 대비 비중을 함께 계산한다")
+        void calculatesCenterShare() {
+            given(inventoryRepository.findStockByCenter(null)).willReturn(List.of(
+                    new CenterStockRow(CENTER_1, "제1창고", 700L, 12L),
+                    new CenterStockRow(CENTER_2, "제2창고", 300L, 5L)));
+
+            List<CenterStockDto> distribution = inventoryService.getStockByCenter(null);
+
+            assertThat(distribution)
+                    .extracting(CenterStockDto::getCenterName,
+                            CenterStockDto::getQuantity,
+                            CenterStockDto::getSharePercent)
+                    .containsExactly(
+                            tuple("제1창고", 700, 70),
+                            tuple("제2창고", 300, 30));
+            assertThat(distribution.get(0).getRowCount()).isEqualTo(12);
+        }
+
+        @Test
+        @DisplayName("재고가 하나도 없으면 비중을 0 으로 두고 0 으로 나누지 않는다")
+        void zeroTotal_noDivisionByZero() {
+            given(inventoryRepository.findStockByCenter(null)).willReturn(List.of(
+                    new CenterStockRow(CENTER_1, "제1창고", null, 0L)));
+
+            List<CenterStockDto> distribution = inventoryService.getStockByCenter(null);
+
+            assertThat(distribution.get(0).getQuantity()).isZero();
+            assertThat(distribution.get(0).getSharePercent()).isZero();
+        }
+
+        @Test
+        @DisplayName("품목을 지정하면 그 품목의 전국 합계가 비중의 분모가 된다")
+        void shareIsRelativeToFilteredTotal() {
+            given(inventoryRepository.findStockByCenter(PRODUCT_ID)).willReturn(List.of(
+                    new CenterStockRow(CENTER_1, "제1창고", 40L, 2L),
+                    new CenterStockRow(CENTER_2, "제2창고", 10L, 1L)));
+
+            List<CenterStockDto> distribution = inventoryService.getStockByCenter(PRODUCT_ID);
+
+            assertThat(distribution)
+                    .extracting(CenterStockDto::getSharePercent)
+                    .as("이 품목이 제1창고에 쏠려 있다는 사실이 보여야 한다")
+                    .containsExactly(80, 20);
+        }
+
+        @Test
+        @DisplayName("각 행에 센터 식별자와 센터명이 담기고 위치 라벨은 센터명을 중복하지 않는다")
+        void rowCarriesCenterWithoutDuplicatingName() {
+            Product product = product(180);
+            ProductLot lot = lot(product, 30);
+            WarehouseBin bin = binIn(10L, "A-01", center(CENTER_1, "WH1", "제1창고"));
+
+            given(inventoryRepository.search(CENTER_1, null, null, null))
+                    .willReturn(List.of(inventory(lot, bin, 30)));
+
+            InventoryDto row = inventoryService
+                    .getInventories(CENTER_1, null, null, null).getRows().get(0);
+
+            assertThat(row.getCenterId()).isEqualTo(CENTER_1);
+            assertThat(row.getCenterName()).isEqualTo("제1창고");
+            assertThat(row.getBinLocationLabel())
+                    .as("센터를 별도 컬럼으로 보여주므로 위치 라벨에서는 센터명을 뺀다")
+                    .isEqualTo("A구역 · 01랙 · 1단")
+                    .doesNotContain("제1창고");
+            assertThat(row.getLocationLabel())
+                    .as("센터 컬럼이 없는 화면을 위해 전체 라벨도 함께 제공한다")
+                    .isEqualTo("제1창고 · A구역 · 01랙 · 1단");
+        }
     }
 
     /* ==================================================================
@@ -466,6 +658,30 @@ class InventoryServiceTest {
                 .rack("01")
                 .binLevel(1)
                 .maxCapacity(maxCapacity)
+                .active(true)
+                .build();
+    }
+
+    /** 센터가 연결된 구역 (재고 현황 조회 검증용) */
+    private WarehouseBin binIn(Long binId, String binCode, Center center) {
+        return WarehouseBin.builder()
+                .binId(binId)
+                .binCode(binCode)
+                .center(center)
+                .zone(binCode.substring(0, 1))
+                .rack("01")
+                .binLevel(1)
+                .maxCapacity(500)
+                .active(true)
+                .build();
+    }
+
+    private Center center(Long centerId, String centerCode, String name) {
+        return Center.builder()
+                .centerId(centerId)
+                .centerCode(centerCode)
+                .name(name)
+                .region("수도권")
                 .active(true)
                 .build();
     }

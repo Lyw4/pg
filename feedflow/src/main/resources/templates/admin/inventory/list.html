@@ -27,7 +27,11 @@
                 <div class="card ff-card h-100">
                     <div class="card-body d-flex justify-content-between align-items-center">
                         <div>
-                            <div class="text-muted small">적재 위치 수</div>
+                            <div class="text-muted small">
+                                적재 위치 수
+                                <span class="badge bg-light text-secondary border ms-1"
+                                      style="font-size: .6rem;">전국</span>
+                            </div>
                             <div class="ff-stat-value text-dark"
                                  th:text="${#numbers.formatInteger(stockedLocationCount, 1, 'COMMA')}">0</div>
                         </div>
@@ -42,7 +46,11 @@
                 <div class="card ff-card h-100">
                     <div class="card-body d-flex justify-content-between align-items-center">
                         <div>
-                            <div class="text-muted small">총 보관 수량</div>
+                            <div class="text-muted small">
+                                총 보관 수량
+                                <span class="badge bg-light text-secondary border ms-1"
+                                      style="font-size: .6rem;">전국</span>
+                            </div>
                             <div class="ff-stat-value text-primary"
                                  th:text="${#numbers.formatInteger(totalStoredQuantity, 1, 'COMMA')}">0</div>
                         </div>
@@ -84,11 +92,52 @@
             </div>
         </div>
 
+        <!--
+            센터별 재고 분포.
+            목록 필터와 무관하게 집계하므로 센터를 하나 고른 뒤에도 "다른 센터에 얼마나 있는지"
+            가 그대로 보인다. 여기서 센터를 눌러 필터를 걸 수 있게 한다.
+        -->
+        <div class="card ff-card mb-3" th:if="${!#lists.isEmpty(centerStocks)}">
+            <div class="card-body py-2 d-flex flex-wrap align-items-center gap-2">
+                <span class="text-muted small me-1">
+                    <i class="bi bi-geo me-1"></i>센터별 분포
+                </span>
+
+                <a th:href="@{/admin/inventory(productId=${selectedProductId}, zone=${selectedZone})}"
+                   class="btn btn-sm"
+                   th:classappend="${selectedCenterId == null} ? 'btn-dark' : 'btn-outline-secondary'">
+                    전국
+                </a>
+
+                <a th:each="cs : ${centerStocks}"
+                   th:href="@{/admin/inventory(centerId=${cs.centerId}, productId=${selectedProductId}, zone=${selectedZone})}"
+                   class="btn btn-sm"
+                   th:classappend="${selectedCenterId != null and cs.centerId == selectedCenterId}
+                                   ? 'btn-dark' : 'btn-outline-secondary'">
+                    <span th:text="${cs.centerName}">제1창고</span>
+                    <span class="badge bg-light text-dark border ms-1"
+                          th:text="${#numbers.formatInteger(cs.quantity, 1, 'COMMA')} + '포대'">0포대</span>
+                    <span class="ms-1" style="font-size: .7rem; opacity: .75;"
+                          th:text="${cs.sharePercent} + '%'">0%</span>
+                </a>
+            </div>
+        </div>
+
         <!-- 검색 필터 -->
         <div class="card ff-card ff-filter-card mb-3">
             <div class="card-body">
                 <form th:action="@{/admin/inventory}" method="get" class="row g-2 align-items-end">
-                    <div class="col-12 col-md-4">
+                    <div class="col-6 col-md-2">
+                        <label for="centerId" class="form-label">센터</label>
+                        <select id="centerId" name="centerId" class="form-select form-select-sm">
+                            <option value="">전국</option>
+                            <option th:each="c : ${centers}" th:value="${c.centerId}"
+                                    th:text="${c.name}"
+                                    th:selected="${selectedCenterId != null and c.centerId == selectedCenterId}">제1창고</option>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-md-3">
                         <label for="productId" class="form-label">품목</label>
                         <select id="productId" name="productId" class="form-select form-select-sm">
                             <option value="">전체</option>
@@ -100,15 +149,21 @@
                         </select>
                     </div>
 
-                    <div class="col-6 col-md-3">
+                    <div class="col-6 col-md-2">
                         <label for="binId" class="form-label">구역 코드</label>
+                        <!--
+                            구역은 센터별로 묶어 보여준다. 구역 코드만 나열하면 제2창고의 COLD-01 이
+                            제1창고 구역들 사이에 끼어 어느 센터의 구역인지 알 수 없다.
+                        -->
                         <select id="binId" name="binId" class="form-select form-select-sm">
                             <option value="">전체</option>
-                            <option th:each="b : ${bins}"
-                                    th:value="${b.binId}"
-                                    th:text="${b.binCode}"
-                                    th:selected="${selectedBinId != null and b.binId == selectedBinId}">
-                            </option>
+                            <optgroup th:each="group : ${binsByCenter}" th:label="${group.key}">
+                                <option th:each="b : ${group.value}"
+                                        th:value="${b.binId}"
+                                        th:text="${b.binCode}"
+                                        th:selected="${selectedBinId != null and b.binId == selectedBinId}">
+                                </option>
+                            </optgroup>
                         </select>
                     </div>
 
@@ -131,13 +186,35 @@
             </div>
         </div>
 
+        <!--
+            센터와 구역을 모순되게 고르면 결과가 조용히 0건이 된다.
+            "재고가 없는 것" 과 "조건이 잘못된 것" 을 구분해 알려준다.
+        -->
+        <div th:if="${binOutsideCenter}" class="alert alert-warning d-flex align-items-center gap-2">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <div>
+                선택한 <strong>구역이 선택한 센터에 속하지 않습니다.</strong>
+                두 조건을 동시에 만족하는 재고는 없으므로 결과가 비어 있습니다.
+                <div class="small mt-1">센터를 <em>전국</em>으로 바꾸거나, 해당 센터의 구역을 선택해 주세요.</div>
+            </div>
+        </div>
+
         <!-- 재고 목록 -->
         <div class="card ff-card">
             <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
                 <div>
                     <span class="fw-bold"><i class="bi bi-stack me-1"></i>재고 현황 (로트 × 구역)</span>
+
+                    <!--
+                        상단 요약 카드는 전국 기준이라 센터 필터를 걸면 카드와 목록이 어긋나 보인다.
+                        지금 보고 있는 목록의 합계를 따로 표시해 오해를 막는다.
+                    -->
                     <span class="text-muted small ms-2">
-                        조회 <span th:text="${#lists.size(inventories)}">0</span>건
+                        조회 <span th:text="${search.rowCount}">0</span>건 ·
+                        <span th:text="${#numbers.formatInteger(search.totalQuantity, 1, 'COMMA')}">0</span>포대
+                        <span th:if="${search.acrossCenters}"
+                              th:text="'· ' + ${search.centerCount} + '개 센터'">· 2개 센터</span>
+                        <span th:if="${selectedCenterId != null}" class="badge bg-dark ms-1">센터 필터 적용</span>
                     </span>
                 </div>
                 <div class="d-flex gap-2">
@@ -161,24 +238,33 @@
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
                         <tr>
-                            <th style="width: 120px;">품목 코드</th>
+                            <th style="width: 110px;">품목 코드</th>
                             <th>품목명</th>
-                            <th style="width: 190px;">로트번호</th>
-                            <th class="text-center" style="width: 110px;">제조일자</th>
-                            <th class="text-center" style="width: 110px;">유통기한</th>
-                            <th class="text-center" style="width: 130px;">잔여</th>
+                            <th style="width: 170px;">로트번호</th>
+                            <th class="text-center" style="width: 105px;">제조일자</th>
+                            <th class="text-center" style="width: 105px;">유통기한</th>
+                            <th class="text-center" style="width: 120px;">잔여</th>
+                            <th style="width: 105px;">센터</th>
                             <th style="width: 110px;">구역</th>
-                            <th class="text-end" style="width: 100px;">보관 수량</th>
+                            <th class="text-end" style="width: 95px;">보관 수량</th>
                         </tr>
                         </thead>
                         <tbody>
-                        <tr th:if="${#lists.isEmpty(inventories)}">
-                            <td colspan="8" class="text-center text-muted py-4">
-                                조회된 재고가 없습니다. 입고 등록을 먼저 진행해 주세요.
+                        <tr th:if="${search.empty}">
+                            <td colspan="9" class="text-center text-muted py-4">
+                                <!-- 조건 때문에 비었는지, 정말 재고가 없는지를 구분해 안내한다 -->
+                                <span th:if="${selectedCenterId != null or selectedProductId != null
+                                              or selectedBinId != null or selectedZone != null}">
+                                    검색 조건에 맞는 재고가 없습니다. 조건을 넓혀 보세요.
+                                </span>
+                                <span th:unless="${selectedCenterId != null or selectedProductId != null
+                                                   or selectedBinId != null or selectedZone != null}">
+                                    조회된 재고가 없습니다. 입고 등록을 먼저 진행해 주세요.
+                                </span>
                             </td>
                         </tr>
 
-                        <tr th:each="inv : ${inventories}"
+                        <tr th:each="inv : ${search.rows}"
                             th:classappend="${inv.expired} ? 'ff-row-inactive'">
                             <td><span class="ff-code" th:text="${inv.productCode}">FD-CT-001</span></td>
                             <td>
@@ -196,9 +282,19 @@
                                       th:text="${inv.dDayLabel}">D-0</span>
                             </td>
                             <td>
+                                <!--
+                                    여러 센터가 섞인 결과에서만 센터를 강조한다.
+                                    한 센터뿐이면 모든 행에 같은 값이 반복되므로 강조할 이유가 없다.
+                                -->
+                                <span class="badge"
+                                      th:classappend="${search.acrossCenters} ? 'bg-primary' : 'bg-light text-dark border'"
+                                      th:text="${inv.centerName}">제1창고</span>
+                            </td>
+                            <td>
                                 <span class="ff-code" th:text="${inv.binCode}">A-01-01</span>
+                                <!-- 센터는 옆 컬럼에 있으므로 여기서는 센터명을 뺀 위치만 쓴다 -->
                                 <div class="text-muted" style="font-size: .72rem;"
-                                     th:text="${inv.locationLabel}">A구역</div>
+                                     th:text="${inv.binLocationLabel}">A구역 · 01랙 · 1단</div>
                             </td>
                             <td class="text-end fw-semibold"
                                 th:text="${#numbers.formatInteger(inv.quantity, 1, 'COMMA')}">0</td>

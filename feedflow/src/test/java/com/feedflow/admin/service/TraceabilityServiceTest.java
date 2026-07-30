@@ -391,6 +391,228 @@ class TraceabilityServiceTest {
     }
 
     /* ==================================================================
+     * 물류센터 표기 (Epic Phase 2)
+     * ================================================================== */
+
+    @Nested
+    @DisplayName("물류센터 표기")
+    class CenterPresentation {
+
+        @Test
+        @DisplayName("각 이벤트에 그 행위가 일어난 센터가 담긴다")
+        void eventCarriesCenter() {
+            Product product = product();
+            ProductLot lot = lot(product, 100);
+            WarehouseBin bin = bin();
+
+            given(productLotRepository.findWithProductById(LOT_ID)).willReturn(Optional.of(lot));
+            given(stockMovementRepository.findLotHistory(LOT_ID)).willReturn(List.of(
+                    movement(1L, MovementType.INBOUND, lot, bin, 100, null, days(-10))));
+            given(inventoryRepository.findByLotIdWithBin(LOT_ID))
+                    .willReturn(List.of(inventory(lot, bin, 100)));
+
+            TraceEventDto event = traceabilityService.trace(LOT_ID, TODAY).getTimeline().get(0);
+
+            assertThat(event.getCenterId()).isEqualTo(1L);
+            assertThat(event.getCenterName()).isEqualTo("제1창고");
+            assertThat(event.isCenterKnown()).isTrue();
+        }
+
+        /**
+         * 센터를 별도 뱃지로 표시하므로 위치 라벨에 센터명이 또 들어가면
+         * 한 줄에 "제1창고 제1창고 · A구역" 처럼 같은 정보가 두 번 나온다.
+         */
+        @Test
+        @DisplayName("위치 라벨에는 센터명이 포함되지 않는다")
+        void binLocationExcludesCenterName() {
+            Product product = product();
+            ProductLot lot = lot(product, 100);
+            WarehouseBin bin = bin();
+
+            given(productLotRepository.findWithProductById(LOT_ID)).willReturn(Optional.of(lot));
+            given(stockMovementRepository.findLotHistory(LOT_ID)).willReturn(List.of(
+                    movement(1L, MovementType.INBOUND, lot, bin, 100, null, days(-10))));
+            given(inventoryRepository.findByLotIdWithBin(LOT_ID))
+                    .willReturn(List.of(inventory(lot, bin, 100)));
+
+            TraceEventDto event = traceabilityService.trace(LOT_ID, TODAY).getTimeline().get(0);
+
+            assertThat(event.getBinLocation())
+                    .isEqualTo("A구역 · 01랙 · 1단")
+                    .doesNotContain("제1창고");
+        }
+
+        @Test
+        @DisplayName("같은 센터 안에서의 구역 이동은 센터 간 이동으로 보지 않는다")
+        void withinCenterMove() {
+            Product product = product();
+            ProductLot lot = lot(product, 100);
+            WarehouseBin from = bin(1L, "A-01");
+            WarehouseBin to = bin(2L, "B-02");
+
+            given(productLotRepository.findWithProductById(LOT_ID)).willReturn(Optional.of(lot));
+            given(stockMovementRepository.findLotHistory(LOT_ID)).willReturn(List.of(
+                    movement(1L, MovementType.INBOUND, lot, from, 100, null, days(-10)),
+                    moveMovement(2L, lot, from, to, 40, days(-2))));
+            given(inventoryRepository.findByLotIdWithBin(LOT_ID))
+                    .willReturn(List.of(inventory(lot, from, 60), inventory(lot, to, 40)));
+
+            TraceabilityDto trace = traceabilityService.trace(LOT_ID, TODAY);
+            TraceEventDto move = trace.getTimeline().get(1);
+
+            assertThat(move.isRelocation()).isTrue();
+            assertThat(move.isWithinCenterMove())
+                    .as("출발지와 도착지가 같은 센터면 센터명을 한 번만 표시한다")
+                    .isTrue();
+            assertThat(move.isCenterTransfer()).isFalse();
+            assertThat(trace.isHasCenterTransfer()).isFalse();
+        }
+
+        /**
+         * MOVE 는 총 재고 불변을 전제하지만 센터가 다르면 출발 센터의 재고가 실제로 줄어든다.
+         * Phase 3 까지는 나와서는 안 되는 이력이므로 화면이 경고할 수 있어야 한다.
+         */
+        @Test
+        @DisplayName("센터를 넘는 구역 이동은 센터 간 이동으로 판정해 경고 대상이 된다")
+        void detectsCenterTransfer() {
+            Product product = product();
+            ProductLot lot = lot(product, 100);
+            WarehouseBin from = bin(1L, "A-01", center());
+            WarehouseBin to = bin(8L, "N-01", otherCenter());
+
+            given(productLotRepository.findWithProductById(LOT_ID)).willReturn(Optional.of(lot));
+            given(stockMovementRepository.findLotHistory(LOT_ID)).willReturn(List.of(
+                    movement(1L, MovementType.INBOUND, lot, from, 100, null, days(-10)),
+                    moveMovement(2L, lot, from, to, 40, days(-2))));
+            given(inventoryRepository.findByLotIdWithBin(LOT_ID))
+                    .willReturn(List.of(inventory(lot, from, 60), inventory(lot, to, 40)));
+
+            TraceabilityDto trace = traceabilityService.trace(LOT_ID, TODAY);
+            TraceEventDto move = trace.getTimeline().get(1);
+
+            assertThat(move.isCenterTransfer()).isTrue();
+            assertThat(move.isWithinCenterMove())
+                    .as("센터가 다르면 양쪽 센터를 모두 표시해야 한다")
+                    .isFalse();
+            assertThat(move.getFromCenterName()).isEqualTo("제1창고");
+            assertThat(move.getCenterName()).isEqualTo("제2창고");
+            assertThat(trace.isHasCenterTransfer())
+                    .as("로트 단위 경고를 띄울 수 있어야 한다")
+                    .isTrue();
+        }
+
+        @Test
+        @DisplayName("구역이 기록되지 않은 이력은 센터를 알 수 없음으로 표시한다")
+        void binlessEventHasNoCenter() {
+            Product product = product();
+            ProductLot lot = lot(product, 20);
+
+            given(productLotRepository.findWithProductById(LOT_ID)).willReturn(Optional.of(lot));
+            given(stockMovementRepository.findLotHistory(LOT_ID)).willReturn(List.of(
+                    movement(1L, MovementType.INBOUND, lot, bin(), 100, null, days(-10)),
+                    // 구역 없이 기록된 출고 (로트에서만 차감된 경로)
+                    movement(2L, MovementType.OUTBOUND, lot, null, 80, 5L, days(-1))));
+            given(inventoryRepository.findByLotIdWithBin(LOT_ID))
+                    .willReturn(List.of(inventory(lot, bin(), 20)));
+
+            TraceEventDto outbound = traceabilityService.trace(LOT_ID, TODAY).getTimeline().get(1);
+
+            assertThat(outbound.isCenterKnown()).isFalse();
+            assertThat(outbound.getCenterName()).isNull();
+            assertThat(outbound.getBinCode())
+                    .as("구역 없는 이력도 타임라인에서 빠지지 않아야 한다")
+                    .isNull();
+        }
+
+        @Test
+        @DisplayName("거쳐 간 센터를 발생 순서대로 중복 없이 모은다")
+        void collectsInvolvedCentersInOrder() {
+            Product product = product();
+            ProductLot lot = lot(product, 100);
+            WarehouseBin first = bin(1L, "A-01", center());
+            WarehouseBin second = bin(8L, "N-01", otherCenter());
+
+            given(productLotRepository.findWithProductById(LOT_ID)).willReturn(Optional.of(lot));
+            given(stockMovementRepository.findLotHistory(LOT_ID)).willReturn(List.of(
+                    movement(1L, MovementType.INBOUND, lot, first, 100, null, days(-10)),
+                    moveMovement(2L, lot, first, second, 40, days(-2))));
+            given(inventoryRepository.findByLotIdWithBin(LOT_ID))
+                    .willReturn(List.of(inventory(lot, first, 60), inventory(lot, second, 40)));
+
+            TraceabilityDto trace = traceabilityService.trace(LOT_ID, TODAY);
+
+            assertThat(trace.getInvolvedCenterNames())
+                    .as("통과 순서를 알 수 있어야 회수 범위를 정할 수 있다")
+                    .containsExactly("제1창고", "제2창고");
+            assertThat(trace.getInvolvedCenterSummary()).isEqualTo("제1창고 → 제2창고");
+        }
+
+        @Test
+        @DisplayName("재고가 여러 센터에 남아 있으면 분산 상태로 표시한다")
+        void reportsSplitAcrossCenters() {
+            Product product = product();
+            ProductLot lot = lot(product, 100);
+            WarehouseBin here = bin(1L, "A-01", center());
+            WarehouseBin there = bin(8L, "N-01", otherCenter());
+
+            given(productLotRepository.findWithProductById(LOT_ID)).willReturn(Optional.of(lot));
+            given(stockMovementRepository.findLotHistory(LOT_ID)).willReturn(List.of(
+                    movement(1L, MovementType.INBOUND, lot, here, 100, null, days(-10))));
+            given(inventoryRepository.findByLotIdWithBin(LOT_ID))
+                    .willReturn(List.of(inventory(lot, here, 60), inventory(lot, there, 40)));
+
+            TraceabilityDto trace = traceabilityService.trace(LOT_ID, TODAY);
+
+            assertThat(trace.getCurrentCenterNames()).containsExactly("제1창고", "제2창고");
+            assertThat(trace.getCurrentCenterCount()).isEqualTo(2);
+            assertThat(trace.isSplitAcrossCenters()).isTrue();
+            assertThat(trace.getCurrentCenterSummary()).isEqualTo("제1창고, 제2창고");
+        }
+
+        @Test
+        @DisplayName("한 센터에만 있으면 분산으로 보지 않는다")
+        void singleCenter_notSplit() {
+            Product product = product();
+            ProductLot lot = lot(product, 100);
+            WarehouseBin binA = bin(1L, "A-01");
+            WarehouseBin binB = bin(2L, "B-02");
+
+            given(productLotRepository.findWithProductById(LOT_ID)).willReturn(Optional.of(lot));
+            given(stockMovementRepository.findLotHistory(LOT_ID)).willReturn(List.of(
+                    movement(1L, MovementType.INBOUND, lot, binA, 100, null, days(-10))));
+            given(inventoryRepository.findByLotIdWithBin(LOT_ID))
+                    .willReturn(List.of(inventory(lot, binA, 60), inventory(lot, binB, 40)));
+
+            TraceabilityDto trace = traceabilityService.trace(LOT_ID, TODAY);
+
+            assertThat(trace.getCurrentCenterNames())
+                    .as("같은 센터의 구역 두 곳은 센터 하나로 센다")
+                    .containsExactly("제1창고");
+            assertThat(trace.isSplitAcrossCenters()).isFalse();
+        }
+
+        @Test
+        @DisplayName("이력이 없는 로트는 센터 목록이 비어 있고 요약은 '-' 이다")
+        void noHistory_emptyCenters() {
+            Product product = product();
+            ProductLot lot = lot(product, 0);
+
+            given(productLotRepository.findWithProductById(LOT_ID)).willReturn(Optional.of(lot));
+            given(stockMovementRepository.findLotHistory(LOT_ID)).willReturn(List.of());
+            given(inventoryRepository.findByLotIdWithBin(LOT_ID)).willReturn(List.of());
+
+            TraceabilityDto trace = traceabilityService.trace(LOT_ID, TODAY);
+
+            assertThat(trace.getInvolvedCenterNames()).isEmpty();
+            assertThat(trace.getCurrentCenterNames()).isEmpty();
+            assertThat(trace.getInvolvedCenterSummary()).isEqualTo("-");
+            assertThat(trace.getCurrentCenterSummary()).isEqualTo("-");
+            assertThat(trace.isSplitAcrossCenters()).isFalse();
+            assertThat(trace.isHasCenterTransfer()).isFalse();
+        }
+    }
+
+    /* ==================================================================
      * 픽스처
      * ================================================================== */
 
@@ -430,10 +652,14 @@ class TraceabilityServiceTest {
     }
 
     private WarehouseBin bin(Long binId, String binCode) {
+        return bin(binId, binCode, center());
+    }
+
+    private WarehouseBin bin(Long binId, String binCode, Center center) {
         return WarehouseBin.builder()
                 .binId(binId)
                 .binCode(binCode)
-                .center(center())
+                .center(center)
                 .zone(binCode.substring(0, 1))
                 .binPurpose(BinPurpose.STORAGE)
                 .rack("01")
@@ -464,12 +690,34 @@ class TraceabilityServiceTest {
                                    int quantity,
                                    Long orderId,
                                    LocalDateTime occurredAt) {
+        return movement(movementId, type, lot, bin, null, quantity, orderId, occurredAt);
+    }
+
+    /** 출발 구역이 있는 이력 (구역 간 이동) */
+    private StockMovement moveMovement(Long movementId,
+                                       ProductLot lot,
+                                       WarehouseBin fromBin,
+                                       WarehouseBin toBin,
+                                       int quantity,
+                                       LocalDateTime occurredAt) {
+        return movement(movementId, MovementType.MOVE, lot, toBin, fromBin, quantity, null, occurredAt);
+    }
+
+    private StockMovement movement(Long movementId,
+                                   MovementType type,
+                                   ProductLot lot,
+                                   WarehouseBin bin,
+                                   WarehouseBin fromBin,
+                                   int quantity,
+                                   Long orderId,
+                                   LocalDateTime occurredAt) {
         return StockMovement.builder()
                 .movementId(movementId)
                 .movementType(type)
                 .product(lot.getProduct())
                 .lot(lot)
                 .bin(bin)
+                .fromBin(fromBin)
                 .quantity(quantity)
                 .orderId(orderId)
                 .memo(type.getDescription() + " 처리")
@@ -486,10 +734,19 @@ class TraceabilityServiceTest {
      * DB 에 저장하지 않는 단위 테스트이므로 빌더로 만든 객체를 그대로 쓴다.
      */
     private Center center() {
+        return center(1L, "WH1", "제1창고");
+    }
+
+    /** 제2창고 — 센터를 넘는 이동을 검증할 때 쓴다 */
+    private Center otherCenter() {
+        return center(2L, "WH2", "제2창고");
+    }
+
+    private Center center(Long centerId, String centerCode, String name) {
         return Center.builder()
-                .centerId(1L)
-                .centerCode("WH1")
-                .name("제1창고")
+                .centerId(centerId)
+                .centerCode(centerCode)
+                .name(name)
                 .region("수도권")
                 .note("상온 · 배합사료")
                 .active(true)

@@ -1,6 +1,8 @@
 package com.feedflow.repository;
 
+import com.feedflow.admin.dto.CenterStockRow;
 import com.feedflow.domain.Inventory;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -25,13 +27,18 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     @Query("select sum(i.quantity) from Inventory i where i.bin.binId = :binId")
     Long sumQuantityByBinId(@Param("binId") Long binId);
 
-    /** 폐기 처리를 위해 재고 + 로트 + 품목 + 구역을 한 번에 조회 */
+    /**
+     * 폐기 · 구역 이동 처리를 위해 재고 + 로트 + 품목 + 구역 + 센터를 한 번에 조회.
+     * <p>
+     * 처리 결과 화면이 위치 라벨(센터명 포함)을 표시하므로 센터까지 함께 읽는다.
+     */
     @Query("""
             select i
             from Inventory i
             join fetch i.lot l
             join fetch l.product p
             join fetch i.bin b
+            join fetch b.center c
             where i.inventoryId = :inventoryId
             """)
     Optional<Inventory> findWithDetailById(@Param("inventoryId") Long inventoryId);
@@ -54,16 +61,25 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
             """)
     Long sumExpiredQuantity(@Param("today") LocalDate today);
 
-    /** 특정 로트의 구역별 재고 (바코드 스캔 결과 표시용) */
+    /**
+     * 특정 로트의 구역별 재고 (바코드 스캔 결과 · 이력 추적의 현재 보관 위치).
+     * <p>
+     * 결과를 담는 DTO 가 위치 라벨에 센터명을 쓰므로 {@code join fetch b.center} 가 필요하다.
+     * 없으면 보관 구역 수만큼 센터 조회 쿼리가 추가로 나간다.
+     * <p>
+     * 정렬도 <b>센터 → 구역</b> 순이다. 구역 코드만으로 정렬하면 제2창고의 {@code COLD-01} 이
+     * 제1창고의 {@code C-02} 와 {@code D-01} 사이에 끼어 센터가 뒤섞인다.
+     */
     @Query("""
             select i
             from Inventory i
             join fetch i.lot l
             join fetch l.product p
             join fetch i.bin b
+            join fetch b.center c
             where l.lotId = :lotId
               and i.quantity > 0
-            order by b.binCode asc
+            order by c.centerCode asc, b.binCode asc
             """)
     List<Inventory> findByLotIdWithBin(@Param("lotId") Long lotId);
 
@@ -93,8 +109,15 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
 
     /**
      * 재고 현황 목록.
-     * 화면에서 품목명 / 로트번호 / 구역코드를 함께 보여주므로 fetch join 으로 N+1 을 방지한다.
+     * 화면에서 품목명 / 로트번호 / 구역코드 / 센터명을 함께 보여주므로
+     * fetch join 으로 N+1 을 방지한다.
      *
+     * <h3>정렬</h3>
+     * <b>유통기한 순이 1순위다.</b> 이 화면은 FEFO 출고 순서를 눈으로 확인하는 용도이므로
+     * 센터를 먼저 정렬하면 "가장 급한 재고" 가 화면 아래로 밀린다.
+     * 유통기한이 같을 때만 센터 → 구역 순으로 묶어 같은 센터 행이 흩어지지 않게 한다.
+     *
+     * @param centerId  물류센터 (null 이면 전국 전체)
      * @param productId 품목 (null 이면 전체)
      * @param binId     구역 (null 이면 전체)
      * @param zone      구역 그룹 (null 이면 전체)
@@ -105,15 +128,43 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
             join fetch i.lot l
             join fetch l.product p
             join fetch i.bin b
-            where (:productId is null or p.productId = :productId)
+            join fetch b.center c
+            where (:centerId is null or c.centerId = :centerId)
+              and (:productId is null or p.productId = :productId)
               and (:binId is null or b.binId = :binId)
               and (:zone is null or b.zone = :zone)
               and i.quantity > 0
-            order by l.expirationDate asc, b.binCode asc
+            order by l.expirationDate asc, c.centerCode asc, b.binCode asc
             """)
-    List<Inventory> search(@Param("productId") Long productId,
+    List<Inventory> search(@Param("centerId") Long centerId,
+                           @Param("productId") Long productId,
                            @Param("binId") Long binId,
                            @Param("zone") String zone);
+
+    /**
+     * 센터별 보관 수량 집계 (재고 현황 화면의 센터 분포용).
+     * <p>
+     * 센터를 선택하지 않았을 때 "전국 재고가 어느 센터에 얼마나 있는지" 를 한 줄로 보여준다.
+     * 목록을 자바에서 그룹핑해도 되지만, 그러면 <b>필터가 걸린 목록만</b> 집계되어
+     * 센터를 하나 고른 순간 분포가 그 센터 하나로 줄어든다. 분포는 필터와 무관해야
+     * "다른 센터에도 재고가 있다" 는 사실을 알 수 있으므로 별도 집계 쿼리로 둔다.
+     *
+     * @param productId 품목 (null 이면 전체 품목)
+     */
+    @Query("""
+            select new com.feedflow.admin.dto.CenterStockRow(
+                       c.centerId, c.name, sum(i.quantity), count(i))
+            from Inventory i
+                join i.bin b
+                join b.center c
+                join i.lot l
+                join l.product p
+            where (:productId is null or p.productId = :productId)
+              and i.quantity > 0
+            group by c.centerId, c.name, c.centerCode
+            order by c.centerCode asc
+            """)
+    List<CenterStockRow> findStockByCenter(@Param("productId") Long productId);
 
     /**
      * 폐기 대상 재고 조회.
@@ -121,6 +172,11 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
      * 이전에는 전체 재고를 읽어와 자바에서 만료 여부를 걸러냈다.
      * 폐기 화면은 보통 만료 재고만 보므로 <b>필터를 DB 로 내려</b>
      * 필요 없는 행을 애초에 가져오지 않게 한다.
+     *
+     * <p>
+     * 결과 DTO 가 위치 라벨에 센터명을 쓰므로 {@code join fetch b.center} 가 필요하다.
+     * (센터 필터 조건은 아직 없다. 폐기 화면은 만료 재고를 전국 단위로 훑는 것이 기본
+     *  동작이라 센터로 좁히는 요구가 나오면 그때 {@code :centerId} 를 추가한다)
      *
      * @param productId     품목 (null 이면 전체)
      * @param zone          구역 그룹 (null 이면 전체)
@@ -132,11 +188,12 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
             join fetch i.lot l
             join fetch l.product p
             join fetch i.bin b
+            join fetch b.center c
             where (:productId is null or p.productId = :productId)
               and (:zone is null or b.zone = :zone)
               and (:expiredBefore is null or l.expirationDate < :expiredBefore)
               and i.quantity > 0
-            order by l.expirationDate asc, b.binCode asc
+            order by l.expirationDate asc, c.centerCode asc, b.binCode asc
             """)
     List<Inventory> findDisposalTargets(@Param("productId") Long productId,
                                        @Param("zone") String zone,
