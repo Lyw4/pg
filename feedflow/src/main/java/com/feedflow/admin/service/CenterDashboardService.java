@@ -79,6 +79,13 @@ public class CenterDashboardService {
 
         Map<Long, CenterStockRow> stock = index(
                 inventoryRepository.findStockByCenter(null), CenterStockRow::centerId);
+        /*
+            적재율의 분자는 '보관 구역' 재고여야 한다. 분모가 보관 구역 수용량이기
+            때문이다. 전체 재고를 분자로 쓰면 입고 대기 구역의 물건까지 보관 공간을
+            차지한 것으로 계산되어 적재율이 부풀려지고 100% 를 넘길 수도 있다.
+         */
+        Map<Long, CenterStockRow> storageStock = index(
+                inventoryRepository.findStorageStockByCenter(), CenterStockRow::centerId);
         Map<Long, CenterCapacityRow> capacity = index(
                 warehouseBinRepository.findStorageCapacityByCenter(), CenterCapacityRow::centerId);
         Map<Long, CenterAlertRow> alert = index(
@@ -99,6 +106,8 @@ public class CenterDashboardService {
             CenterCapacityRow cap = capacity.get(id);
             CenterAlertRow a = alert.get(id);
 
+            CenterStockRow ss = storageStock.get(id);
+
             int qty = s == null ? 0 : s.totalQuantity();
 
             rows.add(CenterOverviewDto.builder()
@@ -108,6 +117,7 @@ public class CenterDashboardService {
                     .region(c.getRegion())
                     .note(c.getNote())
                     .quantity(qty)
+                    .storageQuantity(ss == null ? 0 : ss.totalQuantity())
                     .sharePercent(share(qty, nationwideQuantity))
                     .capacity(cap == null ? 0 : cap.totalCapacity())
                     .rowCount(s == null ? 0 : s.rows())
@@ -147,6 +157,10 @@ public class CenterDashboardService {
 
         Map<Long, CenterStockRow> stock = index(
                 inventoryRepository.findStockByCenter(null), CenterStockRow::centerId);
+        // 적재율 분자는 보관 구역 재고. 대시보드 센터 카드와 같은 기준을 써야
+        // 같은 센터가 지도 팝업과 카드에서 다른 적재율로 보이지 않는다.
+        Map<Long, CenterStockRow> storageStock = index(
+                inventoryRepository.findStorageStockByCenter(), CenterStockRow::centerId);
         Map<Long, CenterCapacityRow> capacity = index(
                 warehouseBinRepository.findStorageCapacityByCenter(), CenterCapacityRow::centerId);
 
@@ -159,16 +173,19 @@ public class CenterDashboardService {
                 continue;
             }
             CenterStockRow s = stock.get(c.getCenterId());
+            CenterStockRow ss = storageStock.get(c.getCenterId());
             CenterCapacityRow cap = capacity.get(c.getCenterId());
 
             int qty = s == null ? 0 : s.totalQuantity();
+            int storageQty = ss == null ? 0 : ss.totalQuantity();
             int total = cap == null ? 0 : cap.totalCapacity();
 
             pins.add(new CenterMapPinDto(
                     c.getCenterId(), c.getCenterCode(), c.displayName(),
                     c.getRegion(), c.getNote(),
                     c.getLatitude(), c.getLongitude(),
-                    qty, total <= 0 ? 0 : (int) Math.round(qty * 100.0 / total)));
+                    qty, storageQty,
+                    total <= 0 ? 0 : (int) Math.round(storageQty * 100.0 / total)));
         }
 
         return new CenterMapPinDto.Response(pins, missing);

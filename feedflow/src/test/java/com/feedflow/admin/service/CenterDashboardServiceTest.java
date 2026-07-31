@@ -86,6 +86,9 @@ class CenterDashboardServiceTest {
             given(inventoryRepository.findStockByCenter(null)).willReturn(List.of(
                     new CenterStockRow(1L, "충남 예산 센터", 900L, 12L),
                     new CenterStockRow(2L, "전남 나주 센터", 470L, 6L)));
+            given(inventoryRepository.findStorageStockByCenter()).willReturn(List.of(
+                    new CenterStockRow(1L, "충남 예산 센터", 900L, 12L),
+                    new CenterStockRow(2L, "전남 나주 센터", 470L, 6L)));
             given(warehouseBinRepository.findStorageCapacityByCenter()).willReturn(List.of(
                     new CenterCapacityRow(1L, 2000L, 9L),
                     new CenterCapacityRow(2L, 1000L, 5L)));
@@ -132,6 +135,8 @@ class CenterDashboardServiceTest {
 
             given(inventoryRepository.findStockByCenter(null)).willReturn(List.of(
                     new CenterStockRow(1L, "충남 예산 센터", 900L, 12L)));
+            given(inventoryRepository.findStorageStockByCenter()).willReturn(List.of(
+                    new CenterStockRow(1L, "충남 예산 센터", 900L, 12L)));
             given(warehouseBinRepository.findStorageCapacityByCenter()).willReturn(List.of(
                     new CenterCapacityRow(1L, 2000L, 9L),
                     new CenterCapacityRow(5L, 1000L, 5L)));
@@ -165,6 +170,9 @@ class CenterDashboardServiceTest {
             given(inventoryRepository.findStockByCenter(null)).willReturn(List.of(
                     new CenterStockRow(1L, "가", 700L, 3L),
                     new CenterStockRow(2L, "나", 300L, 2L)));
+            given(inventoryRepository.findStorageStockByCenter()).willReturn(List.of(
+                    new CenterStockRow(1L, "가", 700L, 3L),
+                    new CenterStockRow(2L, "나", 300L, 2L)));
             given(warehouseBinRepository.findStorageCapacityByCenter()).willReturn(List.of());
             given(inventoryRepository.findExpiringByCenter(any(), any())).willReturn(List.of());
             given(stockMovementRepository.findActivityByCenter(any(), any())).willReturn(List.of());
@@ -183,6 +191,7 @@ class CenterDashboardServiceTest {
         void noCenters() {
             givenCenters();
             given(inventoryRepository.findStockByCenter(null)).willReturn(List.of());
+            given(inventoryRepository.findStorageStockByCenter()).willReturn(List.of());
             given(warehouseBinRepository.findStorageCapacityByCenter()).willReturn(List.of());
             given(inventoryRepository.findExpiringByCenter(any(), any())).willReturn(List.of());
             given(stockMovementRepository.findActivityByCenter(any(), any())).willReturn(List.of());
@@ -214,6 +223,7 @@ class CenterDashboardServiceTest {
         void transferCountedOnce() {
             givenCenters(center(1L, "C1", "출발"), center(2L, "C2", "도착"));
             given(inventoryRepository.findStockByCenter(null)).willReturn(List.of());
+            given(inventoryRepository.findStorageStockByCenter()).willReturn(List.of());
             given(warehouseBinRepository.findStorageCapacityByCenter()).willReturn(List.of());
             given(inventoryRepository.findExpiringByCenter(any(), any())).willReturn(List.of());
             given(inventoryRepository.findAnimalMixByCenter()).willReturn(List.of());
@@ -246,6 +256,10 @@ class CenterDashboardServiceTest {
                     new CenterStockRow(1L, "재고많음", 1000L, 10L),
                     new CenterStockRow(2L, "빡빡함", 400L, 4L),
                     new CenterStockRow(3L, "급함", 200L, 3L)));
+            given(inventoryRepository.findStorageStockByCenter()).willReturn(List.of(
+                    new CenterStockRow(1L, "재고많음", 1000L, 10L),
+                    new CenterStockRow(2L, "빡빡함", 400L, 4L),
+                    new CenterStockRow(3L, "급함", 200L, 3L)));
             given(warehouseBinRepository.findStorageCapacityByCenter()).willReturn(List.of(
                     new CenterCapacityRow(1L, 5000L, 10L),     // 20%
                     new CenterCapacityRow(2L, 450L, 2L),       // 89%
@@ -263,6 +277,73 @@ class CenterDashboardServiceTest {
             assertThat(net.getMostUrgentCenter().getCenterName()).isEqualTo("급함");
             assertThat(net.getTotalExpiringCount()).isEqualTo(6);
             assertThat(net.getTotalExpiredCount()).isEqualTo(2);
+        }
+
+        /**
+         * 적재율의 분자는 보관 구역 재고여야 한다.
+         * <p>
+         * 분모({@code findStorageCapacityByCenter})가 보관 구역 수용량이므로, 분자로
+         * 전체 재고를 쓰면 입고 대기 구역의 물건까지 보관 공간을 차지한 것으로 계산된다.
+         * 입고 등록으로 대기 구역에 물건이 들어온 순간 같은 센터가 2D 도면에서는 60%,
+         * 대시보드에서는 90% 로 보이게 된다. 도면은 대기분을 따로 표시하기 때문이다.
+         */
+        @Test
+        @DisplayName("적재율은 보관 구역 재고만 분자로 쓰고, 대기 · 운송 중 재고는 따로 알려준다")
+        void usageRateCountsStorageBinsOnly() {
+            givenCenters(center(1L, "C1", "대기재고있음"));
+            given(inventoryRepository.findStockByCenter(null)).willReturn(List.of(
+                    new CenterStockRow(1L, "대기재고있음", 900L, 12L)));   // 전체 900
+            given(inventoryRepository.findStorageStockByCenter()).willReturn(List.of(
+                    new CenterStockRow(1L, "대기재고있음", 600L, 8L)));    // 그중 보관 600
+            given(warehouseBinRepository.findStorageCapacityByCenter()).willReturn(List.of(
+                    new CenterCapacityRow(1L, 1000L, 5L)));
+            given(inventoryRepository.findExpiringByCenter(any(), any())).willReturn(List.of());
+            given(stockMovementRepository.findActivityByCenter(any(), any())).willReturn(List.of());
+            given(inventoryRepository.findAnimalMixByCenter()).willReturn(List.of());
+
+            CenterNetworkDto net = service.getNetworkOverview(TODAY);
+            CenterOverviewDto c = net.getCenters().get(0);
+
+            assertThat(c.getQuantity())
+                    .as("분포와 비중은 대기 구역 재고까지 세야 전국 합계가 맞는다")
+                    .isEqualTo(900);
+            assertThat(c.getUsageRate())
+                    .as("600/1000 = 60%. 900/1000 = 90% 로 계산하면 부풀려진다")
+                    .isEqualTo(60);
+            assertThat(c.getWaitingQuantity()).isEqualTo(300);
+            assertThat(c.isHasWaitingStock()).isTrue();
+            assertThat(c.getRemainingCapacity())
+                    .as("여유도 적재율과 같은 기준으로 뺀다")
+                    .isEqualTo(400);
+
+            assertThat(net.getUsageRate()).isEqualTo(60);
+            assertThat(net.getWaitingQuantity()).isEqualTo(300);
+            assertThat(net.isHasWaitingStock()).isTrue();
+            assertThat(net.getRemainingCapacity()).isEqualTo(400);
+        }
+
+        /**
+         * 대기 구역 재고가 수용량을 넘길 만큼 많아도 적재율이 100% 를 넘지 않아야 한다.
+         * 전체 재고를 분자로 쓰던 때는 "적재율 140%" 같은 값이 나올 수 있었다.
+         */
+        @Test
+        @DisplayName("대기 구역 재고가 많아도 보관 적재율이 100% 를 넘지 않는다")
+        void waitingStockDoesNotInflateRate() {
+            givenCenters(center(1L, "C1", "입고폭주"));
+            given(inventoryRepository.findStockByCenter(null)).willReturn(List.of(
+                    new CenterStockRow(1L, "입고폭주", 1400L, 20L)));
+            given(inventoryRepository.findStorageStockByCenter()).willReturn(List.of(
+                    new CenterStockRow(1L, "입고폭주", 500L, 6L)));
+            given(warehouseBinRepository.findStorageCapacityByCenter()).willReturn(List.of(
+                    new CenterCapacityRow(1L, 1000L, 5L)));
+            given(inventoryRepository.findExpiringByCenter(any(), any())).willReturn(List.of());
+            given(stockMovementRepository.findActivityByCenter(any(), any())).willReturn(List.of());
+            given(inventoryRepository.findAnimalMixByCenter()).willReturn(List.of());
+
+            CenterNetworkDto net = service.getNetworkOverview(TODAY);
+
+            assertThat(net.getCenters().get(0).getUsageRate()).isEqualTo(50);
+            assertThat(net.getCenters().get(0).getWaitingQuantity()).isEqualTo(900);
         }
 
         /**
@@ -311,6 +392,9 @@ class CenterDashboardServiceTest {
             given(inventoryRepository.findStockByCenter(null)).willReturn(List.of(
                     new CenterStockRow(1L, "충남 예산 센터", 900L, 12L),
                     new CenterStockRow(5L, "전남 나주 센터", 470L, 6L)));
+            given(inventoryRepository.findStorageStockByCenter()).willReturn(List.of(
+                    new CenterStockRow(1L, "충남 예산 센터", 900L, 12L),
+                    new CenterStockRow(5L, "전남 나주 센터", 470L, 6L)));
             given(warehouseBinRepository.findStorageCapacityByCenter()).willReturn(List.of(
                     new CenterCapacityRow(1L, 2000L, 9L),
                     new CenterCapacityRow(5L, 1000L, 5L)));
@@ -341,6 +425,7 @@ class CenterDashboardServiceTest {
                     center(2L, "C2", "좌표없음"),
                     partiallyLocated(3L, "C3", "위도만있음", 36.0)));
             given(inventoryRepository.findStockByCenter(null)).willReturn(List.of());
+            given(inventoryRepository.findStorageStockByCenter()).willReturn(List.of());
             given(warehouseBinRepository.findStorageCapacityByCenter()).willReturn(List.of());
 
             CenterMapPinDto.Response res = service.getMapPins();
@@ -353,12 +438,41 @@ class CenterDashboardServiceTest {
                     .isEqualTo(2);
         }
 
+        /**
+         * 지도 팝업의 적재율이 대시보드 센터 카드와 같은 기준이어야 한다.
+         * 두 화면이 같은 센터를 다른 숫자로 보여주면 어느 쪽이 맞는지 알 수 없다.
+         */
+        @Test
+        @DisplayName("핀의 적재율도 보관 구역 재고만 분자로 쓴다")
+        void pinUsageRateCountsStorageBinsOnly() {
+            given(centerRepository.findByActiveTrueOrderByCenterCodeAsc()).willReturn(List.of(
+                    located(1L, "C1", "대기재고있음", 36.7, 126.7)));
+            given(inventoryRepository.findStockByCenter(null)).willReturn(List.of(
+                    new CenterStockRow(1L, "대기재고있음", 900L, 12L)));
+            given(inventoryRepository.findStorageStockByCenter()).willReturn(List.of(
+                    new CenterStockRow(1L, "대기재고있음", 600L, 8L)));
+            given(warehouseBinRepository.findStorageCapacityByCenter()).willReturn(List.of(
+                    new CenterCapacityRow(1L, 1000L, 5L)));
+
+            CenterMapPinDto pin = service.getMapPins().pins().get(0);
+
+            assertThat(pin.quantity()).isEqualTo(900);
+            assertThat(pin.storageQuantity()).isEqualTo(600);
+            assertThat(pin.usageRate())
+                    .as("600/1000 = 60%. 대시보드 센터 카드와 같은 값이어야 한다")
+                    .isEqualTo(60);
+            assertThat(pin.waitingQuantity())
+                    .as("팝업에서 '재고 900 인데 적재율 60%' 의 차이를 설명하는 값")
+                    .isEqualTo(300);
+        }
+
         @Test
         @DisplayName("재고가 없는 센터도 핀은 찍고 수량 0 으로 표시한다")
         void pinWithoutStock() {
             given(centerRepository.findByActiveTrueOrderByCenterCodeAsc()).willReturn(List.of(
                     located(9L, "C9", "신설 센터", 36.0, 127.0)));
             given(inventoryRepository.findStockByCenter(null)).willReturn(List.of());
+            given(inventoryRepository.findStorageStockByCenter()).willReturn(List.of());
             given(warehouseBinRepository.findStorageCapacityByCenter()).willReturn(List.of());
 
             CenterMapPinDto.Response res = service.getMapPins();
@@ -376,6 +490,7 @@ class CenterDashboardServiceTest {
             given(centerRepository.findByActiveTrueOrderByCenterCodeAsc()).willReturn(List.of(
                     center(1L, "C1", "좌표없음")));
             given(inventoryRepository.findStockByCenter(null)).willReturn(List.of());
+            given(inventoryRepository.findStorageStockByCenter()).willReturn(List.of());
             given(warehouseBinRepository.findStorageCapacityByCenter()).willReturn(List.of());
 
             CenterMapPinDto.Response res = service.getMapPins();
@@ -396,6 +511,8 @@ class CenterDashboardServiceTest {
         @Test
         @DisplayName("센터명과 수량을 순서대로 담고 전국 합계를 함께 내려준다")
         void buildsChartData() {
+            // 분포 차트는 '재고가 어느 센터에 있는가' 이므로 대기 구역 재고도 포함한다.
+            // 적재율과 달리 보관 구역으로 한정하지 않는다 → findStorageStockByCenter 를 쓰지 않는다.
             given(inventoryRepository.findStockByCenter(null)).willReturn(List.of(
                     new CenterStockRow(1L, "충남 예산 센터", 900L, 12L),
                     new CenterStockRow(5L, "전남 나주 센터", 470L, 6L)));
@@ -454,9 +571,10 @@ class CenterDashboardServiceTest {
 
     /** 적재율 계산만 확인할 때 쓰는 카드 */
     private CenterOverviewDto overview(int quantity, int capacity) {
+        // 적재율만 보는 카드이므로 전체 재고가 모두 보관 구역에 있는 경우로 둔다
         return CenterOverviewDto.builder()
                 .centerId(1L).centerCode("C1").centerName("센터")
-                .quantity(quantity).capacity(capacity)
+                .quantity(quantity).storageQuantity(quantity).capacity(capacity)
                 .activity(java.util.Map.of())
                 .animalMix(java.util.Map.of())
                 .build();

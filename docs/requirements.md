@@ -280,8 +280,8 @@ P4c 로 **센터 좌표는 확보했다.** 그래도 두 가지가 없다.
 
 ## 검증 상태
 
-- 단위/통합 테스트 — 테스트 메서드 **230개 선언 / 17개 테스트 클래스**
-  (`@ParameterizedTest` 전개 포함 실행 시 약 236건)
+- 단위/통합 테스트 — 테스트 메서드 **233개 선언 / 17개 테스트 클래스**
+  (`@ParameterizedTest` 전개 포함 실행 시 약 239건)
 - 시드 데이터(`data.sql`) 정합성 — 변경 시 함께 검증해야 한다.
   1. 이력 누적(`SUM(StockMovement × sign)`) = `ProductLot.lotQuantity`
   2. 구역 재고 합계(`SUM(Inventory.quantity)`) = `ProductLot.lotQuantity`
@@ -302,3 +302,8 @@ P4c 로 **센터 좌표는 확보했다.** 그래도 두 가지가 없다.
   컴포넌트 수, 테스트 스텁 ↔ 리포지토리 메서드 존재, 템플릿 태그 중첩, 템플릿 `${}` ↔
   컨트롤러 모델 키, 템플릿 프로퍼티 ↔ DTO 게터, JS 가 읽는 JSON 필드 ↔ record 컴포넌트,
   인라인/정적 JS 문법(`node --check`), CSS 괄호 균형.
+- **Mockito `STRICT_STUBS` 안전성** — `@ExtendWith(MockitoExtension.class)` 는 쓰이지 않은
+  스텁을 `UnnecessaryStubbingException` 으로 실패시킨다. 리포지토리에 메서드를 추가하고
+  기존 테스트에 스텁을 일괄로 붙이면 그 메서드를 쓰지 않는 테스트가 깨진다.
+  테스트 메서드별로 "스텁한 리포지토리 메서드" ⊆ "호출한 서비스 메서드 + 손으로 조립한
+  협력 객체(`new BinCapacityChecker(...)`)가 실제로 쓰는 집합" 인지 정적으로 대조한다.
