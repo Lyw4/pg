@@ -201,7 +201,7 @@ INSERT INTO warehouseBins (binId, binCode, centerId, zone, binPurpose, rack, bin
 (15, 'GJ-PL-04', 2, 'PL', 'STORAGE', '02', 2, 200, 12, 6, 5, 5, TRUE, '가금 사료 보관 구역', DATEADD('DAY', -240, CURRENT_TIMESTAMP)),
 (16, 'GJ-PG-01', 2, 'PG', 'STORAGE', '03', 1, 250, 18, 1, 4, 5, TRUE, '돼지 사료 보관 구역', DATEADD('DAY', -240, CURRENT_TIMESTAMP)),
 (17, 'GJ-PG-02', 2, 'PG', 'STORAGE', '03', 2, 250, 18, 6, 4, 5, TRUE, '돼지 사료 보관 구역', DATEADD('DAY', -240, CURRENT_TIMESTAMP)),
-(18, 'GJ-COLD-01', 2, 'COLD', 'STORAGE', '05', 1, 200, 6, 11, 5, 3, TRUE, '저온 보관(영양제) 구역', DATEADD('DAY', -220, CURRENT_TIMESTAMP)),
+(18, 'GJ-COLD-01', 2, 'COLD', 'STORAGE', '05', 1, 250, 6, 11, 5, 3, TRUE, '저온 보관(영양제) 구역', DATEADD('DAY', -220, CURRENT_TIMESTAMP)),
 (19, 'GJ-R-01', 2, 'R', 'RECEIVING', '01', 1, 300, 1, 3, 4, 3, TRUE, '입고 검수 전 대기 구역', DATEADD('DAY', -260, CURRENT_TIMESTAMP)),
 (20, 'GJ-S-01', 2, 'S', 'SHIPPING', '01', 1, 400, 1, 6, 4, 3, TRUE, '출고 직전 집합 구역', DATEADD('DAY', -260, CURRENT_TIMESTAMP)),
 -- 경북 의성 센터 (C3-US) · 안동 · 의성 · 경북 북부 · 소 · 돼지 · 조류 균형형
@@ -211,36 +211,35 @@ INSERT INTO warehouseBins (binId, binCode, centerId, zone, binPurpose, rack, bin
 (24, 'US-PG-02', 3, 'PG', 'STORAGE', '02', 2, 300, 12, 6, 5, 5, TRUE, '돼지 사료 보관 구역', DATEADD('DAY', -200, CURRENT_TIMESTAMP)),
 (25, 'US-PL-01', 3, 'PL', 'STORAGE', '03', 1, 200, 18, 1, 4, 5, TRUE, '가금 사료 보관 구역', DATEADD('DAY', -200, CURRENT_TIMESTAMP)),
 (26, 'US-PL-02', 3, 'PL', 'STORAGE', '03', 2, 200, 18, 6, 4, 5, FALSE, '천장 누수 보수 중 사용 중지', DATEADD('DAY', -200, CURRENT_TIMESTAMP)),
-(27, 'US-COLD-01', 3, 'COLD', 'STORAGE', '05', 1, 650, 6, 11, 5, 3, TRUE, '저온 보관(영양제) 구역', DATEADD('DAY', -180, CURRENT_TIMESTAMP)),
+(27, 'US-COLD-01', 3, 'COLD', 'STORAGE', '05', 1, 750, 6, 11, 5, 3, TRUE, '저온 보관(영양제) 구역', DATEADD('DAY', -180, CURRENT_TIMESTAMP)),
 (28, 'US-R-01', 3, 'R', 'RECEIVING', '01', 1, 300, 1, 3, 4, 3, TRUE, '입고 검수 전 대기 구역', DATEADD('DAY', -220, CURRENT_TIMESTAMP)),
 (29, 'US-S-01', 3, 'S', 'SHIPPING', '01', 1, 400, 1, 6, 4, 3, TRUE, '출고 직전 집합 구역', DATEADD('DAY', -220, CURRENT_TIMESTAMP)),
 -- 경기 안성 센터 (C4-AS) · 경기 남부 · 충북 서부 · 소 · 돼지 강화형
-(30, 'AS-CT-01', 4, 'CT', 'STORAGE', '01', 1, 350, 6, 1, 5, 5, TRUE, '소 사료 보관 구역', DATEADD('DAY', -160, CURRENT_TIMESTAMP)),
-(31, 'AS-CT-02', 4, 'CT', 'STORAGE', '01', 2, 350, 6, 6, 5, 5, TRUE, '소 사료 보관 구역', DATEADD('DAY', -160, CURRENT_TIMESTAMP)),
-(32, 'AS-CT-03', 4, 'CT', 'STORAGE', '02', 1, 350, 12, 1, 5, 5, TRUE, '소 사료 보관 구역', DATEADD('DAY', -160, CURRENT_TIMESTAMP)),
-(33, 'AS-CT-04', 4, 'CT', 'STORAGE', '02', 2, 350, 12, 6, 5, 5, TRUE, '소 사료 보관 구역', DATEADD('DAY', -160, CURRENT_TIMESTAMP)),
+(30, 'AS-CT-01', 4, 'CT', 'STORAGE', '01', 1, 400, 6, 1, 5, 5, TRUE, '소 사료 보관 구역', DATEADD('DAY', -160, CURRENT_TIMESTAMP)),
+(31, 'AS-CT-02', 4, 'CT', 'STORAGE', '01', 2, 400, 6, 6, 5, 5, TRUE, '소 사료 보관 구역', DATEADD('DAY', -160, CURRENT_TIMESTAMP)),
+(32, 'AS-CT-03', 4, 'CT', 'STORAGE', '02', 1, 400, 12, 1, 5, 5, TRUE, '소 사료 보관 구역', DATEADD('DAY', -160, CURRENT_TIMESTAMP)),
+(33, 'AS-CT-04', 4, 'CT', 'STORAGE', '02', 2, 400, 12, 6, 5, 5, TRUE, '소 사료 보관 구역', DATEADD('DAY', -160, CURRENT_TIMESTAMP)),
 (34, 'AS-PG-01', 4, 'PG', 'STORAGE', '03', 1, 250, 18, 1, 4, 5, TRUE, '돼지 사료 보관 구역', DATEADD('DAY', -160, CURRENT_TIMESTAMP)),
 (35, 'AS-PG-02', 4, 'PG', 'STORAGE', '03', 2, 250, 18, 6, 4, 5, TRUE, '돼지 사료 보관 구역', DATEADD('DAY', -160, CURRENT_TIMESTAMP)),
 (36, 'AS-PG-03', 4, 'PG', 'STORAGE', '04', 1, 250, 23, 1, 4, 5, TRUE, '돼지 사료 보관 구역', DATEADD('DAY', -160, CURRENT_TIMESTAMP)),
 (37, 'AS-PG-04', 4, 'PG', 'STORAGE', '04', 2, 250, 23, 6, 4, 5, TRUE, '돼지 사료 보관 구역', DATEADD('DAY', -160, CURRENT_TIMESTAMP)),
-(38, 'AS-COLD-01', 4, 'COLD', 'STORAGE', '05', 1, 450, 6, 11, 5, 3, TRUE, '저온 보관(영양제) 구역', DATEADD('DAY', -140, CURRENT_TIMESTAMP)),
+(38, 'AS-COLD-01', 4, 'COLD', 'STORAGE', '05', 1, 500, 6, 11, 5, 3, TRUE, '저온 보관(영양제) 구역', DATEADD('DAY', -140, CURRENT_TIMESTAMP)),
 (39, 'AS-R-01', 4, 'R', 'RECEIVING', '01', 1, 300, 1, 3, 4, 3, TRUE, '입고 검수 전 대기 구역', DATEADD('DAY', -180, CURRENT_TIMESTAMP)),
 (40, 'AS-S-01', 4, 'S', 'SHIPPING', '01', 1, 400, 1, 6, 4, 3, TRUE, '출고 직전 집합 구역', DATEADD('DAY', -180, CURRENT_TIMESTAMP)),
--- 전남 나주 센터 (C5-NJ) · 전남 중서부 · 닭 · 오리 최우선
-(41, 'NJ-PL-01', 5, 'PL', 'STORAGE', '01', 1, 200, 6, 1, 5, 5, TRUE, '가금 사료 보관 구역', DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
-(42, 'NJ-PL-02', 5, 'PL', 'STORAGE', '01', 2, 200, 6, 6, 5, 5, TRUE, '가금 사료 보관 구역', DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
-(43, 'NJ-PL-03', 5, 'PL', 'STORAGE', '02', 1, 200, 12, 1, 5, 5, TRUE, '가금 사료 보관 구역', DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
-(44, 'NJ-PL-04', 5, 'PL', 'STORAGE', '02', 2, 200, 12, 6, 5, 5, TRUE, '가금 사료 보관 구역', DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
-(45, 'NJ-COLD-01', 5, 'COLD', 'STORAGE', '05', 1, 200, 6, 11, 5, 3, TRUE, '저온 보관(영양제) 구역', DATEADD('DAY', -100, CURRENT_TIMESTAMP)),
-(46, 'NJ-R-01', 5, 'R', 'RECEIVING', '01', 1, 300, 1, 3, 4, 3, TRUE, '입고 검수 전 대기 구역', DATEADD('DAY', -140, CURRENT_TIMESTAMP)),
-(47, 'NJ-S-01', 5, 'S', 'SHIPPING', '01', 1, 400, 1, 6, 4, 3, TRUE, '출고 직전 집합 구역', DATEADD('DAY', -140, CURRENT_TIMESTAMP)),
+-- 전남 나주 센터 (C5-NJ) · 전남 중서부 · 닭 · 오리 최우선 (영양제 품목이 없어 저온 구역 없음)
+(41, 'NJ-PL-01', 5, 'PL', 'STORAGE', '01', 1, 250, 6, 1, 5, 5, TRUE, '가금 사료 보관 구역', DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(42, 'NJ-PL-02', 5, 'PL', 'STORAGE', '01', 2, 250, 6, 6, 5, 5, TRUE, '가금 사료 보관 구역', DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(43, 'NJ-PL-03', 5, 'PL', 'STORAGE', '02', 1, 250, 12, 1, 5, 5, TRUE, '가금 사료 보관 구역', DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(44, 'NJ-PL-04', 5, 'PL', 'STORAGE', '02', 2, 250, 12, 6, 5, 5, TRUE, '가금 사료 보관 구역', DATEADD('DAY', -120, CURRENT_TIMESTAMP)),
+(45, 'NJ-R-01', 5, 'R', 'RECEIVING', '01', 1, 300, 1, 3, 4, 3, TRUE, '입고 검수 전 대기 구역', DATEADD('DAY', -140, CURRENT_TIMESTAMP)),
+(46, 'NJ-S-01', 5, 'S', 'SHIPPING', '01', 1, 400, 1, 6, 4, 3, TRUE, '출고 직전 집합 구역', DATEADD('DAY', -140, CURRENT_TIMESTAMP)),
 -- 운송 중(IN_TRANSIT) 가상 구역 : 센터당 1개.
 --   물리적 공간이 아니라 적재 한도를 검증하지 않고 2D 도면에도 그리지 않는다.
-(48, 'TRANSIT-C1-YS', 1, 'TRANSIT', 'IN_TRANSIT', NULL, NULL, 0, 1, 1, 1, 1, TRUE, '센터 간 이관 중인 재고가 머무는 가상 구역 (시스템 자동 생성)', DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
-(49, 'TRANSIT-C2-GJ', 2, 'TRANSIT', 'IN_TRANSIT', NULL, NULL, 0, 1, 1, 1, 1, TRUE, '센터 간 이관 중인 재고가 머무는 가상 구역 (시스템 자동 생성)', DATEADD('DAY', -260, CURRENT_TIMESTAMP)),
-(50, 'TRANSIT-C3-US', 3, 'TRANSIT', 'IN_TRANSIT', NULL, NULL, 0, 1, 1, 1, 1, TRUE, '센터 간 이관 중인 재고가 머무는 가상 구역 (시스템 자동 생성)', DATEADD('DAY', -220, CURRENT_TIMESTAMP)),
-(51, 'TRANSIT-C4-AS', 4, 'TRANSIT', 'IN_TRANSIT', NULL, NULL, 0, 1, 1, 1, 1, TRUE, '센터 간 이관 중인 재고가 머무는 가상 구역 (시스템 자동 생성)', DATEADD('DAY', -180, CURRENT_TIMESTAMP)),
-(52, 'TRANSIT-C5-NJ', 5, 'TRANSIT', 'IN_TRANSIT', NULL, NULL, 0, 1, 1, 1, 1, TRUE, '센터 간 이관 중인 재고가 머무는 가상 구역 (시스템 자동 생성)', DATEADD('DAY', -140, CURRENT_TIMESTAMP));
+(47, 'TRANSIT-C1-YS', 1, 'TRANSIT', 'IN_TRANSIT', NULL, NULL, 0, 1, 1, 1, 1, TRUE, '센터 간 이관 중인 재고가 머무는 가상 구역 (시스템 자동 생성)', DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
+(48, 'TRANSIT-C2-GJ', 2, 'TRANSIT', 'IN_TRANSIT', NULL, NULL, 0, 1, 1, 1, 1, TRUE, '센터 간 이관 중인 재고가 머무는 가상 구역 (시스템 자동 생성)', DATEADD('DAY', -260, CURRENT_TIMESTAMP)),
+(49, 'TRANSIT-C3-US', 3, 'TRANSIT', 'IN_TRANSIT', NULL, NULL, 0, 1, 1, 1, 1, TRUE, '센터 간 이관 중인 재고가 머무는 가상 구역 (시스템 자동 생성)', DATEADD('DAY', -220, CURRENT_TIMESTAMP)),
+(50, 'TRANSIT-C4-AS', 4, 'TRANSIT', 'IN_TRANSIT', NULL, NULL, 0, 1, 1, 1, 1, TRUE, '센터 간 이관 중인 재고가 머무는 가상 구역 (시스템 자동 생성)', DATEADD('DAY', -180, CURRENT_TIMESTAMP)),
+(51, 'TRANSIT-C5-NJ', 5, 'TRANSIT', 'IN_TRANSIT', NULL, NULL, 0, 1, 1, 1, 1, TRUE, '센터 간 이관 중인 재고가 머무는 가상 구역 (시스템 자동 생성)', DATEADD('DAY', -140, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
 -- 7. 재고 (로트 × 구역)
@@ -251,43 +250,62 @@ INSERT INTO warehouseBins (binId, binCode, centerId, zone, binPurpose, rack, bin
 --    · 각 구역의 합계는 warehouseBins.maxCapacity 를 넘지 않아야 한다
 -- ---------------------------------------------------------------------
 INSERT INTO inventories (inventoryId, lotId, binId, quantity, updatedAt, version) VALUES
-(1, 1, 30, 20, DATEADD('DAY', -28, CURRENT_TIMESTAMP), 0),   -- AS-CT-01 (20/350)
-(2, 2, 31, 20, DATEADD('DAY', -5, CURRENT_TIMESTAMP), 0),   -- AS-CT-02 (20/350)
-(3, 3, 34, 140, DATEADD('DAY', -12, CURRENT_TIMESTAMP), 0),   -- AS-PG-01 (140/250)
-(4, 4, 35, 150, DATEADD('DAY', -19, CURRENT_TIMESTAMP), 0),   -- AS-PG-02 (150/250)
-(5, 5, 1, 80, DATEADD('DAY', -26, CURRENT_TIMESTAMP), 0),   -- YS-PL-01 (80/200)
-(6, 6, 32, 220, DATEADD('DAY', -3, CURRENT_TIMESTAMP), 0),   -- AS-CT-03 (220/350)
-(7, 7, 33, 150, DATEADD('DAY', -10, CURRENT_TIMESTAMP), 0),   -- AS-CT-04 (150/350)
-(8, 8, 36, 250, DATEADD('DAY', -17, CURRENT_TIMESTAMP), 0),   -- AS-PG-03 (250/250)
-(9, 8, 37, 10, DATEADD('DAY', -17, CURRENT_TIMESTAMP), 0),   -- AS-PG-04 (10/250)
-(10, 9, 23, 180, DATEADD('DAY', -24, CURRENT_TIMESTAMP), 0),   -- US-PG-01 (180/300)
-(11, 10, 41, 140, DATEADD('DAY', -1, CURRENT_TIMESTAMP), 0),   -- NJ-PL-01 (140/200)
-(12, 11, 2, 190, DATEADD('DAY', -8, CURRENT_TIMESTAMP), 0),   -- YS-PL-02 (190/200)
-(13, 12, 12, 90, DATEADD('DAY', -15, CURRENT_TIMESTAMP), 0),   -- GJ-PL-01 (90/200)
-(14, 13, 38, 70, DATEADD('DAY', -22, CURRENT_TIMESTAMP), 0),   -- AS-COLD-01 (70/450)
-(15, 14, 30, 10, DATEADD('DAY', -29, CURRENT_TIMESTAMP), 0),   -- AS-CT-01 (10/350)
-(16, 15, 13, 20, DATEADD('DAY', -6, CURRENT_TIMESTAMP), 0),   -- GJ-PL-02 (20/200)
-(17, 16, 9, 30, DATEADD('DAY', -13, CURRENT_TIMESTAMP), 0),   -- YS-COLD-01 (30/200)
-(18, 17, 31, 180, DATEADD('DAY', -20, CURRENT_TIMESTAMP), 0),   -- AS-CT-02 (180/350)
-(19, 18, 30, 200, DATEADD('DAY', -27, CURRENT_TIMESTAMP), 0),   -- AS-CT-01 (200/350)
-(20, 19, 5, 150, DATEADD('DAY', -4, CURRENT_TIMESTAMP), 0),   -- YS-PG-01 (150/250)
-(21, 20, 6, 120, DATEADD('DAY', -11, CURRENT_TIMESTAMP), 0),   -- YS-PG-02 (120/250)
-(22, 21, 42, 100, DATEADD('DAY', -18, CURRENT_TIMESTAMP), 0),   -- NJ-PL-02 (100/200)
-(23, 22, 43, 200, DATEADD('DAY', -25, CURRENT_TIMESTAMP), 0),   -- NJ-PL-03 (200/200)
-(24, 22, 44, 30, DATEADD('DAY', -25, CURRENT_TIMESTAMP), 0),   -- NJ-PL-04 (30/200)
-(25, 23, 3, 60, DATEADD('DAY', -2, CURRENT_TIMESTAMP), 0),   -- YS-PL-03 (60/200)
-(26, 24, 27, 140, DATEADD('DAY', -9, CURRENT_TIMESTAMP), 0),   -- US-COLD-01 (140/650)
-(27, 25, 18, 120, DATEADD('DAY', -16, CURRENT_TIMESTAMP), 0),   -- GJ-COLD-01 (120/200)
-(28, 26, 16, 250, DATEADD('DAY', -23, CURRENT_TIMESTAMP), 0),   -- GJ-PG-01 (250/250)
-(29, 27, 7, 250, DATEADD('DAY', -30, CURRENT_TIMESTAMP), 0),   -- YS-PG-03 (250/250)
-(30, 27, 8, 20, DATEADD('DAY', -30, CURRENT_TIMESTAMP), 0),   -- YS-PG-04 (20/250)
-(31, 28, 38, 190, DATEADD('DAY', -7, CURRENT_TIMESTAMP), 0),   -- AS-COLD-01 (190/450)
-(32, 29, 27, 90, DATEADD('DAY', -14, CURRENT_TIMESTAMP), 0),   -- US-COLD-01 (90/650)
-(33, 30, 27, 160, DATEADD('DAY', -21, CURRENT_TIMESTAMP), 0),   -- US-COLD-01 (160/650)
-(34, 31, 21, 130, DATEADD('DAY', -28, CURRENT_TIMESTAMP), 0),   -- US-CT-01 (130/200)
-(35, 32, 25, 80, DATEADD('DAY', -5, CURRENT_TIMESTAMP), 0),   -- US-PL-01 (80/200)
-(36, 33, 24, 150, DATEADD('DAY', -12, CURRENT_TIMESTAMP), 0),   -- US-PG-02 (150/300)
-(37, 34, 14, 180, DATEADD('DAY', -19, CURRENT_TIMESTAMP), 0);   -- GJ-PL-03 (180/200)   -- N-03    180/200 = 90% 포화
+(1, 1, 30, 20, DATEADD('DAY', -28, CURRENT_TIMESTAMP), 0),   -- AS-CT-01 (20/400 = 5%)
+(2, 2, 31, 20, DATEADD('DAY', -5, CURRENT_TIMESTAMP), 0),   -- AS-CT-02 (20/400 = 5%)
+(3, 3, 34, 70, DATEADD('DAY', -3, CURRENT_TIMESTAMP), 0),   -- AS-PG-01 (70/250 = 28%)
+(4, 3, 35, 70, DATEADD('DAY', -3, CURRENT_TIMESTAMP), 0),   -- AS-PG-02 (70/250 = 28%)
+(5, 4, 36, 75, DATEADD('DAY', -19, CURRENT_TIMESTAMP), 0),   -- AS-PG-03 (75/250 = 30%)
+(6, 4, 37, 75, DATEADD('DAY', -19, CURRENT_TIMESTAMP), 0),   -- AS-PG-04 (75/250 = 30%)
+(7, 5, 1, 80, DATEADD('DAY', -26, CURRENT_TIMESTAMP), 0),   -- YS-PL-01 (80/200 = 40%)
+(8, 6, 32, 74, DATEADD('DAY', -4, CURRENT_TIMESTAMP), 0),   -- AS-CT-03 (74/400 = 18%)
+(9, 6, 33, 73, DATEADD('DAY', -4, CURRENT_TIMESTAMP), 0),   -- AS-CT-04 (73/400 = 18%)
+(10, 6, 30, 73, DATEADD('DAY', -4, CURRENT_TIMESTAMP), 0),   -- AS-CT-01 (73/400 = 18%)
+(11, 7, 31, 75, DATEADD('DAY', -10, CURRENT_TIMESTAMP), 0),   -- AS-CT-02 (75/400 = 19%)
+(12, 7, 33, 75, DATEADD('DAY', -10, CURRENT_TIMESTAMP), 0),   -- AS-CT-04 (75/400 = 19%)
+(13, 8, 34, 87, DATEADD('DAY', -17, CURRENT_TIMESTAMP), 0),   -- AS-PG-01 (87/250 = 35%)
+(14, 8, 35, 87, DATEADD('DAY', -17, CURRENT_TIMESTAMP), 0),   -- AS-PG-02 (87/250 = 35%)
+(15, 8, 36, 86, DATEADD('DAY', -17, CURRENT_TIMESTAMP), 0),   -- AS-PG-03 (86/250 = 34%)
+(16, 9, 23, 90, DATEADD('DAY', -5, CURRENT_TIMESTAMP), 0),   -- US-PG-01 (90/300 = 30%)
+(17, 9, 24, 90, DATEADD('DAY', -5, CURRENT_TIMESTAMP), 0),   -- US-PG-02 (90/300 = 30%)
+(18, 10, 41, 70, DATEADD('DAY', -1, CURRENT_TIMESTAMP), 0),   -- NJ-PL-01 (70/250 = 28%)
+(19, 10, 42, 70, DATEADD('DAY', -1, CURRENT_TIMESTAMP), 0),   -- NJ-PL-02 (70/250 = 28%)
+(20, 11, 2, 95, DATEADD('DAY', -8, CURRENT_TIMESTAMP), 0),   -- YS-PL-02 (95/200 = 48%)
+(21, 11, 3, 95, DATEADD('DAY', -8, CURRENT_TIMESTAMP), 0),   -- YS-PL-03 (95/200 = 48%)
+(22, 12, 12, 90, DATEADD('DAY', -6, CURRENT_TIMESTAMP), 0),   -- GJ-PL-01 (90/200 = 45%)
+(23, 13, 38, 70, DATEADD('DAY', -22, CURRENT_TIMESTAMP), 0),   -- AS-COLD-01 (70/500 = 14%)
+(24, 14, 32, 10, DATEADD('DAY', -29, CURRENT_TIMESTAMP), 0),   -- AS-CT-03 (10/400 = 2%)
+(25, 15, 13, 20, DATEADD('DAY', -6, CURRENT_TIMESTAMP), 0),   -- GJ-PL-02 (20/200 = 10%)
+(26, 16, 9, 30, DATEADD('DAY', -13, CURRENT_TIMESTAMP), 0),   -- YS-COLD-01 (30/200 = 15%)
+(27, 17, 32, 90, DATEADD('DAY', -20, CURRENT_TIMESTAMP), 0),   -- AS-CT-03 (90/400 = 22%)
+(28, 17, 30, 90, DATEADD('DAY', -20, CURRENT_TIMESTAMP), 0),   -- AS-CT-01 (90/400 = 22%)
+(29, 18, 31, 100, DATEADD('DAY', -2, CURRENT_TIMESTAMP), 0),   -- AS-CT-02 (100/400 = 25%)
+(30, 18, 33, 100, DATEADD('DAY', -2, CURRENT_TIMESTAMP), 0),   -- AS-CT-04 (100/400 = 25%)
+(31, 19, 5, 75, DATEADD('DAY', -4, CURRENT_TIMESTAMP), 0),   -- YS-PG-01 (75/250 = 30%)
+(32, 19, 6, 75, DATEADD('DAY', -4, CURRENT_TIMESTAMP), 0),   -- YS-PG-02 (75/250 = 30%)
+(33, 20, 7, 60, DATEADD('DAY', -11, CURRENT_TIMESTAMP), 0),   -- YS-PG-03 (60/250 = 24%)
+(34, 20, 8, 60, DATEADD('DAY', -11, CURRENT_TIMESTAMP), 0),   -- YS-PG-04 (60/250 = 24%)
+(35, 21, 43, 100, DATEADD('DAY', -3, CURRENT_TIMESTAMP), 0),   -- NJ-PL-03 (100/250 = 40%)
+(36, 22, 44, 77, DATEADD('DAY', -25, CURRENT_TIMESTAMP), 0),   -- NJ-PL-04 (77/250 = 31%)
+(37, 22, 41, 77, DATEADD('DAY', -25, CURRENT_TIMESTAMP), 0),   -- NJ-PL-01 (77/250 = 31%)
+(38, 22, 42, 76, DATEADD('DAY', -25, CURRENT_TIMESTAMP), 0),   -- NJ-PL-02 (76/250 = 30%)
+(39, 23, 4, 60, DATEADD('DAY', -2, CURRENT_TIMESTAMP), 0),   -- YS-PL-04 (60/200 = 30%)
+(40, 24, 27, 140, DATEADD('DAY', -4, CURRENT_TIMESTAMP), 0),   -- US-COLD-01 (140/750 = 19%)
+(41, 25, 18, 120, DATEADD('DAY', -16, CURRENT_TIMESTAMP), 0),   -- GJ-COLD-01 (120/250 = 48%)
+(42, 26, 16, 125, DATEADD('DAY', -23, CURRENT_TIMESTAMP), 0),   -- GJ-PG-01 (125/250 = 50%)
+(43, 26, 17, 125, DATEADD('DAY', -23, CURRENT_TIMESTAMP), 0),   -- GJ-PG-02 (125/250 = 50%)
+(44, 27, 7, 90, DATEADD('DAY', -5, CURRENT_TIMESTAMP), 0),   -- YS-PG-03 (90/250 = 36%)
+(45, 27, 8, 90, DATEADD('DAY', -5, CURRENT_TIMESTAMP), 0),   -- YS-PG-04 (90/250 = 36%)
+(46, 27, 5, 90, DATEADD('DAY', -5, CURRENT_TIMESTAMP), 0),   -- YS-PG-01 (90/250 = 36%)
+(47, 28, 38, 190, DATEADD('DAY', -7, CURRENT_TIMESTAMP), 0),   -- AS-COLD-01 (190/500 = 38%)
+(48, 29, 27, 90, DATEADD('DAY', -14, CURRENT_TIMESTAMP), 0),   -- US-COLD-01 (90/750 = 12%)
+(49, 30, 27, 160, DATEADD('DAY', -6, CURRENT_TIMESTAMP), 0),   -- US-COLD-01 (160/750 = 21%)
+(50, 31, 21, 65, DATEADD('DAY', -28, CURRENT_TIMESTAMP), 0),   -- US-CT-01 (65/200 = 32%)
+(51, 31, 22, 65, DATEADD('DAY', -28, CURRENT_TIMESTAMP), 0),   -- US-CT-02 (65/200 = 32%)
+(52, 32, 25, 80, DATEADD('DAY', -5, CURRENT_TIMESTAMP), 0),   -- US-PL-01 (80/200 = 40%)
+(53, 33, 23, 75, DATEADD('DAY', -7, CURRENT_TIMESTAMP), 0),   -- US-PG-01 (75/300 = 25%)
+(54, 33, 24, 75, DATEADD('DAY', -7, CURRENT_TIMESTAMP), 0),   -- US-PG-02 (75/300 = 25%)
+(55, 34, 14, 90, DATEADD('DAY', -19, CURRENT_TIMESTAMP), 0),   -- GJ-PL-03 (90/200 = 45%)
+(56, 34, 15, 90, DATEADD('DAY', -19, CURRENT_TIMESTAMP), 0);   -- GJ-PL-04 (90/200 = 45%)   -- GJ-PL-03 (180/200)   -- N-03    180/200 = 90% 포화
 
 -- ---------------------------------------------------------------------
 -- 8. 재고 이력
@@ -300,49 +318,68 @@ INSERT INTO inventories (inventoryId, lotId, binId, quantity, updatedAt, version
 -- ---------------------------------------------------------------------
 INSERT INTO stockMovements (movementId, movementType, productId, lotId, binId, fromBinId, quantity, orderId, memo, userId, userName, createdAt) VALUES
 (1, 'INBOUND', 13, 25, 18, NULL, 120, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -105, CURRENT_TIMESTAMP)),
-(2, 'INBOUND', 10, 12, 12, NULL, 90, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -104, CURRENT_TIMESTAMP)),
-(3, 'INBOUND', 11, 24, 27, NULL, 140, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -98, CURRENT_TIMESTAMP)),
-(4, 'INBOUND', 9, 11, 2, NULL, 190, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -97, CURRENT_TIMESTAMP)),
-(5, 'INBOUND', 3, 15, 13, NULL, 20, NULL, '유통기한 경과 재고(폐기 대기)', 2, '이사원', DATEADD('DAY', -95, CURRENT_TIMESTAMP)),
-(6, 'INBOUND', 3, 15, 13, NULL, 15, NULL, '유통기한 경과 재고(폐기 대기)', 2, '이사원', DATEADD('DAY', -95, CURRENT_TIMESTAMP)),
-(7, 'INBOUND', 10, 23, 3, NULL, 60, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -91, CURRENT_TIMESTAMP)),
-(8, 'INBOUND', 8, 10, 41, NULL, 140, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -90, CURRENT_TIMESTAMP)),
-(9, 'INBOUND', 9, 22, 43, NULL, 200, NULL, '대량 발주 입고(1/2)', 2, '이사원', DATEADD('DAY', -84, CURRENT_TIMESTAMP)),
-(10, 'INBOUND', 9, 22, 44, NULL, 30, NULL, '대량 발주 입고(2/2)', 2, '이사원', DATEADD('DAY', -84, CURRENT_TIMESTAMP)),
-(11, 'INBOUND', 7, 9, 23, NULL, 180, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -83, CURRENT_TIMESTAMP)),
-(12, 'INBOUND', 9, 34, 14, NULL, 180, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -78, CURRENT_TIMESTAMP)),
-(13, 'INBOUND', 8, 21, 42, NULL, 100, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -77, CURRENT_TIMESTAMP)),
-(14, 'INBOUND', 6, 8, 36, NULL, 250, NULL, '대량 발주 입고(1/2)', 2, '이사원', DATEADD('DAY', -76, CURRENT_TIMESTAMP)),
-(15, 'INBOUND', 6, 8, 37, NULL, 10, NULL, '대량 발주 입고(2/2)', 2, '이사원', DATEADD('DAY', -76, CURRENT_TIMESTAMP)),
-(16, 'INBOUND', 2, 33, 24, NULL, 150, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -71, CURRENT_TIMESTAMP)),
-(17, 'INBOUND', 7, 20, 6, NULL, 120, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -70, CURRENT_TIMESTAMP)),
-(18, 'INBOUND', 5, 7, 33, NULL, 150, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -69, CURRENT_TIMESTAMP)),
-(19, 'INBOUND', 10, 32, 25, NULL, 80, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -64, CURRENT_TIMESTAMP)),
-(20, 'INBOUND', 6, 19, 5, NULL, 150, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -63, CURRENT_TIMESTAMP)),
-(21, 'INBOUND', 4, 6, 32, NULL, 220, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -62, CURRENT_TIMESTAMP)),
-(22, 'INBOUND', 4, 31, 21, NULL, 130, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -57, CURRENT_TIMESTAMP)),
-(23, 'INBOUND', 5, 18, 30, NULL, 200, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -56, CURRENT_TIMESTAMP)),
-(24, 'INBOUND', 3, 5, 1, NULL, 80, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -55, CURRENT_TIMESTAMP)),
-(25, 'INBOUND', 11, 30, 27, NULL, 160, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -50, CURRENT_TIMESTAMP)),
-(26, 'INBOUND', 4, 17, 31, NULL, 180, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -49, CURRENT_TIMESTAMP)),
-(27, 'INBOUND', 2, 4, 35, NULL, 150, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -48, CURRENT_TIMESTAMP)),
-(28, 'INBOUND', 13, 29, 27, NULL, 90, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -43, CURRENT_TIMESTAMP)),
-(29, 'INBOUND', 13, 16, 9, NULL, 30, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -42, CURRENT_TIMESTAMP)),
-(30, 'INBOUND', 2, 3, 34, NULL, 140, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -41, CURRENT_TIMESTAMP)),
-(31, 'INBOUND', 2, 3, 34, NULL, 10, NULL, '주문 대응 추가 입고', 2, '이사원', DATEADD('DAY', -41, CURRENT_TIMESTAMP)),
-(32, 'INBOUND', 11, 28, 38, NULL, 190, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -36, CURRENT_TIMESTAMP)),
-(33, 'INBOUND', 1, 2, 31, NULL, 20, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -34, CURRENT_TIMESTAMP)),
-(34, 'INBOUND', 6, 27, 7, NULL, 250, NULL, '대량 발주 입고(1/2)', 2, '이사원', DATEADD('DAY', -29, CURRENT_TIMESTAMP)),
-(35, 'INBOUND', 6, 27, 8, NULL, 20, NULL, '대량 발주 입고(2/2)', 2, '이사원', DATEADD('DAY', -29, CURRENT_TIMESTAMP)),
-(36, 'INBOUND', 12, 14, 30, NULL, 10, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -28, CURRENT_TIMESTAMP)),
-(37, 'INBOUND', 1, 1, 30, NULL, 20, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -27, CURRENT_TIMESTAMP)),
-(38, 'INBOUND', 2, 26, 16, NULL, 250, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -22, CURRENT_TIMESTAMP)),
+(2, 'INBOUND', 9, 11, 2, NULL, 95, NULL, '대량 발주 입고(1/2)', 2, '이사원', DATEADD('DAY', -97, CURRENT_TIMESTAMP)),
+(3, 'INBOUND', 9, 11, 3, NULL, 95, NULL, '대량 발주 입고(2/2)', 2, '이사원', DATEADD('DAY', -97, CURRENT_TIMESTAMP)),
+(4, 'INBOUND', 3, 15, 13, NULL, 20, NULL, '유통기한 경과 재고(폐기 대기)', 2, '이사원', DATEADD('DAY', -95, CURRENT_TIMESTAMP)),
+(5, 'INBOUND', 3, 15, 13, NULL, 15, NULL, '유통기한 경과 재고(폐기 대기)', 2, '이사원', DATEADD('DAY', -95, CURRENT_TIMESTAMP)),
+(6, 'INBOUND', 10, 23, 4, NULL, 60, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -91, CURRENT_TIMESTAMP)),
+(7, 'INBOUND', 8, 10, 41, NULL, 70, NULL, '대량 발주 입고(1/2)', 2, '이사원', DATEADD('DAY', -90, CURRENT_TIMESTAMP)),
+(8, 'INBOUND', 8, 10, 42, NULL, 70, NULL, '대량 발주 입고(2/2)', 2, '이사원', DATEADD('DAY', -90, CURRENT_TIMESTAMP)),
+(9, 'INBOUND', 9, 22, 44, NULL, 77, NULL, '대량 발주 입고(1/3)', 2, '이사원', DATEADD('DAY', -84, CURRENT_TIMESTAMP)),
+(10, 'INBOUND', 9, 22, 41, NULL, 77, NULL, '대량 발주 입고(2/3)', 2, '이사원', DATEADD('DAY', -84, CURRENT_TIMESTAMP)),
+(11, 'INBOUND', 9, 22, 42, NULL, 76, NULL, '대량 발주 입고(3/3)', 2, '이사원', DATEADD('DAY', -84, CURRENT_TIMESTAMP)),
+(12, 'INBOUND', 9, 34, 14, NULL, 90, NULL, '대량 발주 입고(1/2)', 2, '이사원', DATEADD('DAY', -78, CURRENT_TIMESTAMP)),
+(13, 'INBOUND', 9, 34, 15, NULL, 90, NULL, '대량 발주 입고(2/2)', 2, '이사원', DATEADD('DAY', -78, CURRENT_TIMESTAMP)),
+(14, 'INBOUND', 6, 8, 34, NULL, 87, NULL, '대량 발주 입고(1/3)', 2, '이사원', DATEADD('DAY', -76, CURRENT_TIMESTAMP)),
+(15, 'INBOUND', 6, 8, 35, NULL, 87, NULL, '대량 발주 입고(2/3)', 2, '이사원', DATEADD('DAY', -76, CURRENT_TIMESTAMP)),
+(16, 'INBOUND', 6, 8, 36, NULL, 86, NULL, '대량 발주 입고(3/3)', 2, '이사원', DATEADD('DAY', -76, CURRENT_TIMESTAMP)),
+(17, 'INBOUND', 7, 20, 7, NULL, 60, NULL, '대량 발주 입고(1/2)', 2, '이사원', DATEADD('DAY', -70, CURRENT_TIMESTAMP)),
+(18, 'INBOUND', 7, 20, 8, NULL, 60, NULL, '대량 발주 입고(2/2)', 2, '이사원', DATEADD('DAY', -70, CURRENT_TIMESTAMP)),
+(19, 'INBOUND', 5, 7, 31, NULL, 75, NULL, '대량 발주 입고(1/2)', 2, '이사원', DATEADD('DAY', -69, CURRENT_TIMESTAMP)),
+(20, 'INBOUND', 5, 7, 33, NULL, 75, NULL, '대량 발주 입고(2/2)', 2, '이사원', DATEADD('DAY', -69, CURRENT_TIMESTAMP)),
+(21, 'INBOUND', 10, 32, 25, NULL, 80, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -64, CURRENT_TIMESTAMP)),
+(22, 'INBOUND', 6, 19, 5, NULL, 75, NULL, '대량 발주 입고(1/2)', 2, '이사원', DATEADD('DAY', -63, CURRENT_TIMESTAMP)),
+(23, 'INBOUND', 6, 19, 6, NULL, 75, NULL, '대량 발주 입고(2/2)', 2, '이사원', DATEADD('DAY', -63, CURRENT_TIMESTAMP)),
+(24, 'INBOUND', 4, 31, 21, NULL, 65, NULL, '대량 발주 입고(1/2)', 2, '이사원', DATEADD('DAY', -57, CURRENT_TIMESTAMP)),
+(25, 'INBOUND', 4, 31, 22, NULL, 65, NULL, '대량 발주 입고(2/2)', 2, '이사원', DATEADD('DAY', -57, CURRENT_TIMESTAMP)),
+(26, 'INBOUND', 3, 5, 1, NULL, 80, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -55, CURRENT_TIMESTAMP)),
+(27, 'INBOUND', 4, 17, 32, NULL, 90, NULL, '대량 발주 입고(1/2)', 2, '이사원', DATEADD('DAY', -49, CURRENT_TIMESTAMP)),
+(28, 'INBOUND', 4, 17, 30, NULL, 90, NULL, '대량 발주 입고(2/2)', 2, '이사원', DATEADD('DAY', -49, CURRENT_TIMESTAMP)),
+(29, 'INBOUND', 2, 4, 36, NULL, 75, NULL, '대량 발주 입고(1/2)', 2, '이사원', DATEADD('DAY', -48, CURRENT_TIMESTAMP)),
+(30, 'INBOUND', 2, 4, 37, NULL, 75, NULL, '대량 발주 입고(2/2)', 2, '이사원', DATEADD('DAY', -48, CURRENT_TIMESTAMP)),
+(31, 'INBOUND', 13, 29, 27, NULL, 90, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -43, CURRENT_TIMESTAMP)),
+(32, 'INBOUND', 13, 16, 9, NULL, 30, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -42, CURRENT_TIMESTAMP)),
+(33, 'INBOUND', 11, 28, 38, NULL, 190, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -36, CURRENT_TIMESTAMP)),
+(34, 'INBOUND', 1, 2, 31, NULL, 20, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -34, CURRENT_TIMESTAMP)),
+(35, 'INBOUND', 12, 14, 32, NULL, 10, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -28, CURRENT_TIMESTAMP)),
+(36, 'INBOUND', 1, 1, 30, NULL, 20, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -27, CURRENT_TIMESTAMP)),
+(37, 'INBOUND', 2, 26, 16, NULL, 125, NULL, '대량 발주 입고(1/2)', 2, '이사원', DATEADD('DAY', -22, CURRENT_TIMESTAMP)),
+(38, 'INBOUND', 2, 26, 17, NULL, 125, NULL, '대량 발주 입고(2/2)', 2, '이사원', DATEADD('DAY', -22, CURRENT_TIMESTAMP)),
 (39, 'INBOUND', 11, 13, 38, NULL, 70, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -21, CURRENT_TIMESTAMP)),
-(40, 'DISPOSAL', 3, 15, 13, NULL, 15, NULL, '유통기한 경과분 폐기', 1, '김책임', DATEADD('DAY', -5, CURRENT_TIMESTAMP)),
-(41, 'MOVE', 4, 6, 32, 33, 40, NULL, '적재 재배치', 1, '김책임', DATEADD('DAY', -4, CURRENT_TIMESTAMP)),
-(42, 'TRANSFER_OUT', 9, 11, 49, 12, 60, NULL, '[센터 이관] 전북 김제 센터 GJ-PL-01 → 충남 예산 센터 YS-PL-02', 1, '김책임', DATEADD('DAY', -3, CURRENT_TIMESTAMP)),
-(43, 'TRANSFER_IN', 9, 11, 2, 49, 60, NULL, '[센터 이관] 전북 김제 센터 GJ-PL-01 → 충남 예산 센터 YS-PL-02', 1, '김책임', DATEADD('DAY', -3, CURRENT_TIMESTAMP)),
-(44, 'OUTBOUND', 2, 3, 34, NULL, 10, 5, '주문 #5 FEFO 출고', 1, '김책임', DATEADD('DAY', -1, CURRENT_TIMESTAMP));
+(40, 'INBOUND', 2, 33, 23, NULL, 75, NULL, '대량 발주 입고(1/2)', 2, '이사원', DATEADD('DAY', -6, CURRENT_TIMESTAMP)),
+(41, 'INBOUND', 2, 33, 24, NULL, 75, NULL, '대량 발주 입고(2/2)', 2, '이사원', DATEADD('DAY', -6, CURRENT_TIMESTAMP)),
+(42, 'INBOUND', 10, 12, 12, NULL, 90, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -5, CURRENT_TIMESTAMP)),
+(43, 'DISPOSAL', 3, 15, 13, NULL, 15, NULL, '유통기한 경과분 폐기', 1, '김책임', DATEADD('DAY', -5, CURRENT_TIMESTAMP)),
+(44, 'INBOUND', 11, 30, 27, NULL, 160, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -5, CURRENT_TIMESTAMP)),
+(45, 'MOVE', 4, 6, 32, 31, 40, NULL, '적재 재배치', 1, '김책임', DATEADD('DAY', -4, CURRENT_TIMESTAMP)),
+(46, 'INBOUND', 7, 9, 23, NULL, 90, NULL, '대량 발주 입고(1/2)', 2, '이사원', DATEADD('DAY', -4, CURRENT_TIMESTAMP)),
+(47, 'INBOUND', 7, 9, 24, NULL, 90, NULL, '대량 발주 입고(2/2)', 2, '이사원', DATEADD('DAY', -4, CURRENT_TIMESTAMP)),
+(48, 'INBOUND', 6, 27, 7, NULL, 90, NULL, '대량 발주 입고(1/3)', 2, '이사원', DATEADD('DAY', -4, CURRENT_TIMESTAMP)),
+(49, 'INBOUND', 6, 27, 8, NULL, 90, NULL, '대량 발주 입고(2/3)', 2, '이사원', DATEADD('DAY', -4, CURRENT_TIMESTAMP)),
+(50, 'INBOUND', 6, 27, 5, NULL, 90, NULL, '대량 발주 입고(3/3)', 2, '이사원', DATEADD('DAY', -4, CURRENT_TIMESTAMP)),
+(51, 'INBOUND', 4, 6, 32, NULL, 74, NULL, '대량 발주 입고(1/3)', 2, '이사원', DATEADD('DAY', -3, CURRENT_TIMESTAMP)),
+(52, 'INBOUND', 4, 6, 33, NULL, 73, NULL, '대량 발주 입고(2/3)', 2, '이사원', DATEADD('DAY', -3, CURRENT_TIMESTAMP)),
+(53, 'INBOUND', 4, 6, 30, NULL, 73, NULL, '대량 발주 입고(3/3)', 2, '이사원', DATEADD('DAY', -3, CURRENT_TIMESTAMP)),
+(54, 'TRANSFER_OUT', 9, 11, 48, 12, 60, NULL, '[센터 이관] 전북 김제 센터 GJ-PL-01 → 충남 예산 센터 YS-PL-02', 1, '김책임', DATEADD('DAY', -3, CURRENT_TIMESTAMP)),
+(55, 'TRANSFER_IN', 9, 11, 2, 48, 60, NULL, '[센터 이관] 전북 김제 센터 GJ-PL-01 → 충남 예산 센터 YS-PL-02', 1, '김책임', DATEADD('DAY', -3, CURRENT_TIMESTAMP)),
+(56, 'INBOUND', 11, 24, 27, NULL, 140, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -3, CURRENT_TIMESTAMP)),
+(57, 'INBOUND', 2, 3, 34, NULL, 70, NULL, '대량 발주 입고(1/2)', 2, '이사원', DATEADD('DAY', -2, CURRENT_TIMESTAMP)),
+(58, 'INBOUND', 2, 3, 35, NULL, 70, NULL, '대량 발주 입고(2/2)', 2, '이사원', DATEADD('DAY', -2, CURRENT_TIMESTAMP)),
+(59, 'INBOUND', 2, 3, 34, NULL, 10, NULL, '주문 대응 추가 입고', 2, '이사원', DATEADD('DAY', -2, CURRENT_TIMESTAMP)),
+(60, 'INBOUND', 8, 21, 43, NULL, 100, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -2, CURRENT_TIMESTAMP)),
+(61, 'OUTBOUND', 2, 3, 34, NULL, 10, 5, '주문 #5 FEFO 출고', 1, '김책임', DATEADD('DAY', -1, CURRENT_TIMESTAMP)),
+(62, 'INBOUND', 5, 18, 31, NULL, 100, NULL, '대량 발주 입고(1/2)', 2, '이사원', DATEADD('DAY', -1, CURRENT_TIMESTAMP)),
+(63, 'INBOUND', 5, 18, 33, NULL, 100, NULL, '대량 발주 입고(2/2)', 2, '이사원', DATEADD('DAY', -1, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
 -- 8-1. 주문 기반 출고 이력  ※ 출고 취소 기능의 복구 근거
@@ -364,6 +401,6 @@ ALTER TABLE products ALTER COLUMN productId RESTART WITH 14;
 ALTER TABLE productLots ALTER COLUMN lotId RESTART WITH 35;
 ALTER TABLE orders ALTER COLUMN orderId RESTART WITH 16;
 ALTER TABLE orderItems ALTER COLUMN orderItemId RESTART WITH 17;
-ALTER TABLE warehouseBins ALTER COLUMN binId RESTART WITH 53;
-ALTER TABLE inventories ALTER COLUMN inventoryId RESTART WITH 38;
-ALTER TABLE stockMovements ALTER COLUMN movementId RESTART WITH 45;
+ALTER TABLE warehouseBins ALTER COLUMN binId RESTART WITH 52;
+ALTER TABLE inventories ALTER COLUMN inventoryId RESTART WITH 57;
+ALTER TABLE stockMovements ALTER COLUMN movementId RESTART WITH 64;
