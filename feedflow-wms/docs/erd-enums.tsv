@@ -1,0 +1,30 @@
+Enum	사용 테이블.컬럼	상수	DB 저장값	화면 표기	비고
+Role	users.role	USER	USER	고객	B2C 전용 / 관리자 접근 불가
+Role	users.role	STAFF	STAFF	사원	/admin/** 접근 가능
+Role	users.role	ADMIN	ADMIN	책임자	매출 통계 / 사원 관리 / 재고 보정 권한
+AnimalType	products.animalType	CATTLE	CATTLE	소	한우 · 육우 · 번식우
+AnimalType	products.animalType	PIG	PIG	돼지	자돈 · 육성돈 · 임신돈
+AnimalType	products.animalType	POULTRY	POULTRY	조류	닭 · 오리 통합
+ProductType	products.productType	FEED	FEED	사료	배합사료
+ProductType	products.productType	SUPPLEMENT	SUPPLEMENT	영양제	포장 단위 작고 유통기한 길다
+BinPurpose	warehouseBins.binPurpose	STORAGE	STORAGE	보관	적재율 통계에 포함
+BinPurpose	warehouseBins.binPurpose	RECEIVING	RECEIVING	입고 대기	도면에는 그리되 적재율 통계 제외
+BinPurpose	warehouseBins.binPurpose	SHIPPING	SHIPPING	출고 대기	도면에는 그리되 적재율 통계 제외
+BinPurpose	warehouseBins.binPurpose	INSPECTION	INSPECTION	검수	도면에는 그리되 적재율 통계 제외
+OrderStatus	orders.status	PAID	PAID	결제완료	출고 대상
+OrderStatus	orders.status	READY	READY	출고대기	출고 대상
+OrderStatus	orders.status	SHIPPED	SHIPPED	출고완료	FEFO 출고 처리 후
+OrderStatus	orders.status	DELIVERED	DELIVERED	배송완료	
+OrderStatus	orders.status	CANCELED	CANCELED	취소	매출 집계에서 제외
+MovementType	stockMovements.movementType	INBOUND	INBOUND	입고	재고 증가 (+)
+MovementType	stockMovements.movementType	OUTBOUND	OUTBOUND	출고	재고 감소 (-)
+MovementType	stockMovements.movementType	DISPOSAL	DISPOSAL	폐기	재고 감소 (-)
+MovementType	stockMovements.movementType	MOVE	MOVE	구역이동	총량 변화 없음
+MovementType	stockMovements.movementType	ADJUST	ADJUST	재고조정	실사 보정
+DisposalReason	stockMovements.reason	EXPIRED	EXPIRED	유통기한 경과	
+DisposalReason	stockMovements.reason	DAMAGED	DAMAGED	포장 파손	
+DisposalReason	stockMovements.reason	CONTAMINATED	CONTAMINATED	오염/변질	
+DisposalReason	stockMovements.reason	WET	WET	습기/침수	
+DisposalReason	stockMovements.reason	SAMPLE	SAMPLE	샘플 사용	
+DisposalReason	stockMovements.reason	LOSS	LOSS	분실	
+DisposalReason	stockMovements.reason	OTHER	OTHER	기타	

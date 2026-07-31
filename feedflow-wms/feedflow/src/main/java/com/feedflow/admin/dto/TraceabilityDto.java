@@ -1,0 +1,281 @@
+package com.feedflow.admin.dto;
+
+import com.feedflow.common.util.DDay;
+import com.feedflow.domain.MovementType;
+import com.feedflow.domain.Product;
+import com.feedflow.domain.ProductLot;
+import lombok.Builder;
+import lombok.Getter;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+
+/**
+ * 로트 하나의 생애주기 추적 결과.
+ * <p>
+ * <b>입고 → 보관 → 출고 / 출고취소 / 폐기</b> 를 한 화면에 모아 CS 대응 시
+ * 유통 과정을 즉시 역추적할 수 있게 한다.
+ *
+ * <h3>구성</h3>
+ * <ul>
+ *     <li>로트 · 품목 요약 (제조일 · 유통기한 · D-Day)</li>
+ *     <li>입고 요약 (최초 입고 일시 · 누적 입고 수량)</li>
+ *     <li>현재 보관 위치 (구역별 잔여 수량)</li>
+ *     <li>시간순 타임라인 (모든 이동 이력 + 시점별 잔여 수량)</li>
+ * </ul>
+ */
+@Getter
+@Builder
+public class TraceabilityDto {
+
+    /* ---------------- 로트 · 품목 ---------------- */
+    private final Long lotId;
+    private final String lotNo;
+
+    private final Long productId;
+    private final String productCode;
+    private final String productName;
+    private final String animalType;
+    private final String productType;
+
+    private final LocalDate manufacturedDate;
+    private final LocalDate expirationDate;
+    private final long remainingDays;
+    private final boolean expired;
+
+    /* ---------------- 수량 ---------------- */
+
+    /** 로트에 기록된 현재 잔여 수량 ({@code ProductLot.lotQuantity}) */
+    private final int lotQuantity;
+
+    /** 누적 입고 수량 (입고 + 출고취소 복구) */
+    private final int totalInbound;
+
+    /** 누적 출고 수량 */
+    private final int totalOutbound;
+
+    /** 누적 출고취소 복구 수량 */
+    private final int totalCanceled;
+
+    /** 누적 폐기 수량 */
+    private final int totalDisposed;
+
+    /**
+     * 이력을 누적해 계산한 잔여 수량.
+     * <p>
+     * {@link #lotQuantity} 와 같아야 정상이다. 다르면 이력과 재고가 어긋난 것이므로
+     * 화면에서 경고를 띄운다. (재고 정합성 점검 화면으로 안내)
+     */
+    private final int calculatedBalance;
+
+    /* ---------------- 이력 ---------------- */
+
+    /** 최초 입고 일시 (이력이 없으면 null) */
+    private final LocalDateTime firstInboundAt;
+
+    /** 마지막 이동 일시 */
+    private final LocalDateTime lastMovedAt;
+
+    /** 현재 보관 위치 (구역별) */
+    private final List<InventoryDto> currentStorage;
+
+    /** 시간순 타임라인 */
+    private final List<TraceEventDto> timeline;
+
+    /* ---------------- 물류센터 ---------------- */
+
+    /**
+     * 이 로트가 <b>거쳐 간</b> 센터명 (이력 발생 순서).
+     * <p>
+     * 현재 보관 위치만 보면 이미 다 빠져나간 센터를 알 수 없다.
+     * "이 로트가 어느 센터들을 통과했는가" 는 회수(recall) 범위를 정할 때 필요하다.
+     */
+    private final List<String> involvedCenterNames;
+
+    /** 현재 재고가 남아 있는 센터명 (센터 코드 순) */
+    private final List<String> currentCenterNames;
+
+    /**
+     * 추적 결과를 조립한다.
+     *
+     * @param lot            fetch join 으로 product 가 초기화된 로트
+     * @param currentStorage 현재 구역별 재고
+     * @param timeline       시간순 이벤트 (누적 잔여 수량까지 계산된 상태)
+     * @param today          D-Day 계산 기준일
+     */
+    public static TraceabilityDto of(ProductLot lot,
+                                     List<InventoryDto> currentStorage,
+                                     List<TraceEventDto> timeline,
+                                     LocalDate today) {
+        Product product = lot.getProduct();
+
+        int totalInbound = sumOf(timeline, MovementType.INBOUND);
+        int totalCanceled = sumOf(timeline, MovementType.CANCEL);
+        int totalOutbound = sumOf(timeline, MovementType.OUTBOUND);
+        int totalDisposed = sumOf(timeline, MovementType.DISPOSAL);
+
+        return TraceabilityDto.builder()
+                .lotId(lot.getLotId())
+                .lotNo(lot.getLotNo())
+                .productId(product.getProductId())
+                .productCode(product.getProductCode())
+                .productName(product.getName())
+                .animalType(product.getAnimalType().getDescription())
+                .productType(product.getProductType().getDescription())
+                .manufacturedDate(lot.getManufacturedDate())
+                .expirationDate(lot.getExpirationDate())
+                .remainingDays(lot.daysUntilExpiration(today))
+                .expired(lot.isExpired(today))
+                .lotQuantity(lot.getLotQuantity() == null ? 0 : lot.getLotQuantity())
+                .totalInbound(totalInbound + totalCanceled)
+                .totalOutbound(totalOutbound)
+                .totalCanceled(totalCanceled)
+                .totalDisposed(totalDisposed)
+                .calculatedBalance(timeline.isEmpty()
+                        ? 0
+                        : timeline.get(timeline.size() - 1).getBalanceAfter())
+                .firstInboundAt(timeline.isEmpty() ? null : timeline.get(0).getOccurredAt())
+                .lastMovedAt(timeline.isEmpty()
+                        ? null
+                        : timeline.get(timeline.size() - 1).getOccurredAt())
+                .currentStorage(currentStorage)
+                .timeline(timeline)
+                .involvedCenterNames(collectInvolvedCenters(timeline))
+                .currentCenterNames(collectCurrentCenters(currentStorage))
+                .build();
+    }
+
+    private static int sumOf(List<TraceEventDto> timeline, MovementType type) {
+        return timeline.stream()
+                .filter(event -> event.getMovementType() == type)
+                .mapToInt(TraceEventDto::getQuantity)
+                .sum();
+    }
+
+    /**
+     * 타임라인에 등장한 센터를 <b>발생 순서대로</b> 중복 없이 모은다.
+     * <p>
+     * 이동 이벤트는 출발지 센터가 도착지보다 먼저다. 순서를 유지해야
+     * "제1창고에서 제2창고로 갔다" 는 흐름이 읽힌다.
+     * 정렬해 버리면 통과 순서가 사라지므로 {@link LinkedHashSet} 을 쓴다.
+     */
+    private static List<String> collectInvolvedCenters(List<TraceEventDto> timeline) {
+        Set<String> centers = new LinkedHashSet<>();
+        for (TraceEventDto event : timeline) {
+            if (event.getFromCenterName() != null) {
+                centers.add(event.getFromCenterName());
+            }
+            if (event.getCenterName() != null) {
+                centers.add(event.getCenterName());
+            }
+        }
+        return List.copyOf(centers);
+    }
+
+    /**
+     * 현재 재고가 남아 있는 센터를 중복 없이 모은다.
+     * <p>
+     * {@code currentStorage} 는 Repository 에서 이미 센터 코드 순으로 정렬되어 오므로
+     * 삽입 순서를 유지하면 그 정렬이 그대로 보존된다.
+     */
+    private static List<String> collectCurrentCenters(List<InventoryDto> currentStorage) {
+        Set<String> centers = new LinkedHashSet<>();
+        for (InventoryDto row : currentStorage) {
+            if (row.getCenterName() != null) {
+                centers.add(row.getCenterName());
+            }
+        }
+        return List.copyOf(centers);
+    }
+
+    /* ------------------------------------------------------------------
+     * 화면 표기
+     * ------------------------------------------------------------------ */
+
+    public String getDDayLabel() {
+        return DDay.label(remainingDays);
+    }
+
+    public String getDDayBadgeClass() {
+        return DDay.badgeClass(remainingDays);
+    }
+
+    public int getEventCount() {
+        return timeline.size();
+    }
+
+    public boolean isHasHistory() {
+        return !timeline.isEmpty();
+    }
+
+    /** 현재 어느 구역에도 남아 있지 않은지 (전량 출고 · 폐기됨) */
+    public boolean isDepleted() {
+        return currentStorage.isEmpty();
+    }
+
+    /** 보관 중인 구역 수 */
+    public int getStorageBinCount() {
+        return currentStorage.size();
+    }
+
+    /**
+     * 이력 누적값과 로트 잔여 수량이 일치하는지.
+     * <p>
+     * 어긋나면 이력이 누락됐거나 재고가 이력 없이 변경된 것이다.
+     */
+    public boolean isBalanceMatched() {
+        return calculatedBalance == lotQuantity;
+    }
+
+    /**
+     * 이력 누적값과 로트 잔여 수량의 차이 (절대값).
+     * <p>
+     * 화면에서 "몇 개가 어긋났는지" 를 바로 보여주기 위한 값이다.
+     * 부호는 의미가 없어(어느 쪽이 큰지는 두 수치를 함께 표시한다) 절대값만 쓴다.
+     */
+    public int getBalanceGap() {
+        return Math.abs(lotQuantity - calculatedBalance);
+    }
+
+    /** 출고취소가 한 번이라도 있었는지 (타임라인 강조용) */
+    public boolean isHasCancellation() {
+        return totalCanceled > 0;
+    }
+
+    /* ------------------------------------------------------------------
+     * 물류센터 표기
+     * ------------------------------------------------------------------ */
+
+    /** 현재 재고가 남아 있는 센터 수 */
+    public int getCurrentCenterCount() {
+        return currentCenterNames.size();
+    }
+
+    /**
+     * 재고가 여러 센터에 나뉘어 있는지.
+     * <p>
+     * 나뉘어 있으면 한 센터의 재고만 보고 "이만큼 있다" 고 판단할 수 없다.
+     * 화면에서 분산 상태를 명시해야 한다.
+     */
+    public boolean isSplitAcrossCenters() {
+        return currentCenterNames.size() > 1;
+    }
+
+    /** 센터를 넘는 이동이 이력에 있는지 (Phase 3 이전에는 발생해서는 안 되는 이력이다) */
+    public boolean isHasCenterTransfer() {
+        return timeline.stream().anyMatch(TraceEventDto::isCenterTransfer);
+    }
+
+    /** 현재 보관 센터 요약 문구 (예: 제1창고, 제2창고) */
+    public String getCurrentCenterSummary() {
+        return currentCenterNames.isEmpty() ? "-" : String.join(", ", currentCenterNames);
+    }
+
+    /** 거쳐 간 센터 요약 문구 */
+    public String getInvolvedCenterSummary() {
+        return involvedCenterNames.isEmpty() ? "-" : String.join(" → ", involvedCenterNames);
+    }
+}

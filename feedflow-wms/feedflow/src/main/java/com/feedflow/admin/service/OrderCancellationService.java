@@ -1,0 +1,263 @@
+package com.feedflow.admin.service;
+
+import com.feedflow.admin.dto.OrderCancelResultDto;
+import com.feedflow.admin.dto.RestorationLineDto;
+import com.feedflow.common.exception.BusinessRuleException;
+import com.feedflow.common.exception.ResourceNotFoundException;
+import com.feedflow.common.util.Numbers;
+import com.feedflow.domain.Inventory;
+import com.feedflow.domain.MovementType;
+import com.feedflow.domain.Order;
+import com.feedflow.domain.OrderStatus;
+import com.feedflow.domain.Product;
+import com.feedflow.domain.ProductLot;
+import com.feedflow.domain.StockMovement;
+import com.feedflow.domain.WarehouseBin;
+import com.feedflow.repository.InventoryRepository;
+import com.feedflow.repository.OrderRepository;
+import com.feedflow.repository.StockMovementRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 출고(주문) 취소 서비스.
+ *
+ * <h3>취소가 단순한 상태 변경이 아닌 이유</h3>
+ * 출고는 FEFO 규칙에 따라 <b>여러 로트에 걸쳐</b> 재고를 차감한다.
+ * 따라서 취소할 때도 "어느 로트의 어느 구역에서 몇 개를 뺐는지" 를 그대로 알아야
+ * 정확히 되돌릴 수 있다.
+ * <p>
+ * {@code orderItems.lotId} 는 대표 로트 하나만 기록하므로 근거로 쓸 수 없다.
+ * 그래서 출고 시 남긴 {@link MovementType#OUTBOUND} 이력을 <b>주문 번호로 조회해
+ * 역재생(replay)</b> 하는 방식을 쓴다.
+ *
+ * <h3>복구 순서</h3>
+ * <ol>
+ *     <li>구역 재고({@code Inventory.quantity}) 복구</li>
+ *     <li>로트 잔여({@code ProductLot.lotQuantity}) 복구</li>
+ *     <li>품목 총 재고({@code Product.totalStock}) 복구</li>
+ *     <li>{@link MovementType#CANCEL} 이력 기록 (주문 번호 포함)</li>
+ *     <li>주문 상태를 {@code CANCELED} 로 변경</li>
+ * </ol>
+ * 이 순서는 출고 차감의 정확한 역순이라 세 계층의 합계가 항상 일치한다.
+ *
+ * <h3>동시성</h3>
+ * 전 과정을 하나의 트랜잭션으로 묶고, 수량을 바꾸는 세 엔티티
+ * ({@code Inventory} · {@code ProductLot} · {@code Product}) 는 모두 {@code @Version}
+ * 낙관적 락 대상이다. 같은 주문을 두 명이 동시에 취소하면 뒤늦은 트랜잭션이
+ * {@code OptimisticLockingFailureException} 으로 실패하고 롤백되므로
+ * 재고가 두 번 복구되는 일은 발생하지 않는다.
+ * <p>
+ * 순차 실행(먼저 취소가 커밋된 뒤 두 번째 시도)인 경우는 상태 검사에서 걸러진다.
+ */
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class OrderCancellationService {
+
+    private final OrderRepository orderRepository;
+    private final InventoryRepository inventoryRepository;
+    private final StockMovementRepository stockMovementRepository;
+    private final BinCapacityChecker binCapacityChecker;
+
+    /**
+     * 주문을 취소하고, 이미 출고된 주문이라면 재고를 원상 복구한다.
+     *
+     * @param orderId  취소할 주문
+     * @param reason   취소 사유 (이력 메모에 남는다)
+     * @param userId   처리자
+     * @param userName 처리자 이름 (이력 스냅샷)
+     * @throws ResourceNotFoundException 주문이 없는 경우
+     * @throws BusinessRuleException     이미 취소됐거나 배송 완료된 경우,
+     *                                   또는 복구 시 구역 수용량을 초과하는 경우
+     */
+    @Transactional
+    public OrderCancelResultDto cancel(Long orderId, String reason, Long userId, String userName) {
+        Order order = orderRepository.findWithItemsById(orderId)
+                .orElseThrow(() -> ResourceNotFoundException.ofOrder(orderId));
+
+        validateCancelable(order);
+
+        OrderStatus previousStatus = order.getStatus();
+        boolean stockDeducted = order.isStockDeducted();
+
+        List<RestorationLineDto> restoredLines = stockDeducted
+                ? restoreStock(order, reason, userId, userName)
+                : List.of();
+
+        // 재고 복구 여부와 무관하게 취소 사유 · 시각 · 처리자를 주문에 기록한다.
+        // 출고 전 취소는 재고 이력이 생기지 않으므로 여기가 유일한 감사 추적 근거다.
+        order.cancel(reason, userId, userName);
+
+        return OrderCancelResultDto.builder()
+                .orderId(order.getOrderId())
+                .customerName(order.getUser().getName())
+                .previousStatus(previousStatus)
+                .status(order.getStatus())
+                .restoredLines(restoredLines)
+                .stockRestored(stockDeducted)
+                .cancelReason(order.getCancelReason())
+                .canceledAt(order.getCanceledAt())
+                .canceledByName(order.getCanceledByName())
+                .build();
+    }
+
+    /* ------------------------------------------------------------------
+     * 검증
+     * ------------------------------------------------------------------ */
+
+    private void validateCancelable(Order order) {
+        if (order.getStatus() == OrderStatus.CANCELED) {
+            throw new BusinessRuleException("이미 취소된 주문입니다. (주문 #" + order.getOrderId() + ")");
+        }
+        if (!order.isCancelable()) {
+            throw new BusinessRuleException(
+                    "배송이 완료된 주문은 취소할 수 없습니다. 반품 절차로 처리하세요."
+                            + " (주문 #" + order.getOrderId()
+                            + ", 현재 상태: " + order.getStatus().getDescription() + ")");
+        }
+    }
+
+    /* ------------------------------------------------------------------
+     * 재고 복구
+     * ------------------------------------------------------------------ */
+
+    /**
+     * 출고 이력을 <b>역재생(replay)</b> 해 재고를 되돌린다.
+     *
+     * <h3>왜 주문 항목이 아니라 이력을 근거로 삼는가</h3>
+     * FEFO 출고는 요청 수량을 <b>여러 로트 · 구역에 걸쳐 나눠서</b> 차감한다.
+     * 그런데 {@code orderItems.lotId} 는 로트 하나만 담을 수 있어 대표 로트만
+     * 남아 있다. 그것만 보고 되돌리면 <b>실제로 빠져나간 로트 · 구역과 달라진다.</b>
+     * <pre>
+     *   주문 250 출고 → A-01 로트X 100 · B-02 로트Y 120 · C-03 로트Z 30
+     *   orderItems.lotId 에는 로트X 만 남는다
+     *     → 로트X 에 250 을 되돌리면 세 계층 합계는 맞지만 배치가 틀린다
+     * </pre>
+     * 그래서 출고 시 {@code StockMovement.orderId} 를 남겨 두고, 취소할 때 그
+     * 주문의 {@code OUTBOUND} 이력을 <b>건별로 찾아 정확히 그 자리에</b> 되돌린다.
+     *
+     * <h3>이력이 없으면 중단한다</h3>
+     * 출고 완료 상태인데 이력이 없다면 <b>근거 없이 재고를 늘리는 것</b>이 된다.
+     * 임의로 복구하면 장부만 부풀어 실물과 어긋나므로, 예외를 던지고 정합성 점검으로
+     * 안내한다. 조용히 넘기는 쪽이 더 위험하다.
+     *
+     * <h3>복구 순서와 제약</h3>
+     * 차감의 정확한 역순으로 되돌린다 — 구역 재고 → 로트 수량 → 품목 전체 재고 →
+     * {@code CANCEL} 이력. 출고로 0 이 되어 비워진 구역 재고 행은 다시 만든다.
+     * 되돌릴 구역이 그동안 다른 재고로 채워져 적재 한도를 넘으면 취소를 거부한다
+     * ({@code BinCapacityChecker} — 입고 · 이동과 같은 규칙을 재사용).
+     *
+     * <h3>{@code CANCEL} 을 {@code INBOUND} 와 구분하는 이유</h3>
+     * 실제로 매입한 물량이 아니므로 입고 실적에 섞이면 매입 통계가 부풀려진다.
+     *
+     * @param order 취소할 주문 (출고가 반영된 상태여야 한다)
+     * @return 복구 내역 (화면에 로트 · 구역 · 수량을 건별로 보여준다)
+     * @throws BusinessRuleException 출고 이력이 없거나, 되돌릴 구역이 적재 한도를 넘을 때
+     */
+    private List<RestorationLineDto> restoreStock(Order order,
+                                                  String reason,
+                                                  Long userId,
+                                                  String userName) {
+
+        List<StockMovement> outbounds =
+                stockMovementRepository.findByOrderIdAndType(order.getOrderId(), MovementType.OUTBOUND);
+
+        if (outbounds.isEmpty()) {
+            // 출고 완료 상태인데 이력이 없다면 근거 없이 재고를 늘리게 되므로 중단한다
+            throw new BusinessRuleException(
+                    "출고 이력이 없어 재고를 복구할 수 없습니다."
+                            + " 재고 정합성 점검 후 수동으로 조정하세요. (주문 #" + order.getOrderId() + ")");
+        }
+
+        String memo = buildMemo(order.getOrderId(), reason);
+
+        List<RestorationLineDto> lines = new ArrayList<>();
+        int sequence = 1;
+
+        for (StockMovement outbound : outbounds) {
+            lines.add(restoreOne(outbound, sequence++, order.getOrderId(), memo, userId, userName));
+        }
+        return lines;
+    }
+
+    /** 출고 이력 한 건을 되돌린다 */
+    private RestorationLineDto restoreOne(StockMovement outbound,
+                                          int sequence,
+                                          Long orderId,
+                                          String memo,
+                                          Long userId,
+                                          String userName) {
+
+        ProductLot lot = outbound.getLot();
+        Product product = lot.getProduct();
+        WarehouseBin bin = outbound.getBin();
+        int quantity = Numbers.orZero(outbound.getQuantity());
+
+        if (bin == null) {
+            // 출고 이력에는 구역이 반드시 기록되므로 정상 데이터라면 발생하지 않는다
+            throw new BusinessRuleException(
+                    "출고 이력에 구역 정보가 없어 재고를 복구할 수 없습니다."
+                            + " (이력 #" + outbound.getMovementId() + ")");
+        }
+
+        // 1) 구역 재고 복구 (출고로 0이 된 뒤 행이 정리됐다면 새로 만든다)
+        Inventory inventory = inventoryRepository
+                .findByLot_LotIdAndBin_BinId(lot.getLotId(), bin.getBinId())
+                .orElse(null);
+
+        boolean binRecreated = inventory == null;
+        int binQuantityBefore = binRecreated ? 0 : Numbers.orZero(inventory.getQuantity());
+
+        // 출고 후 그 자리에 다른 물건이 들어왔을 수 있다. 한도를 넘겨 되돌리면 도면과
+        // 적재 규칙이 깨지므로 취소 자체를 막는다. (입고 · 이동과 같은 판정을 쓴다)
+        binCapacityChecker.checkCanAccept(bin, quantity, "복구");
+
+        if (binRecreated) {
+            inventory = inventoryRepository.save(Inventory.builder()
+                    .lot(lot)
+                    .bin(bin)
+                    .quantity(quantity)
+                    .updatedAt(LocalDateTime.now())
+                    .build());
+        } else {
+            inventory.addQuantity(quantity);
+        }
+
+        // 2) 로트 잔여 복구  3) 품목 총 재고 복구
+        lot.addQuantity(quantity);
+        product.increaseStock(quantity);
+
+        // 4) 취소 이력 기록 (입고와 구분되는 CANCEL 유형 + 주문 번호)
+        stockMovementRepository.save(
+                StockMovement.cancelRestore(lot, bin, quantity, orderId, memo, userId, userName));
+
+        return RestorationLineDto.builder()
+                .sequence(sequence)
+                .productId(product.getProductId())
+                .productCode(product.getProductCode())
+                .productName(product.getName())
+                .lotId(lot.getLotId())
+                .lotNo(lot.getLotNo())
+                .binId(bin.getBinId())
+                .binCode(bin.getBinCode())
+                .restoredQuantity(quantity)
+                .binQuantityBefore(binQuantityBefore)
+                .binQuantityAfter(Numbers.orZero(inventory.getQuantity()))
+                .lotQuantityAfter(Numbers.orZero(lot.getLotQuantity()))
+                .totalStockAfter(Numbers.orZero(product.getTotalStock()))
+                .binRecreated(binRecreated)
+                .build();
+    }
+
+    private String buildMemo(Long orderId, String reason) {
+        String trimmed = reason == null ? "" : reason.trim();
+        String base = "주문 #" + orderId + " 출고 취소";
+        return trimmed.isEmpty() ? base : base + " - " + trimmed;
+    }
+}

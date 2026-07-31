@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/layout :: head('제품 이력 추적')}"></head>
+
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="ff-content">
+
+    <div th:replace="~{fragments/layout :: topbar('재고 관리', '제품 이력 추적')}"></div>
+
+    <main class="ff-main">
+
+        <!-- 검색 -->
+        <div class="card ff-card ff-filter-card mb-3">
+            <div class="card-body">
+                <form th:action="@{/admin/traceability}" method="get" class="row g-2 align-items-end">
+                    <div class="col-12 col-md-6">
+                        <label for="lotNo" class="form-label">로트번호</label>
+                        <input type="text" id="lotNo" name="lotNo" class="form-control"
+                               th:value="${lotNo}" autofocus
+                               placeholder="예: LOT-CT-2601 (대소문자 구분 없음)">
+                        <div class="form-text">
+                            로트번호로 해당 제품의 입고 · 보관 · 출고 · 출고취소 전 과정을 추적합니다.
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-3 d-flex gap-2">
+                        <button type="submit" class="btn btn-dark flex-grow-1">
+                            <i class="bi bi-search me-1"></i>추적
+                        </button>
+                        <a th:href="@{/admin/traceability}" class="btn btn-outline-secondary">초기화</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 오류 / 검색 결과 없음 -->
+        <div th:if="${errorMessage}" class="alert alert-warning" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+            <span th:text="${errorMessage}">검색 결과가 없습니다.</span>
+        </div>
+
+        <!-- 검색 안내 (첫 진입) -->
+        <div th:if="${trace == null and candidates == null and errorMessage == null}"
+             class="card ff-card">
+            <div class="card-body text-center text-muted py-5">
+                <i class="bi bi-diagram-2 fs-1 d-block mb-3"></i>
+                <p class="mb-1">추적할 <strong>로트번호</strong>를 입력하세요.</p>
+                <p class="small mb-0">
+                    재고 현황 · 입출고 이력 화면에서 로트번호를 확인할 수 있습니다.
+                </p>
+            </div>
+        </div>
+
+        <!-- 후보가 여러 건 : 같은 로트번호를 쓰는 다른 품목이 있는 경우 -->
+        <div th:if="${candidates != null}" class="card ff-card">
+            <div class="card-header bg-white border-0 pt-3">
+                <span class="fw-bold"><i class="bi bi-list-ul me-1"></i>추적할 로트를 선택하세요</span>
+                <span class="text-muted small ms-2">
+                    같은 로트번호를 쓰는 품목이
+                    <span th:text="${#lists.size(candidates)}">0</span>건 있습니다
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <a th:each="c : ${candidates}"
+                       th:href="@{/admin/traceability(lotId=${c.lotId})}"
+                       class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <span>
+                            <span class="ff-code me-2" th:text="${c.productCode}">CODE</span>
+                            <span th:text="${c.productName}">품목명</span>
+                            <span class="badge bg-light text-dark border ms-1" th:text="${c.animalType}">소</span>
+                        </span>
+                        <span class="d-flex align-items-center gap-2">
+                            <span class="badge" th:classappend="${c.dDayBadgeClass}"
+                                  th:text="${c.dDayLabel}">D-30</span>
+                            <span class="small text-muted"
+                                  th:text="'잔여 ' + ${#numbers.formatInteger(c.lotQuantity, 1, 'COMMA')}">잔여 0</span>
+                            <i class="bi bi-chevron-right"></i>
+                        </span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 추적 결과 ================= -->
+        <div th:if="${trace != null}">
+
+            <!-- 로트 요약 -->
+            <div class="card ff-card mb-3">
+                <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <span class="fw-bold">
+                            <i class="bi bi-upc-scan me-1"></i>
+                            <span class="ff-code" th:text="${trace.lotNo}">LOT-CT-2601</span>
+                        </span>
+                        <span class="text-muted small ms-2" th:text="${trace.productCode}">CODE</span>
+                        <span class="ms-1" th:text="${trace.productName}">품목명</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-light text-dark border" th:text="${trace.animalType}">소</span>
+                        <span class="badge bg-light text-dark border" th:text="${trace.productType}">사료</span>
+                        <span class="badge" th:classappend="${trace.dDayBadgeClass}"
+                              th:text="${trace.dDayLabel}">D-30</span>
+                        <span th:if="${trace.depleted}" class="badge bg-secondary">재고 없음</span>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-2">
+                                <div class="text-muted small">제조일 / 유통기한</div>
+                                <div class="fw-semibold small">
+                                    <span th:text="${#temporals.format(trace.manufacturedDate, 'yyyy-MM-dd')}">-</span>
+                                    <i class="bi bi-arrow-right mx-1"></i>
+                                    <span th:text="${#temporals.format(trace.expirationDate, 'yyyy-MM-dd')}">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-2">
+                                <div class="text-muted small">누적 입고 (복구 포함)</div>
+                                <div class="fw-bold text-success"
+                                     th:text="'+' + ${#numbers.formatInteger(trace.totalInbound, 1, 'COMMA')}">+0</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-2">
+                                <div class="text-muted small">누적 출고 / 폐기</div>
+                                <div class="fw-bold text-danger">
+                                    <span th:text="'-' + ${#numbers.formatInteger(trace.totalOutbound, 1, 'COMMA')}">-0</span>
+                                    <span class="text-muted small" th:if="${trace.totalDisposed > 0}"
+                                          th:text="'(폐기 ' + ${trace.totalDisposed} + ')'">(폐기 0)</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-2">
+                                <div class="text-muted small">현재 잔여</div>
+                                <div class="fw-bold"
+                                     th:text="${#numbers.formatInteger(trace.lotQuantity, 1, 'COMMA')}">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!--
+                        이 로트가 어느 센터를 거쳐 갔는지.
+                        '현재 보관 위치' 만 보면 이미 다 빠져나간 센터를 알 수 없어
+                        회수(recall) 범위를 정할 수 없다.
+                    -->
+                    <div th:if="${!#lists.isEmpty(trace.involvedCenterNames)}"
+                         class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                        <span class="text-muted small">
+                            <i class="bi bi-geo me-1"></i>거쳐 간 센터
+                        </span>
+                        <span class="badge ff-trace-center"
+                              th:each="c, i : ${trace.involvedCenterNames}">
+                            <span th:text="${c}">제1창고</span>
+                        </span>
+
+                        <span class="text-muted small ms-2" th:if="${trace.currentCenterCount > 0}">
+                            <i class="bi bi-box-seam me-1"></i>현재 보관
+                        </span>
+                        <span class="badge bg-dark" th:each="c : ${trace.currentCenterNames}"
+                              th:text="${c}">제1창고</span>
+
+                        <span class="badge bg-warning text-dark" th:if="${trace.splitAcrossCenters}">
+                            <i class="bi bi-diagram-2 me-1"></i>여러 센터 분산
+                        </span>
+                    </div>
+
+                    <!--
+                        센터를 넘는 이동이 이력에 있으면 경고한다.
+                        MOVE 는 총량 불변을 전제하므로 센터 간에 쓰면 한쪽 센터 재고가 실제로 줄어든다.
+                    -->
+                    <div th:if="${trace.hasCenterTransfer}" class="alert alert-danger py-2 small mt-3 mb-0">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        이 로트에 <strong>센터를 넘는 구역 이동</strong> 이력이 있습니다.
+                        구역 이동(<code>MOVE</code>)은 총 재고가 변하지 않는다는 전제로 처리되지만,
+                        센터가 다르면 출발 센터의 재고가 실제로 줄어듭니다.
+                        <div class="mt-1">
+                            센터 간 이관은 <code>TRANSFER_OUT</code> / <code>TRANSFER_IN</code> 과
+                            운송 중 상태로 처리해야 합니다. 아래 타임라인에서 해당 이력을 확인하세요.
+                        </div>
+                    </div>
+
+                    <!-- 출고취소 발생 안내 -->
+                    <div th:if="${trace.hasCancellation}" class="alert alert-info py-2 small mt-3 mb-0">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>
+                        이 로트에는 출고 취소로 복구된 수량이 있습니다.
+                        (총 <strong th:text="${#numbers.formatInteger(trace.totalCanceled, 1, 'COMMA')}">0</strong>개)
+                    </div>
+
+                    <!--
+                        이력과 재고가 어긋난 경우.
+
+                        이 검사와 '재고 정합성 점검' 은 서로 다른 축을 본다. 혼동하면 안 된다.
+                          · 이 화면      : 이력 누적(SUM(StockMovement x sign)) vs 로트 잔여(lotQuantity)
+                          · 정합성 점검  : 품목 장부(totalStock)          vs 로트 수량 합계
+                        이력이 누락되어도 장부와 로트 합계가 서로 맞으면 정합성 점검은 '정상' 으로 나온다.
+                        따라서 정합성 점검으로 가라고 안내하면 안 된다.
+                    -->
+                    <div th:unless="${trace.balanceMatched}" class="alert alert-danger py-2 small mt-3 mb-0">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        이력을 누적한 수량(<strong th:text="${trace.calculatedBalance}">0</strong>)과
+                        로트 잔여 수량(<strong th:text="${trace.lotQuantity}">0</strong>)이
+                        <strong th:text="${trace.balanceGap}">0</strong>개
+                        차이 납니다. 이력에 기록되지 않은 재고 변경이 있었다는 뜻입니다.
+                        <div class="mt-1">
+                            아래 <strong>생애주기 타임라인</strong>과 <strong>현재 보관 위치</strong>의 수량을 대조해
+                            누락된 이력을 찾으세요.
+                        </div>
+                        <div class="text-muted mt-1">
+                            <i class="bi bi-info-circle me-1"></i>
+                            이 차이는 <a th:href="@{/admin/inventory/sync}" class="alert-link">재고 정합성 점검</a>
+                            에서는 발견되지 않습니다. 그 화면은 품목의 장부 재고와 로트 수량 합계를 비교하므로,
+                            두 값이 함께 어긋난 경우에는 정상으로 표시됩니다.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <!-- 타임라인 -->
+                <div class="col-12 col-xl-7">
+                    <div class="card ff-card h-100">
+                        <div class="card-header bg-white border-0 pt-3">
+                            <span class="fw-bold"><i class="bi bi-clock-history me-1"></i>생애주기 타임라인</span>
+                            <span class="text-muted small ms-2">
+                                <span th:text="${trace.eventCount}">0</span>건 · 오래된 순
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <div th:unless="${trace.hasHistory}" class="text-center text-muted py-4">
+                                <i class="bi bi-inbox d-block fs-3 mb-2"></i>
+                                기록된 이동 이력이 없습니다.
+                            </div>
+
+                            <ul th:if="${trace.hasHistory}" class="ff-timeline">
+                                <li th:each="e : ${trace.timeline}" class="ff-timeline-item">
+                                    <span class="ff-timeline-dot" th:classappend="${e.markerClass}">
+                                        <i class="bi" th:classappend="${e.iconClass}"></i>
+                                    </span>
+
+                                    <div class="ff-timeline-body">
+                                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-1">
+                                            <span>
+                                                <span class="badge" th:classappend="${e.typeBadgeClass}"
+                                                      th:text="${e.typeLabel}">입고</span>
+                                                <span class="ff-timeline-time"
+                                                      th:text="${#temporals.format(e.occurredAt, 'yyyy-MM-dd HH:mm')}">-</span>
+                                            </span>
+                                            <span class="text-nowrap">
+                                                <span class="fw-bold" th:classappend="${e.quantityTextClass}"
+                                                      th:text="${e.signedQuantity}">+0</span>
+                                                <!-- 이동은 총량이 변하지 않으므로 증감이 아니라 '이동' 임을 명시한다 -->
+                                                <span th:if="${e.relocation}" class="text-muted small ms-1">이동</span>
+                                                <!--
+                                                    이관은 두 건의 합이 0 이다. 한 건만 보면 증감이 있는 것처럼
+                                                    보이지만 짝이 맞춰지면 잔여 수량은 원래대로 돌아온다.
+                                                -->
+                                                <span th:if="${e.transferLeg}" class="text-muted small ms-1">이관</span>
+                                                <span class="text-muted small ms-1"
+                                                      th:text="'잔여 ' + ${#numbers.formatInteger(e.balanceAfter, 1, 'COMMA')}">잔여 0</span>
+                                            </span>
+                                        </div>
+
+                                        <div class="ff-timeline-meta">
+                                            <!--
+                                                센터 안에서의 구역 이동: 센터명을 한 번만 쓰고 구역만 화살표로 잇는다.
+                                                양쪽에 같은 센터명을 반복하면 정보가 늘지 않고 줄만 길어진다.
+                                            -->
+                                            <span th:if="${e.withinCenterMove}">
+                                                <span class="badge ff-trace-center me-1"
+                                                      th:text="${e.centerName}">제1창고</span>
+                                                <span class="ff-code" th:text="${e.fromBinCode}">A-01</span>
+                                                <i class="bi bi-arrow-right mx-1"></i>
+                                                <span class="ff-code" th:text="${e.binCode}">B-02</span>
+                                                <span class="text-muted ms-1" th:text="${e.binLocation}">위치</span>
+                                            </span>
+
+                                            <!--
+                                                센터를 넘는 이동. MOVE 는 총량 불변을 전제하지만 센터가 다르면
+                                                한쪽 센터의 재고가 실제로 줄어든다. Phase 3 까지는 나와서는 안 되는
+                                                이력이므로 조용히 묻히지 않게 경고로 표시한다.
+                                            -->
+                                            <span th:if="${e.centerTransfer}">
+                                                <span class="badge bg-danger me-1">
+                                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>센터 간 이동
+                                                </span>
+                                                <span class="badge ff-trace-center"
+                                                      th:text="${e.fromCenterName}">제1창고</span>
+                                                <span class="ff-code ms-1" th:text="${e.fromBinCode}">A-01</span>
+                                                <i class="bi bi-arrow-right mx-1"></i>
+                                                <span class="badge ff-trace-center"
+                                                      th:text="${e.centerName}">제2창고</span>
+                                                <span class="ff-code ms-1" th:text="${e.binCode}">N-01</span>
+                                            </span>
+
+                                            <!--
+                                                정상적으로 기록된 센터 간 이관 (TRANSFER_OUT / TRANSFER_IN).
+                                                출발 센터 -> 운송 중 -> 도착 센터의 어느 구간인지 보여준다.
+                                                위의 '센터 간 이동' 경고와 달리 이쪽은 올바른 이력이다.
+                                            -->
+                                            <!--
+                                                이관 출고 구간: 재고가 실제로 빠져나간 곳은 출발 구역이다.
+                                                도착지는 운송 중 가상 구역이므로 코드를 그대로 보여주면
+                                                같은 센터가 두 번 나와 어색하다. 경유지는 작게 덧붙인다.
+                                            -->
+                                            <span th:if="${e.transferOut}">
+                                                <span class="badge bg-dark me-1">
+                                                    <i class="bi bi-truck me-1"></i>이관 출고
+                                                </span>
+                                                <span class="badge ff-trace-center"
+                                                      th:text="${e.fromCenterName}">제1창고</span>
+                                                <span class="ff-code ms-1" th:text="${e.fromBinCode}">A-01</span>
+                                                <span class="text-muted ms-1">에서 출고 · 운송 시작</span>
+                                            </span>
+
+                                            <!-- 이관 입고 구간: 재고가 실제로 들어온 곳은 도착 구역이다 -->
+                                            <span th:if="${e.transferIn}">
+                                                <span class="badge bg-dark me-1">
+                                                    <i class="bi bi-box-arrow-in-right me-1"></i>이관 입고
+                                                </span>
+                                                <span class="badge ff-trace-center"
+                                                      th:text="${e.centerName}">제2창고</span>
+                                                <span class="ff-code ms-1" th:text="${e.binCode}">N-05</span>
+                                                <span class="text-muted ms-1"
+                                                      th:text="'로 입고 (' + ${e.binLocation} + ')'">로 입고</span>
+                                            </span>
+
+                                            <!-- 이동/이관이 아닌 이벤트(입고 · 출고 · 폐기): 센터 + 구역 -->
+                                            <span th:if="${!e.relocation and !e.transferLeg and e.binCode != null}">
+                                                <span class="badge ff-trace-center me-1"
+                                                      th:if="${e.centerKnown}"
+                                                      th:text="${e.centerName}">제1창고</span>
+                                                <span class="ff-code" th:text="${e.binCode}">A-01</span>
+                                                <span class="text-muted ms-1" th:text="${e.binLocation}">위치</span>
+                                            </span>
+
+                                            <!--
+                                                구역이 없는 이력. 출고는 로트에서 차감만 하고 구역을 기록하지 않는
+                                                경로가 있어 센터를 알 수 없다. 빈칸으로 두면 누락처럼 보이므로 명시한다.
+                                            -->
+                                            <span th:if="${e.binCode == null and !e.transferLeg}" class="text-muted">
+                                                <i class="bi bi-dash-circle me-1"></i>구역 미지정
+                                            </span>
+                                            <span th:if="${e.linkedToOrder}">
+                                                <i class="bi bi-receipt ms-2 me-1"></i>
+                                                <a th:href="@{/admin/outbound/orders/{id}(id=${e.orderId})}"
+                                                   th:text="'주문 #' + ${e.orderId}">주문 #0</a>
+                                            </span>
+                                            <span th:if="${e.userName != null}">
+                                                <i class="bi bi-person ms-2 me-1"></i>
+                                                <span th:text="${e.userName}">처리자</span>
+                                            </span>
+                                        </div>
+
+                                        <div th:if="${e.memo != null}" class="ff-timeline-memo"
+                                             th:text="${e.memo}">비고</div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 현재 보관 위치 -->
+                <div class="col-12 col-xl-5">
+                    <div class="card ff-card h-100">
+                        <div class="card-header bg-white border-0 pt-3">
+                            <span class="fw-bold"><i class="bi bi-geo-alt me-1"></i>현재 보관 위치</span>
+                            <span class="text-muted small ms-2">
+                                <span th:text="${trace.storageBinCount}">0</span>개 구역
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <div th:if="${trace.depleted}" class="text-center text-muted py-4">
+                                <i class="bi bi-box2 d-block fs-3 mb-2"></i>
+                                남아 있는 재고가 없습니다.
+                                <div class="small mt-1">전량 출고 또는 폐기되었습니다.</div>
+                            </div>
+
+                            <div th:unless="${trace.depleted}" class="table-responsive">
+                                <table class="table table-sm table-hover align-middle mb-0">
+                                    <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 100px;">센터</th>
+                                        <th style="width: 105px;">구역</th>
+                                        <th>위치</th>
+                                        <th class="text-end" style="width: 85px;">수량</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr th:each="inv : ${trace.currentStorage}">
+                                        <td>
+                                            <!-- 여러 센터에 분산된 경우에만 강조한다 -->
+                                            <span class="badge"
+                                                  th:classappend="${trace.splitAcrossCenters}
+                                                                  ? 'bg-primary' : 'ff-trace-center'"
+                                                  th:text="${inv.centerName}">제1창고</span>
+                                        </td>
+                                        <td><span class="ff-code" th:text="${inv.binCode}">A-01</span></td>
+                                        <!-- 센터가 옆 컬럼에 있으므로 센터명을 뺀 위치만 쓴다 -->
+                                        <td class="small text-muted" th:text="${inv.binLocationLabel}">A구역 · 01랙 · 1단</td>
+                                        <td class="text-end fw-semibold"
+                                            th:text="${#numbers.formatInteger(inv.quantity, 1, 'COMMA')}">0</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="mt-3 d-flex flex-wrap gap-2">
+                                <a th:href="@{/admin/inventory(productId=${trace.productId})}"
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-list-ul me-1"></i>이 품목 재고 현황
+                                </a>
+                                <a th:href="@{/admin/inventory/movements(productId=${trace.productId})}"
+                                   class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-clock-history me-1"></i>이 품목 전체 이력
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<div th:replace="~{fragments/layout :: scripts}"></div>
+
+</body>
+</html>

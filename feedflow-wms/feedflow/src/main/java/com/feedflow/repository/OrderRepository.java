@@ -1,0 +1,100 @@
+package com.feedflow.repository;
+
+import com.feedflow.admin.dto.DailySalesRow;
+import com.feedflow.domain.Order;
+import com.feedflow.domain.OrderStatus;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+
+public interface OrderRepository extends JpaRepository<Order, Long> {
+
+    /** 특정 상태의 주문 건수 (예: 출고 대기) */
+    long countByStatus(OrderStatus status);
+
+    /** 특정 기간 + 특정 상태의 주문 건수 (예: 오늘 들어온 신규 주문) */
+    long countByStatusAndCreatedAtBetween(OrderStatus status,
+                                         LocalDateTime start,
+                                         LocalDateTime end);
+
+    /** 특정 기간의 전체 주문 건수 */
+    long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+
+    /**
+     * 기간 매출 합계. 취소 주문은 제외한다.
+     * 자바단 합산이 아니라 DB SUM 집계를 사용한다.
+     * 데이터가 없으면 null 이 반환되므로 Service 에서 0 처리한다.
+     */
+    @Query("""
+            select sum(o.finalPrice)
+            from Order o
+            where o.status <> :excludedStatus
+              and o.createdAt between :start and :end
+            """)
+    Long sumSalesBetween(@Param("excludedStatus") OrderStatus excludedStatus,
+                         @Param("start") LocalDateTime start,
+                         @Param("end") LocalDateTime end);
+
+    /* ------------------------------------------------------------------
+     * 출고 관리
+     * ------------------------------------------------------------------ */
+
+    /** 출고 처리 대상 주문 목록 (결제완료 / 출고대기) - 주문이 빠른 순 */
+    @Query("""
+            select o
+            from Order o
+            join fetch o.user u
+            where o.status in :statuses
+            order by o.createdAt asc
+            """)
+    List<Order> findDispatchTargets(@Param("statuses") Collection<OrderStatus> statuses);
+
+    /**
+     * 상태로 필터링한 주문 목록 - <b>최신 주문이 먼저</b>.
+     * <p>
+     * 출고 완료 · 배송 완료 · 취소 이력을 조회할 때 쓴다. 이런 목록은 처리 순서를 따질 이유가
+     * 없고 최근 건을 먼저 보는 것이 자연스러워 {@link #findDispatchTargets} 와 정렬이 반대다.
+     * <p>
+     * 목록이 고객명을 표시하므로 {@code user} 를 함께 읽는다. (건수만큼 쿼리가 반복되는 N+1 방지)
+     */
+    @Query("""
+            select o
+            from Order o
+            join fetch o.user u
+            where o.status in :statuses
+            order by o.createdAt desc
+            """)
+    List<Order> findByStatusesLatestFirst(@Param("statuses") Collection<OrderStatus> statuses);
+
+    /** 출고 처리를 위해 주문 + 주문상세 + 품목을 한 번에 조회 */
+    @Query("""
+            select distinct o
+            from Order o
+            join fetch o.user u
+            left join fetch o.orderItems oi
+            left join fetch oi.product p
+            where o.orderId = :orderId
+            """)
+    Optional<Order> findWithItemsById(@Param("orderId") Long orderId);
+
+    /**
+     * 일별 매출 추이 (Chart.js 용).
+     * year / month / day 로 GROUP BY 하여 DB 에서 집계한다.
+     */
+    @Query("""
+            select new com.feedflow.admin.dto.DailySalesRow(
+                       year(o.createdAt), month(o.createdAt), day(o.createdAt), sum(o.finalPrice))
+            from Order o
+            where o.status <> :excludedStatus
+              and o.createdAt >= :start
+            group by year(o.createdAt), month(o.createdAt), day(o.createdAt)
+            order by year(o.createdAt), month(o.createdAt), day(o.createdAt)
+            """)
+    List<DailySalesRow> findDailySales(@Param("excludedStatus") OrderStatus excludedStatus,
+                                      @Param("start") LocalDateTime start);
+}

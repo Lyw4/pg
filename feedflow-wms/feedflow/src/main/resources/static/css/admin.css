@@ -1,0 +1,1136 @@
+:root {
+    --ff-sidebar-width: 240px;
+    --ff-navy: #16324f;
+    --ff-navy-dark: #102338;
+    --ff-green: #2f855a;
+}
+
+body {
+    background-color: #f4f6f9;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif;
+}
+
+/* ------------------------------ Sidebar ------------------------------ */
+.ff-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--ff-sidebar-width);
+    height: 100vh;
+    padding: 1.25rem 0.75rem;
+    background: linear-gradient(180deg, var(--ff-navy) 0%, var(--ff-navy-dark) 100%);
+    color: #fff;
+    overflow-y: auto;
+}
+
+.ff-brand {
+    padding: 0.5rem 0.75rem 1.25rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    border-bottom: 1px solid rgba(255, 255, 255, .15);
+    margin-bottom: 1rem;
+}
+
+.ff-brand small {
+    font-size: .72rem;
+    font-weight: 400;
+    margin-top: .15rem;
+}
+
+.ff-nav .nav-link {
+    color: rgba(255, 255, 255, .78);
+    border-radius: .5rem;
+    padding: .6rem .75rem;
+    margin-bottom: .25rem;
+}
+
+.ff-nav .nav-link:hover {
+    background-color: rgba(255, 255, 255, .1);
+    color: #fff;
+}
+
+.ff-nav .nav-link.active {
+    background-color: var(--ff-green);
+    color: #fff;
+    font-weight: 600;
+}
+
+.ff-nav .nav-link.disabled {
+    color: rgba(255, 255, 255, .4);
+}
+
+/* ------------------------------ Content ------------------------------ */
+.ff-content {
+    margin-left: var(--ff-sidebar-width);
+    min-height: 100vh;
+}
+
+.ff-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fff;
+    border-bottom: 1px solid #e3e6ea;
+    padding: .9rem 1.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.ff-main {
+    padding: 1.5rem;
+}
+
+/* ------------------------------ Cards ------------------------------ */
+.ff-card {
+    border: none;
+    border-radius: .75rem;
+    box-shadow: 0 1px 3px rgba(16, 35, 56, .08);
+}
+
+.ff-stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.ff-stat-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: .75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.ff-admin-only {
+    border-left: 4px solid var(--ff-green);
+}
+
+.table > :not(caption) > * > * {
+    vertical-align: middle;
+}
+
+/* ------------------------------ Login ------------------------------ */
+.ff-login-wrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--ff-navy) 0%, var(--ff-navy-dark) 100%);
+}
+
+.ff-login-card {
+    width: 100%;
+    max-width: 420px;
+    border-radius: 1rem;
+    border: none;
+}
+
+
+/* ------------------------------ Sidebar section title ------------------------------ */
+.ff-nav-title {
+    display: block;
+    padding: .35rem .75rem;
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    color: rgba(255, 255, 255, .45);
+    text-transform: uppercase;
+}
+
+/* ------------------------------ Master data forms ------------------------------ */
+.ff-form-card {
+    max-width: 780px;
+}
+
+.ff-required::after {
+    content: " *";
+    color: #dc3545;
+}
+
+.ff-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-weight: 600;
+}
+
+.ff-row-inactive {
+    background-color: #f8f9fa;
+    color: #9aa0a6;
+}
+
+.ff-filter-card .form-label {
+    font-size: .8rem;
+    font-weight: 600;
+    color: #5f6368;
+}
+
+
+/* ------------------------------ Barcode scanner ------------------------------ */
+.ff-scanner-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: #0d1117;
+    border-radius: .75rem;
+    overflow: hidden;
+}
+
+.ff-scanner-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* 조준 가이드 */
+.ff-scanner-guide {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 78%;
+    height: 42%;
+    border: 3px solid rgba(47, 133, 90, .9);
+    border-radius: .5rem;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, .28);
+    pointer-events: none;
+}
+
+.ff-scanner-idle {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    color: rgba(255, 255, 255, .6);
+    background: #0d1117;
+}
+
+.ff-scanner-idle i {
+    font-size: 2.5rem;
+}
+
+/* 모바일에서는 카메라 영역을 더 크게 */
+@media (max-width: 575.98px) {
+    .ff-scanner-wrap {
+        aspect-ratio: 3 / 4;
+    }
+
+    .ff-main {
+        padding: 1rem .75rem;
+    }
+}
+
+
+/* ==================================================================
+   반응형 레이아웃
+   · 데스크톱(>=992px) : 사이드바 고정 노출
+   · 모바일/태블릿      : 사이드바를 드로어로 숨기고 햄버거 버튼으로 열기
+   ================================================================== */
+
+/* 상단바 - 제목이 좁은 화면에서 세로로 쪼개지지 않도록 처리 */
+.ff-topbar-left {
+    min-width: 0;          /* flex 자식이 줄어들 수 있게 (text-overflow 동작 조건) */
+    flex: 1 1 auto;
+}
+
+.ff-topbar-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 배경 오버레이 : 기본(데스크톱)에서는 사용하지 않음 */
+.ff-sidebar-backdrop {
+    display: none;
+}
+
+@media (max-width: 991.98px) {
+
+    /* 사이드바를 화면 밖으로 밀어두고, 열릴 때만 슬라이드 인 */
+    .ff-sidebar {
+        width: 264px;
+        max-width: 84vw;
+        transform: translateX(-100%);
+        transition: transform .25s ease-out;
+        z-index: 1045;
+    }
+
+    .ff-sidebar.show {
+        transform: translateX(0);
+        box-shadow: 0 0 28px rgba(0, 0, 0, .45);
+    }
+
+    /* 본문이 전체 폭을 사용 */
+    .ff-content {
+        margin-left: 0;
+    }
+
+    .ff-sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, .5);
+        z-index: 1040;
+    }
+
+    .ff-sidebar-backdrop.show {
+        display: block;
+    }
+
+    /* 사이드바가 열린 동안 본문 스크롤 잠금 */
+    body.ff-sidebar-open {
+        overflow: hidden;
+    }
+
+    .ff-topbar {
+        padding: .7rem .85rem;
+    }
+
+    .ff-topbar-title {
+        font-size: .95rem;
+    }
+
+    .ff-main {
+        padding: 1rem .85rem;
+    }
+
+    .ff-stat-value {
+        font-size: 1.4rem;
+    }
+
+    /* 데이터 표는 줄바꿈 대신 가로 스크롤 (가독성 유지) */
+    .table-responsive > .table {
+        white-space: nowrap;
+    }
+
+    /* 폼 카드가 화면 폭을 다 쓰도록 */
+    .ff-form-card {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 575.98px) {
+
+    /* 좁은 화면에서는 상단바에 권한 뱃지만 남긴다 */
+    .ff-topbar-user .fw-semibold {
+        display: none;
+    }
+
+    .card-header,
+    .card-body {
+        padding-left: .9rem;
+        padding-right: .9rem;
+    }
+
+    /* 터치 조작을 위해 표 안의 버튼을 조금 키움 */
+    .table .btn-sm {
+        padding: .35rem .6rem;
+    }
+}
+
+
+/* ------------------------------ QR 라벨 ------------------------------ */
+.ff-label-card {
+    border: 1px solid #dfe3e8;
+}
+
+.ff-label-qr {
+    width: 132px;
+    height: 132px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+}
+
+.ff-label-qr svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.ff-label-qr-fallback {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .7rem;
+    word-break: break-all;
+    border: 1px dashed #adb5bd;
+    color: #6c757d;
+    padding: .5rem;
+    text-align: center;
+}
+
+/* 라벨 인쇄용 : 네비게이션 제거하고 본문만 출력 */
+@media print {
+    .ff-sidebar,
+    .ff-topbar,
+    .ff-sidebar-backdrop {
+        display: none !important;
+    }
+
+    .ff-content {
+        margin-left: 0 !important;
+    }
+
+    .ff-main {
+        padding: 0 !important;
+    }
+
+    .ff-label-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    body {
+        background: #fff;
+    }
+}
+
+
+/* ------------------------------ 스캔 인식 피드백 ------------------------------ */
+
+/* 인식 순간 카메라 화면 전체가 깜빡인다 */
+.ff-scan-flash {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    background: #ffffff;
+}
+
+.ff-scan-flash.flash-success {
+    animation: ffFlashSuccess .45s ease-out;
+}
+
+.ff-scan-flash.flash-error {
+    animation: ffFlashError .45s ease-out;
+}
+
+@keyframes ffFlashSuccess {
+    0% {
+        opacity: .85;
+        background: #2f855a;
+    }
+    100% {
+        opacity: 0;
+        background: #2f855a;
+    }
+}
+
+@keyframes ffFlashError {
+    0% {
+        opacity: .85;
+        background: #dc3545;
+    }
+    100% {
+        opacity: 0;
+        background: #dc3545;
+    }
+}
+
+/* 인식 성공 시 조준 가이드 강조 */
+.ff-scanner-guide.detected {
+    border-color: #ffc107;
+    border-width: 5px;
+    transition: border-color .1s ease-in;
+}
+
+/* 인식 결과 라이브 바 */
+.ff-scan-live {
+    border-radius: .6rem;
+    padding: .7rem .85rem;
+    border: 2px solid #ced4da;
+    background: #f8f9fa;
+}
+
+.ff-scan-live.state-loading {
+    border-color: #0d6efd;
+    background: #e7f1ff;
+}
+
+.ff-scan-live.state-success {
+    border-color: #2f855a;
+    background: #e8f5ee;
+}
+
+.ff-scan-live.state-error {
+    border-color: #dc3545;
+    background: #fdeaec;
+}
+
+.min-width-0 {
+    min-width: 0;
+}
+
+/* 스캔 결과 영역으로 이동했을 때 잠깐 강조 */
+.ff-highlight {
+    animation: ffHighlight 1.2s ease-out;
+}
+
+@keyframes ffHighlight {
+    0% {
+        box-shadow: 0 0 0 4px rgba(47, 133, 90, .55);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(47, 133, 90, 0);
+    }
+}
+
+
+/* ------------------------------ Breadcrumb ------------------------------ */
+.ff-breadcrumb {
+    background: #fff;
+    border-bottom: 1px solid #e3e6ea;
+    padding: .5rem 1.5rem;
+}
+
+.ff-breadcrumb .breadcrumb {
+    font-size: .8rem;
+}
+
+.ff-breadcrumb .breadcrumb-item a {
+    color: #5f6368;
+    text-decoration: none;
+}
+
+.ff-breadcrumb .breadcrumb-item a:hover {
+    color: var(--ff-green);
+    text-decoration: underline;
+}
+
+.ff-breadcrumb .breadcrumb-item.active {
+    font-weight: 600;
+    color: #16324f;
+}
+
+@media (max-width: 991.98px) {
+    .ff-breadcrumb {
+        padding: .45rem .85rem;
+    }
+}
+
+@media print {
+    .ff-breadcrumb {
+        display: none !important;
+    }
+}
+
+
+
+
+/* ==================================================================
+ * 창고 2D 평면도 (Warehouse 2D Floor Plan)
+ *
+ * 배치 원리
+ *   ff-floor        : 창고 외곽선. 24 x 18 CSS Grid
+ *   ff-bin-tile     : 구역 사각형. grid-area 로 좌표/크기가 주입된다
+ *   ff-facility     : 출입구 · 벽 · 검수실 (건물 구조물)
+ *   ff-zone-area    : 구역 경계 점선 (저온 = 파란색 / 상온 = 회색)
+ * ================================================================== */
+
+/* ---------------- 창고 전환 탭 ---------------- */
+.ff-warehouse-tabs .nav-link {
+    color: #6c757d;
+    font-weight: 600;
+    font-size: .86rem;
+    border-radius: .4rem .4rem 0 0;
+}
+
+.ff-warehouse-tabs .nav-link.active {
+    color: #212529;
+    background-color: #fff;
+    border-color: #dee2e6 #dee2e6 #fff;
+}
+
+.ff-warehouse-tabs .nav-link small {
+    font-size: .7rem;
+    font-weight: 400;
+}
+
+/* ---------------- 범례 ---------------- */
+.ff-map-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .75rem;
+    font-size: .76rem;
+    color: #6c757d;
+}
+
+.ff-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+}
+
+.ff-legend-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    display: inline-block;
+    border: 1px solid rgba(0, 0, 0, .18);
+}
+
+.ff-legend-divider {
+    width: 1px;
+    height: 14px;
+    background: #dee2e6;
+}
+
+/* ---------------- 창고 외곽선 + 격자 ---------------- */
+.ff-floor-scroll {
+    overflow-x: auto;
+    padding-bottom: .25rem;
+}
+
+.ff-floor {
+    display: grid;
+    gap: 5px;
+    min-width: 900px;
+    border: 3px solid #343a40;
+    border-radius: .4rem;
+    /* 구역 경계 점선이 바깥으로 3px 나가므로 여백을 넉넉히 준다 */
+    padding: 11px;
+    background:
+            linear-gradient(90deg, rgba(0, 0, 0, .02) 1px, transparent 1px) 0 0 / 28px 28px,
+            linear-gradient(rgba(0, 0, 0, .02) 1px, transparent 1px) 0 0 / 28px 28px,
+            #fff;
+}
+
+/* ---------------- 구역 이름 라벨 (사각형 뒤) ---------------- */
+/* 구역 경계 박스
+ * 구역에 속한 사각형들의 경계 상자를 점선으로 둘러 '구획'을 보여준다.
+ * 저온 구역은 온도 관리 대상이라 아무 곳에나 적재할 수 없으므로 색을 달리해 구분한다. */
+.ff-zone-area {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: .5rem;
+    pointer-events: none;
+    user-select: none;
+    z-index: 0;
+    margin: -3px;
+    padding: 3px;
+}
+
+/* 구역 이름 글자를 두지 않는 대신 경계선을 조금 더 뚜렷하게 한다 */
+.ff-zone-area-normal {
+    border: 2px dashed rgba(108, 117, 125, .55);
+    background-color: rgba(108, 117, 125, .05);
+}
+
+.ff-zone-area-cold {
+    border: 2px dashed rgba(13, 110, 253, .7);
+    background-color: rgba(13, 110, 253, .07);
+}
+
+/* 구역 이름을 도면 위에 글자로 표시하지 않는 이유
+ *
+ * 처음에는 경계 박스 가운데에 큰 글자를 사각형 뒤에 깔았다. 그런데 구역이 사각형으로
+ * 빽빽하게 차 있으면 글자가 완전히 가려지고, 통로가 있는 구역만 글자가 보였다.
+ * (B · C · N 구역만 보이고 A · D · E · H · R 구역은 안 보이는 상태)
+ * 어떤 구역은 보이고 어떤 구역은 안 보이는 것이 가장 나쁜 상태라 아예 두지 않는다.
+ *
+ * 구역은 다음 세 가지로 식별한다.
+ *   1. 구역 코드 접두어 (A-01, COLD-01 ...)
+ *   2. 경계 점선 색 (파란 = 저온 / 회색 = 상온)
+ *   3. 경계 박스 마우스 오버 툴팁 + 하단 '구역별 적재 현황' 카드
+ */
+
+/* 범례용 경계선 스와치 */
+.ff-legend-outline {
+    width: 16px;
+    height: 12px;
+    display: inline-block;
+    border-radius: 3px;
+}
+
+/* ---------------- 부대시설 ---------------- */
+.ff-facility {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .66rem;
+    font-weight: 600;
+    text-align: center;
+    border-radius: .25rem;
+    z-index: 1;
+    padding: .1rem;
+    line-height: 1.2;
+}
+
+.ff-facility-door {
+    background-color: #fde2e4;
+    border: 1.5px solid #e5383b;
+    color: #a4133c;
+}
+
+/* 벽은 칸을 꽉 채우면 굵은 갈색 덩어리처럼 보인다.
+ * 칸 가운데에 얇은 선만 그려 '구획 경계'로 읽히게 한다. */
+.ff-facility-wall {
+    background-color: transparent;
+    border: none;
+    font-size: 0;
+    color: transparent;
+    position: relative;
+}
+
+.ff-facility-wall::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 7px;
+    border-radius: 4px;
+    background: repeating-linear-gradient(
+            180deg,
+            #8d99ae 0,
+            #8d99ae 14px,
+            #b3bcc9 14px,
+            #b3bcc9 20px
+    );
+}
+
+.ff-facility-inspection {
+    background-color: #cfe2ff;
+    border: 1.5px solid #6ea8fe;
+    color: #084298;
+}
+
+/* ---------------- 구역 사각형 ---------------- */
+.ff-bin-tile {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: stretch;
+    text-align: left;
+    border: 1.5px solid rgba(0, 0, 0, .35);
+    border-radius: .3rem;
+    padding: .2rem .3rem;
+    cursor: pointer;
+    overflow: hidden;
+    position: relative;
+    z-index: 2;
+    transition: transform .1s ease, box-shadow .1s ease;
+    min-width: 0;
+}
+
+.ff-bin-tile:hover,
+.ff-bin-tile:focus-visible {
+    transform: scale(1.03);
+    box-shadow: 0 .35rem .75rem rgba(0, 0, 0, .22);
+    outline: none;
+    z-index: 5;
+}
+
+.ff-bin-head,
+.ff-bin-foot {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .2rem;
+    min-width: 0;
+}
+
+.ff-bin-mid {
+    display: block;
+    min-width: 0;
+}
+
+.ff-bin-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .66rem;
+    font-weight: 700;
+    letter-spacing: -.03em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ff-bin-rate {
+    font-size: .82rem;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* 좁은 칸은 코드와 비율이 세로로 쌓이므로 비율을 조금 줄여 두 줄이 다 보이게 한다 */
+.ff-bin-narrow .ff-bin-rate {
+    font-size: .74rem;
+}
+
+.ff-bin-narrow .ff-bin-code {
+    font-size: .62rem;
+}
+
+.ff-bin-qty {
+    font-size: .62rem;
+    opacity: .85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.ff-bin-meta {
+    font-size: .6rem;
+    opacity: .75;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: .2rem;
+}
+
+.ff-bin-purpose {
+    font-size: .64rem;
+    font-weight: 600;
+    opacity: .8;
+}
+
+/* 좁고 세로로 긴 사각형(2칸 이하)
+ * space-between 을 그대로 두면 위/아래로 내용이 벌어져 가운데가 텅 빈다.
+ * 내용을 가운데로 모아 읽기 좋게 한다. */
+.ff-bin-narrow {
+    justify-content: center;
+    gap: .3rem;
+}
+
+.ff-bin-narrow .ff-bin-qty,
+.ff-bin-narrow .ff-bin-meta {
+    font-size: .55rem;
+}
+
+.ff-bin-narrow .ff-bin-head,
+.ff-bin-narrow .ff-bin-foot {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+}
+
+/* 좁은 칸에는 '로트 2 · 2종' 까지 넣을 폭이 없어 글자가 잘린다.
+ * 적재율·수량·임박 여부만 남기고 상세는 툴팁과 모달에 맡긴다. */
+.ff-bin-narrow .ff-bin-lots,
+.ff-bin-narrow .ff-bin-empty-text {
+    display: none;
+}
+
+/* 납작한 칸도 같은 이유로 상세를 숨긴다 */
+.ff-bin-flat .ff-bin-lots,
+.ff-bin-flat .ff-bin-empty-text {
+    display: none;
+}
+
+/* 납작한 사각형(1칸)은 게이지와 하단 정보를 숨기고 코드/비율만 남긴다 */
+.ff-bin-flat {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 .3rem;
+}
+
+.ff-bin-flat .ff-bin-mid,
+.ff-bin-flat .ff-bin-foot {
+    display: none;
+}
+
+/* 적재 게이지 */
+.ff-bin-gauge {
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(0, 0, 0, .13);
+    display: block;
+    overflow: hidden;
+}
+
+.ff-bin-gauge-fill {
+    display: block;
+    height: 100%;
+    background: rgba(0, 0, 0, .4);
+}
+
+/* 비어있는 구역은 0% 만 보면 애매하므로 글자로 명시한다 */
+.ff-bin-empty-text {
+    font-style: italic;
+    opacity: .7;
+}
+
+/* 유통기한 임박 D-Day 뱃지 */
+.ff-bin-dday {
+    font-size: .54rem;
+    padding: .08rem .22rem;
+    vertical-align: middle;
+}
+
+/* ---------------- 적재 상태별 색상 (범례 스와치와 공유) ---------------- */
+.ff-bin-spare {
+    background-color: #d1e7dd;
+    border-color: #479f76;
+    color: #0f5132;
+}
+
+.ff-bin-normal {
+    background-color: #fff3cd;
+    border-color: #cc9a06;
+    color: #664d03;
+}
+
+.ff-bin-full {
+    background-color: #f8d7da;
+    border-color: #dc3545;
+    color: #842029;
+}
+
+.ff-bin-empty {
+    background-color: #fdfdfe;
+    border-color: #ced4da;
+    color: #6c757d;
+}
+
+/* 용도별 고정색 (적재율과 무관) */
+.ff-bin-receiving {
+    background-color: #cff4fc;
+    border-color: #6edff6;
+    color: #055160;
+}
+
+.ff-bin-shipping {
+    background-color: #ffe5d0;
+    border-color: #fd7e14;
+    color: #984c0c;
+}
+
+.ff-bin-inspection {
+    background-color: #cfe2ff;
+    border-color: #6ea8fe;
+    color: #084298;
+}
+
+/* 사용 중지 구역은 사선으로 표시하고 클릭도 막는다 */
+.ff-bin-inactive {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+    color: #868e96;
+    background-image: repeating-linear-gradient(
+            45deg,
+            rgba(0, 0, 0, .06) 0,
+            rgba(0, 0, 0, .06) 5px,
+            transparent 5px,
+            transparent 10px
+    );
+    cursor: not-allowed;
+}
+
+.ff-bin-inactive:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* ---------------- 좁은 화면 ----------------
+ * 도면은 비율이 중요해 접거나 재배치하면 의미가 깨진다.
+ * 가로 스크롤을 허용하고 최소 폭만 보장한다.
+ */
+@media (max-width: 991.98px) {
+    .ff-floor {
+        min-width: 820px;
+        gap: 4px;
+        padding: 9px;
+    }
+}
+
+
+/* ==================================================================
+ * 제품 이력 추적 - 수직 타임라인
+ *
+ * 왼쪽에 세로선을 두고 이벤트마다 점을 찍는다.
+ * 점 색으로 입고/출고/취소/폐기를 구분해 스크롤만으로 흐름이 읽히게 한다.
+ * ================================================================== */
+
+.ff-timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 .25rem;
+    position: relative;
+}
+
+/* 세로 연결선 */
+.ff-timeline::before {
+    content: '';
+    position: absolute;
+    left: 13px;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    background: #e9ecef;
+}
+
+.ff-timeline-item {
+    position: relative;
+    padding: 0 0 1.1rem 2.35rem;
+}
+
+.ff-timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+/* 이벤트 점 */
+.ff-timeline-dot {
+    position: absolute;
+    left: 0;
+    top: 1px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .78rem;
+    background: #fff;
+    border: 2px solid #ced4da;
+    color: #6c757d;
+    z-index: 1;
+}
+
+.ff-trace-dot-inbound {
+    border-color: #0d6efd;
+    color: #0d6efd;
+}
+
+.ff-trace-dot-outbound {
+    border-color: #cc9a06;
+    color: #997404;
+}
+
+.ff-trace-dot-cancel {
+    border-color: #212529;
+    color: #212529;
+}
+
+.ff-trace-dot-disposal {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+/* 구역 간 이동 : 총량 변화가 없는 이벤트라 증감(파랑/노랑/빨강)과 구분되는 청록으로 둔다 */
+.ff-trace-dot-move {
+    border-color: #0dcaf0;
+    color: #087990;
+}
+
+.ff-trace-dot-etc {
+    border-color: #6c757d;
+    color: #6c757d;
+}
+
+/* 이벤트 본문 */
+.ff-timeline-body {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: .45rem;
+    padding: .5rem .65rem;
+}
+
+.ff-timeline-time {
+    font-size: .74rem;
+    color: #6c757d;
+    margin-left: .35rem;
+}
+
+.ff-timeline-meta {
+    font-size: .72rem;
+    color: #495057;
+    margin-top: .3rem;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .15rem;
+}
+
+.ff-timeline-memo {
+    font-size: .72rem;
+    color: #6c757d;
+    margin-top: .3rem;
+    padding-top: .3rem;
+    border-top: 1px dashed #e9ecef;
+}
+
+/*
+ * 물류센터 뱃지 (이력 추적 타임라인 · 현재 보관 위치)
+ *
+ * 타임라인에는 유형 뱃지(입고/출고/폐기)가 이미 색을 쓰고 있다. 센터까지 진한 색을 쓰면
+ * 무엇을 먼저 봐야 하는지 알 수 없어진다. 센터는 '어디서' 를 알려주는 맥락 정보이므로
+ * 낮은 채도로 두고, 여러 센터에 분산된 경우에만 화면에서 bg-primary 로 승격한다.
+ */
+.ff-trace-center {
+    background-color: #eef2f7;
+    color: #34495e;
+    border: 1px solid #dce3ec;
+    font-weight: 500;
+}
+
+/*
+ * 센터 간 이관 타임라인 점.
+ *
+ * 구역 이동(ff-trace-dot-move)과 구분해야 한다. 구역 이동은 창고 안에서 위치만
+ * 바뀌는 일상 작업이고, 센터 간 이관은 재고가 건물을 떠나는 사건이다.
+ * 짙은 색으로 타임라인에서 눈에 걸리게 한다.
+ */
+.ff-trace-dot-transfer {
+    border-color: #212529;
+    color: #212529;
+    background-color: #e9ecef;
+}
+
+/* ==========================================================================
+   전국 거점 지도 (2D 도면 화면)
+
+   Leaflet 은 컨테이너 높이를 CSS 로 잡아주지 않으면 타일을 그리지 않는다.
+   높이가 0 이면 지도가 '로드되지 않은 것처럼' 보이는데 콘솔에는 오류가 없어
+   원인을 찾기 어렵다. 반드시 명시한다.
+   ========================================================================== */
+.ff-center-map {
+    height: 380px;
+    width: 100%;
+    border-radius: .5rem;
+    border: 1px solid #e9ecef;
+    /* 지도 타일이 카드 밖으로 삐져나오지 않게 */
+    overflow: hidden;
+    /* Leaflet 컨트롤이 사이드바 위로 올라오지 않게 (사이드바 z-index 보다 낮게) */
+    z-index: 0;
+}
+
+/* Leaflet 이 만드는 래퍼에는 배경이 없어 divIcon 이 사각형으로 보인다 */
+.ff-map-pin-wrap {
+    background: transparent;
+    border: 0;
+}
+
+.ff-map-pin {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: #fff;
+    font-size: .8rem;
+    /* 선택된 핀이 커질 때 부드럽게 (탭 hover 미리보기에서도 쓰인다) */
+    transition: width .15s ease, height .15s ease, box-shadow .15s ease;
+}
+
+.ff-map-popup {
+    min-width: 190px;
+}
+
+/* Leaflet 팝업이 Bootstrap 글꼴을 따라가게 한다 */
+.leaflet-popup-content {
+    margin: .65rem .8rem;
+    font-family: inherit;
+}

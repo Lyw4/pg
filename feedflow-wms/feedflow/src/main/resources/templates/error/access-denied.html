@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/layout :: head('접근 권한 없음')}"></head>
+
+<body>
+
+<div class="ff-login-wrap">
+    <div class="card ff-login-card shadow-lg">
+        <div class="card-body p-4 p-md-5 text-center">
+
+            <div class="display-5 text-danger mb-3"><i class="bi bi-shield-lock-fill"></i></div>
+            <h5 class="fw-bold mb-2">접근 권한이 없습니다</h5>
+            <p class="text-muted small mb-4">
+                요청한 화면은 <strong>책임자(ADMIN)</strong> 권한이 필요하거나<br>
+                사원 전용 시스템에 대한 접근 권한이 없는 계정입니다.
+            </p>
+
+            <div class="d-grid gap-2">
+                <a class="btn btn-success" th:href="@{/admin/dashboard}">
+                    <i class="bi bi-speedometer2 me-1"></i>대시보드로 이동
+                </a>
+                <form th:action="@{/logout}" method="post" class="d-grid m-0">
+                    <button type="submit" class="btn btn-outline-secondary">
+                        <i class="bi bi-box-arrow-right me-1"></i>다른 계정으로 로그인
+                    </button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{fragments/layout :: scripts}"></div>
+
+</body>
+</html>

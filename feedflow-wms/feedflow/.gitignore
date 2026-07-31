@@ -1,0 +1,31 @@
+### Gradle ###
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+### Eclipse / STS ###
+.settings/*
+# 인코딩 설정만 공유한다.
+# .properties 는 Java 명세상 ISO-8859-1 이라 이클립스가 그 인코딩으로 열어
+# 한글 주석이 깨진다. 이 파일이 없으면 클론하는 사람마다 직접 설정해야 한다.
+!.settings/org.eclipse.core.resources.prefs
+.classpath
+.project
+bin/
+
+### VS Code ###
+.vscode/
+
+### OS ###
+.DS_Store
+Thumbs.db
+
+### Logs ###
+*.log

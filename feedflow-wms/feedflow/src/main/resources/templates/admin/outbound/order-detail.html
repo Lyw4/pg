@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/layout :: head('주문 출고 처리')}"></head>
+
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="ff-content">
+
+    <div th:replace="~{fragments/layout :: topbar('출고 관리', '주문 출고 처리')}"></div>
+
+    <main class="ff-main">
+
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-1"></i>
+            <span th:text="${successMessage}">처리 완료</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle-fill me-1"></i>
+            <span th:text="${errorMessage}">처리 실패</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <!-- 주문 정보 -->
+        <div class="card ff-card mb-3">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                <span class="fw-bold">
+                    <i class="bi bi-receipt me-1"></i>주문
+                    <span class="ff-code" th:text="'#' + ${preview.orderId}">#1</span>
+                </span>
+                <span class="badge" th:classappend="${preview.statusBadgeClass}"
+                      th:text="${preview.statusLabel}">상태</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 small">
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted">고객</div>
+                        <div class="fw-semibold" th:text="${preview.customerName}">고객명</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted">연락처</div>
+                        <div th:text="${preview.customerPhone} ?: '-'">-</div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <div class="text-muted">배송지</div>
+                        <div th:text="${preview.shippingAddress}">배송지</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted">주문 일시</div>
+                        <div th:text="${#temporals.format(preview.createdAt, 'yyyy-MM-dd HH:mm')}">-</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted">결제 금액</div>
+                        <div class="fw-semibold"
+                             th:text="${#numbers.formatInteger(preview.finalPrice, 1, 'COMMA')} + '원'">0원</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted">총 출고 수량</div>
+                        <div class="fw-semibold" th:text="${preview.totalQuantity} + '개'">0개</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!--
+            취소 정보 : 취소된 주문에만 표시.
+            출고 전 취소는 재고 이력이 생기지 않으므로 이 블록이 유일한 취소 근거다.
+        -->
+        <div class="card ff-card mb-3 border-danger" th:if="${preview.canceled}">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                <span class="fw-bold text-danger">
+                    <i class="bi bi-x-octagon-fill me-1"></i>취소 정보
+                </span>
+                <span class="badge bg-dark">주문취소</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 small">
+                    <div class="col-12 col-md-6">
+                        <div class="text-muted">취소 사유</div>
+                        <div class="fw-semibold" th:if="${preview.cancelReasonPresent}"
+                             th:text="${preview.cancelReason}">사유</div>
+                        <div class="text-muted fst-italic" th:unless="${preview.cancelReasonPresent}">
+                            사유가 입력되지 않았습니다.
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted">취소 일시</div>
+                        <div th:if="${preview.canceledAt != null}"
+                             th:text="${#temporals.format(preview.canceledAt, 'yyyy-MM-dd HH:mm')}">-</div>
+                        <div class="text-muted" th:unless="${preview.canceledAt != null}">기록 없음</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="text-muted">처리자</div>
+                        <div th:if="${preview.canceledByPresent}" th:text="${preview.canceledByName}">-</div>
+                        <div class="text-muted" th:unless="${preview.canceledByPresent}">기록 없음</div>
+                    </div>
+                </div>
+
+                <hr class="my-3">
+
+                <!-- 재고 복구 결과 : 판단 근거는 주문 상태가 아니라 실제 CANCEL 이력이다 -->
+                <div th:if="${preview.stockRestored}"
+                     class="alert alert-success d-flex align-items-start mb-0 py-2">
+                    <i class="bi bi-arrow-counterclockwise me-2 mt-1"></i>
+                    <div class="small">
+                        출고된 재고를 원래 로트와 구역으로 복구했습니다.
+                        <strong th:text="${preview.restoredLineCount} + '건'">0건</strong> /
+                        총 <strong
+                            th:text="${#numbers.formatInteger(preview.restoredQuantity, 1, 'COMMA')} + '개'">0개</strong>
+                        <span class="text-muted d-block mt-1">
+                            로트별 상세 내역은
+                            <a th:href="@{/admin/traceability}">제품 이력 추적</a> 화면에서 확인할 수 있습니다.
+                        </span>
+                    </div>
+                </div>
+                <div th:unless="${preview.stockRestored}"
+                     class="alert alert-secondary d-flex align-items-start mb-0 py-2">
+                    <i class="bi bi-info-circle me-2 mt-1"></i>
+                    <div class="small">
+                        <strong>재고 변동 없음 (출고 전 취소)</strong>
+                        <span class="text-muted d-block mt-1">
+                            출고 처리 전에 취소되어 재고가 차감된 적이 없습니다. 되돌릴 재고도 없습니다.
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 항목별 FEFO 할당 미리보기 -->
+        <div class="card ff-card mb-3" th:each="item : ${preview.items}">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="ff-code" th:text="${item.productCode}">CODE</span>
+                    <span class="fw-bold" th:text="${item.productName}">품목명</span>
+                    <span class="badge bg-light text-dark border ms-1" th:text="${item.animalType}">소</span>
+                    <span class="text-muted small ms-2">
+                        주문 수량 <strong th:text="${item.quantity}">0</strong>개
+                    </span>
+                </div>
+                <div>
+                    <span class="badge bg-success" th:if="${item.fulfillable}">출고 가능</span>
+                    <span class="badge bg-danger" th:unless="${item.fulfillable}">
+                        재고 부족 (<span th:text="${item.plan.shortage}">0</span>개 부족)
+                    </span>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div class="row g-2 small mb-3">
+                    <div class="col-4 col-md-2">
+                        <div class="text-muted">출고 가능 재고</div>
+                        <div class="fw-semibold"
+                             th:text="${#numbers.formatInteger(item.plan.availableQuantity, 1, 'COMMA')}">0</div>
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <div class="text-muted">할당 수량</div>
+                        <div class="fw-semibold"
+                             th:text="${#numbers.formatInteger(item.plan.allocatedQuantity, 1, 'COMMA')}">0</div>
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <div class="text-muted">사용 로트</div>
+                        <div class="fw-semibold" th:text="${item.plan.usedLotCount} + '건'">0건</div>
+                    </div>
+                </div>
+
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                    <tr>
+                        <th class="text-center" style="width: 60px;">순서</th>
+                        <th style="width: 190px;">로트번호</th>
+                        <th class="text-center" style="width: 110px;">유통기한</th>
+                        <th class="text-center" style="width: 90px;">잔여</th>
+                        <th style="width: 100px;">구역</th>
+                        <th class="text-end" style="width: 100px;">차감 예정</th>
+                        <th class="text-end" style="width: 130px;">구역 잔여 예상</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(item.plan.lines)}">
+                        <td colspan="8" class="text-center text-muted py-3">
+                            출고 가능한 재고가 없습니다. (유통기한이 지난 로트는 제외됩니다)
+                        </td>
+                    </tr>
+
+                    <tr th:each="line : ${item.plan.lines}">
+                        <td class="text-center">
+                            <span class="badge bg-secondary" th:text="${line.sequence}">1</span>
+                        </td>
+                        <td><span class="ff-code small" th:text="${line.lotNo}">LOT</span></td>
+                        <td class="text-center small"
+                            th:text="${#temporals.format(line.expirationDate, 'yyyy-MM-dd')}">-</td>
+                        <td class="text-center">
+                            <span class="badge" th:classappend="${line.dDayBadgeClass}"
+                                  th:text="${line.dDayLabel}">D-0</span>
+                        </td>
+                        <td><span class="ff-code" th:text="${line.binCode}">BIN</span></td>
+                        <td class="text-end fw-bold text-danger"
+                            th:text="'-' + ${line.allocatedQuantity}">-0</td>
+                        <td class="text-end small text-muted">
+                            <span th:text="${line.binQuantityBefore}">0</span>
+                            &rarr;
+                            <span class="fw-semibold" th:text="${line.binQuantityAfter}">0</span>
+                        </td>
+                        <td>
+                            <span th:if="${line.depleted}" class="badge bg-dark">전량 소진 예정</span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 처리 버튼 -->
+        <div class="card ff-card">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div class="small">
+                    <div th:if="${preview.dispatchable and preview.allFulfillable}" class="text-success fw-semibold">
+                        <i class="bi bi-check-circle-fill me-1"></i>
+                        모든 항목의 재고가 충분합니다. 위 계획대로 출고됩니다.
+                    </div>
+                    <div th:if="${!preview.dispatchable}" class="text-muted">
+                        <i class="bi bi-slash-circle me-1"></i>
+                        현재 상태(<span th:text="${preview.statusLabel}">상태</span>)에서는 출고할 수 없습니다.
+                    </div>
+                    <div th:if="${preview.dispatchable and !preview.allFulfillable}" class="text-danger fw-semibold">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        재고가 부족한 항목이 있어 출고할 수 없습니다. 먼저 입고를 진행하세요.
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <a th:href="@{/admin/outbound}" class="btn btn-outline-secondary">목록으로</a>
+
+                    <!-- 출고 취소 : 재고 장부를 되돌리는 작업이라 ADMIN 에게만 렌더링 -->
+                    <form th:if="${preview.cancelable}"
+                          th:action="@{/admin/outbound/orders/{id}/cancel(id=${preview.orderId})}"
+                          method="post" class="m-0 d-flex align-items-center gap-2"
+                          sec:authorize="hasRole('ADMIN')"
+                          onsubmit="return confirm('주문을 취소합니다. 이미 출고된 재고는 원래 로트와 구역으로 복구됩니다. 계속하시겠습니까?');">
+                        <input type="text" name="reason" class="form-control form-control-sm"
+                               style="max-width: 220px;" maxlength="150"
+                               placeholder="취소 사유 (선택)">
+                        <button type="submit" class="btn btn-outline-danger text-nowrap">
+                            <i class="bi bi-x-circle me-1"></i>
+                            <span th:text="${preview.stockDeducted} ? '출고 취소 (재고 복구)' : '주문 취소'">주문 취소</span>
+                        </button>
+                    </form>
+
+                    <form th:action="@{/admin/outbound/orders/{id}/dispatch(id=${preview.orderId})}"
+                          method="post" class="m-0"
+                          onsubmit="return confirm('선입선출(FEFO) 규칙으로 출고 처리하시겠습니까?');">
+                        <button type="submit" class="btn btn-success"
+                                th:disabled="${!preview.dispatchable or !preview.allFulfillable}">
+                            <i class="bi bi-box-arrow-up me-1"></i>출고 처리
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<div th:replace="~{fragments/layout :: scripts}"></div>
+
+</body>
+</html>
