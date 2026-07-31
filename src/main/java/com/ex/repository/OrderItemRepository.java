@@ -10,6 +10,12 @@ import com.ex.entity.OrderItem;
 public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
 	List<OrderItem> findByOrderOrderId(Long orderId);
 
-	@EntityGraph(attributePaths = {"order", "product", "lot"})
+	@EntityGraph(attributePaths = {
+			"order",
+			"order.fulfillmentWarehouse",
+			"order.farmCustomer",
+			"product",
+			"lot"
+	})
 	List<OrderItem> findByOrderStatusIn(Collection<OrderStatus> statuses);
 }

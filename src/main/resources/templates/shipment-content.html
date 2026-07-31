@@ -31,7 +31,16 @@
             <tr th:each="shipment : ${activeShipments}">
                 <td><strong th:text="${shipment.shipmentNo}">SHP</strong>
                     <small th:text="${#temporals.format(shipment.createdAt, 'yyyy-MM-dd HH:mm')}"></small></td>
-                <td th:text="|#${shipment.order.orderId}|">#1</td>
+                <td>
+                    <strong th:text="|#${shipment.order.orderId}|">#1</strong>
+                    <small
+                        class="shipment-warehouse"
+                        th:if="${shipment.order.fulfillmentWarehouse != null}"
+                        th:text="|${shipment.order.fulfillmentWarehouse.code}
+                            · ${shipment.order.fulfillmentWarehouse.name}|">
+                        W04 · 안성 미양 창고
+                    </small>
+                </td>
                 <td><div class="shipment-item" th:each="item : ${shipmentItems[shipment.shipmentId]}">
                     <strong th:text="${item.product.name}">상품</strong>
                     <span th:text="|${item.lot.lotNo} · ${item.pickedQuantity}/${item.plannedQuantity}포|"></span>

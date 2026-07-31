@@ -26,6 +26,8 @@ import com.ex.repository.ProductLotRepository;
 import com.ex.repository.ProductRepository;
 import com.ex.repository.RecurringDeliveryRepository;
 import com.ex.repository.StockLogRepository;
+import com.ex.service.FarmCustomerSeeder;
+import com.ex.service.WarehouseFulfillmentService;
 import com.ex.service.WarehousePlanSeeder;
 import com.ex.service.WarehouseRecurringDeliverySeeder;
 
@@ -523,6 +525,8 @@ public class DataInitializer {
             CustomerOrderRepository orderRepository,
             OrderItemRepository orderItemRepository,
             WarehousePlanSeeder warehousePlanSeeder,
+            FarmCustomerSeeder farmCustomerSeeder,
+            WarehouseFulfillmentService warehouseFulfillmentService,
             WarehouseRecurringDeliverySeeder
             warehouseRecurringDeliverySeeder) {
 
@@ -594,6 +598,8 @@ public class DataInitializer {
 
             warehousePlanSeeder.seed();
 
+            farmCustomerSeeder.seed();
+
             warehouseRecurringDeliverySeeder.seed();
 
             // 기존 상품에도 상품별 유통기한 설정을 반영합니다.
@@ -663,6 +669,8 @@ public class DataInitializer {
                         3,
                         lot.getProduct().getPrice()));
             }
+
+            warehouseFulfillmentService.assignUnassignedOrders();
         };
     }
 

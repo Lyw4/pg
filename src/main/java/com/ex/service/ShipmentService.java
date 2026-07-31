@@ -35,6 +35,7 @@ public class ShipmentService {
     private final OrderItemRepository orderItemRepository;
     private final StockLogRepository stockLogRepository;
     private final DeliveryRepository deliveryRepository;
+    private final WarehouseFulfillmentService warehouseFulfillmentService;
 
     public List<Shipment> shipments() {
         return shipmentRepository.findAllByOrderByCreatedAtDesc();
@@ -128,6 +129,9 @@ public class ShipmentService {
             }
         });
 
+        warehouseFulfillmentService.deductStock(
+                shipment.getOrder(), items);
+
         items.forEach(item -> {
             ProductLot lot = item.getLot();
             int quantity = item.getPickedQuantity();
@@ -168,6 +172,8 @@ public class ShipmentService {
                     item.getLot(), 1L, ChangeType.ADJUSTMENT, quantity,
                     shipment.getShipmentNo() + " 출고 취소: " + note.trim()));
         });
+        warehouseFulfillmentService.restoreStock(
+                shipment.getOrder(), items);
         shipment.cancelCompleted(note.trim());
         shipment.getOrder().changeStatus(OrderStatus.PAID);
     }

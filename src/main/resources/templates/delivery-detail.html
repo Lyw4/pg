@@ -88,6 +88,20 @@
         </section>
 
         <section class="delivery-info-grid">
+            <article
+                class="panel delivery-info-card warehouse-source-card"
+                th:if="${delivery.order.fulfillmentWarehouse != null}">
+                <span>자동 출고 창고</span>
+                <strong
+                    th:text="${delivery.order.fulfillmentWarehouse.name}">
+                    안성 미양 창고
+                </strong>
+                <small
+                    th:text="|${delivery.order.fulfillmentWarehouse.code}
+                        · ${delivery.order.fulfillmentDistanceLabel}|">
+                    W04 · 직선거리 약 60.0km
+                </small>
+            </article>
             <article class="panel delivery-info-card">
                 <span>출고 번호</span>
                 <strong th:text="${shipment.shipmentNo}">SHP-00001</strong>

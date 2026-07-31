@@ -22,6 +22,7 @@ import com.ex.entity.Delivery.DeliveryStatus;
 import com.ex.entity.DefectRecord.DefectType;
 import com.ex.entity.DefectRecord.OccurrenceStage;
 import com.ex.entity.DefectRecord.ResolutionType;
+import com.ex.entity.FarmCustomer.CustomerStatus;
 import com.ex.entity.Product;
 import com.ex.entity.ProductLot;
 import com.ex.entity.StockLog;
@@ -29,6 +30,7 @@ import com.ex.entity.StockLog.ChangeType;
 import com.ex.service.BarcodeService;
 import com.ex.service.DistributionService;
 import com.ex.service.DefectService;
+import com.ex.service.FarmCustomerService;
 import com.ex.service.InventoryService;
 import com.ex.service.RecurringDeliveryService;
 import com.ex.service.ShipmentService;
@@ -44,6 +46,7 @@ public class ManagementController {
     private final ShipmentService shipmentService;
     private final BarcodeService barcodeService;
     private final WarehouseManagementService warehouseManagementService;
+    private final FarmCustomerService farmCustomerService;
 
     public ManagementController(
             InventoryService inventoryService,
@@ -52,7 +55,8 @@ public class ManagementController {
             DefectService defectService,
             ShipmentService shipmentService,
             BarcodeService barcodeService,
-            WarehouseManagementService warehouseManagementService) {
+            WarehouseManagementService warehouseManagementService,
+            FarmCustomerService farmCustomerService) {
         this.inventoryService = inventoryService;
         this.distributionService = distributionService;
         this.recurringDeliveryService = recurringDeliveryService;
@@ -60,6 +64,7 @@ public class ManagementController {
         this.shipmentService = shipmentService;
         this.barcodeService = barcodeService;
         this.warehouseManagementService = warehouseManagementService;
+        this.farmCustomerService = farmCustomerService;
     }
 
     @Value("${kakao.maps.javascript-key:}")
@@ -755,9 +760,21 @@ public class ManagementController {
                 })
                 .toList();
         var reservedLotStocks = inventoryService.reservedStockByLot();
+        var warehouseOrderableProductIds = warehouseManagementService
+                .allocations()
+                .stream()
+                .filter(allocation ->
+                        allocation.getWarehouse().isActive())
+                .filter(allocation ->
+                        allocation.getCurrentStockQuantity() > 0)
+                .map(allocation ->
+                        allocation.getProduct().getProductId())
+                .collect(Collectors.toSet());
         var orderableLots = inventoryService.lots().stream()
                 .filter(lot -> lot.getLotQuantity()
                         - reservedLotStocks.getOrDefault(lot.getLotId(), 0) > 0)
+                .filter(lot -> warehouseOrderableProductIds.contains(
+                        lot.getProduct().getProductId()))
                 .toList();
 
         model.addAttribute(
@@ -883,12 +900,39 @@ public class ManagementController {
                 (long) cancelledOrders.size());
         model.addAttribute("kakaoMapsJavascriptKey",
                 kakaoMapsJavascriptKey);
+        model.addAttribute("farmCustomers",
+                farmCustomerService.customers());
+        model.addAttribute("activeFarmCustomerCount",
+                farmCustomerService.activeCount());
+        model.addAttribute("farmMonthlyFeedTotal",
+                farmCustomerService.totalMonthlyFeedQuantity());
+        model.addAttribute("farmWarehouseSummaries",
+                farmCustomerService.warehouseSummaries());
+        model.addAttribute("farmWarehouses",
+                warehouseManagementService.warehouses());
 
         return "distribution";
     }
 
+    @PostMapping("/distribution/farm-customers/{farmCustomerId}/status")
+    public String changeFarmCustomerStatus(
+            @PathVariable("farmCustomerId") Long farmCustomerId,
+            @RequestParam("status") CustomerStatus status,
+            RedirectAttributes redirectAttributes) {
+        return execute(
+                () -> farmCustomerService.changeStatus(
+                        farmCustomerId, status),
+                "/distribution?view=farms",
+                status == CustomerStatus.ACTIVE
+                        ? "농장 고객사의 거래를 재개했습니다."
+                        : "농장 고객사를 거래 보류로 변경했습니다.",
+                redirectAttributes);
+    }
+
     @PostMapping("/distribution/demo-orders")
     public String createDemoOrder(
+            @RequestParam(name = "farmCustomerId", required = false)
+            Long farmCustomerId,
             @RequestParam("lotId") Long lotId,
             @RequestParam("quantity") int quantity,
             @RequestParam(name = "discountPrice", defaultValue = "0")
@@ -912,13 +956,14 @@ public class ManagementController {
 
         return execute(
                 () -> distributionService.createDemoOrder(
+                        farmCustomerId,
                         lotId, quantity, discountPrice,
                         recipientName, recipientPhone,
                         postalCode, roadAddress, jibunAddress,
                         detailAddress, latitude, longitude,
                         deliveryRequest),
                 "/distribution?view=ready",
-                "테스트 주문이 결제 완료 상태로 생성되고 재고가 예약되었습니다.",
+                "주문이 생성되고 배송지에서 가장 가까운 가용 창고가 자동 배정되었습니다.",
                 redirectAttributes);
     }
 

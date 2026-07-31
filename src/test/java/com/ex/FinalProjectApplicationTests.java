@@ -17,11 +17,14 @@ import com.ex.entity.Product;
 import com.ex.entity.CustomerOrder;
 import com.ex.entity.Delivery;
 import com.ex.entity.Delivery.ReturnStatus;
+import com.ex.entity.FarmCustomer.CustomerStatus;
 import com.ex.entity.Shipment;
 import com.ex.repository.CustomerOrderRepository;
 import com.ex.repository.DeliveryRepository;
 import com.ex.repository.ShipmentRepository;
 import com.ex.service.DistributionService;
+import com.ex.service.FarmCustomerSeeder;
+import com.ex.service.FarmCustomerService;
 import com.ex.service.InventoryService;
 import com.ex.service.RecurringDeliveryService;
 import com.ex.service.ShipmentService;
@@ -33,6 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -65,6 +69,12 @@ class FinalProjectApplicationTests {
 	@Autowired
 	private RecurringDeliveryService recurringDeliveryService;
 
+	@Autowired
+	private FarmCustomerService farmCustomerService;
+
+	@Autowired
+	private FarmCustomerSeeder farmCustomerSeeder;
+
 	@Test
 	void contextLoads() {
 	}
@@ -95,6 +105,22 @@ class FinalProjectApplicationTests {
 		assertEquals(
 				0,
 				warehouseManagementService.lowStockAllocationCount());
+	}
+
+	@Test
+	void farmCustomersAreSeededAcrossAllFiveWarehouses() {
+		assertEquals(20, farmCustomerService.customers().size());
+		assertEquals(18, farmCustomerService.activeCount());
+		assertEquals(
+				32740,
+				farmCustomerService.totalMonthlyFeedQuantity());
+
+		var summaries = farmCustomerService.warehouseSummaries();
+		assertEquals(5, summaries.size());
+		assertEquals(4, summaries.get("W01").customerCount());
+		assertEquals(7050, summaries.get("W01").monthlyFeedQuantity());
+		assertEquals(4, summaries.get("W05").customerCount());
+		assertEquals(5470, summaries.get("W05").monthlyFeedQuantity());
 	}
 
 	@Test
@@ -248,6 +274,12 @@ class FinalProjectApplicationTests {
 								"id=\"demoAddressSearch\"")))
 				.andExpect(content().string(
 						org.hamcrest.Matchers.containsString(
+								"가까운 창고 자동 배정")))
+				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString(
+								"자동 배정 창고")))
+				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString(
 								"postcode.v2.js")))
 				.andExpect(content().string(
 						org.hamcrest.Matchers.containsString(
@@ -264,10 +296,117 @@ class FinalProjectApplicationTests {
 	}
 
 	@Test
+	void distributionRendersFarmCustomerManagementTab()
+			throws Exception {
+		mockMvc.perform(get("/distribution").queryParam("view", "farms"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString(
+								"data-delivery-view=\"farms\"")))
+				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString(
+								"거점별 농장 고객사 관리")))
+				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString(
+								"id=\"farmCustomerTable\"")))
+				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString(
+								"예산 고덕 한우농장")))
+				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString(
+								"나주 문평 오리농장")))
+				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString(
+								"파이널 프로젝트 시연용 가상 농장 데이터")))
+				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString(
+								"data-farm-status=\"ACTIVE\"")))
+				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString(
+								"거래 보류로 변경")))
+				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString(
+								"거래 재개")));
+	}
+
+	@Test
+	@Transactional
+	void farmCustomerStatusCanBeChangedImmediatelyAndPersistsAfterSeed()
+			throws Exception {
+		var farm = farmCustomerService.customers().stream()
+				.filter(item -> "F-W03-04".equals(item.getFarmCode()))
+				.findFirst()
+				.orElseThrow();
+		assertEquals(CustomerStatus.PAUSED, farm.getStatus());
+
+		MvcResult page = mockMvc.perform(
+				get("/distribution").queryParam("view", "farms"))
+				.andExpect(status().isOk())
+				.andReturn();
+		CsrfToken csrfToken = (CsrfToken) page.getRequest()
+				.getAttribute(CsrfToken.class.getName());
+		MockHttpSession session =
+				(MockHttpSession) page.getRequest().getSession(false);
+
+		mockMvc.perform(post(
+				"/distribution/farm-customers/{farmCustomerId}/status",
+				farm.getFarmCustomerId())
+				.session(session)
+				.param(csrfToken.getParameterName(), csrfToken.getToken())
+				.param("status", "ACTIVE"))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/distribution?view=farms"));
+
+		assertEquals(CustomerStatus.ACTIVE, farm.getStatus());
+		farmCustomerSeeder.seed();
+		assertEquals(CustomerStatus.ACTIVE, farm.getStatus());
+	}
+
+	@Test
+	@Transactional
+	void farmCustomerOrderKeepsCustomerLinkAndNearestWarehouse() {
+		var farm = farmCustomerService.customers().stream()
+				.filter(item -> "F-W05-01".equals(item.getFarmCode()))
+				.findFirst()
+				.orElseThrow();
+		var reservedBefore = inventoryService.reservedStockByLot();
+		var lot = inventoryService.lots().stream()
+				.filter(item -> farm.getPreferredFeed().equals(
+						item.getProduct().getName()))
+				.filter(item -> item.getLotQuantity()
+						- reservedBefore.getOrDefault(
+								item.getLotId(), 0) >= 1)
+				.findFirst()
+				.orElseThrow();
+
+		Long orderId = distributionService.createDemoOrder(
+				farm.getFarmCustomerId(),
+				lot.getLotId(), 1, BigDecimal.ZERO,
+				farm.getRepresentativeName(), farm.getPhone(),
+				farm.getPostalCode(), farm.getAddress(),
+				null, null, farm.getLatitude(), farm.getLongitude(),
+				"농장 고객사 연결 테스트");
+
+		var order = orderRepository.findById(orderId).orElseThrow();
+		assertNotNull(order.getFarmCustomer());
+		assertEquals(
+				farm.getFarmCustomerId(),
+				order.getFarmCustomer().getFarmCustomerId());
+		assertEquals(
+				"F-W05-01",
+				order.getFarmCustomer().getFarmCode());
+		assertEquals(
+				"W05",
+				order.getFulfillmentWarehouse().getCode());
+	}
+
+	@Test
 	@Transactional
 	void demoOrderReservesSelectedLotStock() {
 		var reservedBefore = inventoryService.reservedStockByLot();
 		var lot = inventoryService.lots().stream()
+				.filter(item -> "한우 송아지 스타터".equals(
+						item.getProduct().getName()))
 				.filter(item -> item.getLotQuantity()
 						- reservedBefore.getOrDefault(item.getLotId(), 0) >= 2)
 				.findFirst()
@@ -293,10 +432,101 @@ class FinalProjectApplicationTests {
 				"[06236] 서울특별시 강남구 테헤란로 123 4층 발표장",
 				order.getShippingAddress());
 		assertEquals(37.500123, order.getLatitude());
+		assertNotNull(order.getFulfillmentWarehouse());
+		assertEquals(
+				"W04",
+				order.getFulfillmentWarehouse().getCode());
+		assertNotNull(order.getFulfillmentDistanceKm());
+		assertEquals(
+				"배송지 좌표 기준 자동 배정",
+				order.getFulfillmentAssignmentBasis());
 		assertEquals(
 				originalReserved + 2,
 				inventoryService.reservedStockByLot()
 						.get(lot.getLotId()));
+	}
+
+	@Test
+	@Transactional
+	void addressRegionFallbackAssignsJeonbukWarehouse() {
+		var reservedBefore = inventoryService.reservedStockByLot();
+		var lot = inventoryService.lots().stream()
+				.filter(item -> "한우 송아지 스타터".equals(
+						item.getProduct().getName()))
+				.filter(item -> item.getLotQuantity()
+						- reservedBefore.getOrDefault(
+								item.getLotId(), 0) >= 1)
+				.findFirst()
+				.orElseThrow();
+
+		Long orderId = distributionService.createDemoOrder(
+				lot.getLotId(), 1, BigDecimal.ZERO,
+				"전북 농장", "010-2000-3000",
+				"54321", "전북특별자치도 김제시 농장로 10",
+				null, "축사 앞", null, null, null);
+
+		var order = orderRepository.findById(orderId).orElseThrow();
+		assertEquals(
+				"W02",
+				order.getFulfillmentWarehouse().getCode());
+		assertEquals(
+				"주소 권역 기준 자동 배정",
+				order.getFulfillmentAssignmentBasis());
+	}
+
+	@Test
+	@Transactional
+	void shipmentDeductsAndCancellationRestoresAssignedWarehouseStock() {
+		var reservedBefore = inventoryService.reservedStockByLot();
+		var lot = inventoryService.lots().stream()
+				.filter(item -> "한우 송아지 스타터".equals(
+						item.getProduct().getName()))
+				.filter(item -> item.getLotQuantity()
+						- reservedBefore.getOrDefault(
+								item.getLotId(), 0) >= 1)
+				.findFirst()
+				.orElseThrow();
+
+		Long orderId = distributionService.createDemoOrder(
+				lot.getLotId(), 1, BigDecimal.ZERO,
+				"나주 농장", "010-4000-5000",
+				"58291", "전라남도 나주시 문평면 농장길 10",
+				null, null, 35.0459, 126.8447, null);
+		var order = orderRepository.findById(orderId).orElseThrow();
+		assertEquals("W05", order.getFulfillmentWarehouse().getCode());
+
+		var allocation = warehouseManagementService.allocations()
+				.stream()
+				.filter(item -> item.getWarehouse().getWarehouseId()
+						.equals(order.getFulfillmentWarehouse()
+								.getWarehouseId()))
+				.filter(item -> item.getProduct().getProductId()
+						.equals(lot.getProduct().getProductId()))
+				.findFirst()
+				.orElseThrow();
+		int originalWarehouseStock =
+				allocation.getCurrentStockQuantity();
+
+		shipmentService.create(
+				orderId, "자동 배정 테스트", "나주 창고 출고");
+		var shipment = shipmentRepository.findByOrderOrderId(orderId)
+				.orElseThrow();
+		shipmentService.startPicking(
+				shipment.getShipmentId(), "피킹 담당자");
+		shipmentService.inspect(
+				shipment.getShipmentId(), "검수 담당자");
+		shipmentService.complete(
+				shipment.getShipmentId(), "출고 담당자");
+
+		assertEquals(
+				originalWarehouseStock - 1,
+				allocation.getCurrentStockQuantity());
+
+		shipmentService.cancelCompleted(
+				shipment.getShipmentId(), "자동 배정 출고 취소 테스트");
+		assertEquals(
+				originalWarehouseStock,
+				allocation.getCurrentStockQuantity());
 	}
 
 	@Test

@@ -38,6 +38,10 @@ public class Warehouse {
     @Column(nullable = false, length = 100)
     private String operationFocus;
 
+    private Double latitude;
+
+    private Double longitude;
+
     private int displayOrder;
 
     private boolean active = true;
@@ -48,12 +52,16 @@ public class Warehouse {
             String address,
             String serviceArea,
             String operationFocus,
+            double latitude,
+            double longitude,
             int displayOrder) {
         this.code = code;
         this.name = name;
         this.address = address;
         this.serviceArea = serviceArea;
         this.operationFocus = operationFocus;
+        this.latitude = latitude;
+        this.longitude = longitude;
         this.displayOrder = displayOrder;
     }
 
@@ -62,12 +70,20 @@ public class Warehouse {
             String address,
             String serviceArea,
             String operationFocus,
+            double latitude,
+            double longitude,
             int displayOrder) {
         this.name = name;
         this.address = address;
         this.serviceArea = serviceArea;
         this.operationFocus = operationFocus;
+        this.latitude = latitude;
+        this.longitude = longitude;
         this.displayOrder = displayOrder;
         this.active = true;
+    }
+
+    public boolean hasCoordinates() {
+        return latitude != null && longitude != null;
     }
 }

@@ -2914,6 +2914,40 @@ label select {
     vertical-align: middle;
 }
 
+.warehouse-assignment-cell {
+    min-width: 160px;
+}
+
+.warehouse-assignment {
+    display: grid;
+    gap: 3px;
+}
+
+.warehouse-assignment > span {
+    width: max-content;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: #e7f4ec;
+    color: #27754b;
+    font-size: 9px;
+    font-weight: 900;
+}
+
+.warehouse-assignment strong {
+    color: #30473a;
+    font-size: 12px;
+}
+
+.warehouse-assignment small,
+.shipment-warehouse {
+    color: #708078;
+    font-size: 9px;
+}
+
+.shipment-warehouse {
+    max-width: 160px;
+}
+
 .order-management-heading {
     min-width: 165px;
 }
@@ -3259,7 +3293,7 @@ label select {
 
 .delivery-info-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 12px;
     margin-bottom: 16px;
 }
@@ -3279,6 +3313,15 @@ label select {
 .delivery-info-card strong {
     color: #283d31;
     font-size: 15px;
+}
+
+.warehouse-source-card {
+    border-color: #b9ddc8;
+    background: linear-gradient(145deg, #f3fbf6, #ffffff);
+}
+
+.warehouse-source-card strong {
+    color: #1f7246;
 }
 
 .delivery-detail-grid {
@@ -3454,8 +3497,439 @@ button.distribution-kpi.active {
     background: #bd454b;
 }
 
+.distribution-kpi.farm-customers::before {
+    background: #287f78;
+}
+
 [data-delivery-panel][hidden] {
     display: none !important;
+}
+
+.farm-customer-panel {
+    overflow: hidden;
+}
+
+.farm-demo-notice {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 0 24px 18px;
+    padding: 10px 13px;
+    border: 1px solid #cbe4df;
+    border-radius: 10px;
+    background: #f1faf8;
+    color: #456961;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.farm-demo-notice span,
+.farm-demo-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #287f78;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.07em;
+}
+
+.farm-demo-notice span {
+    min-width: 45px;
+    padding: 4px 7px;
+}
+
+.farm-customer-overview {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    padding: 0 24px 19px;
+}
+
+.farm-customer-overview article {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    padding: 15px 17px;
+    border: 1px solid #dce8e2;
+    border-radius: 13px;
+    background:
+        linear-gradient(135deg, #fbfefd 0%, #f2f9f6 100%);
+}
+
+.farm-customer-overview article span {
+    color: #61766b;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.farm-customer-overview article strong {
+    color: #214c3c;
+    font-size: 21px;
+}
+
+.farm-customer-overview article small {
+    color: #849189;
+    font-size: 10px;
+}
+
+.farm-warehouse-selector {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 9px;
+    padding: 18px 24px;
+    border-top: 1px solid #e8eeea;
+    border-bottom: 1px solid #e8eeea;
+    background: #f8faf9;
+}
+
+.farm-warehouse-card {
+    display: grid;
+    min-width: 0;
+    gap: 5px;
+    padding: 12px;
+    border: 1px solid #dce5df;
+    border-radius: 11px;
+    outline: none;
+    background: #fff;
+    color: #354a40;
+    text-align: left;
+    cursor: pointer;
+    transition:
+        border-color 0.17s ease,
+        box-shadow 0.17s ease,
+        transform 0.17s ease;
+}
+
+.farm-warehouse-card:hover {
+    transform: translateY(-1px);
+    border-color: #91b9a8;
+}
+
+.farm-warehouse-card.active {
+    border-color: #348363;
+    background: #edf8f3;
+    box-shadow: 0 0 0 3px rgba(52, 131, 99, 0.1);
+}
+
+.farm-warehouse-card span {
+    color: #2a8064;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+}
+
+.farm-warehouse-card strong {
+    overflow: hidden;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.farm-warehouse-card small {
+    overflow: hidden;
+    color: #7a8880;
+    font-size: 9px;
+    line-height: 1.45;
+}
+
+.farm-customer-tools {
+    display: grid;
+    grid-template-columns: minmax(230px, 1fr) minmax(460px, auto) auto;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 24px;
+    border-bottom: 1px solid #e8eeea;
+}
+
+.farm-customer-tools > input {
+    width: 100%;
+    min-width: 0;
+    padding: 11px 13px;
+    border: 1px solid #d7e2db;
+    border-radius: 10px;
+    outline: none;
+    background: #fff;
+}
+
+.farm-customer-tools > input:focus {
+    border-color: #4b9b78;
+    box-shadow: 0 0 0 3px rgba(52, 131, 99, 0.1);
+}
+
+.farm-customer-tools .category-tabs {
+    margin: 0;
+    padding: 0;
+}
+
+.farm-filter-groups {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.farm-filter-group {
+    display: grid;
+    gap: 5px;
+}
+
+.farm-filter-group > span {
+    color: #77867e;
+    font-size: 9px;
+    font-weight: 900;
+}
+
+.farm-status-tabs .category-tab.active {
+    border-color: #89765f;
+    background: #f4eee6;
+    color: #6f5a42;
+}
+
+.farm-customer-tools > span {
+    color: #718078;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.farm-customer-tools > span strong {
+    color: #286f54;
+    font-size: 14px;
+}
+
+.farm-customer-table-wrap {
+    overflow-x: auto;
+}
+
+#farmCustomerTable {
+    min-width: 1260px;
+}
+
+#farmCustomerTable tbody tr {
+    transition: background 0.16s ease;
+}
+
+#farmCustomerTable tbody tr:hover {
+    background: #f8fcfa;
+}
+
+#farmCustomerTable td {
+    vertical-align: middle;
+}
+
+#farmCustomerTable td > strong,
+#farmCustomerTable td > small,
+#farmCustomerTable .farm-address {
+    display: block;
+}
+
+#farmCustomerTable td > small {
+    max-width: 245px;
+    margin-top: 5px;
+    color: #7a8980;
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.farm-demo-badge {
+    margin-top: 7px;
+    padding: 3px 6px;
+}
+
+.farm-warehouse-code {
+    display: inline-flex;
+    margin-bottom: 6px;
+    padding: 4px 7px;
+    border-radius: 7px;
+    background: #e6f3ed;
+    color: #287353;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.farm-animal-badge {
+    display: inline-flex;
+    padding: 5px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.farm-animal-badge.cattle {
+    background: #f5ead8;
+    color: #8a6225;
+}
+
+.farm-animal-badge.pig {
+    background: #f7e3e9;
+    color: #a24d69;
+}
+
+.farm-animal-badge.poultry {
+    background: #e7edf8;
+    color: #496b9e;
+}
+
+.farm-address {
+    max-width: 210px;
+    color: #46574e;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.45;
+}
+
+.farm-monthly-demand {
+    color: #236e50;
+    font-size: 15px;
+}
+
+.farm-status {
+    display: inline-flex;
+    padding: 5px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.farm-status.active {
+    background: #e3f3ea;
+    color: #27714f;
+}
+
+.farm-status.paused {
+    background: #f1ece8;
+    color: #806c5c;
+}
+
+.farm-order-button {
+    width: 100%;
+    padding: 7px 9px;
+    font-size: 10px;
+}
+
+.farm-customer-actions {
+    display: grid;
+    gap: 7px;
+    min-width: 128px;
+}
+
+.farm-customer-actions > form {
+    display: grid;
+}
+
+.farm-status-change {
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.farm-status-change.pause {
+    border-color: #dfcfc2;
+    background: #fffaf6;
+    color: #80634e;
+}
+
+.farm-status-change.resume {
+    border-color: #add8c3;
+    background: #eef9f3;
+    color: #27714f;
+}
+
+.farm-status-change:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+.demo-farm-selection {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 3px 9px;
+    margin-bottom: 13px;
+    padding: 11px 12px;
+    border: 1px solid #bfe0d2;
+    border-radius: 10px;
+    background: #eff9f5;
+}
+
+.demo-farm-selection[hidden] {
+    display: none;
+}
+
+.demo-farm-selection span {
+    grid-row: 1 / 3;
+    padding: 5px 7px;
+    border-radius: 7px;
+    background: #287f62;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 900;
+}
+
+.demo-farm-selection strong {
+    color: #25533f;
+    font-size: 12px;
+}
+
+.demo-farm-selection small {
+    color: #6c8277;
+    font-size: 9px;
+}
+
+@media (max-width: 1180px) {
+    .farm-warehouse-selector {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .farm-customer-tools {
+        grid-template-columns: 1fr auto;
+    }
+
+    .farm-customer-tools .farm-filter-groups {
+        grid-row: 2;
+        grid-column: 1 / 3;
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 760px) {
+    .farm-demo-notice {
+        align-items: flex-start;
+        margin: 0 14px 14px;
+    }
+
+    .farm-customer-overview {
+        grid-template-columns: 1fr;
+        padding: 0 14px 14px;
+    }
+
+    .farm-warehouse-selector {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        padding: 14px;
+    }
+
+    .farm-customer-tools {
+        grid-template-columns: 1fr;
+        padding: 14px;
+    }
+
+    .farm-customer-tools .farm-filter-groups {
+        grid-row: auto;
+        grid-column: auto;
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .farm-customer-tools > span {
+        justify-self: end;
+    }
 }
 
 .delivery-row-actions {
@@ -3988,6 +4462,45 @@ button.distribution-kpi.active {
 
 .demo-order-total strong {
     font-size: 20px;
+}
+
+.warehouse-auto-assignment-note {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 12px 14px;
+    border: 1px solid #b9ddc8;
+    border-radius: 11px;
+    background: #f3fbf6;
+}
+
+.warehouse-auto-assignment-note > span {
+    display: grid;
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    border-radius: 9px;
+    background: #dff2e7;
+    color: #247449;
+    font-size: 17px;
+    font-weight: 900;
+}
+
+.warehouse-auto-assignment-note > div {
+    display: grid;
+    gap: 3px;
+}
+
+.warehouse-auto-assignment-note strong {
+    color: #285f43;
+    font-size: 11px;
+}
+
+.warehouse-auto-assignment-note small {
+    color: #61796b;
+    font-size: 9px;
+    line-height: 1.5;
 }
 
 .demo-order-label {

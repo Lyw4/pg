@@ -26,6 +26,8 @@ public class WarehousePlanSeeder {
             String address,
             String serviceArea,
             String operationFocus,
+            double latitude,
+            double longitude,
             int displayOrder) {
     }
 
@@ -36,6 +38,8 @@ public class WarehousePlanSeeder {
                     "충남 예산군 고덕면 몽곡리 667 일대",
                     "충남 서북부",
                     "양계·양돈 중심",
+                    36.7339,
+                    126.6995,
                     1),
             new WarehouseSeed(
                     "W02",
@@ -43,6 +47,8 @@ public class WarehousePlanSeeder {
                     "전북 김제시 흥사동 서흥농공단지 외곽",
                     "전북 서부·새만금권",
                     "닭·오리·돼지 중심",
+                    35.8289,
+                    126.8795,
                     2),
             new WarehouseSeed(
                     "W03",
@@ -50,6 +56,8 @@ public class WarehousePlanSeeder {
                     "경북 의성군 단촌면 세촌리 국도 5호선 축",
                     "안동·의성·경북 북부",
                     "소·돼지·조류 균형형",
+                    36.4247,
+                    128.6886,
                     3),
             new WarehouseSeed(
                     "W04",
@@ -57,6 +65,8 @@ public class WarehousePlanSeeder {
                     "경기 안성시 미양면 계륵리·구수리 일대",
                     "경기 남부·충북 서부",
                     "소·돼지 강화형",
+                    36.9684,
+                    127.2154,
                     4),
             new WarehouseSeed(
                     "W05",
@@ -64,6 +74,8 @@ public class WarehousePlanSeeder {
                     "전남 나주시 문평면 옥당리 문평IC 인근",
                     "전남 중서부",
                     "닭·오리 최우선",
+                    35.0459,
+                    126.8447,
                     5));
 
     private static final Map<String, int[]> MONTHLY_PLANS =
@@ -119,6 +131,8 @@ public class WarehousePlanSeeder {
                         seed.address(),
                         seed.serviceArea(),
                         seed.operationFocus(),
+                        seed.latitude(),
+                        seed.longitude(),
                         seed.displayOrder()));
 
         warehouse.updateDetails(
@@ -126,6 +140,8 @@ public class WarehousePlanSeeder {
                 seed.address(),
                 seed.serviceArea(),
                 seed.operationFocus(),
+                seed.latitude(),
+                seed.longitude(),
                 seed.displayOrder());
 
         return warehouseRepository.save(warehouse);

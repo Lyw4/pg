@@ -6,9 +6,12 @@ import java.time.LocalDateTime;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
@@ -43,6 +46,18 @@ public class CustomerOrder {
 	private Double latitude;
 	private Double longitude;
 	private String deliveryRequest;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "fulfillment_warehouse_id")
+	private Warehouse fulfillmentWarehouse;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "farm_customer_id")
+	private FarmCustomer farmCustomer;
+
+	private Double fulfillmentDistanceKm;
+	private String fulfillmentAssignmentBasis;
+
 	private LocalDateTime createdAt;
 	private LocalDateTime cancelledAt;
 	private String cancellationReason;
@@ -124,6 +139,38 @@ public class CustomerOrder {
 				+ (this.detailAddress == null || this.detailAddress.isBlank()
 						? ""
 						: " " + this.detailAddress);
+	}
+
+	public void assignFulfillmentWarehouse(
+			Warehouse warehouse,
+			Double distanceKm,
+			String assignmentBasis) {
+		if (warehouse == null || !warehouse.isActive()) {
+			throw new IllegalArgumentException(
+					"운영 중인 출고 창고를 지정해 주세요.");
+		}
+		this.fulfillmentWarehouse = warehouse;
+		this.fulfillmentDistanceKm = distanceKm;
+		this.fulfillmentAssignmentBasis = assignmentBasis;
+	}
+
+	public void linkFarmCustomer(FarmCustomer farmCustomer) {
+		if (farmCustomer == null
+				|| farmCustomer.getStatus()
+						!= FarmCustomer.CustomerStatus.ACTIVE) {
+			throw new IllegalArgumentException(
+					"거래 중인 농장 고객사만 주문에 연결할 수 있습니다.");
+		}
+		this.farmCustomer = farmCustomer;
+	}
+
+	public String getFulfillmentDistanceLabel() {
+		if (fulfillmentDistanceKm == null) {
+			return fulfillmentAssignmentBasis == null
+					? "자동 배정"
+					: fulfillmentAssignmentBasis;
+		}
+		return "직선거리 약 %.1fkm".formatted(fulfillmentDistanceKm);
 	}
 
 	@PrePersist

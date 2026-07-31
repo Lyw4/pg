@@ -12,6 +12,7 @@ import com.ex.entity.Delivery;
 import com.ex.entity.Delivery.DeliveryStatus;
 import com.ex.entity.DefectRecord.DefectType;
 import com.ex.entity.DeliveryStatusHistory;
+import com.ex.entity.FarmCustomer.CustomerStatus;
 import com.ex.entity.OrderItem;
 import com.ex.entity.ProductLot;
 import com.ex.entity.Shipment;
@@ -22,6 +23,7 @@ import com.ex.entity.StockLog.ChangeType;
 import com.ex.repository.CustomerOrderRepository;
 import com.ex.repository.DeliveryRepository;
 import com.ex.repository.DeliveryStatusHistoryRepository;
+import com.ex.repository.FarmCustomerRepository;
 import com.ex.repository.OrderItemRepository;
 import com.ex.repository.ProductLotRepository;
 import com.ex.repository.ShipmentItemRepository;
@@ -44,6 +46,8 @@ public class DistributionService {
 	private final ProductLotRepository productLotRepository;
 	private final StockLogRepository stockLogRepository;
 	private final DefectService defectService;
+	private final WarehouseFulfillmentService warehouseFulfillmentService;
+	private final FarmCustomerRepository farmCustomerRepository;
 
 	public List<CustomerOrder> orders() {
 		return orderRepository.findAllByOrderByCreatedAtDesc();
@@ -103,6 +107,37 @@ public class DistributionService {
 			Double latitude,
 			Double longitude,
 			String deliveryRequest) {
+		return createDemoOrder(
+				null,
+				lotId,
+				quantity,
+				discountPrice,
+				recipientName,
+				recipientPhone,
+				postalCode,
+				roadAddress,
+				jibunAddress,
+				detailAddress,
+				latitude,
+				longitude,
+				deliveryRequest);
+	}
+
+	@Transactional
+	public Long createDemoOrder(
+			Long farmCustomerId,
+			Long lotId,
+			int quantity,
+			BigDecimal discountPrice,
+			String recipientName,
+			String recipientPhone,
+			String postalCode,
+			String roadAddress,
+			String jibunAddress,
+			String detailAddress,
+			Double latitude,
+			Double longitude,
+			String deliveryRequest) {
 		if (quantity <= 0) {
 			throw new IllegalArgumentException("주문 수량은 1개 이상이어야 합니다.");
 		}
@@ -143,6 +178,19 @@ public class DistributionService {
 		order.configureShippingAddress(
 				postalCode, roadAddress, jibunAddress,
 				detailAddress, latitude, longitude);
+		if (farmCustomerId != null) {
+			var farmCustomer = farmCustomerRepository
+					.findById(farmCustomerId)
+					.orElseThrow(() -> new IllegalArgumentException(
+							"농장 고객사를 찾을 수 없습니다."));
+			if (farmCustomer.getStatus() != CustomerStatus.ACTIVE) {
+				throw new IllegalStateException(
+						"거래 중인 농장 고객사만 주문할 수 있습니다.");
+			}
+			order.linkFarmCustomer(farmCustomer);
+		}
+		warehouseFulfillmentService.assignNearest(
+				order, lot.getProduct(), quantity);
 		orderItemRepository.save(new OrderItem(
 				order, lot.getProduct(), lot, quantity,
 				lot.getProduct().getPrice()));
@@ -357,6 +405,8 @@ public class DistributionService {
 						"고객 회수 정상 재입고 DLV-" + deliveryId
 								+ ": " + note.trim()));
 			}
+			warehouseFulfillmentService.restoreStock(
+					delivery.getOrder(), items);
 			delivery.completeReturn("정상 재입고 · " + note.trim());
 		} else {
 			if (defectType == null) {
@@ -408,6 +458,8 @@ public class DistributionService {
 					shipment.getShipmentNo() + " 주문 취소 재고 원복: "
 							+ reason.trim()));
 		});
+		warehouseFulfillmentService.restoreStock(
+				shipment.getOrder(), items);
 	}
 
 	private void requireText(String value, String message) {

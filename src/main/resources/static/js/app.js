@@ -208,6 +208,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const cancelledOrderPanel = document.querySelector(
         '[data-delivery-panel="cancelled_orders"]'
     );
+    const farmCustomerPanel = document.querySelector(
+        '[data-delivery-panel="farms"]'
+    );
     const deliveryTrackingPanel = document.querySelector(
         '[data-delivery-panel="tracking"]'
     );
@@ -321,6 +324,115 @@ document.addEventListener("DOMContentLoaded", () => {
         "input", filterCancelledOrders
     );
 
+    const farmCustomerSearch =
+        document.getElementById("farmCustomerSearch");
+    const farmWarehouseCards = all(
+        ".farm-warehouse-card[data-farm-warehouse]"
+    );
+    const farmAnimalTabs = all(
+        ".farm-animal-tabs [data-farm-animal]"
+    );
+    const farmStatusTabs = all(
+        ".farm-status-tabs [data-farm-status]"
+    );
+    const farmCustomerRows = all(
+        "#farmCustomerTable tbody tr[data-farm-row]"
+    );
+    const farmCustomerVisibleCount =
+        document.getElementById("farmCustomerVisibleCount");
+    const farmCustomerFilterEmpty =
+        document.getElementById("farmCustomerFilterEmpty");
+    let activeFarmWarehouse = "all";
+    let activeFarmAnimal = "all";
+    let activeFarmStatus = "all";
+
+    function filterFarmCustomers() {
+        const keyword =
+            farmCustomerSearch?.value.trim().toLowerCase() ?? "";
+        let visible = 0;
+
+        farmCustomerRows.forEach(row => {
+            const matchesWarehouse =
+                activeFarmWarehouse === "all"
+                || row.dataset.warehouse === activeFarmWarehouse;
+            const matchesAnimal =
+                activeFarmAnimal === "all"
+                || row.dataset.animal === activeFarmAnimal;
+            const matchesStatus =
+                activeFarmStatus === "all"
+                || row.dataset.status === activeFarmStatus;
+            const matchesKeyword = row.textContent
+                .trim()
+                .toLowerCase()
+                .includes(keyword);
+            const show =
+                matchesWarehouse
+                && matchesAnimal
+                && matchesStatus
+                && matchesKeyword;
+
+            row.hidden = !show;
+            if (show) {
+                visible++;
+            }
+        });
+
+        if (farmCustomerVisibleCount) {
+            farmCustomerVisibleCount.textContent = String(visible);
+        }
+        if (farmCustomerFilterEmpty) {
+            farmCustomerFilterEmpty.hidden = visible !== 0;
+        }
+    }
+
+    farmCustomerSearch?.addEventListener("input", filterFarmCustomers);
+
+    farmWarehouseCards.forEach(card => {
+        card.addEventListener("click", () => {
+            activeFarmWarehouse = card.dataset.farmWarehouse ?? "all";
+            farmWarehouseCards.forEach(item => {
+                const selected = item === card;
+                item.classList.toggle("active", selected);
+                item.setAttribute("aria-selected", String(selected));
+            });
+            filterFarmCustomers();
+        });
+    });
+
+    farmAnimalTabs.forEach(tab => {
+        tab.addEventListener("click", () => {
+            activeFarmAnimal = tab.dataset.farmAnimal ?? "all";
+            farmAnimalTabs.forEach(item => {
+                const selected = item === tab;
+                item.classList.toggle("active", selected);
+                item.setAttribute("aria-selected", String(selected));
+            });
+            filterFarmCustomers();
+        });
+    });
+
+    farmStatusTabs.forEach(tab => {
+        tab.addEventListener("click", () => {
+            activeFarmStatus = tab.dataset.farmStatus ?? "all";
+            farmStatusTabs.forEach(item => {
+                const selected = item === tab;
+                item.classList.toggle("active", selected);
+                item.setAttribute("aria-selected", String(selected));
+            });
+            filterFarmCustomers();
+        });
+    });
+
+    all("[data-farm-status-form]").forEach(form => {
+        form.addEventListener("submit", () => {
+            const button = form.querySelector('button[type="submit"]');
+            if (button) {
+                button.disabled = true;
+                button.textContent = "변경 중...";
+            }
+        });
+    });
+
     document.querySelector("[data-order-cancel-form]")
         ?.addEventListener("submit", event => {
             if (!window.confirm(
@@ -343,6 +455,7 @@ document.addEventListener("DOMContentLoaded", () => {
         activeDeliveryView = view;
         const isReady = view === "ready";
         const isCancelledOrders = view === "cancelled_orders";
+        const isFarmCustomers = view === "farms";
 
         deliveryViewTabs.forEach(tab => {
             const selected = tab.dataset.deliveryView === view;
@@ -357,11 +470,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (cancelledOrderPanel) {
             cancelledOrderPanel.hidden = !isCancelledOrders;
         }
+        if (farmCustomerPanel) {
+            farmCustomerPanel.hidden = !isFarmCustomers;
+        }
         if (deliveryTrackingPanel) {
             deliveryTrackingPanel.hidden =
-                isReady || isCancelledOrders;
+                isReady || isCancelledOrders || isFarmCustomers;
         }
-        if (!isReady && !isCancelledOrders) {
+        if (!isReady && !isCancelledOrders && !isFarmCustomers) {
             const copy = deliveryViewCopy[view] ?? deliveryViewCopy.all;
             if (deliveryPanelTitle) {
                 deliveryPanelTitle.textContent = copy[0];
@@ -406,6 +522,16 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("demoOrderStockInfo");
     const demoOrderTotal =
         document.getElementById("demoOrderTotal");
+    const demoFarmCustomerId =
+        document.getElementById("demoFarmCustomerId");
+    const demoFarmSelection =
+        document.getElementById("demoFarmSelection");
+    const demoRecipientName = document.querySelector(
+        '#demoOrderModal [name="recipientName"]'
+    );
+    const demoRecipientPhone = document.querySelector(
+        '#demoOrderModal [name="recipientPhone"]'
+    );
 
     function updateDemoOrderEstimate() {
         const option = demoOrderLot?.selectedOptions[0];
@@ -474,6 +600,122 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("demoAddressSelectionStatus");
     let demoMap;
     let demoMapMarker;
+
+    function clearDemoFarmSelection({ clearAddress = false } = {}) {
+        if (demoFarmCustomerId) {
+            demoFarmCustomerId.value = "";
+        }
+        if (demoFarmSelection) {
+            demoFarmSelection.hidden = true;
+        }
+        if (!clearAddress) {
+            return;
+        }
+
+        [
+            demoRecipientName,
+            demoRecipientPhone,
+            demoPostalCode,
+            demoSelectedAddress,
+            demoRoadAddress,
+            demoJibunAddress,
+            demoDetailAddress,
+            demoLatitude,
+            demoLongitude
+        ].forEach(input => {
+            if (input) {
+                input.value = "";
+            }
+        });
+        if (demoAddressSelectionStatus) {
+            demoAddressSelectionStatus.textContent =
+                "선택된 주소가 없습니다.";
+        }
+        if (demoAddressMap) {
+            demoAddressMap.hidden = true;
+        }
+        if (demoMapHint) {
+            demoMapHint.textContent =
+                "지도 미리보기는 주소 선택 후 표시됩니다.";
+        }
+    }
+
+    document.getElementById("newDemoOrderButton")
+        ?.addEventListener("click", () => {
+            clearDemoFarmSelection({ clearAddress: true });
+        });
+
+    all(".farm-order-button").forEach(button => {
+        button.addEventListener("click", () => {
+            const farmName = button.dataset.farmName ?? "";
+            const address = button.dataset.address ?? "";
+            const postalCode = button.dataset.postalCode ?? "";
+            const preferredFeed = button.dataset.preferredFeed ?? "";
+
+            if (demoFarmCustomerId) {
+                demoFarmCustomerId.value = button.dataset.farmId ?? "";
+            }
+            if (demoFarmSelection) {
+                demoFarmSelection.hidden = false;
+                const name = demoFarmSelection.querySelector("strong");
+                if (name) {
+                    name.textContent = farmName;
+                }
+            }
+            if (demoRecipientName) {
+                demoRecipientName.value =
+                    button.dataset.representative ?? "";
+            }
+            if (demoRecipientPhone) {
+                demoRecipientPhone.value = button.dataset.phone ?? "";
+            }
+            if (demoPostalCode) {
+                demoPostalCode.value = postalCode;
+            }
+            if (demoSelectedAddress) {
+                demoSelectedAddress.value = address;
+            }
+            if (demoRoadAddress) {
+                demoRoadAddress.value = address;
+            }
+            if (demoJibunAddress) {
+                demoJibunAddress.value = "";
+            }
+            if (demoDetailAddress) {
+                demoDetailAddress.value = "";
+            }
+            if (demoLatitude) {
+                demoLatitude.value = button.dataset.latitude ?? "";
+            }
+            if (demoLongitude) {
+                demoLongitude.value = button.dataset.longitude ?? "";
+            }
+            if (demoAddressSelectionStatus) {
+                demoAddressSelectionStatus.textContent =
+                    `${postalCode} · ${farmName} 고객사 주소`;
+            }
+            if (demoAddressMap) {
+                demoAddressMap.hidden = true;
+            }
+            if (demoMapHint) {
+                demoMapHint.textContent =
+                    `농장 등록 좌표 ${button.dataset.latitude}, `
+                    + button.dataset.longitude;
+            }
+
+            if (demoOrderLot && preferredFeed) {
+                const matchingOption = Array.from(demoOrderLot.options)
+                    .find(option =>
+                        option.textContent.includes(preferredFeed)
+                        && Number(option.dataset.available ?? 0) > 0
+                    );
+                if (matchingOption) {
+                    demoOrderLot.value = matchingOption.value;
+                }
+            }
+            updateDemoOrderEstimate();
+        });
+    });
 
     function showDemoAddressOnMap(address) {
         if (!window.kakao?.maps?.load || !demoAddressMap) {
@@ -562,6 +804,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         ? data.roadAddress
                         : data.jibunAddress;
 
+                clearDemoFarmSelection();
                 if (demoPostalCode) {
                     demoPostalCode.value = data.zonecode ?? "";
                 }

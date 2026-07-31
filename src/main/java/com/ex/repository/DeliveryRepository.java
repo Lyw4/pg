@@ -13,9 +13,17 @@ public interface DeliveryRepository extends JpaRepository<Delivery, Long> {
     Optional<Delivery> findByOrderOrderId(Long orderId);
 
     // 배송 정보와 주문을 한 번에 조회
-    @EntityGraph(attributePaths = "order")
+    @EntityGraph(attributePaths = {
+        "order",
+        "order.fulfillmentWarehouse",
+        "order.farmCustomer"
+    })
     List<Delivery> findAllByOrderByDeliveryIdDesc();
 
-    @EntityGraph(attributePaths = "order")
+    @EntityGraph(attributePaths = {
+        "order",
+        "order.fulfillmentWarehouse",
+        "order.farmCustomer"
+    })
     Optional<Delivery> findDetailByDeliveryId(Long deliveryId);
 }
