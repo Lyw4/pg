@@ -175,12 +175,19 @@
                         <div class="card-body">
                             <div class="row g-3">
                                 <div class="col-6 col-md-3">
-                                    <div class="text-muted small">전국 보관 수량</div>
+                                    <!--
+                                        '보관 수량' 이라고 부르지 않는다. 이 값은 대기 구역과
+                                        운송 중 재고까지 포함한 전체이고, 옆 카드의 적재율은
+                                        보관 구역만 센다. 여기서 '보관' 이라고 쓰면
+                                        "4,836 / 9,600 인데 왜 48%인가" 라는 모순이 생긴다.
+                                    -->
+                                    <div class="text-muted small">전국 재고 수량</div>
                                     <div class="ff-stat-value text-primary"
                                          th:text="${#numbers.formatInteger(network.totalQuantity, 1, 'COMMA')}">0</div>
                                     <div class="text-muted" style="font-size: .72rem;"
-                                         th:text="'/ 수용 ' + ${#numbers.formatInteger(network.totalCapacity, 1, 'COMMA')} + ' 포대'">
-                                        / 수용 0 포대
+                                         th:text="'보관 ' + ${#numbers.formatInteger(network.totalStorageQuantity, 1, 'COMMA')}
+                                                  + ' / 수용 ' + ${#numbers.formatInteger(network.totalCapacity, 1, 'COMMA')} + ' 포대'">
+                                        보관 0 / 수용 0 포대
                                     </div>
                                 </div>
                                 <div class="col-6 col-md-3">
@@ -265,7 +272,9 @@
                     <div class="card ff-card h-100">
                         <div class="card-header bg-white border-0 pt-3">
                             <span class="fw-bold"><i class="bi bi-pie-chart me-1"></i>센터별 재고 분포</span>
-                            <span class="text-muted small ms-2">보관 수량 기준 · 전국 합계 대비 비중</span>
+                            <!-- 분포는 '재고가 어디에 있나' 이므로 대기 · 운송 중까지 센다.
+                                 적재율과 기준이 다르다는 것을 라벨에 밝혀 둔다. -->
+                            <span class="text-muted small ms-2">대기 · 운송 중 포함 · 전국 합계 대비 비중</span>
                         </div>
                         <div class="card-body">
                             <div id="centerChartError" class="alert alert-warning d-none py-2 small"></div>
@@ -321,6 +330,17 @@
                                  th:text="'수용 ' + ${#numbers.formatInteger(c.capacity, 1, 'COMMA')}
                                           + ' · 여유 ' + ${#numbers.formatInteger(c.remainingCapacity, 1, 'COMMA')}
                                           + ' · 재고 ' + ${c.rowCount} + '행'">수용 0</div>
+
+                            <!--
+                                위의 큰 숫자(c.quantity)는 전체 재고이고 적재율 뱃지는 보관 구역만
+                                센다. 대기 구역에 물건이 들어온 센터는 두 값이 벌어지므로,
+                                그 차이를 이 자리에서 설명한다. 없으면 줄 자체를 만들지 않는다.
+                            -->
+                            <div th:if="${c.hasWaitingStock}"
+                                 class="text-info mt-1" style="font-size: .7rem;"
+                                 th:text="'보관 ' + ${#numbers.formatInteger(c.storageQuantity, 1, 'COMMA')}
+                                          + ' + 대기 · 운송 중 ' + ${#numbers.formatInteger(c.waitingQuantity, 1, 'COMMA')}
+                                          + ' (적재율은 보관분만)'">보관 0 + 대기 · 운송 중 0</div>
 
                             <!-- 축종 구성: 운영 방향이 실제 재고로 지켜지는지 -->
                             <div class="mt-2" th:if="${c.hasAnimalMix}">
