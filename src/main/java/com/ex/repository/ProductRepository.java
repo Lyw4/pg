@@ -1,26 +1,21 @@
 package com.ex.repository;
 
-import java.util.List;
-import java.util.Optional;
-
+import com.ex.entity.AnimalType;
+import com.ex.entity.Product;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.ex.entity.Product;
+import java.util.List;
+import java.util.Optional;
 
-public interface ProductRepository
-        extends JpaRepository<Product, Long> {
+public interface ProductRepository extends JpaRepository<Product, Long> {
 
-    // 제조사 정보를 상품과 함께 조회
-    @EntityGraph(attributePaths = "manufacturer")
-    List<Product> findAllByOrderByNameAsc();
+    @EntityGraph(attributePaths = {"manufacturer", "lots"})
+    List<Product> findAllByActiveTrueOrderByIdAsc();
 
-    // 더미 데이터 중복 생성 방지
-    boolean existsByName(String name);
+    @EntityGraph(attributePaths = {"manufacturer", "lots"})
+    List<Product> findAllByActiveTrueAndAnimalTypeOrderByIdAsc(AnimalType animalType);
 
-    Optional<Product> findByName(String name);
-
-    // 상품 상세 화면용: 제조사까지 함께 조회
-    @EntityGraph(attributePaths = "manufacturer")
-    Optional<Product> findDetailByProductId(Long productId);
+    @EntityGraph(attributePaths = {"manufacturer", "lots"})
+    Optional<Product> findByIdAndActiveTrue(Long id);
 }

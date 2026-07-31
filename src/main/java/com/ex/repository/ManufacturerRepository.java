@@ -1,13 +1,10 @@
 package com.ex.repository;
 
-import java.util.Optional;
-
+import com.ex.entity.Manufacturer;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.ex.entity.Manufacturer;
+import java.util.Optional;
 
-public interface ManufacturerRepository
-        extends JpaRepository<Manufacturer, Long> {
-
-    Optional<Manufacturer> findByCompanyName(String companyName);
+public interface ManufacturerRepository extends JpaRepository<Manufacturer, Long> {
+    Optional<Manufacturer> findByName(String name);
 }

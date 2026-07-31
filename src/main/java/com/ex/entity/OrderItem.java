@@ -1,49 +1,55 @@
 package com.ex.entity;
 
-import java.math.BigDecimal;
+import jakarta.persistence.*;
+import lombok.*;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "order_item")
 @Getter
+@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class OrderItem {
+@AllArgsConstructor
+@Builder
+public class OrderItem extends BaseTimeEntity {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long orderItemId;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "order_item_id")
+    private Long id;
 
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "order_id")
-	private CustomerOrder order;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "purchase_order_id", nullable = false)
+    private PurchaseOrder order;
 
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "product_id")
-	private Product product;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "product_id", nullable = false)
+    private Product product;
 
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "lot_id")
-	private ProductLot lot;
+    @Column(name = "product_name", nullable = false, length = 120)
+    private String productName;
 
-	private int quantity;
-	private BigDecimal orderPrice;
+    @Column(nullable = false)
+    private int quantity;
 
-	public OrderItem(CustomerOrder order, Product product, ProductLot lot, int quantity, BigDecimal orderPrice) {
-		this.order = order;
-		this.product = product;
-		this.lot = lot;
-		this.quantity = quantity;
-		this.orderPrice = orderPrice;
-	}
+    @Column(name = "unit_price", nullable = false)
+    private int unitPrice;
+
+    @Column(name = "line_amount", nullable = false)
+    private int lineAmount;
+
+    @OneToMany(mappedBy = "orderItem", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<OrderLotAllocation> lotAllocations = new ArrayList<>();
+
+    void assignOrder(PurchaseOrder order) {
+        this.order = order;
+    }
+
+    public void addLotAllocation(OrderLotAllocation allocation) {
+        lotAllocations.add(allocation);
+        allocation.assignOrderItem(this);
+    }
 }

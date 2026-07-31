@@ -1,0 +1,20 @@
+FEED FLOW - Spring Boot + Thymeleaf 실행 안내
+
+1. STS에서 이 프로젝트를 Gradle Existing Project로 Import합니다.
+2. 관리자 기능을 사용할 때는 STS의 Run Configurations에서 아래 환경변수를 등록합니다.
+   - FEEDFLOW_ADMIN_USERNAME: 사용할 관리자 아이디
+   - FEEDFLOW_ADMIN_PASSWORD: 사용할 관리자 비밀번호
+   비밀번호를 소스코드나 application.properties에 직접 적지 않습니다.
+3. 프로젝트를 Spring Boot App으로 실행합니다.
+4. 브라우저에서 아래 주소를 엽니다.
+   - 구매 화면: http://localhost:8080/
+   - 판매자센터: http://localhost:8080/admin
+   - H2 Console: http://localhost:8080/h2-console
+
+중요
+- React/Vite와 npm은 더 이상 실행하지 않아도 됩니다.
+- templates 안의 HTML, static 안의 CSS/JavaScript가 Spring Boot에서 직접 제공됩니다.
+- 포트 8080이 사용 중이면 기존 Spring Boot 실행을 먼저 종료하거나
+  application.properties에 server.port=8081을 추가한 뒤 http://localhost:8081/로 접속합니다.
+- 관리자 상품 등록/수정/판매 중지는 STS 실행 환경변수에 등록한 관리자 계정을
+  판매자센터 상단에 입력해야 작동합니다.
