@@ -27,6 +27,11 @@ JAVA_LANG = {
     'Deprecated', 'SuppressWarnings', 'FunctionalInterface', 'Number', 'Comparable',
     'CharSequence', 'Iterable', 'Class', 'Thread', 'System', 'Character', 'Byte',
     'Short', 'Float', 'Void', 'Record', 'Enum', 'StringBuilder',
+    # 표준 예외 — java.lang 이므로 import 가 필요 없다 (6차 수정: 오탐 4건)
+    'NumberFormatException', 'NullPointerException', 'IndexOutOfBoundsException',
+    'ArithmeticException', 'UnsupportedOperationException', 'ClassCastException',
+    'ArrayIndexOutOfBoundsException', 'StringIndexOutOfBoundsException',
+    'Throwable', 'Error', 'Runnable', 'Cloneable', 'AutoCloseable',
 }
 
 fails = []
@@ -62,7 +67,29 @@ sources.update(collect(TEST))
 #   name -> dict(kind, package, fields, methods, constants, components, path)
 classes = {}
 
-for path, src in sources.items():
+def strip_noise(s):
+    """문자열 · 텍스트 블록 · 주석을 걷어낸다. 줄 구조는 보존한다.
+
+    7차 수정: 이걸 하지 않아 @Query 텍스트 블록 안의 JPQL 이 메서드 수집을
+    오염시켰다. `List<DefectStatRow> findStatsByType();` 앞의 텍스트 블록에서
+    정규식이 `select new ... DefectStatRow(` 를 메서드 선언으로 잡고 `);` 까지
+    삼켜, 실제 메서드명이 수집되지 않았다. 결과적으로 존재하는 리포지토리
+    메서드가 "그런 메서드가 없다" 로 잡히는 오탐이 났다.
+
+    줄바꿈 개수를 유지하는 이유: `^\\s{4}` 처럼 줄 시작 들여쓰기로 인터페이스
+    메서드를 찾는 정규식이 있어, 줄이 붙으면 그쪽이 깨진다.
+    """
+    s = re.sub(r'"""(.*?)"""',
+               lambda m: '""' + '\n' * m.group(1).count('\n'), s, flags=re.S)
+    s = re.sub(r'"(?:[^"\\]|\\.)*"', '""', s)
+    s = re.sub(r'//[^\n]*', '', s)
+    s = re.sub(r'/\*.*?\*/',
+               lambda m: '\n' * m.group(0).count('\n'), s, flags=re.S)
+    return s
+
+
+for path, raw_src in sources.items():
+    src = strip_noise(raw_src)
     pkg = re.search(r'^package\s+([\w.]+);', src, re.M)
     pkg = pkg.group(1) if pkg else ''
     # 중첩 타입(private record 등)까지 수집해야 한다. 중첩 타입은 import 가 필요 없으므로
@@ -77,16 +104,17 @@ for path, src in sources.items():
         info = classes.setdefault(name, {
             'kind': kind, 'package': pkg, 'path': path,
             'fields': set(), 'methods': set(), 'constants': set(), 'components': None,
-            'src': src,
+            'field_types': {}, 'src': src,
         })
         info['kind'] = kind
 
     # 필드 (enum 안의 public static final 상수까지 포함해야 오탐이 나지 않는다)
     for fm in re.finditer(r'^\s*(?:private|protected|public)\s+(?:static\s+)?(?:final\s+)?'
-                          r'[\w.<>\[\],\s?]+?\s+(\w+)\s*[;=]', src, re.M):
+                          r'([\w.<>\[\],\s?]+?)\s+(\w+)\s*[;=]', src, re.M):
         for name, info in classes.items():
             if info['path'] == path:
-                info['fields'].add(fm.group(1))
+                info['fields'].add(fm.group(2))
+                info['field_types'][fm.group(2)] = fm.group(1).strip()
 
     # 메서드 (public/protected/package)
     for mm in re.finditer(r'^\s*(?:public|protected)\s+(?:static\s+)?(?:<[^>]+>\s+)?'
@@ -117,11 +145,31 @@ for name, info in classes.items():
         if m:
             params = [p for p in re.split(r',(?![^<>]*>)', m.group(1)) if p.strip()]
             info['components'] = [p.strip().split()[-1] for p in params]
+            # record 접근자는 컴포넌트 이름 그대로다
+            info['methods'].update(info['components'])
+
+# Lombok 이 만드는 접근자 — 소스에 없으므로 재현해 두지 않으면
+# stage.getDescription() 같은 정상 호출이 전부 오탐으로 잡힌다. (7차 수정)
+for name, info in classes.items():
+    src = info['src']
+    has_getter = '@Getter' in src or '@Data' in src
+    has_setter = '@Setter' in src or '@Data' in src
+    if not (has_getter or has_setter):
+        continue
+    for fname, ftype in info['field_types'].items():
+        cap = fname[0].upper() + fname[1:]
+        if has_getter:
+            info['methods'].add('get' + cap)
+            if ftype == 'boolean':
+                info['methods'].add('is' + cap)
+        if has_setter:
+            info['methods'].add('set' + cap)
 
 TARGET_PREFIXES = ('FarmCustomer', 'CustomerStatus', 'CenterFarm', 'FarmSearch', 'FarmNetwork',
                    'AdminFarmCustomerController', 'CenterAnimalQuantityRow', 'DeliveryScheduleRow',
                    'CoverageStatus', 'AnimalCoverage', 'CenterCoverage', 'DemandPlan',
-                   'AdminDemandPlanController')
+                   'AdminDemandPlanController',
+                   'Manufacturer', 'Defect', 'AdminDefectController')
 
 
 def is_target(path):
@@ -287,6 +335,39 @@ for path, src in target_files.items():
         fail(f'[메서드] {os.path.basename(path)} : {cls}.{method}() — {cls} 에 그런 메서드가 없다')
 
 # ------------------------------------------------------------------
+# 6-b. 주입 필드를 통한 메서드 호출 (리포지토리 · 서비스)
+#      7차 수정: 미탐이었다. defectRecordRepository.countOpenXX() 처럼
+#      이름이 틀린 리포지토리 호출을 잡지 못했다.
+# ------------------------------------------------------------------
+SPRING_DATA_BASE = {
+    'save', 'saveAll', 'saveAndFlush', 'findById', 'findAll', 'findAllById',
+    'delete', 'deleteById', 'deleteAll', 'deleteAllById', 'deleteAllInBatch',
+    'existsById', 'count', 'flush', 'getReferenceById', 'getById',
+}
+
+for path, src in target_files.items():
+    # private final XxxRepository name; → {name: Xxx Repository}
+    injected = {name: cls for cls, name
+                in re.findall(r'private\s+final\s+([A-Z]\w*)\s+(\w+)\s*;', src)}
+    if not injected:
+        continue
+    for cm in re.finditer(r'\b(\w+)\.(\w+)\s*\(', src):
+        var, method = cm.group(1), cm.group(2)
+        cls = injected.get(var)
+        if not cls:
+            continue
+        info = classes.get(cls)
+        # 우리 소스에 없는 타입(외부 라이브러리)은 검사할 근거가 없다
+        if not info or not info['methods']:
+            continue
+        if method in SPRING_DATA_BASE:
+            continue
+        if method in info['methods'] or method in info['fields']:
+            continue
+        fail(f'[주입호출] {os.path.basename(path)} : {var}.{method}() — '
+             f'{cls} 에 그런 메서드가 없다')
+
+# ------------------------------------------------------------------
 # 7. Thymeleaf 프로퍼티 ↔ DTO 게터
 # ------------------------------------------------------------------
 TEMPLATE_VARS = {
@@ -301,6 +382,14 @@ TEMPLATE_VARS = {
         'c': 'CenterCoverageDto',
         'a': 'AnimalCoverageDto',
         's': 'DeliveryScheduleRow',
+    },
+    'admin/defects.html': {
+        'search': 'DefectSearchDto',
+        'd': 'DefectRecordDto',
+        'stat': 'DefectStatRow',
+        'lot': 'LotCandidateDto',
+        'bin': 'WarehouseBinDto',
+        'defectForm': 'DefectForm',
     },
 }
 

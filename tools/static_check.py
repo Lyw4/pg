@@ -364,7 +364,10 @@ for f in templates:
         refs.add(m.group(1))
     THY = {'param', 'session', 'request', 'response', 'servletContext', 'locale',
            'T', '_csrf', 'stat', 'i', 'e', 'c', 'b', 'p', 'r', 'z', 'l', 'o', 'it',
-           'row', 'item', 'true', 'false', 'null', '__'}
+           'row', 'item', 'true', 'false', 'null', '__',
+           # SpEL · Thymeleaf 논리 연산자. ${not #lists.isEmpty(x)} 처럼 표현식
+           # 맨 앞에 오면 모델 키로 잘못 읽힌다.
+           'not', 'and', 'or'}
     unknown = sorted(r for r in refs - view_keys[rel] - THY
                      if not re.match(r'^(th|sec)$', r))
     # 반복 변수 등 지역 변수를 걸러내기 위해 th:each 선언 변수 제거
