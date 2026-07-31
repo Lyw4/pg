@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/layout :: head('바코드 스캔')}"></head>
+
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="ff-content">
+
+    <div th:replace="~{fragments/layout :: topbar('현장 작업', '바코드 스캔')}"></div>
+
+    <main class="ff-main">
+
+        <div class="row g-3">
+
+            <!-- ============================================================
+                 카메라 스캐너
+                 ============================================================ -->
+            <div class="col-12 col-lg-6">
+                <div class="card ff-card">
+                    <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">
+                            <i class="bi bi-upc-scan me-1"></i>바코드 / QR 스캔
+                        </span>
+                        <span class="badge bg-secondary" id="scanStatus">대기</span>
+                    </div>
+
+                    <div class="card-body">
+
+                        <!-- 카메라 미리보기 -->
+                        <div class="ff-scanner-wrap mb-3">
+                            <video id="scanPreview" class="ff-scanner-video" muted playsinline></video>
+                            <div class="ff-scanner-guide" id="scannerGuide"></div>
+                            <!-- 인식 순간 화면 전체가 깜빡이는 피드백 -->
+                            <div class="ff-scan-flash" id="scanFlash"></div>
+                            <div class="ff-scanner-idle" id="scannerIdle">
+                                <i class="bi bi-camera-video-off"></i>
+                                <p class="mb-0 small">카메라가 꺼져 있습니다</p>
+                            </div>
+                        </div>
+
+                        <!-- 인식 즉시 표시되는 라이브 상태 바 -->
+                        <div class="ff-scan-live d-none" id="scanLive">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-upc-scan fs-4 flex-shrink-0" id="scanLiveIcon"></i>
+                                <div class="flex-grow-1 min-width-0">
+                                    <div class="ff-code fw-bold text-truncate" id="scanLiveCode">-</div>
+                                    <div class="small text-truncate" id="scanLiveText">조회 중...</div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-success flex-shrink-0 d-none"
+                                        id="scanLiveGoBtn">
+                                    결과<i class="bi bi-arrow-down-short"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 카메라 선택 -->
+                        <div class="mb-3">
+                            <label for="cameraSelect" class="form-label small fw-semibold">카메라 선택</label>
+                            <select id="cameraSelect" class="form-select form-select-sm">
+                                <option value="">카메라를 검색하는 중...</option>
+                            </select>
+                        </div>
+
+                        <!-- 컨트롤 버튼 (모바일에서 크게) -->
+                        <div class="d-grid gap-2 d-sm-flex">
+                            <button type="button" id="startScanBtn"
+                                    class="btn btn-success btn-lg flex-fill">
+                                <i class="bi bi-camera-fill me-1"></i>스캔 시작
+                            </button>
+                            <button type="button" id="stopScanBtn"
+                                    class="btn btn-outline-secondary btn-lg flex-fill" disabled>
+                                <i class="bi bi-stop-fill me-1"></i>정지
+                            </button>
+                        </div>
+
+                        <!-- 피드백 옵션 -->
+                        <div class="d-flex gap-3 mt-3 small">
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" id="scanSoundToggle" checked>
+                                <label class="form-check-label" for="scanSoundToggle">
+                                    <i class="bi bi-volume-up"></i> 소리
+                                </label>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" id="scanVibrateToggle" checked>
+                                <label class="form-check-label" for="scanVibrateToggle">
+                                    <i class="bi bi-phone-vibrate"></i> 진동
+                                </label>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" id="scanAutoScrollToggle" checked>
+                                <label class="form-check-label" for="scanAutoScrollToggle">
+                                    <i class="bi bi-arrow-down-square"></i> 결과로 이동
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="scannerMessage" class="alert alert-warning mt-3 mb-0 small d-none"></div>
+
+                        <hr class="my-4">
+
+                        <!-- 수동 입력 (카메라를 못 쓰는 환경 / 바코드 리더기 입력용) -->
+                        <label for="manualCode" class="form-label small fw-semibold">
+                            직접 입력 <span class="text-muted">(로트번호 또는 품목코드)</span>
+                        </label>
+                        <form id="manualForm" class="d-flex gap-2" autocomplete="off">
+                            <input type="text" id="manualCode" class="form-control ff-code"
+                                   placeholder="예: LOT-CT-2601 또는 FD-CT-001">
+                            <button type="submit" class="btn btn-dark">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </form>
+                        <div class="form-text">
+                            USB 바코드 리더기는 키보드처럼 입력되므로 이 칸에 포커스를 두면 바로 조회됩니다.
+                        </div>
+
+                        <!-- 카메라 없이 동작을 확인할 수 있는 샘플 코드 -->
+                        <div class="mt-3">
+                            <div class="text-muted small fw-semibold mb-1">샘플 코드로 테스트</div>
+                            <div class="d-flex flex-wrap gap-1">
+                                <button type="button" class="btn btn-sm btn-outline-primary ff-sample-code"
+                                        data-code="LOT-CT-2601">LOT-CT-2601 (로트)</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary ff-sample-code"
+                                        data-code="FD-CT-001">FD-CT-001 (품목)</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger ff-sample-code"
+                                        data-code="NO-SUCH-CODE">없는 코드 (404)</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ============================================================
+                 스캔 결과 + 즉시 입출고
+                 ============================================================ -->
+            <div class="col-12 col-lg-6" id="resultColumn">
+
+                <!-- 스캔 즉시 입출고 (스캔 성공 시 노출) -->
+                <div class="card ff-card border-success mb-3 d-none" id="quickActions">
+                    <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">
+                            <i class="bi bi-lightning-charge-fill me-1"></i>스캔 즉시 입출고
+                        </span>
+                        <span class="ff-code small" id="qaCodeLabel">-</span>
+                    </div>
+
+                    <div class="card-body">
+                        <div id="qaMessage" class="d-none mb-3"></div>
+
+                        <ul class="nav nav-pills nav-fill mb-3" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" type="button" role="tab"
+                                        data-bs-toggle="pill" data-bs-target="#qaInboundPane">
+                                    <i class="bi bi-box-arrow-in-down me-1"></i>입고
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" type="button" role="tab"
+                                        data-bs-toggle="pill" data-bs-target="#qaOutboundPane">
+                                    <i class="bi bi-box-arrow-up me-1"></i>출고
+                                </button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content">
+
+                            <!-- 즉시 입고 -->
+                            <div class="tab-pane fade show active" id="qaInboundPane" role="tabpanel">
+                                <div class="mb-3">
+                                    <label for="qaBinId" class="form-label small fw-semibold">입고 구역</label>
+                                    <select id="qaBinId" class="form-select form-select-lg">
+                                        <option value="">-- 구역 선택 --</option>
+                                        <option th:each="b : ${bins}"
+                                                th:value="${b.binId}"
+                                                th:text="${b.binCode} + ' (최대 ' + ${b.maxCapacity} + ')'">
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <!-- 품목코드를 스캔한 경우에만 제조일자 입력 -->
+                                <div class="mb-3 d-none" id="qaMfgRow">
+                                    <label for="qaManufacturedDate" class="form-label small fw-semibold">
+                                        제조일자 <span class="text-muted">(새 로트 생성)</span>
+                                    </label>
+                                    <input type="date" id="qaManufacturedDate" class="form-control form-control-lg"
+                                           th:value="${today}">
+                                </div>
+                                <div class="mb-3 small text-muted d-none" id="qaLotNoticeRow">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    스캔한 로트에 수량이 <strong>합산</strong>됩니다.
+                                    (유통기한은 기존 로트 값을 유지)
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="qaInQuantity" class="form-label small fw-semibold">입고 수량</label>
+                                    <input type="number" id="qaInQuantity" class="form-control form-control-lg"
+                                           min="1" inputmode="numeric" placeholder="예: 20">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="qaInMemo" class="form-label small fw-semibold">비고</label>
+                                    <input type="text" id="qaInMemo" class="form-control"
+                                           placeholder="비우면 '바코드 스캔 입고'로 기록">
+                                </div>
+
+                                <button type="button" class="btn btn-success btn-lg w-100" id="qaInboundBtn">
+                                    <i class="bi bi-box-arrow-in-down me-1"></i>입고 처리
+                                </button>
+                            </div>
+
+                            <!-- 즉시 출고 -->
+                            <div class="tab-pane fade" id="qaOutboundPane" role="tabpanel">
+                                <div class="alert alert-info py-2 small">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    출고 로트는 지정하지 않습니다.
+                                    <strong>유통기한이 가장 임박한 로트부터 자동 차감(FEFO)</strong>되며,
+                                    처리 후 실제 차감된 로트가 표시됩니다.
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="qaOutQuantity" class="form-label small fw-semibold">출고 수량</label>
+                                    <input type="number" id="qaOutQuantity" class="form-control form-control-lg"
+                                           min="1" inputmode="numeric" placeholder="예: 10">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="qaOutMemo" class="form-label small fw-semibold">비고</label>
+                                    <input type="text" id="qaOutMemo" class="form-control"
+                                           placeholder="비우면 '바코드 스캔 출고'로 기록">
+                                </div>
+
+                                <button type="button" class="btn btn-dark btn-lg w-100" id="qaOutboundBtn">
+                                    <i class="bi bi-box-arrow-up me-1"></i>출고 처리 (FEFO)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="scanResult">
+                    <div class="card ff-card">
+                        <div class="card-body small text-muted">
+                            <p class="fw-bold mb-2">
+                                <i class="bi bi-info-circle me-1"></i>사용 방법
+                            </p>
+                            <ol class="ps-3 mb-3">
+                                <li><strong>스캔 시작</strong>을 누르고 카메라 권한을 허용합니다.</li>
+                                <li>바코드 / QR 코드를 화면 가운데 가이드에 맞춥니다.</li>
+                                <li>인식되면 자동으로 품목·로트·구역별 재고가 표시됩니다.</li>
+                            </ol>
+                            <p class="mb-3">
+                                스캔이 완료되면 이 자리에 품목·로트·재고 정보가 표시되고,
+                                위쪽에 <strong>즉시 입고 / 출고</strong> 패널이 열립니다.
+                            </p>
+
+                            <a th:href="@{/admin/scan/labels}" class="btn btn-outline-primary btn-sm mb-3">
+                                <i class="bi bi-qr-code me-1"></i>테스트용 QR 라벨 보기
+                            </a>
+
+                            <div class="alert alert-warning mb-0">
+                                <strong>카메라가 안 열리는 경우</strong><br>
+                                브라우저 보안 정책상 카메라는 <code>https</code> 또는
+                                <code>localhost</code> 에서만 동작합니다.
+                                다른 PC에서 IP로 접속했다면 아래 <strong>직접 입력</strong>을 사용하세요.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================
+                 최근 스캔 (모바일에서는 결과 아래에 표시)
+                 ============================================================ -->
+            <div class="col-12">
+                <div class="card ff-card">
+                    <div class="card-header bg-white border-0 pt-3">
+                        <span class="fw-bold"><i class="bi bi-clock-history me-1"></i>최근 스캔</span>
+                        <span class="text-muted small ms-2">인식된 코드와 조회 결과가 기록됩니다</span>
+                    </div>
+                    <div class="card-body pt-2">
+                        <ul class="list-group list-group-flush" id="recentScans">
+                            <li class="list-group-item text-muted small px-0">스캔 기록이 없습니다.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<div th:replace="~{fragments/layout :: scripts}"></div>
+
+<!-- ZXing-js : HTML5 카메라 기반 바코드/QR 디코더 (Native App 불필요) -->
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script th:src="@{/js/barcode-scan.js}"></script>
+
+</body>
+</html>

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/layout :: head('입고 등록')}"></head>
+
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="ff-content">
+
+    <div th:replace="~{fragments/layout :: topbar('재고 관리', '입고 등록')}"></div>
+
+    <main class="ff-main">
+
+        <!-- 입고 성공 결과 -->
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-1"></i>
+            <span th:text="${successMessage}">입고 완료</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <div class="row g-3">
+
+            <!-- 입고 입력 폼 -->
+            <div class="col-12 col-xl-7">
+                <div class="card ff-card">
+                    <div class="card-header bg-white border-0 pt-3">
+                        <span class="fw-bold">
+                            <i class="bi bi-box-arrow-in-down me-1"></i>사료 입고 등록
+                        </span>
+                    </div>
+
+                    <div class="card-body">
+                        <form th:object="${inboundForm}" th:action="@{/admin/inventory/inbound}"
+                              method="post" novalidate>
+
+                            <!-- 업무 규칙 위반 등 전역 오류 -->
+                            <div th:if="${#fields.hasGlobalErrors()}" class="alert alert-danger py-2 small">
+                                <p class="mb-0" th:each="err : ${#fields.globalErrors()}" th:text="${err}">오류</p>
+                            </div>
+
+                            <div class="row g-3">
+
+                                <!-- 품목 -->
+                                <div class="col-12">
+                                    <label for="productId" class="form-label ff-required">품목</label>
+                                    <select id="productId" th:field="*{productId}" class="form-select"
+                                            th:classappend="${#fields.hasErrors('productId')} ? 'is-invalid'">
+                                        <option value="">-- 품목을 선택하세요 --</option>
+                                        <option th:each="p : ${products}"
+                                                th:value="${p.productId}"
+                                                th:text="${p.productCode} + ' | ' + ${p.name}
+                                                         + ' (' + ${p.weightKg} + 'kg, 유통기한 ' + ${p.shelfLifeDays} + '일)'">
+                                        </option>
+                                    </select>
+                                    <div class="invalid-feedback" th:errors="*{productId}">오류</div>
+                                    <div class="form-text">
+                                        유통기한은 <strong>제조일자 + 품목의 유통기한 일수</strong>로 자동 계산됩니다.
+                                    </div>
+                                </div>
+
+                                <!-- 창고 구역 -->
+                                <div class="col-12">
+                                    <label for="binId" class="form-label ff-required">입고 구역</label>
+                                    <select id="binId" th:field="*{binId}" class="form-select"
+                                            th:classappend="${#fields.hasErrors('binId')} ? 'is-invalid'">
+                                        <option value="">-- 구역을 선택하세요 --</option>
+                                        <option th:each="b : ${bins}"
+                                                th:value="${b.binId}"
+                                                th:text="${b.binCode} + ' | ' + ${b.locationLabel}
+                                                         + ' (최대 ' + ${b.maxCapacity} + '포대)'">
+                                        </option>
+                                    </select>
+                                    <div class="invalid-feedback" th:errors="*{binId}">오류</div>
+                                </div>
+
+                                <!-- 제조일자 -->
+                                <div class="col-6">
+                                    <label for="manufacturedDate" class="form-label ff-required">제조일자</label>
+                                    <input type="date" id="manufacturedDate" th:field="*{manufacturedDate}"
+                                           class="form-control"
+                                           th:classappend="${#fields.hasErrors('manufacturedDate')} ? 'is-invalid'">
+                                    <div class="invalid-feedback" th:errors="*{manufacturedDate}">오류</div>
+                                </div>
+
+                                <!-- 수량 -->
+                                <div class="col-6">
+                                    <label for="quantity" class="form-label ff-required">입고 수량 (포대)</label>
+                                    <input type="number" id="quantity" th:field="*{quantity}"
+                                           class="form-control" min="1"
+                                           th:classappend="${#fields.hasErrors('quantity')} ? 'is-invalid'">
+                                    <div class="invalid-feedback" th:errors="*{quantity}">오류</div>
+                                </div>
+
+                                <!-- 로트번호 -->
+                                <div class="col-12">
+                                    <label for="lotNo" class="form-label">로트번호</label>
+                                    <input type="text" id="lotNo" th:field="*{lotNo}"
+                                           class="form-control ff-code"
+                                           th:classappend="${#fields.hasErrors('lotNo')} ? 'is-invalid'"
+                                           placeholder="비워두면 자동 부여 (예: L260727-FD-CT-001-01)">
+                                    <div class="invalid-feedback" th:errors="*{lotNo}">오류</div>
+                                    <div class="form-text">
+                                        기존 로트번호를 입력하면 <strong>새 로트를 만들지 않고 수량이 합산</strong>됩니다.
+                                    </div>
+                                </div>
+
+                                <!-- 비고 -->
+                                <div class="col-12">
+                                    <label for="memo" class="form-label">비고</label>
+                                    <input type="text" id="memo" th:field="*{memo}" class="form-control"
+                                           th:classappend="${#fields.hasErrors('memo')} ? 'is-invalid'"
+                                           placeholder="예: 정기 발주 입고 / 거래처명">
+                                    <div class="invalid-feedback" th:errors="*{memo}">오류</div>
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-check-lg me-1"></i>입고 처리
+                                </button>
+                                <a th:href="@{/admin/inventory}" class="btn btn-outline-secondary">재고 현황으로</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 처리 결과 상세 -->
+            <div class="col-12 col-xl-5">
+                <div class="card ff-card" th:if="${inboundResult != null}">
+                    <div class="card-header bg-white border-0 pt-3">
+                        <span class="fw-bold text-success">
+                            <i class="bi bi-clipboard-check me-1"></i>직전 입고 처리 결과
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm mb-0">
+                            <tbody>
+                            <tr>
+                                <th class="text-muted" style="width: 130px;">품목</th>
+                                <td>
+                                    <span class="ff-code" th:text="${inboundResult.productCode}">CODE</span>
+                                    <span th:text="${inboundResult.productName}">품목명</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">로트번호</th>
+                                <td>
+                                    <span class="ff-code" th:text="${inboundResult.lotNo}">LOT</span>
+                                    <span class="badge ms-1"
+                                          th:classappend="${inboundResult.newLot} ? 'bg-primary' : 'bg-info text-dark'"
+                                          th:text="${inboundResult.newLot} ? '신규 로트' : '기존 로트 합산'">신규</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">제조일자</th>
+                                <td th:text="${#temporals.format(inboundResult.manufacturedDate, 'yyyy-MM-dd')}">-</td>
+                            </tr>
+                            <tr class="table-success">
+                                <th class="text-muted">유통기한 (자동계산)</th>
+                                <td class="fw-bold"
+                                    th:text="${#temporals.format(inboundResult.expirationDate, 'yyyy-MM-dd')}">-</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">입고 구역</th>
+                                <td>
+                                    <span class="ff-code" th:text="${inboundResult.binCode}">BIN</span>
+                                    <span class="badge ms-1"
+                                          th:classappend="${inboundResult.newInventory} ? 'bg-primary' : 'bg-info text-dark'"
+                                          th:text="${inboundResult.newInventory} ? '신규 적재(INSERT)' : '수량 합산(UPDATE)'">신규</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">입고 수량</th>
+                                <td class="fw-bold text-success"
+                                    th:text="'+' + ${#numbers.formatInteger(inboundResult.quantity, 1, 'COMMA')}">+0</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">구역 보관 수량</th>
+                                <td th:text="${#numbers.formatInteger(inboundResult.binQuantity, 1, 'COMMA')}">0</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">로트 전체 수량</th>
+                                <td th:text="${#numbers.formatInteger(inboundResult.lotQuantity, 1, 'COMMA')}">0</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">품목 전체 재고</th>
+                                <td th:text="${#numbers.formatInteger(inboundResult.productTotalStock, 1, 'COMMA')}">0</td>
+                            </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- 만료 로트 경고 : 출고 대상에서 제외되므로 반드시 알려준다 -->
+                        <div th:if="${inboundResult.expiredLot}" class="alert alert-danger mt-3 mb-0 small">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            <strong>이 로트는 이미 유통기한이 지났습니다.</strong><br>
+                            만료된 로트는 <strong>출고 대상에서 제외</strong>되므로, 재고 수량은 늘어나지만
+                            출고 가능 재고에는 포함되지 않습니다. 제조일자를 다시 확인하세요.
+                        </div>
+
+                        <!--
+                            입고 대기 · 검수 구역 경고.
+
+                            만료 로트와 이유는 다르지만 결과는 같다 — 재고 수량은 늘어나는데
+                            출고 가능 재고는 늘어나지 않는다. 여기서 알려주지 않으면 나중에
+                            출고가 막혔을 때 담당자가 원인을 유통기한에서 찾게 된다.
+                        -->
+                        <div th:if="${inboundResult.notShippableBin}" class="alert alert-warning mt-3 mb-0 small">
+                            <i class="bi bi-info-circle-fill me-1"></i>
+                            <strong th:text="'이 구역(' + ${inboundResult.binCode} + ')은 '
+                                             + ${inboundResult.binPurpose.description} + ' 구역입니다.'">구역 안내</strong><br>
+                            검수를 통과하지 않은 재고는 <strong>출고 대상에서 제외</strong>되므로,
+                            품목 전체 재고는 늘어나지만 <strong>출고 가능 재고는 늘어나지 않습니다.</strong><br>
+                            <a th:href="@{/admin/inventory/move(binId=${inboundResult.binId})}"
+                               class="alert-link">구역 간 이동</a>으로
+                            보관 구역에 넣어야 출고할 수 있습니다.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card ff-card" th:if="${inboundResult == null}">
+                    <div class="card-body small text-muted">
+                        <p class="fw-bold mb-2"><i class="bi bi-info-circle me-1"></i>입고 처리 규칙</p>
+                        <ol class="ps-3 mb-0">
+                            <li>사용 중지된 품목 / 구역에는 입고할 수 없습니다.</li>
+                            <li>로트번호를 비우면 <code>L{제조일}-{품목코드}-{순번}</code> 형식으로 자동 부여됩니다.</li>
+                            <li>유통기한은 제조일자 + 품목의 유통기한 일수로 자동 계산됩니다.</li>
+                            <li>같은 로트가 같은 구역에 들어오면 수량이 합산되고, 새 구역이면 적재 행이 생성됩니다.</li>
+                            <li>구역의 최대 적재 수량을 초과하면 입고가 거부됩니다.</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<div th:replace="~{fragments/layout :: scripts}"></div>
+
+</body>
+</html>

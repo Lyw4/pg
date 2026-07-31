@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/layout :: head('사원 관리')}"></head>
+
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="ff-content">
+
+    <div th:replace="~{fragments/layout :: topbar('시스템 관리', '사원 관리')}"></div>
+
+    <main class="ff-main">
+
+        <!-- 처리 결과 메시지 -->
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-1"></i>
+            <span th:text="${successMessage}">처리 완료</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle-fill me-1"></i>
+            <span th:text="${errorMessage}">처리 실패</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <div class="card ff-card">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="fw-bold"><i class="bi bi-people-fill me-1"></i>사원 목록</span>
+                    <span class="text-muted small ms-2">
+                        총 <span th:text="${#lists.size(employees)}">0</span>명
+                    </span>
+                </div>
+                <span class="badge bg-danger">책임자 전용 메뉴</span>
+            </div>
+
+            <div class="card-body">
+                <div class="alert alert-light border small mb-3">
+                    <i class="bi bi-info-circle me-1"></i>
+                    권한은 <strong>STAFF(사원)</strong> ↔ <strong>ADMIN(책임자)</strong> 사이에서만 변경할 수 있습니다.
+                    본인 계정의 권한은 변경할 수 없습니다.
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                        <tr>
+                            <th style="width: 60px;">No</th>
+                            <th>이름</th>
+                            <th>이메일 (로그인 ID)</th>
+                            <th>연락처</th>
+                            <th class="text-center" style="width: 130px;">현재 권한</th>
+                            <th class="text-center" style="width: 130px;">등록일</th>
+                            <th class="text-end" style="width: 260px;">권한 변경</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:if="${#lists.isEmpty(employees)}">
+                            <td colspan="7" class="text-center text-muted py-4">등록된 사원이 없습니다.</td>
+                        </tr>
+
+                        <tr th:each="emp, stat : ${employees}">
+                            <td th:text="${stat.count}">1</td>
+                            <td>
+                                <span class="fw-semibold" th:text="${emp.name}">이름</span>
+                                <span th:if="${emp.self}" class="badge bg-success-subtle text-success ms-1">본인</span>
+                            </td>
+                            <td th:text="${emp.email}">email</td>
+                            <td th:text="${emp.phone} ?: '-'">-</td>
+                            <td class="text-center">
+                                <!-- 권한 상태는 텍스트 대신 뱃지로 표기 (ADMIN: bg-danger / STAFF: bg-primary) -->
+                                <span class="badge" th:classappend="${emp.roleBadgeClass}"
+                                      th:text="${emp.roleDescription} + ' (' + ${emp.role.name()} + ')'">권한</span>
+                            </td>
+                            <td class="text-center small text-muted"
+                                th:text="${#temporals.format(emp.createdAt, 'yyyy-MM-dd')}">2026-01-01
+                            </td>
+                            <td>
+                                <form th:action="@{/admin/employees/{id}/role(id=${emp.userId})}"
+                                      method="post"
+                                      class="d-flex gap-2 justify-content-end m-0"
+                                      onsubmit="return confirm('선택한 사원의 권한을 변경하시겠습니까?');">
+                                    <select name="role" class="form-select form-select-sm" style="max-width: 150px;"
+                                            th:disabled="${emp.self}">
+                                        <option value="STAFF"
+                                                th:selected="${emp.role.name() == 'STAFF'}">사원 (STAFF)
+                                        </option>
+                                        <option value="ADMIN"
+                                                th:selected="${emp.role.name() == 'ADMIN'}">책임자 (ADMIN)
+                                        </option>
+                                    </select>
+                                    <button type="submit" class="btn btn-sm btn-outline-primary"
+                                            th:disabled="${emp.self}">
+                                        <i class="bi bi-arrow-repeat me-1"></i>변경
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<div th:replace="~{fragments/layout :: scripts}"></div>
+
+</body>
+</html>

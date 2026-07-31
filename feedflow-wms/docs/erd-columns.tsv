@@ -1,0 +1,91 @@
+테이블	컬럼	타입	PK	FK	NOT NULL	UNIQUE	기본값/생성	비고
+users	userId	BIGINT	PK		Y		IDENTITY	
+users	email	VARCHAR(100)			Y	UQ		로그인 ID
+users	password	VARCHAR(100)			Y			BCrypt 해시
+users	name	VARCHAR(50)			Y			
+users	phone	VARCHAR(20)						
+users	role	VARCHAR(20)			Y			enum Role (USER/STAFF/ADMIN)
+users	createdAt	TIMESTAMP			Y		@PrePersist	
+centers	centerId	BIGINT	PK		Y		IDENTITY	Warehouse enum(WH1/WH2)을 승격한 테이블
+centers	centerCode	VARCHAR(20)			Y	UQ		업무 식별자 / 목록·선택상자 정렬 기준
+centers	name	VARCHAR(50)			Y			화면 표기명 예: 충남 예산 센터
+centers	region	VARCHAR(30)						권역 예: 충남 서북부 · 전북 서부 · 새만금권
+centers	address	VARCHAR(200)						기획 단계에는 범위로 적힌다 예: 고덕면 몽곡리 667 일대
+centers	note	VARCHAR(100)						운영 방향 (도면 탭 부제 · 지도 팝업) 예: 양계 · 양돈 중심
+centers	latitude	DOUBLE						지도 핀 위도(WGS84) / nullable = 부지 확정 전
+centers	longitude	DOUBLE						지도 핀 경도(WGS84) / 위경도 둘 다 있어야 지도에 표시
+centers	active	BOOLEAN			Y		TRUE	false = 운영 중지 / 선택상자에서 제외
+centers	createdAt	TIMESTAMP			Y		@PrePersist	
+products	productId	BIGINT	PK		Y		IDENTITY	
+products	productCode	VARCHAR(30)			Y	UQ		업무 식별자
+products	name	VARCHAR(200)			Y			
+products	animalType	VARCHAR(20)			Y			enum AnimalType (CATTLE/PIG/POULTRY)
+products	productType	VARCHAR(20)			Y		FEED	enum ProductType (FEED/SUPPLEMENT)
+products	weightKg	INT			Y			포장 무게
+products	price	BIGINT			Y			
+products	totalStock	INT			Y		0	비정규화 캐시 = SUM(productLots.lotQuantity) / 전국 합계 (센터별로 나누지 않음)
+products	safetyStock	INT			Y			대시보드 안전재고 알림 기준
+products	shelfLifeDays	INT			Y			유통기한 자동계산용
+products	active	BOOLEAN			Y		TRUE	soft delete (물리 삭제 안 함)
+products	version	BIGINT			Y		0	@Version 낙관적 락
+products	imageUrl	VARCHAR(500)						B2C 전용 / 관리자 화면 미노출
+products	description	VARCHAR(2000)						B2C 전용 / 관리자 화면 미노출
+productLots	lotId	BIGINT	PK		Y		IDENTITY	
+productLots	productId	BIGINT		FK products	Y			LAZY
+productLots	lotNo	VARCHAR(50)			Y	복합UQ		ukProductLotNo (productId, lotNo)
+productLots	manufacturedDate	DATE			Y			
+productLots	expirationDate	DATE			Y			제조일 + shelfLifeDays 자동계산
+productLots	lotQuantity	INT			Y			로트 잔여 수량
+productLots	version	BIGINT			Y		0	@Version 낙관적 락
+warehouseBins	binId	BIGINT	PK		Y		IDENTITY	
+warehouseBins	binCode	VARCHAR(30)			Y	UQ		예: A-01-02
+warehouseBins	centerId	BIGINT		FK centers	Y			소속 물류센터 / @ManyToOne(LAZY, optional=false)
+warehouseBins	zone	VARCHAR(20)			Y			A / B / COLD
+warehouseBins	binPurpose	VARCHAR(20)			Y		STORAGE	enum BinPurpose / 대기 구역은 적재율 통계 제외
+warehouseBins	posX	INT			Y		1	2D 도면 좌상단 열 (1-based)
+warehouseBins	posY	INT			Y		1	2D 도면 좌상단 행 (1-based)
+warehouseBins	posWidth	INT			Y		1	2D 도면 가로 칸 수
+warehouseBins	posHeight	INT			Y		1	2D 도면 세로 칸 수
+warehouseBins	rack	VARCHAR(20)						
+warehouseBins	binLevel	INT						level 이 SQL 예약어라 컬럼명 변경
+warehouseBins	maxCapacity	INT			Y		0	적재 한도 (초과 입고 차단)
+warehouseBins	active	BOOLEAN			Y		TRUE	
+warehouseBins	memo	VARCHAR(200)						
+warehouseBins	createdAt	TIMESTAMP			Y		@PrePersist	
+inventories	inventoryId	BIGINT	PK		Y		IDENTITY	
+inventories	lotId	BIGINT		FK productLots	Y	복합UQ		ukInventoryLotBin (lotId, binId)
+inventories	binId	BIGINT		FK warehouseBins	Y	복합UQ		ukInventoryLotBin (lotId, binId)
+inventories	quantity	INT			Y			구역별 실물 수량
+inventories	updatedAt	TIMESTAMP			Y		@PrePersist/@PreUpdate	
+inventories	version	BIGINT			Y		0	@Version 낙관적 락
+orders	orderId	BIGINT	PK		Y		IDENTITY	
+orders	userId	BIGINT		FK users	Y			주문 고객
+orders	totalPrice	BIGINT			Y			할인 전 금액
+orders	discountPrice	BIGINT			Y		0	할인액
+orders	finalPrice	BIGINT			Y			매출 집계 기준
+orders	shippingAddress	VARCHAR(300)			Y			
+orders	status	VARCHAR(20)			Y			enum OrderStatus
+orders	createdAt	TIMESTAMP			Y			
+orders	canceledAt	TIMESTAMP						취소 일시 (기존 데이터 보존을 위해 nullable)
+orders	cancelReason	VARCHAR(150)						취소 사유
+orders	canceledById	BIGINT						처리자 ID / FK 아님 (감사 추적 스냅샷)
+orders	canceledByName	VARCHAR(50)						처리자 이름 / FK 아님 (퇴사 후에도 보존)
+orderItems	orderItemId	BIGINT	PK		Y		IDENTITY	
+orderItems	orderId	BIGINT		FK orders	Y			cascade ALL / orphanRemoval
+orderItems	productId	BIGINT		FK products	Y			
+orderItems	lotId	BIGINT		FK productLots				nullable / FEFO 대표 로트 1건만 기록
+orderItems	quantity	INT			Y			
+orderItems	orderPrice	BIGINT			Y			주문 당시 단가 스냅샷
+stockMovements	movementId	BIGINT	PK		Y		IDENTITY	
+stockMovements	movementType	VARCHAR(20)			Y			enum MovementType
+stockMovements	productId	BIGINT		FK products	Y			
+stockMovements	lotId	BIGINT		FK productLots	Y			
+stockMovements	binId	BIGINT		FK warehouseBins				nullable / 대상(도착) 구역
+stockMovements	fromBinId	BIGINT		FK warehouseBins				nullable / MOVE 의 출발 구역
+stockMovements	quantity	INT			Y			항상 양수 / 증감은 movementType 으로 판단
+stockMovements	memo	VARCHAR(200)						
+stockMovements	reason	VARCHAR(30)						enum DisposalReason (폐기 시에만)
+stockMovements	orderId	BIGINT						FK 아님 (출고/취소 이력의 주문 참조 스냅샷)
+stockMovements	userId	BIGINT						FK 아님 (처리자 스냅샷)
+stockMovements	userName	VARCHAR(50)						FK 아님 (퇴사 후에도 이력 보존)
+stockMovements	createdAt	TIMESTAMP			Y			
