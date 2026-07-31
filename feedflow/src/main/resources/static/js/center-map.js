@@ -271,6 +271,7 @@
 
     function buildPopup(pin) {
         var isCurrent = normalizeId(pin.centerId) === selectedId;
+        var waiting = Math.max(pin.quantity - pin.storageQuantity, 0);
 
         return ''
             + '<div class="ff-map-popup">'
@@ -278,8 +279,18 @@
             + '  <div class="text-muted small">' + escapeHtml(pin.region || '') + '</div>'
             + (pin.note ? '  <div class="small mt-1">' + escapeHtml(pin.note) + '</div>' : '')
             + '  <hr class="my-2">'
-            + '  <div class="small">보관 <strong>' + pin.quantity.toLocaleString('ko-KR')
-            + '</strong>포대 · 적재율 <strong>' + pin.usageRate + '%</strong></div>'
+            + '  <div class="small">재고 <strong>' + pin.quantity.toLocaleString('ko-KR')
+            + '</strong>포대 · 보관 적재율 <strong>' + pin.usageRate + '%</strong></div>'
+            /*
+                적재율은 보관 구역만 센다. 대기 구역이나 운송 중 재고가 있으면
+                "재고 600 인데 적재율은 39%" 처럼 두 숫자가 안 맞아 보이므로
+                차이를 그 자리에서 설명해 준다. 없으면 줄 자체를 만들지 않는다.
+             */
+            + (waiting > 0
+                ? '  <div class="text-info" style="font-size:.72rem;">보관 '
+                  + pin.storageQuantity.toLocaleString('ko-KR') + ' + 대기 · 운송 중 '
+                  + waiting.toLocaleString('ko-KR') + '</div>'
+                : '')
             + '  <div class="mt-2">'
             + (isCurrent
                 ? '    <span class="badge bg-secondary">현재 보고 있는 센터</span>'

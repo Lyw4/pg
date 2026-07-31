@@ -169,6 +169,34 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     List<CenterStockRow> findStockByCenter(@Param("productId") Long productId);
 
     /**
+     * 센터별 <b>보관 구역</b> 재고 합계 (적재율 계산 전용).
+     * <p>
+     * {@link #findStockByCenter(Long)} 와 나누어 둔 이유 — 두 값의 쓰임이 다르다.
+     * <ul>
+     *     <li>재고 <b>분포</b>는 모든 구역을 센다. 입고 대기 구역의 물건도 그 센터에
+     *         실물로 있고, 운송 중 재고도 출발 센터 소속으로 잡아야 전국 합계가 맞는다.</li>
+     *     <li>재고 <b>적재율</b>은 보관 구역만 센다. 분모인
+     *         {@code findStorageCapacityByCenter()} 가 보관 구역 수용량이기 때문이다.</li>
+     * </ul>
+     * 분자와 분모의 기준이 다르면 적재율이 부풀려지고 100% 를 넘길 수도 있다.
+     * 입고 등록으로 대기 구역에 물건이 들어온 순간 같은 센터가 2D 도면에서는 39%,
+     * 대시보드에서는 84% 로 보이게 된다. 도면은 대기분을 따로 표시하기 때문이다.
+     */
+    @Query("""
+            select new com.feedflow.admin.dto.CenterStockRow(
+                       c.centerId, c.name, sum(i.quantity), count(i))
+            from Inventory i
+                join i.bin b
+                join b.center c
+            where i.quantity > 0
+              and b.active = true
+              and b.binPurpose = com.feedflow.domain.BinPurpose.STORAGE
+            group by c.centerId, c.name, c.centerCode
+            order by c.centerCode asc
+            """)
+    List<CenterStockRow> findStorageStockByCenter();
+
+    /**
      * 센터별 유통기한 경보 집계 (전국 대시보드용).
      * <p>
      * 어느 센터에 급한 재고가 몰려 있는지 한 줄로 보여준다.

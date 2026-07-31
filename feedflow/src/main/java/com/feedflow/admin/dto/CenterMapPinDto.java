@@ -21,8 +21,9 @@ import java.util.List;
  * @param note       운영 방향
  * @param latitude   위도
  * @param longitude  경도
- * @param quantity   보관 수량
- * @param usageRate  적재율 (%)
+ * @param quantity        이 센터에 있는 재고 수량 전체 (대기 구역 · 운송 중 포함)
+ * @param storageQuantity 그중 보관 구역에 있는 수량 — 적재율의 분자
+ * @param usageRate       보관 구역 적재율 (%)
  */
 public record CenterMapPinDto(
         Long centerId,
@@ -33,8 +34,19 @@ public record CenterMapPinDto(
         double latitude,
         double longitude,
         int quantity,
+        int storageQuantity,
         int usageRate
 ) {
+
+    /**
+     * 보관 구역 밖에 있는 수량 (입고 · 출고 대기 + 운송 중).
+     * <p>
+     * 적재율에서는 빠지지만 실물은 이 센터에 있다. 팝업에서 "재고 600 인데 적재율은
+     * 39%" 처럼 두 숫자가 안 맞아 보일 때 그 차이를 설명해 주는 값이다.
+     */
+    public int waitingQuantity() {
+        return Math.max(quantity - storageQuantity, 0);
+    }
 
     /**
      * 지도 응답 전체.

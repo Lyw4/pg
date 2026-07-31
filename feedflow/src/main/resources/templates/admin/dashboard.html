@@ -191,6 +191,11 @@
                                          th:text="'여유 ' + ${#numbers.formatInteger(network.remainingCapacity, 1, 'COMMA')}">
                                         여유 0
                                     </div>
+                                    <!-- 적재율은 보관 구역만 센다. 대기 구역 재고는 실물이 창고에
+                                         있으므로 빼는 대신 따로 알려준다 (2D 도면과 같은 방식) -->
+                                    <div th:if="${network.hasWaitingStock}"
+                                         class="text-info" style="font-size: .7rem;"
+                                         th:text="'+ 대기 · 운송 중 ' + ${#numbers.formatInteger(network.waitingQuantity, 1, 'COMMA')} + '포대 별도'">+ 대기 · 운송 중 0포대 별도</div>
                                 </div>
                                 <div class="col-6 col-md-3">
                                     <div class="text-muted small">기간 입고 / 출고</div>
@@ -260,7 +265,7 @@
                     <div class="card ff-card h-100">
                         <div class="card-header bg-white border-0 pt-3">
                             <span class="fw-bold"><i class="bi bi-pie-chart me-1"></i>센터별 재고 분포</span>
-                            <span class="text-muted small ms-2">/api/admin/center-stock</span>
+                            <span class="text-muted small ms-2">보관 수량 기준 · 전국 합계 대비 비중</span>
                         </div>
                         <div class="card-body">
                             <div id="centerChartError" class="alert alert-warning d-none py-2 small"></div>
@@ -418,7 +423,7 @@
                         <div class="card-body">
                             <div class="text-muted small">최근 7일 매출액</div>
                             <div class="ff-stat-value text-success" id="weeklyTotal">-</div>
-                            <div class="text-muted small mt-2">/api/admin/chart 비동기 조회</div>
+                            <div class="text-muted small mt-2">오늘 포함 7일 · 취소 주문 제외</div>
                         </div>
                     </div>
                 </div>
