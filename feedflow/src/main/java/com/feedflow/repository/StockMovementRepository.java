@@ -1,5 +1,6 @@
 package com.feedflow.repository;
 
+import com.feedflow.admin.dto.CenterActivityRow;
 import com.feedflow.domain.MovementType;
 import com.feedflow.domain.StockMovement;
 import org.springframework.data.domain.Page;
@@ -101,4 +102,31 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     Long sumQuantityByTypeBetween(@Param("movementType") MovementType movementType,
                                   @Param("start") LocalDateTime start,
                                   @Param("end") LocalDateTime end);
+
+    /**
+     * 센터별 · 유형별 기간 실적 집계 (전국 대시보드용).
+     * <p>
+     * 이력의 <b>도착 구역({@code binId})</b> 이 속한 센터를 기준으로 센다.
+     * 이관 출고는 도착지가 출발 센터의 운송 중 구역이므로 <b>출발 센터</b> 실적으로,
+     * 이관 입고는 <b>도착 센터</b> 실적으로 잡힌다. "나갔다 / 들어왔다" 가 의도대로 갈린다.
+     * <p>
+     * 구역이 없는 이력(로트 단위 조정 등)은 어느 센터의 실적인지 알 수 없으므로
+     * {@code join}(inner) 으로 자연히 빠진다. 이 집계에서는 그것이 맞다 —
+     * 센터를 모르는 실적을 특정 센터에 얹으면 숫자가 틀린다.
+     * <p>
+     * 유형을 컬럼으로 펼치지 않고 유형별 한 행으로 내려보낸다. 펼치는 것은 화면의 일이고,
+     * 여기서 {@code case when} 을 늘리면 유형이 추가될 때마다 쿼리를 고쳐야 한다.
+     */
+    @Query("""
+            select new com.feedflow.admin.dto.CenterActivityRow(
+                       c.centerId, c.name, m.movementType, sum(m.quantity), count(m))
+            from StockMovement m
+                join m.bin b
+                join b.center c
+            where m.createdAt between :start and :end
+            group by c.centerId, c.name, c.centerCode, m.movementType
+            order by c.centerCode asc
+            """)
+    List<CenterActivityRow> findActivityByCenter(@Param("start") LocalDateTime start,
+                                                @Param("end") LocalDateTime end);
 }

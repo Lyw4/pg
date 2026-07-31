@@ -1,5 +1,6 @@
 package com.feedflow.repository;
 
+import com.feedflow.admin.dto.CenterCapacityRow;
 import com.feedflow.admin.dto.InTransitStockRow;
 import com.feedflow.admin.dto.WarehouseMapRow;
 import com.feedflow.domain.WarehouseBin;
@@ -102,6 +103,29 @@ public interface WarehouseBinRepository extends JpaRepository<WarehouseBin, Long
             order by c.centerCode asc
             """)
     List<InTransitStockRow> findInTransitStock();
+
+    /**
+     * 센터별 보관 구역 수용량 합계 (전국 대시보드의 적재율 계산용).
+     * <p>
+     * <b>적재율 통계에 포함되는 구역만</b> 센다. 2D 도면의 창고 요약과 같은 기준이다.
+     * <ul>
+     *     <li>사용 중지 구역 제외 — 보수 중이라 쓸 수 없는 공간이다</li>
+     *     <li>입고 · 출고 대기 구역 제외 — 흐름상 잠시 머무는 곳이라
+     *         여기 물건이 많은 것이 "창고가 찼다" 는 뜻이 아니다</li>
+     *     <li>운송 중 가상 구역 제외 — 물리적 공간이 아니다</li>
+     * </ul>
+     * 기준이 도면과 다르면 같은 센터의 적재율이 화면마다 다르게 보인다.
+     */
+    @Query("""
+            select new com.feedflow.admin.dto.CenterCapacityRow(
+                       c.centerId, sum(b.maxCapacity), count(b))
+            from WarehouseBin b
+                join b.center c
+            where b.active = true
+              and b.binPurpose = com.feedflow.domain.BinPurpose.STORAGE
+            group by c.centerId
+            """)
+    List<CenterCapacityRow> findStorageCapacityByCenter();
 
     /**
      * 구역 1건 + 센터 (센터명을 표시하는 단건 조회용).
