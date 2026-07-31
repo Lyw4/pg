@@ -30,6 +30,11 @@ import org.springframework.transaction.annotation.Transactional;
  * <h3>다중 창고(Center) 확장</h3>
  * 판정 단위가 <b>구역(bin)</b> 이므로 구역이 특정 창고에 속하게 되어도 이 클래스는 바뀌지 않는다.
  * 적재 한도는 창고가 아니라 구역의 속성이기 때문이다.
+ *
+ * <h3>한도가 없는 구역</h3>
+ * 센터 간 이관에 쓰는 <b>운송 중 가상 구역</b>은 창고 안의 바닥이 아니라 트럭 위다.
+ * 면적이 없으므로 한도 판정을 건너뛴다.
+ * ({@link com.feedflow.domain.BinPurpose#isPhysicalSpace()})
  */
 @Component
 @RequiredArgsConstructor
@@ -51,6 +56,17 @@ public class BinCapacityChecker {
      */
     public int checkCanAccept(WarehouseBin bin, int quantity, String actionLabel) {
         int currentLoad = currentLoadOf(bin);
+
+        // 물리적 공간이 아닌 구역(운송 중)은 한도를 셀 수 없다.
+        // 트럭에 실려 있는 재고에 "몇 포대까지" 라는 바닥 면적은 존재하지 않는다.
+        // maxCapacity 를 크게 잡아 우회하지 않고 검증 자체를 건너뛴다 —
+        // 임의의 큰 수는 언젠가 넘고, 넘었을 때 왜 막혔는지 알 수 없다.
+        //
+        // 판정은 도메인에 맡긴다. 용도를 알 수 없는 구역은 한도가 있는 것으로 보므로
+        // 검증이 조용히 꺼지지 않는다. (WarehouseBin.hasCapacityLimit)
+        if (!bin.hasCapacityLimit()) {
+            return currentLoad;
+        }
 
         if (!bin.canAccept(currentLoad, quantity)) {
             throw new BusinessRuleException(

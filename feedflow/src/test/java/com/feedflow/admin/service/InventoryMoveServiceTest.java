@@ -1,5 +1,6 @@
 package com.feedflow.admin.service;
 
+import com.feedflow.admin.dto.InventoryDto;
 import com.feedflow.admin.dto.StockMoveForm;
 import com.feedflow.admin.dto.StockMoveResultDto;
 import com.feedflow.common.exception.BusinessRuleException;
@@ -28,6 +29,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,6 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -70,10 +74,20 @@ class InventoryMoveServiceTest {
      * {@code sumQuantityByBinId} 스텁이 무의미해지고 '한도를 넘으면 거부한다' 는
      * 검증이 껍데기만 남는다. 조회 결과만 mock 으로 주고 판정은 실제 코드가 하게 둔다.
      */
+    /**
+     * 한도 검증기는 mock 이 아니라 실제 인스턴스다.
+     * <p>
+     * 운송 중 가상 구역의 한도 <b>면제</b>가 이 테스트가 검증해야 하는 규칙이므로
+     * mock 으로 대체하면 검증이 껍데기만 남는다. 필드로 꺼내 두어 테스트에서
+     * 직접 호출할 수도 있게 한다.
+     */
+    private BinCapacityChecker binCapacityChecker;
+
     @BeforeEach
     void setUp() {
+        binCapacityChecker = new BinCapacityChecker(inventoryRepository);
         inventoryMoveService = new InventoryMoveService(inventoryRepository, warehouseBinRepository, stockMovementRepository,
-                new BinCapacityChecker(inventoryRepository));
+                binCapacityChecker);
     }
 
     /* ==================================================================
@@ -95,7 +109,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, fromBin, 100);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(2L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(toBin));
             given(inventoryRepository.findByLot_LotIdAndBin_BinId(lot.getLotId(), 2L))
                     .willReturn(Optional.empty());
             given(inventoryRepository.sumQuantityByBinId(2L)).willReturn(50L);
@@ -148,7 +162,7 @@ class InventoryMoveServiceTest {
             Inventory target = inventory(101L, lot, toBin, 40);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(2L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(toBin));
             given(inventoryRepository.findByLot_LotIdAndBin_BinId(lot.getLotId(), 2L))
                     .willReturn(Optional.of(target));
             given(inventoryRepository.sumQuantityByBinId(2L)).willReturn(40L);
@@ -179,7 +193,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, fromBin, 60);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(2L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(toBin));
             given(inventoryRepository.findByLot_LotIdAndBin_BinId(lot.getLotId(), 2L))
                     .willReturn(Optional.empty());
             given(inventoryRepository.sumQuantityByBinId(2L)).willReturn(0L);
@@ -207,7 +221,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, inactiveFrom, 80);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(2L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(toBin));
             given(inventoryRepository.findByLot_LotIdAndBin_BinId(lot.getLotId(), 2L))
                     .willReturn(Optional.empty());
             given(inventoryRepository.sumQuantityByBinId(2L)).willReturn(0L);
@@ -241,7 +255,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, fromBin, 100);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(2L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(toBin));
             given(inventoryRepository.findByLot_LotIdAndBin_BinId(lot.getLotId(), 2L))
                     .willReturn(Optional.empty());
             given(inventoryRepository.sumQuantityByBinId(2L)).willReturn(0L);
@@ -284,6 +298,355 @@ class InventoryMoveServiceTest {
     }
 
     /* ==================================================================
+     * 센터 간 이관 (Epic Phase 3a)
+     * ================================================================== */
+
+    @Nested
+    @DisplayName("센터 간 이관")
+    class CenterTransfer {
+
+        /**
+         * 센터가 다르면 MOVE 를 쓸 수 없다. MOVE 는 총량 불변을 전제하지만
+         * 센터가 다르면 출발 센터의 재고가 실제로 줄어든다.
+         */
+        @Test
+        @DisplayName("센터가 다르면 TRANSFER_OUT + TRANSFER_IN 두 건을 남긴다")
+        void recordsTwoTransferLegs() {
+            Product product = product(200);
+            ProductLot lot = lot(lotId(), product, 150);
+
+            Center from = center();
+            Center to = otherCenter();
+            WarehouseBin fromBin = bin(1L, "A-01", 600, true, from);
+            WarehouseBin toBin = bin(8L, "N-01", 600, true, to);
+            WarehouseBin transit = inTransitBin(41L, from);
+
+            Inventory source = inventory(INVENTORY_ID, lot, fromBin, 100);
+
+            given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
+            given(warehouseBinRepository.findWithCenterById(8L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findInTransitBin(1L)).willReturn(Optional.of(transit));
+            given(inventoryRepository.findByLot_LotIdAndBin_BinId(lot.getLotId(), 8L))
+                    .willReturn(Optional.empty());
+            given(inventoryRepository.sumQuantityByBinId(8L)).willReturn(0L);
+            given(inventoryRepository.save(any(Inventory.class)))
+                    .willAnswer(call -> call.getArgument(0));
+
+            inventoryMoveService.move(form(INVENTORY_ID, 8L, 40), USER_ID, USER_NAME);
+
+            ArgumentCaptor<StockMovement> captor = ArgumentCaptor.forClass(StockMovement.class);
+            verify(stockMovementRepository, times(2)).save(captor.capture());
+
+            List<StockMovement> saved = captor.getAllValues();
+
+            assertThat(saved)
+                    .extracting(StockMovement::getMovementType)
+                    .as("MOVE 한 건이 아니라 출고/입고 두 건이어야 센터별 실적을 집계할 수 있다")
+                    .containsExactly(MovementType.TRANSFER_OUT, MovementType.TRANSFER_IN);
+
+            StockMovement out = saved.get(0);
+            assertThat(out.getFromBin().getBinCode())
+                    .as("출고 구간의 출발지는 실제 구역이다")
+                    .isEqualTo("A-01");
+            assertThat(out.getBin().getBinCode())
+                    .as("출고 구간의 도착지는 운송 중 가상 구역이다")
+                    .isEqualTo("TRANSIT-WH1");
+
+            StockMovement in = saved.get(1);
+            assertThat(in.getFromBin().getBinCode())
+                    .as("입고 구간의 출발지는 운송 중 가상 구역이다")
+                    .isEqualTo("TRANSIT-WH1");
+            assertThat(in.getBin().getBinCode())
+                    .as("입고 구간의 도착지는 도착 센터의 실제 구역이다")
+                    .isEqualTo("N-01");
+
+            assertThat(saved).allSatisfy(m -> {
+                assertThat(m.getQuantity()).isEqualTo(40);
+                assertThat(m.getLot()).isEqualTo(lot);
+            });
+        }
+
+        /**
+         * 두 건의 sign 합이 0 이어야 로트 잔여 수량이 유지된다.
+         * 한쪽만 남으면 이력 누적값이 어긋나 이력 추적 화면이 불일치 경고를 띄운다.
+         */
+        @Test
+        @DisplayName("이관 두 건의 증감 방향 합은 0 이라 전국 총 재고가 유지된다")
+        void transferSignsCancelOut() {
+            assertThat(MovementType.TRANSFER_OUT.getSign()).isEqualTo(-1);
+            assertThat(MovementType.TRANSFER_IN.getSign()).isEqualTo(1);
+            assertThat(MovementType.TRANSFER_OUT.getSign() + MovementType.TRANSFER_IN.getSign())
+                    .as("센터를 옮겨도 전국 합계는 그대로여야 한다")
+                    .isZero();
+        }
+
+        @Test
+        @DisplayName("이관도 로트 잔여 수량과 품목 총 재고를 바꾸지 않는다")
+        void transferKeepsTotals() {
+            Product product = product(200);
+            ProductLot lot = lot(lotId(), product, 150);
+
+            Center from = center();
+            WarehouseBin fromBin = bin(1L, "A-01", 600, true, from);
+            WarehouseBin toBin = bin(8L, "N-01", 600, true, otherCenter());
+            Inventory source = inventory(INVENTORY_ID, lot, fromBin, 100);
+
+            given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
+            given(warehouseBinRepository.findWithCenterById(8L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findInTransitBin(1L))
+                    .willReturn(Optional.of(inTransitBin(41L, from)));
+            given(inventoryRepository.findByLot_LotIdAndBin_BinId(lot.getLotId(), 8L))
+                    .willReturn(Optional.empty());
+            given(inventoryRepository.sumQuantityByBinId(8L)).willReturn(0L);
+            given(inventoryRepository.save(any(Inventory.class)))
+                    .willAnswer(call -> call.getArgument(0));
+
+            StockMoveResultDto result =
+                    inventoryMoveService.move(form(INVENTORY_ID, 8L, 40), USER_ID, USER_NAME);
+
+            assertThat(lot.getLotQuantity())
+                    .as("센터를 옮긴 것이므로 로트 잔여는 그대로다")
+                    .isEqualTo(150);
+            assertThat(product.getTotalStock())
+                    .as("totalStock 은 전국 합계이므로 변하지 않는다")
+                    .isEqualTo(200);
+
+            assertThat(source.getQuantity()).isEqualTo(60);
+            assertThat(result.isCenterTransfer()).isTrue();
+            assertThat(result.getInTransitBinCode()).isEqualTo("TRANSIT-WH1");
+            assertThat(result.getFromCenterName()).isEqualTo("제1창고");
+            assertThat(result.getToCenterName()).isEqualTo("제2창고");
+            assertThat(result.getMovementLabel()).isEqualTo("센터 간 이관");
+        }
+
+        /**
+         * 센터는 운영 중에 늘어난다. 센터를 만들 때마다 사람이 가상 구역을 함께 만들게 하면
+         * 반드시 빠뜨리고, 그러면 첫 이관에서 실패한다.
+         */
+        @Test
+        @DisplayName("운송 중 가상 구역이 없으면 규칙에 맞는 코드로 자동 생성한다")
+        void createsInTransitBinWhenMissing() {
+            Product product = product(200);
+            ProductLot lot = lot(lotId(), product, 150);
+
+            Center from = center();
+            WarehouseBin fromBin = bin(1L, "A-01", 600, true, from);
+            WarehouseBin toBin = bin(8L, "N-01", 600, true, otherCenter());
+            Inventory source = inventory(INVENTORY_ID, lot, fromBin, 100);
+
+            given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
+            given(warehouseBinRepository.findWithCenterById(8L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findInTransitBin(1L)).willReturn(Optional.empty());
+            given(warehouseBinRepository.save(any(WarehouseBin.class)))
+                    .willAnswer(call -> call.getArgument(0));
+            given(inventoryRepository.findByLot_LotIdAndBin_BinId(lot.getLotId(), 8L))
+                    .willReturn(Optional.empty());
+            given(inventoryRepository.sumQuantityByBinId(8L)).willReturn(0L);
+            given(inventoryRepository.save(any(Inventory.class)))
+                    .willAnswer(call -> call.getArgument(0));
+
+            inventoryMoveService.move(form(INVENTORY_ID, 8L, 40), USER_ID, USER_NAME);
+
+            ArgumentCaptor<WarehouseBin> captor = ArgumentCaptor.forClass(WarehouseBin.class);
+            verify(warehouseBinRepository).save(captor.capture());
+
+            WarehouseBin created = captor.getValue();
+            assertThat(created.getBinCode())
+                    .as("자동 생성 로직이 다시 찾을 수 있는 코드 규칙이어야 한다")
+                    .isEqualTo("TRANSIT-WH1");
+            assertThat(created.getBinPurpose()).isEqualTo(BinPurpose.IN_TRANSIT);
+            assertThat(created.getCenter())
+                    .as("운송 중 재고는 아직 출발 센터의 책임 아래 있다")
+                    .isEqualTo(from);
+            assertThat(created.isActive())
+                    .as("사용 중지 상태로 만들면 이관이 곧바로 막힌다")
+                    .isTrue();
+            assertThat(created.getBinPurpose().isPhysicalSpace())
+                    .as("물리적 공간이 아니므로 적재 한도를 검증하지 않는다")
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("같은 센터 안의 이동은 이관이 아니라 MOVE 한 건으로 남는다")
+        void sameCenterStaysMove() {
+            Product product = product(200);
+            ProductLot lot = lot(lotId(), product, 150);
+            WarehouseBin fromBin = bin(1L, "A-01", 600, true);
+            WarehouseBin toBin = bin(2L, "B-02", 600, true);
+            Inventory source = inventory(INVENTORY_ID, lot, fromBin, 100);
+
+            given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(toBin));
+            given(inventoryRepository.findByLot_LotIdAndBin_BinId(lot.getLotId(), 2L))
+                    .willReturn(Optional.empty());
+            given(inventoryRepository.sumQuantityByBinId(2L)).willReturn(0L);
+            given(inventoryRepository.save(any(Inventory.class)))
+                    .willAnswer(call -> call.getArgument(0));
+
+            StockMoveResultDto result =
+                    inventoryMoveService.move(form(INVENTORY_ID, 2L, 30), USER_ID, USER_NAME);
+
+            verify(stockMovementRepository, times(1)).save(any(StockMovement.class));
+            verify(warehouseBinRepository, never()).findInTransitBin(any());
+
+            assertThat(result.isCenterTransfer()).isFalse();
+            assertThat(result.getInTransitBinCode()).isNull();
+            assertThat(result.getMovementLabel()).isEqualTo("구역 이동");
+        }
+
+        /**
+         * 화면 선택 목록에서는 이미 제외했지만, 요청을 직접 조립하면 통과할 수 있다.
+         * 사용자가 여기에 재고를 넣으면 어느 센터에서도 팔 수 없는 상태로 갇힌다.
+         */
+        @Test
+        @DisplayName("운송 중 구역을 도착지로 직접 지정하면 거부한다")
+        void rejectsDirectMoveIntoInTransitBin() {
+            Product product = product(200);
+            ProductLot lot = lot(lotId(), product, 150);
+            WarehouseBin fromBin = bin(1L, "A-01", 600, true);
+            WarehouseBin transit = inTransitBin(41L, center());
+            Inventory source = inventory(INVENTORY_ID, lot, fromBin, 100);
+
+            given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
+            given(warehouseBinRepository.findWithCenterById(41L)).willReturn(Optional.of(transit));
+
+            assertThatThrownBy(() ->
+                    inventoryMoveService.move(form(INVENTORY_ID, 41L, 10), USER_ID, USER_NAME))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("운송 중 구역으로는 직접 이동할 수 없습니다");
+
+            assertThat(source.getQuantity())
+                    .as("거부되었으므로 재고가 움직이지 않아야 한다")
+                    .isEqualTo(100);
+            verify(stockMovementRepository, never()).save(any(StockMovement.class));
+        }
+
+        /**
+         * 실제로 밟은 문제: 출발 재고 목록이 유통기한 순으로만 정렬되어
+         * 제1창고의 C-01 과 제2창고의 N-01 이 뒤섞여 나왔다.
+         * 구역 코드만으로는 센터를 알 수 없어 어느 센터 재고인지 모른 채
+         * 센터 간 이관을 일으킬 수 있었다.
+         */
+        @Test
+        @DisplayName("출발 재고 선택 목록은 센터 → 구역 코드 순으로 정렬된다")
+        void movableInventoriesSortedByCenterThenBin() {
+            Product product = product(500);
+            Center wh1 = center();
+            Center wh2 = otherCenter();
+
+            // Repository 는 유통기한 순으로 내려준다 (재고 현황 화면 기준)
+            given(inventoryRepository.search(null, null, null, null)).willReturn(List.of(
+                    inventory(1L, lot(10L, product, 50), bin(3L, "C-01", 400, true, wh1), 20),
+                    inventory(2L, lot(11L, product, 50), bin(8L, "N-01", 200, true, wh2), 30),
+                    inventory(3L, lot(12L, product, 50), bin(1L, "A-01", 500, true, wh1), 40),
+                    inventory(4L, lot(13L, product, 50), bin(9L, "N-02", 200, true, wh2), 10)));
+
+            List<InventoryDto> movable = inventoryMoveService.getMovableInventories(null);
+
+            assertThat(movable)
+                    .extracting(InventoryDto::getBinCode)
+                    .as("제1창고가 모두 먼저 오고 그 안에서 구역 코드 순이어야 한다")
+                    .containsExactly("A-01", "C-01", "N-01", "N-02");
+        }
+
+        @Test
+        @DisplayName("출발 재고를 센터별로 묶고 센터 순서를 유지한다")
+        void groupsMovableInventoriesByCenter() {
+            Product product = product(500);
+            Center wh1 = center();
+            Center wh2 = otherCenter();
+
+            given(inventoryRepository.search(null, null, null, null)).willReturn(List.of(
+                    inventory(1L, lot(10L, product, 50), bin(8L, "N-01", 200, true, wh2), 30),
+                    inventory(2L, lot(11L, product, 50), bin(1L, "A-01", 500, true, wh1), 40)));
+
+            Map<String, List<InventoryDto>> grouped =
+                    inventoryMoveService.getMovableInventoriesByCenter(null);
+
+            assertThat(grouped.keySet())
+                    .as("optgroup 순서가 뒤바뀌지 않도록 삽입 순서를 유지해야 한다")
+                    .containsExactly("제1창고", "제2창고");
+            assertThat(grouped.get("제1창고"))
+                    .extracting(InventoryDto::getBinCode).containsExactly("A-01");
+            assertThat(grouped.get("제2창고"))
+                    .extracting(InventoryDto::getBinCode).containsExactly("N-01");
+        }
+
+        @Test
+        @DisplayName("같은 구역에 여러 로트가 있으면 유통기한이 급한 것부터 보여준다")
+        void sameBinOrderedByExpiration() {
+            Product product = product(500);
+            Center wh1 = center();
+            WarehouseBin binA = bin(1L, "A-01", 500, true, wh1);
+
+            ProductLot urgent = ProductLot.builder()
+                    .lotId(20L).product(product).lotNo("LOT-URGENT")
+                    .manufacturedDate(LocalDate.now().minusDays(170))
+                    .expirationDate(LocalDate.now().plusDays(10))
+                    .lotQuantity(50).build();
+            ProductLot later = ProductLot.builder()
+                    .lotId(21L).product(product).lotNo("LOT-LATER")
+                    .manufacturedDate(LocalDate.now().minusDays(30))
+                    .expirationDate(LocalDate.now().plusDays(150))
+                    .lotQuantity(50).build();
+
+            given(inventoryRepository.search(null, null, null, null)).willReturn(List.of(
+                    inventory(1L, later, binA, 20),
+                    inventory(2L, urgent, binA, 30)));
+
+            assertThat(inventoryMoveService.getMovableInventories(null))
+                    .extracting(InventoryDto::getLotNo)
+                    .as("같은 구역 안에서는 급한 로트를 먼저 옮기게 안내해야 한다")
+                    .containsExactly("LOT-URGENT", "LOT-LATER");
+        }
+
+        @Test
+        @DisplayName("운송 중 구역은 적재 한도가 0 이어도 이관을 막지 않는다")
+        void inTransitBinHasNoCapacityLimit() {
+            // maxCapacity 0 인 가상 구역을 한도로 판정하면 모든 이관이 막힌다.
+            // BinCapacityChecker 가 물리적 공간이 아닌 구역의 검증을 건너뛰는지 확인한다.
+            WarehouseBin transit = inTransitBin(41L, center());
+
+            assertThat(transit.capacityLimit()).isZero();
+            assertThat(transit.hasCapacityLimit()).isFalse();
+            assertThat(binCapacityChecker.checkCanAccept(transit, 9999, "이관"))
+                    .as("한도 검증을 건너뛰므로 예외 없이 현재 적재량을 돌려준다")
+                    .isZero();
+        }
+
+        /**
+         * 한도 면제를 판정하려면 용도를 봐야 하는데, 저장되기 전 객체는 용도가 비어 있을 수 있다
+         * ({@code @PrePersist} 가 아직 실행되지 않은 상태).
+         * <p>
+         * 이때 <b>면제하는 쪽으로 기울면 적재 한도가 조용히 새어 나간다.</b>
+         * 알 수 없는 상태를 이유로 안전 장치를 끄지 않는다는 것을 고정한다.
+         */
+        @Test
+        @DisplayName("용도를 알 수 없는 구역은 한도를 면제하지 않고 그대로 검증한다")
+        void unknownPurposeStillEnforcesLimit() {
+            WarehouseBin noPurpose = WarehouseBin.builder()
+                    .binId(99L)
+                    .binCode("A-99")
+                    .center(center())
+                    .zone("A")
+                    .maxCapacity(100)
+                    .active(true)
+                    .build();
+
+            assertThat(noPurpose.getBinPurpose()).isNull();
+            assertThat(noPurpose.hasCapacityLimit())
+                    .as("용도를 모르면 한도가 있는 것으로 본다 (안전한 기본값)")
+                    .isTrue();
+
+            given(inventoryRepository.sumQuantityByBinId(99L)).willReturn(90L);
+
+            assertThatThrownBy(() -> binCapacityChecker.checkCanAccept(noPurpose, 20, "입고"))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("적재 한도를 초과합니다");
+        }
+    }
+
+    /* ==================================================================
      * 거부 규칙
      * ================================================================== */
 
@@ -300,7 +663,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, bin, 100);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(1L)).willReturn(Optional.of(bin));
+            given(warehouseBinRepository.findWithCenterById(1L)).willReturn(Optional.of(bin));
 
             assertThatThrownBy(() ->
                     inventoryMoveService.move(form(INVENTORY_ID, 1L, 10), USER_ID, USER_NAME))
@@ -321,7 +684,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, fromBin, 50);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(2L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(toBin));
 
             assertThatThrownBy(() ->
                     inventoryMoveService.move(form(INVENTORY_ID, 2L, 51), USER_ID, USER_NAME))
@@ -343,7 +706,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, fromBin, 100);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(2L)).willReturn(Optional.of(inactiveTo));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(inactiveTo));
 
             assertThatThrownBy(() ->
                     inventoryMoveService.move(form(INVENTORY_ID, 2L, 10), USER_ID, USER_NAME))
@@ -361,7 +724,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, fromBin, 100);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(2L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(toBin));
             given(inventoryRepository.sumQuantityByBinId(2L)).willReturn(80L);  // 이미 80
 
             // 80 + 30 = 110 > 100
@@ -384,7 +747,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, fromBin, 100);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(2L)).willReturn(Optional.of(toBin));
+            given(warehouseBinRepository.findWithCenterById(2L)).willReturn(Optional.of(toBin));
             given(inventoryRepository.findByLot_LotIdAndBin_BinId(lot.getLotId(), 2L))
                     .willReturn(Optional.empty());
             given(inventoryRepository.sumQuantityByBinId(2L)).willReturn(80L);
@@ -441,7 +804,7 @@ class InventoryMoveServiceTest {
             Inventory source = inventory(INVENTORY_ID, lot, fromBin, 100);
 
             given(inventoryRepository.findWithDetailById(INVENTORY_ID)).willReturn(Optional.of(source));
-            given(warehouseBinRepository.findById(999L)).willReturn(Optional.empty());
+            given(warehouseBinRepository.findWithCenterById(999L)).willReturn(Optional.empty());
 
             assertThatThrownBy(() ->
                     inventoryMoveService.move(form(INVENTORY_ID, 999L, 10), USER_ID, USER_NAME))
@@ -493,10 +856,16 @@ class InventoryMoveServiceTest {
     }
 
     private WarehouseBin bin(Long binId, String binCode, int maxCapacity, boolean active) {
+        return bin(binId, binCode, maxCapacity, active, center());
+    }
+
+    /** 센터를 지정하는 구역 픽스처 (센터 간 이관 검증용) */
+    private WarehouseBin bin(Long binId, String binCode, int maxCapacity, boolean active,
+                             Center center) {
         return WarehouseBin.builder()
                 .binId(binId)
                 .binCode(binCode)
-                .center(center())
+                .center(center)
                 .zone(binCode.substring(0, 1))
                 .binPurpose(BinPurpose.STORAGE)
                 .rack("01")
@@ -527,14 +896,40 @@ class InventoryMoveServiceTest {
      * DB 에 저장하지 않는 단위 테스트이므로 빌더로 만든 객체를 그대로 쓴다.
      */
     private Center center() {
+        return center(1L, "WH1", "제1창고");
+    }
+
+    /** 제2창고 — 센터 간 이관 검증용 */
+    private Center otherCenter() {
+        return center(2L, "WH2", "제2창고");
+    }
+
+    private Center center(Long centerId, String centerCode, String name) {
         return Center.builder()
-                .centerId(1L)
-                .centerCode("WH1")
-                .name("제1창고")
+                .centerId(centerId)
+                .centerCode(centerCode)
+                .name(name)
                 .region("수도권")
                 .note("상온 · 배합사료")
                 .active(true)
                 .build();
     }
 
+    /** 센터의 운송 중 가상 구역 픽스처 */
+    private WarehouseBin inTransitBin(Long binId, Center center) {
+        WarehouseBin bin = WarehouseBin.createInTransit(center);
+        return WarehouseBin.builder()
+                .binId(binId)
+                .binCode(bin.getBinCode())
+                .center(center)
+                .zone(bin.getZone())
+                .binPurpose(BinPurpose.IN_TRANSIT)
+                .maxCapacity(0)
+                .posX(1)
+                .posY(1)
+                .posWidth(1)
+                .posHeight(1)
+                .active(true)
+                .build();
+    }
 }

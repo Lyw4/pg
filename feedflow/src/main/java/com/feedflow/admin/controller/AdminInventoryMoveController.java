@@ -92,9 +92,11 @@ public class AdminInventoryMoveController {
 
     /** 이동 폼의 재고 목록 / 구역 선택 목록 세팅 */
     private void prepareForm(Model model, Long binId) {
-        model.addAttribute("inventories", inventoryMoveService.getMovableInventories(binId));
-
-        // 도착 구역은 센터별로 묶어 내려준다 (화면에서 optgroup 으로 렌더링)
+        // 출발 재고와 도착 구역을 모두 센터별로 묶어 내려준다 (화면에서 optgroup 으로 렌더링).
+        // 두 select 의 형태를 맞춰야 "어느 센터에서 어느 센터로" 를 나란히 읽을 수 있다.
+        // 출발 목록이 뒤섞여 있으면 어느 센터 재고인지 모른 채 이관을 일으킬 수 있다.
+        model.addAttribute("inventoriesByCenter",
+                inventoryMoveService.getMovableInventoriesByCenter(binId));
         model.addAttribute("binsByCenter", warehouseBinService.getActiveBinsByCenter());
 
         model.addAttribute("selectedBinId", binId);

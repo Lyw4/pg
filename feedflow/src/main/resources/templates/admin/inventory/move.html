@@ -54,20 +54,30 @@
                                 <!-- 이동할 재고 (출발지) -->
                                 <div class="col-12">
                                     <label for="inventoryId" class="form-label ff-required">이동할 재고 (출발 구역)</label>
+                                    <!--
+                                        출발 재고도 센터별로 묶는다. 묶지 않으면 제1창고의 C-01 과
+                                        제2창고의 N-01 이 섞여 나와, 어느 센터의 재고를 옮기는지
+                                        모른 채 센터 간 이관을 일으킬 수 있다.
+                                        구역 코드만으로는 센터를 구분할 수 없다.
+                                    -->
                                     <select id="inventoryId" th:field="*{inventoryId}" class="form-select"
                                             th:classappend="${#fields.hasErrors('inventoryId')} ? 'is-invalid'">
                                         <option value="">-- 재고를 선택하세요 --</option>
-                                        <option th:each="inv : ${inventories}"
-                                                th:value="${inv.inventoryId}"
-                                                th:text="${inv.binCode} + ' | ' + ${inv.lotNo}
-                                                         + ' | ' + ${inv.productName}
-                                                         + ' (보관 ' + ${inv.quantity} + '포대'
-                                                         + (${inv.expired} ? ', 유통기한 만료' : '') + ')'">
-                                        </option>
+                                        <optgroup th:each="group : ${inventoriesByCenter}"
+                                                  th:label="${group.key}">
+                                            <option th:each="inv : ${group.value}"
+                                                    th:value="${inv.inventoryId}"
+                                                    th:text="${inv.binCode} + ' | ' + ${inv.lotNo}
+                                                             + ' | ' + ${inv.productName}
+                                                             + ' (보관 ' + ${inv.quantity} + '포대'
+                                                             + (${inv.expired} ? ', 유통기한 만료' : '') + ')'">
+                                            </option>
+                                        </optgroup>
                                     </select>
                                     <div class="invalid-feedback" th:errors="*{inventoryId}">오류</div>
                                     <div class="form-text">
-                                        보관 수량이 있는 재고만 표시됩니다.
+                                        보관 수량이 있는 재고만 표시됩니다. 센터별로 묶여 있고,
+                                        같은 센터 안에서는 구역 코드 순입니다.
                                         <span th:if="${selectedBinId != null}" class="text-primary">
                                             현재 특정 구역의 재고만 필터링된 상태입니다.
                                             <a th:href="@{/admin/inventory/move}">전체 보기</a>
@@ -141,10 +151,14 @@
             <!-- 처리 결과 상세 -->
             <div class="col-12 col-xl-5">
                 <div class="card ff-card" th:if="${moveResult != null}">
-                    <div class="card-header bg-white border-0 pt-3">
+                    <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <span class="fw-bold text-primary">
                             <i class="bi bi-clipboard-check me-1"></i>직전 이동 처리 결과
                         </span>
+                        <!-- 센터를 넘었으면 이력이 2건으로 남으므로 유형을 밝힌다 -->
+                        <span class="badge"
+                              th:classappend="${moveResult.centerTransfer} ? 'bg-dark' : 'bg-info text-dark'"
+                              th:text="${moveResult.movementLabel}">구역 이동</span>
                     </div>
                     <div class="card-body">
 
@@ -152,6 +166,9 @@
                         <div class="d-flex align-items-center justify-content-between text-center mb-3">
                             <div class="flex-fill">
                                 <div class="text-muted small">출발</div>
+                                <div class="badge ff-trace-center mb-1"
+                                     th:if="${moveResult.centerTransfer}"
+                                     th:text="${moveResult.fromCenterName}">제1창고</div>
                                 <div class="ff-code fw-bold" th:text="${moveResult.fromBinCode}">FROM</div>
                                 <div class="small">
                                     <span th:text="${moveResult.fromQuantityBefore}">0</span>
@@ -160,7 +177,8 @@
                                 </div>
                             </div>
                             <div class="px-2">
-                                <i class="bi bi-arrow-right fs-4 text-primary"></i>
+                                <i class="bi fs-4 text-primary"
+                                   th:classappend="${moveResult.centerTransfer} ? 'bi-truck' : 'bi-arrow-right'"></i>
                                 <div class="badge bg-primary"
                                      th:text="${#numbers.formatInteger(moveResult.movedQuantity, 1, 'COMMA')} + '포대'">
                                     0포대
@@ -168,12 +186,36 @@
                             </div>
                             <div class="flex-fill">
                                 <div class="text-muted small">도착</div>
+                                <div class="badge ff-trace-center mb-1"
+                                     th:if="${moveResult.centerTransfer}"
+                                     th:text="${moveResult.toCenterName}">제2창고</div>
                                 <div class="ff-code fw-bold" th:text="${moveResult.toBinCode}">TO</div>
                                 <div class="small">
                                     <span th:text="${moveResult.toQuantityBefore}">0</span>
                                     &rarr;
                                     <span class="fw-semibold" th:text="${moveResult.toQuantityAfter}">0</span>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!--
+                            센터 간 이관은 이력이 2건으로 남는다. 화면에서는 즉시 완료된 것처럼
+                            보이지만 내부적으로 운송 중 구역을 경유했다는 점을 알려준다.
+                        -->
+                        <div th:if="${moveResult.centerTransfer}"
+                             class="alert alert-dark py-2 small mb-3">
+                            <i class="bi bi-info-circle me-1"></i>
+                            <strong>센터 간 이관</strong>으로 처리되어 이력이 두 건으로 기록되었습니다.
+                            <span class="badge bg-danger ms-1">이관 출고</span>
+                            <span th:text="${moveResult.fromCenterName}">제1창고</span>
+                            <i class="bi bi-arrow-right mx-1"></i>
+                            <span class="ff-code" th:text="${moveResult.inTransitBinCode}">TRANSIT-WH1</span>
+                            <i class="bi bi-arrow-right mx-1"></i>
+                            <span class="badge bg-success ms-1">이관 입고</span>
+                            <span th:text="${moveResult.toCenterName}">제2창고</span>
+                            <div class="mt-1 text-muted">
+                                운송 중 재고가 어디에도 속하지 않는 순간이 없도록
+                                출발 센터의 가상 구역을 경유합니다. 전국 총 재고는 변하지 않습니다.
                             </div>
                         </div>
 

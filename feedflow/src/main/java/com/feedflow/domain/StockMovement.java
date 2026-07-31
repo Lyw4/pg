@@ -193,10 +193,14 @@ public class StockMovement {
     }
 
     /**
-     * 구역 간 이동 이력 생성.
+     * 같은 센터 안에서의 구역 간 이동 이력 생성.
      * <p>
      * 창고 안에서 위치만 바뀌는 것이므로 <b>로트 잔여 수량과 품목 총 재고는 변하지 않는다.</b>
      * ({@code MovementType.MOVE} 의 sign 이 0 인 이유)
+     * <p>
+     * <b>센터가 다르면 이 유형을 쓸 수 없다.</b> 출발 센터의 재고가 실제로 줄어들어
+     * 총량 불변 전제가 깨지기 때문이다. 센터 간에는
+     * {@link #transferOut} / {@link #transferIn} 한 쌍을 쓴다.
      *
      * @param fromBin 출발 구역
      * @param toBin   도착 구역
@@ -214,6 +218,71 @@ public class StockMovement {
                 .lot(lot)
                 .bin(toBin)
                 .fromBin(fromBin)
+                .quantity(quantity)
+                .memo(memo)
+                .userId(userId)
+                .userName(userName)
+                .createdAt(LocalDateTime.now())
+                .build();
+    }
+
+    /**
+     * 센터 간 이관 - <b>출발</b> 이력 생성.
+     * <p>
+     * 출발 구역에서 나와 운송 중 가상 구역으로 들어가는 구간이다.
+     * {@code bin} 은 도착지인 <b>운송 중 구역</b>, {@code fromBin} 은 실제 출발 구역이다.
+     * ({@code MOVE} 와 같은 규칙 — {@code bin} 이 항상 "이 이력의 도착지" 다)
+     * <p>
+     * {@link #transferIn} 과 짝을 이뤄 두 건의 합이 0 이 되므로
+     * 로트 잔여 수량과 품목 총 재고는 변하지 않는다.
+     *
+     * @param fromBin     실제 출발 구역
+     * @param inTransitBin 출발 센터의 운송 중 가상 구역
+     */
+    public static StockMovement transferOut(ProductLot lot,
+                                            WarehouseBin fromBin,
+                                            WarehouseBin inTransitBin,
+                                            int quantity,
+                                            String memo,
+                                            Long userId,
+                                            String userName) {
+        return StockMovement.builder()
+                .movementType(MovementType.TRANSFER_OUT)
+                .product(lot.getProduct())
+                .lot(lot)
+                .bin(inTransitBin)
+                .fromBin(fromBin)
+                .quantity(quantity)
+                .memo(memo)
+                .userId(userId)
+                .userName(userName)
+                .createdAt(LocalDateTime.now())
+                .build();
+    }
+
+    /**
+     * 센터 간 이관 - <b>도착</b> 이력 생성.
+     * <p>
+     * 운송 중 가상 구역에서 나와 도착 센터의 구역으로 들어가는 구간이다.
+     * {@code fromBin} 이 운송 중 구역이므로, 이력만 보고도
+     * "어디를 경유해 들어왔는지" 를 알 수 있다.
+     *
+     * @param inTransitBin 출발 센터의 운송 중 가상 구역
+     * @param toBin        도착 센터의 실제 구역
+     */
+    public static StockMovement transferIn(ProductLot lot,
+                                           WarehouseBin inTransitBin,
+                                           WarehouseBin toBin,
+                                           int quantity,
+                                           String memo,
+                                           Long userId,
+                                           String userName) {
+        return StockMovement.builder()
+                .movementType(MovementType.TRANSFER_IN)
+                .product(lot.getProduct())
+                .lot(lot)
+                .bin(toBin)
+                .fromBin(inTransitBin)
                 .quantity(quantity)
                 .memo(memo)
                 .userId(userId)

@@ -62,10 +62,38 @@ public class StockMoveResultDto {
     /** 출발 구역의 이 로트 재고가 전량 빠져나갔는지 */
     private final boolean sourceDepleted;
 
+    /* ---------------- 물류센터 ---------------- */
+
+    private final String fromCenterName;
+    private final String toCenterName;
+
+    /**
+     * <b>센터를 넘는 이관</b>이었는지.
+     * <p>
+     * 같은 센터 안의 이동({@code MOVE})과 센터 간 이관({@code TRANSFER_OUT} +
+     * {@code TRANSFER_IN})은 남는 이력의 형태가 다르다. 화면이 그 차이를 설명할 수
+     * 있도록 결과에 담는다.
+     */
+    private final boolean centerTransfer;
+
+    /** 이관 시 경유한 운송 중 가상 구역 코드 (센터 내 이동이면 null) */
+    private final String inTransitBinCode;
+
     public String getSummaryMessage() {
+        if (centerTransfer) {
+            return "로트 " + lotNo + " " + movedQuantity + "개를 "
+                    + fromCenterName + " " + fromBinCode + " → "
+                    + toCenterName + " " + toBinCode + " 로 이관했습니다."
+                    + " (전국 총 재고는 변하지 않습니다: " + productTotalStock + "개)";
+        }
         return "로트 " + lotNo + " " + movedQuantity + "개를 "
                 + fromBinCode + " → " + toBinCode + " 로 이동했습니다."
                 + " (총 재고는 변하지 않습니다: " + productTotalStock + "개)";
+    }
+
+    /** 화면에서 이동 유형을 표기할 라벨 */
+    public String getMovementLabel() {
+        return centerTransfer ? "센터 간 이관" : "구역 이동";
     }
 
     /**
