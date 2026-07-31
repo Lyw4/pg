@@ -1,0 +1,91 @@
+테이블	No	속성명(한글)	컬럼명	데이터타입	컬럼 옵션	DEFAULT	비고	변수명
+users	1	회원 ID	userId	BIGINT	PK	IDENTITY		userId
+users	2	이메일	email	VARCHAR(100)	NN, UK		로그인 ID 로 사용	email
+users	3	비밀번호	password	VARCHAR(100)	NN		BCrypt 해시 저장	password
+users	4	이름	name	VARCHAR(50)	NN			name
+users	5	연락처	phone	VARCHAR(20)				phone
+users	6	권한	role	VARCHAR(20)	NN		enum Role (USER / STAFF / ADMIN)	role
+users	7	가입일시	createdAt	TIMESTAMP	NN	자동 생성(PrePersist)		createdAt
+centers	1	센터 ID	centerId	BIGINT	PK	IDENTITY	Warehouse enum(WH1/WH2)을 승격한 테이블	centerId
+centers	2	센터 코드	centerCode	VARCHAR(20)	NN, UK		업무 식별자 · 목록/선택상자 정렬 기준 (예: C1-YS)	centerCode
+centers	3	센터명	name	VARCHAR(50)	NN		화면 표기명 (예: 충남 예산 센터)	name
+centers	4	권역	region	VARCHAR(30)			담당 권역 (예: 충남 서북부)	region
+centers	5	주소	address	VARCHAR(200)			기획 단계에는 범위로 적힌다 (예: 고덕면 몽곡리 667 일대)	address
+centers	6	운영 방향	note	VARCHAR(100)			도면 탭 부제 · 지도 팝업에 표시 (예: 양계 · 양돈 중심)	note
+centers	7	위도	latitude	DOUBLE			지도 핀 위도(WGS84) / 부지 확정 전에는 null	latitude
+centers	8	경도	longitude	DOUBLE			위경도 둘 다 있어야 지도에 표시된다	longitude
+centers	9	운영 여부	active	BOOLEAN	NN	TRUE	false = 운영 중지 / 선택상자에서 제외	active
+centers	10	등록일시	createdAt	TIMESTAMP	NN	자동 생성(PrePersist)		createdAt
+products	1	품목 ID	productId	BIGINT	PK	IDENTITY		productId
+products	2	품목 코드	productCode	VARCHAR(30)	NN, UK		업무 식별자 (예: FD-CT-001)	productCode
+products	3	품목명	name	VARCHAR(200)	NN			name
+products	4	축종	animalType	VARCHAR(20)	NN		enum AnimalType (CATTLE / PIG / POULTRY)	animalType
+products	5	품목 구분	productType	VARCHAR(20)	NN	FEED	enum ProductType (FEED / SUPPLEMENT)	productType
+products	6	포장 무게(kg)	weightKg	INT	NN			weightKg
+products	7	판매 단가	price	BIGINT	NN			price
+products	8	총 재고	totalStock	INT	NN	0	비정규화 캐시 = SUM(productLots.lotQuantity) / 전국 합계 (센터별로 나누지 않음)	totalStock
+products	9	안전재고	safetyStock	INT	NN		대시보드 안전재고 알림 기준	safetyStock
+products	10	유통기한 일수	shelfLifeDays	INT	NN		제조일 + 이 값 = 유통기한 자동 계산	shelfLifeDays
+products	11	판매 여부	active	BOOLEAN	NN	TRUE	soft delete (물리 삭제하지 않음)	active
+products	12	버전	version	BIGINT	NN	0	Version 낙관적 락	version
+products	13	이미지 URL	imageUrl	VARCHAR(500)			B2C 쇼핑몰 전용 / 관리자 화면 미노출	imageUrl
+products	14	상세 설명	description	VARCHAR(2000)			B2C 쇼핑몰 전용 / 관리자 화면 미노출	description
+productLots	1	로트 ID	lotId	BIGINT	PK	IDENTITY		lotId
+productLots	2	품목 ID	productId	BIGINT	NN, FK		FK products.productId / ManyToOne(LAZY)	product
+productLots	3	로트 번호	lotNo	VARCHAR(50)	NN, UK		복합 UK ukProductLotNo (productId, lotNo)	lotNo
+productLots	4	제조일자	manufacturedDate	DATE	NN			manufacturedDate
+productLots	5	유통기한	expirationDate	DATE	NN		제조일 + products.shelfLifeDays 로 자동 계산	expirationDate
+productLots	6	로트 잔여 수량	lotQuantity	INT	NN		SUM(inventories.quantity) 와 일치해야 한다	lotQuantity
+productLots	7	버전	version	BIGINT	NN	0	Version 낙관적 락	version
+warehouseBins	1	구역 ID	binId	BIGINT	PK	IDENTITY		binId
+warehouseBins	2	구역 코드	binCode	VARCHAR(30)	NN, UK		예: YS-PL-01	binCode
+warehouseBins	3	센터 ID	centerId	BIGINT	NN, FK		FK centers.centerId / ManyToOne(LAZY, optional=false)	center
+warehouseBins	4	구역 그룹	zone	VARCHAR(20)	NN		PL(가금) / CT(소) / COLD(저온) / R(입고대기) / S(출고대기)	zone
+warehouseBins	5	구역 용도	binPurpose	VARCHAR(20)	NN	STORAGE	enum BinPurpose (STORAGE / RECEIVING / SHIPPING / INSPECTION / IN_TRANSIT) / 대기 구역은 적재율 통계 제외	binPurpose
+warehouseBins	6	도면 열 좌표	posX	INT	NN	1	2D 도면 좌상단 열 (1-based)	posX
+warehouseBins	7	도면 행 좌표	posY	INT	NN	1	2D 도면 좌상단 행 (1-based)	posY
+warehouseBins	8	도면 가로 칸수	posWidth	INT	NN	1		posWidth
+warehouseBins	9	도면 세로 칸수	posHeight	INT	NN	1		posHeight
+warehouseBins	10	랙	rack	VARCHAR(20)				rack
+warehouseBins	11	단	binLevel	INT			LEVEL 이 SQL 예약어라 컬럼명을 변경했다	binLevel
+warehouseBins	12	적재 한도	maxCapacity	INT	NN	0	초과 입고 차단 기준 / 적재율의 분모	maxCapacity
+warehouseBins	13	사용 여부	active	BOOLEAN	NN	TRUE	false = 출고 후보 제외 (반출은 허용)	active
+warehouseBins	14	메모	memo	VARCHAR(200)				memo
+warehouseBins	15	등록일시	createdAt	TIMESTAMP	NN	자동 생성(PrePersist)		createdAt
+inventories	1	재고 ID	inventoryId	BIGINT	PK	IDENTITY		inventoryId
+inventories	2	로트 ID	lotId	BIGINT	NN, FK, UK		FK productLots.lotId / 복합 UK ukInventoryLotBin (lotId, binId)	lot
+inventories	3	구역 ID	binId	BIGINT	NN, FK, UK		FK warehouseBins.binId / 복합 UK ukInventoryLotBin (lotId, binId)	bin
+inventories	4	보관 수량	quantity	INT	NN		구역별 실물 수량 / 0 이 되어도 행은 삭제하지 않는다	quantity
+inventories	5	수정일시	updatedAt	TIMESTAMP	NN	자동 생성(PrePersist / PreUpdate)		updatedAt
+inventories	6	버전	version	BIGINT	NN	0	Version 낙관적 락 / 동시 이동 · 출고 충돌 방지	version
+orders	1	주문 ID	orderId	BIGINT	PK	IDENTITY		orderId
+orders	2	회원 ID	userId	BIGINT	NN, FK		FK users.userId / 주문 고객	user
+orders	3	주문 금액	totalPrice	BIGINT	NN		할인 전 금액	totalPrice
+orders	4	할인 금액	discountPrice	BIGINT	NN	0		discountPrice
+orders	5	결제 금액	finalPrice	BIGINT	NN		매출 집계 기준 금액	finalPrice
+orders	6	배송지	shippingAddress	VARCHAR(300)	NN			shippingAddress
+orders	7	주문 상태	status	VARCHAR(20)	NN		enum OrderStatus (PAID / READY / SHIPPED / DELIVERED / CANCELED)	status
+orders	8	주문일시	createdAt	TIMESTAMP	NN		일별 매출 차트의 집계 기준	createdAt
+orders	9	취소일시	canceledAt	TIMESTAMP			기존 데이터 보존을 위해 nullable	canceledAt
+orders	10	취소 사유	cancelReason	VARCHAR(150)				cancelReason
+orders	11	취소 처리자 ID	canceledById	BIGINT			FK 아님 (감사 추적용 스냅샷)	canceledById
+orders	12	취소 처리자명	canceledByName	VARCHAR(50)			FK 아님 (퇴사 후에도 이력 보존)	canceledByName
+orderItems	1	주문 상세 ID	orderItemId	BIGINT	PK	IDENTITY		orderItemId
+orderItems	2	주문 ID	orderId	BIGINT	NN, FK		FK orders.orderId / cascade ALL · orphanRemoval	order
+orderItems	3	품목 ID	productId	BIGINT	NN, FK		FK products.productId	product
+orderItems	4	로트 ID	lotId	BIGINT	FK		FK productLots.lotId / nullable · FEFO 대표 로트 1건만 기록	lot
+orderItems	5	주문 수량	quantity	INT	NN			quantity
+orderItems	6	주문 단가	orderPrice	BIGINT	NN		주문 당시 단가 스냅샷 (이후 판매가 변경과 무관)	orderPrice
+stockMovements	1	이력 ID	movementId	BIGINT	PK	IDENTITY		movementId
+stockMovements	2	이력 유형	movementType	VARCHAR(20)	NN		enum MovementType (INBOUND / OUTBOUND / CANCEL / DISPOSAL / MOVE / TRANSFER_OUT / TRANSFER_IN / ADJUST)	movementType
+stockMovements	3	품목 ID	productId	BIGINT	NN, FK		FK products.productId	product
+stockMovements	4	로트 ID	lotId	BIGINT	NN, FK		FK productLots.lotId	lot
+stockMovements	5	대상 구역 ID	binId	BIGINT	FK		FK warehouseBins.binId / nullable · 도착 구역	bin
+stockMovements	6	출발 구역 ID	fromBinId	BIGINT	FK		FK warehouseBins.binId / nullable · MOVE · TRANSFER 의 출발 구역	fromBin
+stockMovements	7	변동 수량	quantity	INT	NN		항상 양수 / 증감 방향은 movementType 으로 판단	quantity
+stockMovements	8	메모	memo	VARCHAR(200)			센터 간 이관 시 출발에서 도착까지의 경로를 기록	memo
+stockMovements	9	폐기 사유	reason	VARCHAR(30)			enum DisposalReason (폐기 이력에만 값이 있다)	reason
+stockMovements	10	주문 ID	orderId	BIGINT			FK 아님 (출고 · 취소 이력의 주문 참조 스냅샷)	orderId
+stockMovements	11	처리자 ID	userId	BIGINT			FK 아님 (처리자 스냅샷)	userId
+stockMovements	12	처리자명	userName	VARCHAR(50)			FK 아님 (퇴사 후에도 이력 보존)	userName
+stockMovements	13	등록일시	createdAt	TIMESTAMP	NN		기간 실적 집계의 기준	createdAt

@@ -1,0 +1,10 @@
+테이블명	DTO명	테이블 설명	컬럼 수
+users	EmployeeDto	사원 · 고객 통합 계정. 권한(Role)으로 관리자 시스템 접근을 통제한다	7
+centers	CenterDto · CenterOverviewDto	전국 물류센터. 기존 Warehouse enum 을 테이블로 승격한 것	10
+products	ProductDto · ProductForm	배합사료 품목 기준정보. B2C 쇼핑몰과 공유하는 테이블	14
+productLots	ExpiringLotDto · LotCandidateDto	품목의 제조 단위(로트). 유통기한 관리와 FEFO 출고의 기준	7
+warehouseBins	WarehouseBinDto · WarehouseBinForm	센터 내부의 적재 구역. 2D 도면 좌표와 적재 한도를 가진다	15
+inventories	InventoryDto	로트 × 구역 단위 실물 재고. 재고 3계층의 최하위	6
+orders	OrderSummaryDto	고객 주문. 출고 · 취소의 근거이며 매출 집계 대상	12
+orderItems	OrderItemPreviewDto	주문 상세 항목. 주문 당시 단가를 스냅샷으로 보관한다	6
+stockMovements	StockMovementDto	모든 재고 변동 이력. 입고 · 출고 · 이동 · 이관 · 폐기 · 조정	13
