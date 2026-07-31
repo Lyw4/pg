@@ -16,7 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
  * 미리 보여주기 위한 엔드포인트다.
  * <p>
  * 품목의 totalStock(전체 재고)과 출고 가능 재고는 다를 수 있다.
- * (유통기한이 지난 로트 / 사용 중지된 구역의 재고는 출고 대상에서 제외되기 때문)
+ * 유통기한 경과 로트, 사용 중지 구역, 입고 대기 · 검수 구역, 운송 중 재고가
+ * 출고 대상에서 제외되기 때문이다.
+ * ({@code InventoryRepository.findAllocatableByProductId} 참고)
  */
 @RestController
 @RequestMapping("/api/admin/outbound")
