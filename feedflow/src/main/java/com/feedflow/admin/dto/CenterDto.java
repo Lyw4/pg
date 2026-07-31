@@ -25,6 +25,10 @@ public class CenterDto {
 
     private final boolean active;
 
+    /* 지도 좌표 — 부지 확정 전이면 null */
+    private final Double latitude;
+    private final Double longitude;
+
     public static CenterDto from(Center center) {
         return CenterDto.builder()
                 .centerId(center.getCenterId())
@@ -34,7 +38,14 @@ public class CenterDto {
                 .address(center.getAddress())
                 .note(center.getNote())
                 .active(center.isActive())
+                .latitude(center.getLatitude())
+                .longitude(center.getLongitude())
                 .build();
+    }
+
+    /** 지도에 핀을 찍을 수 있는지 (좌표 둘 다 있어야 한다) */
+    public boolean isMappable() {
+        return latitude != null && longitude != null;
     }
 
     public String getActiveBadgeClass() {

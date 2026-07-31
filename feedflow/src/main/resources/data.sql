@@ -20,12 +20,12 @@
 --    구역(zone)도 축종 코드(CT 소 · PG 돼지 · PL 가금 · COLD 영양제)로 두어
 --    2D 도면만 봐도 그 센터가 무엇을 다루는지 드러난다.
 -- ---------------------------------------------------------------------
-INSERT INTO centers (centerId, centerCode, name, region, address, note, active, createdAt) VALUES
-(1, 'C1-YS', '충남 예산 센터', '충남 서북부', '충남 예산군 고덕면 몽곡리 667 일대', '양계 · 양돈 중심', TRUE, DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
-(2, 'C2-GJ', '전북 김제 센터', '전북 서부 · 새만금권', '전북 김제시 흥사동 서흥농공단지 외곽', '닭 · 오리 · 돼지 중심', TRUE, DATEADD('DAY', -260, CURRENT_TIMESTAMP)),
-(3, 'C3-US', '경북 의성 센터', '안동 · 의성 · 경북 북부', '경북 의성군 단촌면 세촌리 국도 5호선 축', '소 · 돼지 · 조류 균형형', TRUE, DATEADD('DAY', -220, CURRENT_TIMESTAMP)),
-(4, 'C4-AS', '경기 안성 센터', '경기 남부 · 충북 서부', '경기 안성시 미양면 계륵리 · 구수리', '소 · 돼지 강화형', TRUE, DATEADD('DAY', -180, CURRENT_TIMESTAMP)),
-(5, 'C5-NJ', '전남 나주 센터', '전남 중서부', '전남 나주시 문평면 옥당리', '닭 · 오리 최우선', TRUE, DATEADD('DAY', -140, CURRENT_TIMESTAMP));
+INSERT INTO centers (centerId, centerCode, name, region, address, note, latitude, longitude, active, createdAt) VALUES
+(1, 'C1-YS', '충남 예산 센터', '충남 서북부', '충남 예산군 고덕면 몽곡리 667 일대', '양계 · 양돈 중심', 36.772, 126.771, TRUE, DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
+(2, 'C2-GJ', '전북 김제 센터', '전북 서부 · 새만금권', '전북 김제시 흥사동 서흥농공단지 외곽', '닭 · 오리 · 돼지 중심', 35.812, 126.873, TRUE, DATEADD('DAY', -260, CURRENT_TIMESTAMP)),
+(3, 'C3-US', '경북 의성 센터', '안동 · 의성 · 경북 북부', '경북 의성군 단촌면 세촌리 국도 5호선 축', '소 · 돼지 · 조류 균형형', 36.418, 128.635, TRUE, DATEADD('DAY', -220, CURRENT_TIMESTAMP)),
+(4, 'C4-AS', '경기 안성 센터', '경기 남부 · 충북 서부', '경기 안성시 미양면 계륵리 · 구수리', '소 · 돼지 강화형', 37.001, 127.225, TRUE, DATEADD('DAY', -180, CURRENT_TIMESTAMP)),
+(5, 'C5-NJ', '전남 나주 센터', '전남 중서부', '전남 나주시 문평면 옥당리', '닭 · 오리 최우선', 35.098, 126.662, TRUE, DATEADD('DAY', -140, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
 -- 1. 사용자 : 사원(ADMIN 1, STAFF 1) + 고객(USER 3)
