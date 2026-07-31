@@ -330,15 +330,31 @@ JPQL 안에만 존재하는 조건은 `@DataJpaTest` 로 실제 H2 에 데이터
 > 의존성을 받을 수 없습니다. **컴파일 · 테스트 실행은 로컬에서만 가능**하며,
 > 샌드박스에서는 정적 검사로 대체했습니다.
 
+검사 스크립트는 [`tools/`](tools/) 에 있습니다. Python 3 만 있으면 실행됩니다.
+
+```bash
+cd feedflow
+python3 ../tools/static_check.py          # 정적 검사 14종
+python3 ../tools/compile_risk_check.py    # 컴파일 리스크 7종
+python3 ../tools/stub_check.py            # Mockito STRICT_STUBS
+python3 ../tools/verify_seed.py           # 시드 정합성 5규칙 + 표시 품질
+python3 ../tools/verify_farm_seed.py      # 농장 시드
+```
+
 import 누락/미사용 · 괄호 균형 · enum `switch` 망라성 ·
 JPQL `select new` 인자 수 ↔ record 컴포넌트 수 · 테스트 스텁 ↔ 리포지토리 메서드 ·
-템플릿 태그 중첩 · 템플릿 `${}` ↔ 컨트롤러 모델 키 · 템플릿 프로퍼티 ↔ DTO 게터 ·
-JS 가 읽는 JSON 필드 ↔ record 컴포넌트 · 인라인/정적 JS 문법(`node --check`) ·
-CSS 괄호 균형 · **Mockito `STRICT_STUBS` 안전성** ·
-모델 키 ↔ 특정 DTO 프로퍼티 정밀 대조 · 같은 파일 내 메서드 호출 인자 수
+템플릿 `${}` ↔ 컨트롤러 모델 키 · 템플릿 프로퍼티 ↔ DTO 게터 ·
+JS 가 읽는 JSON 필드 ↔ record 컴포넌트 · `node --check` · CSS 괄호 균형 ·
+**Lombok 빌더 체인 ↔ 실제 필드** · **enum 상수 참조(JPQL 문자열 안까지)** ·
+**JPQL `:param` ↔ `@Param`** · 타입 해석(import · 같은 패키지 · `java.lang`)
 
 검사기를 만들 때마다 **일부러 오류를 심어 검출되는지 확인한 뒤 원복**했습니다.
 검사기가 조용히 통과만 하고 있는 것과 실제로 잡는 것은 다릅니다.
+
+> 실제로 `compile_risk_check.py` 는 첫 실행에서 **503건을 실패로 보고했는데 전부
+> 오탐**이었습니다. 빌더 체인 파싱에서 괄호 깊이를 세지 않아 인자 안의 메서드 호출을
+> 빌더 메서드로 오인한 것입니다. 그 결과를 믿었다면 정상 코드를 잘못 고쳤을 것입니다.
+> 과정은 [`docs/retrospective.md`](docs/retrospective.md) 6장에 적었습니다.
 
 ---
 
@@ -367,3 +383,4 @@ CSS 괄호 균형 · **Mockito `STRICT_STUBS` 안전성** ·
 | `docs/table-definition.tsv` · `table-catalog.tsv` | 테이블 정의서 (제출 양식용) |
 | `docs/unit-work-report.tsv` · `sql-definition.tsv` | 단위업무보고서 · SQL 정의서 |
 | [`INTEGRATION-NOTES.md`](INTEGRATION-NOTES.md) | 팀원 프로젝트와의 통합 논의 — 결정할 것 4가지 |
+| [`tools/README.md`](tools/README.md) | 검증 스크립트 6종 — 실행 방법과 한계 |

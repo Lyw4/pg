@@ -8,3 +8,4 @@ inventories	< 재고 관리, 구역별 실물 재고 >	InventoryDto	로트 × �
 orders	< 주문 출고, 고객 주문 >	OrderSummaryDto	고객 주문. 출고 · 취소의 근거이며 매출 집계 대상	12	2026-07-31	이용우
 orderItems	< 주문 출고, 주문 상세 항목 >	OrderItemPreviewDto	주문 상세 항목. 주문 당시 단가를 스냅샷으로 보관한다	6	2026-07-31	이용우
 stockMovements	< 재고 이력, 입출고 · 이동 · 이관 추적 >	StockMovementDto	모든 재고 변동 이력. 입고 · 출고 · 이동 · 이관 · 폐기 · 조정	13	2026-07-31	이용우
+farmCustomers	< 기준정보, 농장 고객사 관리 >	FarmCustomerDto · CenterFarmSummaryDto	사료를 공급하는 농장 고객사. 담당 물류센터 · 축종 · 월 예상 사료량 · 정기 배송일을 관리한다. B2C 담당 팀원 모듈에서 옮겨왔다	19	2026-07-31	이용우
