@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/layout :: head('불량 관리')}"></head>
+
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="ff-content">
+
+    <div th:replace="~{fragments/layout :: topbar('재고 관리', '불량 관리')}"></div>
+
+    <main class="ff-main">
+
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-1"></i>
+            <span th:text="${successMessage}">성공</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            <span th:text="${errorMessage}">오류</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <!-- ============================================================
+             이 화면이 답하는 것
+             ============================================================ -->
+        <div class="alert alert-light border small mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            검수나 보관 중에 발견한 <strong>불량을 기록하고 처리 결과를 남깁니다.</strong>
+            제조사별 · 발견 단계별로 모아 보면 문제가 반복되는 곳이 드러납니다.
+            <br>
+            <span class="text-danger fw-semibold">이 화면은 재고 수량을 바꾸지 않습니다.</span>
+            반품 · 폐기로 처리한 뒤 실제 차감은 <strong>재고 폐기</strong> 화면에서 합니다 &mdash;
+            재고를 줄이는 곳을 한 군데로 두어야 이력과 수량이 어긋나지 않습니다.
+        </div>
+
+        <!-- ============================================================
+             방치된 미처리 건 — 필터와 무관하게 항상 띄운다
+             ============================================================ -->
+        <div th:if="${not #lists.isEmpty(staleDefects)}"
+             class="alert alert-warning small mb-3">
+            <div class="fw-bold mb-1">
+                <i class="bi bi-hourglass-split me-1"></i>
+                7일 넘게 처리되지 않은 불량 <span th:text="${#lists.size(staleDefects)}">0</span>건
+            </div>
+            <div class="mb-2">
+                격리한 재고는 출고되지 않으면서 자리를 차지합니다. 처리를 미루면 창고 공간만 줄어듭니다.
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <span th:each="d : ${staleDefects}" class="badge bg-white text-dark border">
+                    <span class="fw-semibold" th:text="${d.defectNo}">DF</span>
+                    <span th:text="${d.lotNo}">로트</span>
+                    <span class="text-muted" th:text="'· ' + ${d.ageDays} + '일'">· 0일</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             요약
+             ============================================================ -->
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-lg-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small mb-1">미처리</div>
+                        <div class="fs-4 fw-bold text-danger" th:text="${search.openCount}">0</div>
+                        <div class="small text-muted">
+                            격리 <span th:text="${search.quarantinedCount}">0</span> ·
+                            검사 중 <span th:text="${search.inspectingCount}">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-lg-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small mb-1">조회된 불량</div>
+                        <div class="fs-4 fw-bold" th:text="${search.rowCount}">0</div>
+                        <div class="small text-muted">
+                            <span th:text="${#numbers.formatInteger(search.totalQuantity, 1, 'COMMA')}">0</span>포대
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-lg-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small mb-1">입고 검사 적발률</div>
+                        <div class="fs-4 fw-bold">
+                            <span th:text="${search.receivingCatchRate}">0</span><span class="fs-6">%</span>
+                        </div>
+                        <div class="small text-muted">높을수록 좋음 · 전체 기준</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-lg-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small mb-1">재고 차감 대기</div>
+                        <div class="fs-4 fw-bold" th:text="${search.stockRemovalPendingCount}">0</div>
+                        <div class="small text-muted">반품 · 폐기로 처리된 건</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             집계 3종 — 필터와 무관하게 전체 기준
+             ============================================================ -->
+        <div class="row g-3 mb-3">
+            <div class="col-12 col-lg-4">
+                <div class="card ff-card h-100">
+                    <div class="card-header bg-white fw-bold small">
+                        유형별
+                        <span class="text-muted fw-normal">· 무엇이 반복되는가</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-sm mb-0">
+                            <tbody>
+                            <tr th:each="stat : ${search.typeStats}">
+                                <td th:text="${stat.label()}">유형</td>
+                                <td class="text-end text-muted small">
+                                    <span th:text="${stat.count()}">0</span>건
+                                </td>
+                                <td class="text-end fw-semibold"
+                                    th:title="'건당 평균 ' + ${stat.averagePerCase()} + '포대'">
+                                    <span th:text="${#numbers.formatInteger(stat.amount(), 1, 'COMMA')}">0</span>
+                                </td>
+                            </tr>
+                            <tr th:if="${#lists.isEmpty(search.typeStats)}">
+                                <td colspan="3" class="text-center text-muted small py-3">기록 없음</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-4">
+                <div class="card ff-card h-100">
+                    <div class="card-header bg-white fw-bold small">
+                        발견 단계별
+                        <span class="text-muted fw-normal">· 얼마나 일찍 잡았는가</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-sm mb-0">
+                            <tbody>
+                            <tr th:each="stat : ${search.stageStats}">
+                                <td th:text="${stat.label()}">단계</td>
+                                <td class="text-end text-muted small">
+                                    <span th:text="${stat.count()}">0</span>건
+                                </td>
+                                <td class="text-end fw-semibold"
+                                    th:title="'건당 평균 ' + ${stat.averagePerCase()} + '포대'">
+                                    <span th:text="${#numbers.formatInteger(stat.amount(), 1, 'COMMA')}">0</span>
+                                </td>
+                            </tr>
+                            <tr th:if="${#lists.isEmpty(search.stageStats)}">
+                                <td colspan="3" class="text-center text-muted small py-3">기록 없음</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-4">
+                <div class="card ff-card h-100">
+                    <div class="card-header bg-white fw-bold small">
+                        제조사별
+                        <span class="text-muted fw-normal">· 공급업체 평가 근거</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-sm mb-0">
+                            <tbody>
+                            <tr th:each="stat : ${search.manufacturerStats}">
+                                <td th:text="${stat.label()}">제조사</td>
+                                <td class="text-end text-muted small">
+                                    <span th:text="${stat.count()}">0</span>건
+                                </td>
+                                <td class="text-end fw-semibold"
+                                    th:title="'건당 평균 ' + ${stat.averagePerCase()} + '포대'">
+                                    <span th:text="${#numbers.formatInteger(stat.amount(), 1, 'COMMA')}">0</span>
+                                </td>
+                            </tr>
+                            <tr th:if="${#lists.isEmpty(search.manufacturerStats)}">
+                                <td colspan="3" class="text-center text-muted small py-3">기록 없음</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div th:if="${search.hasManufacturerUnknown}" class="alert alert-secondary small mb-3">
+            <i class="bi bi-question-circle me-1"></i>
+            제조사가 등록되지 않은 품목의 불량이
+            <strong th:text="${search.manufacturerUnknownCount}">0</strong>건 있습니다.
+            반품을 검토하려 해도 <strong>대상을 특정할 수 없습니다</strong> &mdash;
+            품목 정보에 제조사를 등록해 두세요.
+        </div>
+
+        <!-- ============================================================
+             불량 등록 — 사원도 가능
+             ============================================================ -->
+        <div class="card ff-card mb-3">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span class="fw-bold">불량 발견 등록</span>
+                <span class="badge bg-secondary">사원 · 책임자</span>
+            </div>
+            <div class="card-body">
+                <form th:action="@{/admin/defects}" method="post" th:object="${defectForm}"
+                      class="row g-2 align-items-end">
+
+                    <div class="col-12 col-lg-4">
+                        <label class="form-label small text-muted mb-1" for="lotId">로트 (필수)</label>
+                        <select id="lotId" class="form-select form-select-sm" th:field="*{lotId}" required>
+                            <option value="">선택하세요</option>
+                            <option th:each="lot : ${lotOptions}"
+                                    th:value="${lot.lotId}"
+                                    th:text="${lot.lotNo} + ' — ' + ${lot.productName}
+                                             + ' (' + ${lot.expirationDate} + ')'">로트</option>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-lg-3">
+                        <label class="form-label small text-muted mb-1" for="binId">발견 구역</label>
+                        <select id="binId" class="form-select form-select-sm" th:field="*{binId}">
+                            <option value="">구역 미지정 (이관 중 등)</option>
+                            <optgroup th:each="entry : ${binsByCenter}" th:label="${entry.key}">
+                                <option th:each="bin : ${entry.value}"
+                                        th:value="${bin.binId}"
+                                        th:text="${bin.binCode} + ' · ' + ${bin.binPurpose.description}">구역</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-lg-2">
+                        <label class="form-label small text-muted mb-1" for="quantity">수량 (포대)</label>
+                        <input type="number" id="quantity" class="form-control form-control-sm"
+                               th:field="*{quantity}" min="1" required>
+                    </div>
+
+                    <div class="col-6 col-lg-3">
+                        <label class="form-label small text-muted mb-1" for="defectType">불량 유형 (필수)</label>
+                        <select id="defectType" class="form-select form-select-sm"
+                                th:field="*{defectType}" required>
+                            <option value="">선택하세요</option>
+                            <option th:each="t : ${defectTypes}"
+                                    th:value="${t}" th:text="${t.description}">유형</option>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-lg-3">
+                        <label class="form-label small text-muted mb-1" for="stage">발견 단계</label>
+                        <select id="stage" class="form-select form-select-sm" th:field="*{stage}">
+                            <option value="">구역으로 자동 판단</option>
+                            <option th:each="s : ${stages}"
+                                    th:value="${s}" th:text="${s.description}">단계</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-lg-6">
+                        <label class="form-label small text-muted mb-1" for="memo">발견 상황</label>
+                        <input type="text" id="memo" class="form-control form-control-sm"
+                               th:field="*{memo}" maxlength="300"
+                               placeholder="예: 하차 중 파렛트 하단 5포대 찢어짐">
+                    </div>
+
+                    <div class="col-12 col-lg-3 d-flex">
+                        <button type="submit" class="btn btn-sm btn-dark flex-grow-1">
+                            <i class="bi bi-plus-circle me-1"></i>불량 등록
+                        </button>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="form-text">
+                            관리번호는 <code>DF-연월-순번</code> 형식으로 자동 발급됩니다.
+                            발급된 번호를 실물에 표시해 두면 격리한 재고와 기록이 이어집니다.
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             필터
+             ============================================================ -->
+        <div class="card ff-card mb-3">
+            <div class="card-body py-2">
+                <form th:action="@{/admin/defects}" method="get" class="row g-2 align-items-end">
+                    <div class="col-6 col-lg-2">
+                        <label class="form-label small text-muted mb-1" for="fStatus">상태</label>
+                        <select id="fStatus" name="status" class="form-select form-select-sm">
+                            <option value="">전체</option>
+                            <option th:each="s : ${statuses}"
+                                    th:value="${s}" th:text="${s.description}"
+                                    th:selected="${s == selectedStatus}">상태</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-lg-2">
+                        <label class="form-label small text-muted mb-1" for="fType">유형</label>
+                        <select id="fType" name="defectType" class="form-select form-select-sm">
+                            <option value="">전체</option>
+                            <option th:each="t : ${defectTypes}"
+                                    th:value="${t}" th:text="${t.description}"
+                                    th:selected="${t == selectedDefectType}">유형</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-lg-2">
+                        <label class="form-label small text-muted mb-1" for="fStage">단계</label>
+                        <select id="fStage" name="stage" class="form-select form-select-sm">
+                            <option value="">전체</option>
+                            <option th:each="s : ${stages}"
+                                    th:value="${s}" th:text="${s.description}"
+                                    th:selected="${s == selectedStage}">단계</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <label class="form-label small text-muted mb-1" for="fCenter">센터</label>
+                        <select id="fCenter" name="centerId" class="form-select form-select-sm">
+                            <option value="">전국</option>
+                            <option th:each="c : ${centers}"
+                                    th:value="${c.centerId}" th:text="${c.name}"
+                                    th:selected="${c.centerId == selectedCenterId}">센터</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-lg-3 d-flex gap-2">
+                        <button type="submit" class="btn btn-sm btn-dark flex-grow-1">
+                            <i class="bi bi-search me-1"></i>조회
+                        </button>
+                        <a th:href="@{/admin/defects}" class="btn btn-sm btn-outline-secondary">초기화</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             목록 — 미처리 우선, 오래된 것부터
+             ============================================================ -->
+        <div class="card ff-card">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span class="fw-bold">
+                    불량 목록
+                    <span class="text-muted fw-normal small">· 미처리 우선 · 오래된 것부터</span>
+                </span>
+                <span class="badge bg-danger" sec:authorize="hasRole('ADMIN')">처리 완료는 책임자 전용</span>
+                <span class="badge bg-secondary" sec:authorize="!hasRole('ADMIN')">등록 · 검사 착수만 가능</span>
+            </div>
+
+            <div class="card-body p-0">
+                <div th:if="${search.empty}" class="text-center text-muted py-5">
+                    <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                    조건에 맞는 불량 기록이 없습니다.
+                </div>
+
+                <div th:unless="${search.empty}" class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th>관리번호</th>
+                            <th>로트 / 품목</th>
+                            <th>제조사</th>
+                            <th>위치</th>
+                            <th class="text-end">수량</th>
+                            <th>유형</th>
+                            <th>단계</th>
+                            <th>상태</th>
+                            <th>경과</th>
+                            <th class="text-end">처리</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="d : ${search.rows}"
+                            th:classappend="${d.stale} ? 'table-warning'">
+
+                            <td>
+                                <span class="fw-semibold" th:text="${d.defectNo}">DF-2607-001</span>
+                            </td>
+
+                            <td>
+                                <div class="fw-semibold" th:text="${d.lotNo}">로트</div>
+                                <div class="small text-muted" th:text="${d.productName}">품목</div>
+                            </td>
+
+                            <td>
+                                <span th:if="${d.manufacturerName}" th:text="${d.manufacturerName}">제조사</span>
+                                <span th:unless="${d.manufacturerName}"
+                                      class="badge bg-light text-secondary border">미등록</span>
+                            </td>
+
+                            <td>
+                                <div th:if="${d.centerName}" class="small" th:text="${d.centerName}">센터</div>
+                                <div th:if="${d.binCode}" class="small text-muted" th:text="${d.binCode}">구역</div>
+                                <span th:if="${d.binCode == null}" class="small text-muted">구역 미지정</span>
+                            </td>
+
+                            <td class="text-end fw-semibold">
+                                <span th:text="${#numbers.formatInteger(d.quantity, 1, 'COMMA')}">0</span>
+                            </td>
+
+                            <td>
+                                <span class="badge" th:classappend="${d.defectTypeBadgeClass}"
+                                      th:text="${d.defectTypeDescription}">유형</span>
+                            </td>
+
+                            <td>
+                                <span class="badge" th:classappend="${d.stageBadgeClass}"
+                                      th:text="${d.stageDescription}">단계</span>
+                            </td>
+
+                            <td>
+                                <span class="badge" th:classappend="${d.statusBadgeClass}"
+                                      th:text="${d.statusDescription}">상태</span>
+                                <div th:if="${d.resolution}" class="mt-1">
+                                    <span class="badge" th:classappend="${d.resolutionBadgeClass}"
+                                          th:text="${d.resolutionDescription}">처리 방법</span>
+                                </div>
+                            </td>
+
+                            <td>
+                                <span class="small"
+                                      th:classappend="${d.stale} ? 'text-danger fw-semibold' : 'text-muted'"
+                                      th:text="${d.ageDays} + '일'">0일</span>
+                            </td>
+
+                            <td class="text-end">
+                                <!-- 검사 착수 : 격리 상태에서만, 사원도 가능 -->
+                                <form th:if="${d.quarantined}" th:action="@{/admin/defects/{id}/inspect(id=${d.defectId})}"
+                                      method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-search"></i> 검사 착수
+                                    </button>
+                                </form>
+
+                                <!-- 처리 완료 : 미처리 건에만, 책임자 전용 -->
+                                <button th:if="${d.open}" type="button"
+                                        class="btn btn-sm btn-danger ff-resolve-btn"
+                                        sec:authorize="hasRole('ADMIN')"
+                                        data-bs-toggle="modal" data-bs-target="#resolveModal"
+                                        th:attr="data-defect-id=${d.defectId},
+                                                 data-defect-no=${d.defectNo},
+                                                 data-lot-no=${d.lotNo},
+                                                 data-product=${d.productName},
+                                                 data-quantity=${d.quantity},
+                                                 data-type=${d.defectTypeDescription},
+                                                 data-manufacturer=${d.manufacturerName}">
+                                    처리
+                                </button>
+
+                                <span th:unless="${d.open}" class="text-muted small"
+                                      th:text="${d.resolvedByName}">처리자</span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- ============================================================
+     처리 모달 — 책임자 전용
+     ============================================================ -->
+<div class="modal fade" id="resolveModal" tabindex="-1" aria-hidden="true"
+     sec:authorize="hasRole('ADMIN')">
+    <div class="modal-dialog modal-dialog-centered">
+        <form id="resolveForm" method="post" class="modal-content">
+
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold">
+                    <i class="bi bi-clipboard-check me-1"></i>불량 처리
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="alert alert-warning py-2 small mb-3">
+                    처리 완료는 <strong>되돌릴 수 없습니다.</strong>
+                    같은 로트에서 불량이 다시 나오면 새 건으로 등록하세요 &mdash;
+                    한 건에 덮어쓰면 몇 번 발생했는지 셀 수 없습니다.
+                </div>
+
+                <table class="table table-sm mb-3">
+                    <tbody>
+                    <tr>
+                        <th class="text-muted small" style="width: 30%">관리번호</th>
+                        <td class="fw-semibold" id="rmDefectNo">-</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted small">로트 / 품목</th>
+                        <td id="rmLot">-</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted small">제조사</th>
+                        <td id="rmManufacturer">-</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted small">불량</th>
+                        <td id="rmDefect">-</td>
+                    </tr>
+                    </tbody>
+                </table>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold" for="rmResolution">처리 방법</label>
+                    <select class="form-select" id="rmResolution" name="resolution" required>
+                        <option value="">선택하세요</option>
+                        <option th:each="r : ${resolutions}"
+                                th:value="${r}" th:text="${r.description}"
+                                th:attr="data-follow-up=${r.followUp}">처리 방법</option>
+                    </select>
+                    <div class="form-text" id="rmFollowUp">처리 방법을 고르면 다음에 할 일이 표시됩니다.</div>
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold" for="rmMemo">처리 내용</label>
+                    <input type="text" class="form-control" id="rmMemo" name="resolutionMemo"
+                           maxlength="300" placeholder="예: 반품 접수번호 R-2607-12">
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="submit" class="btn btn-danger">
+                    <i class="bi bi-check2 me-1"></i>처리 완료
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div th:replace="~{fragments/layout :: scripts}"></div>
+
+<script th:inline="javascript">
+    /*
+     * 처리 모달 채우기.
+     *
+     * 행마다 모달을 만들지 않고 하나를 재사용한다. 목록이 수십 행이면 숨은
+     * 모달이 그만큼 생겨 문서가 무거워지고, 같은 마크업이 행 수만큼 반복된다.
+     */
+    (function () {
+        var modal = document.getElementById('resolveModal');
+        if (!modal) {
+            return;   // 사원 화면에는 모달 자체가 렌더링되지 않는다
+        }
+
+        var form = document.getElementById('resolveForm');
+        var actionBase = /*[[@{/admin/defects}]]*/ '/admin/defects';
+
+        document.querySelectorAll('.ff-resolve-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var d = btn.dataset;
+
+                form.action = actionBase + '/' + d.defectId + '/resolve';
+
+                document.getElementById('rmDefectNo').textContent = d.defectNo;
+                document.getElementById('rmLot').textContent = d.lotNo + ' / ' + (d.product || '-');
+                document.getElementById('rmManufacturer').textContent = d.manufacturer || '미등록';
+                document.getElementById('rmDefect').textContent = d.type + ' · ' + d.quantity + '포대';
+
+                document.getElementById('rmResolution').value = '';
+                document.getElementById('rmMemo').value = '';
+                document.getElementById('rmFollowUp').textContent =
+                        '처리 방법을 고르면 다음에 할 일이 표시됩니다.';
+            });
+        });
+
+        // 처리 방법을 고르면 다음에 할 일을 바로 보여준다.
+        // 이 화면은 재고를 바꾸지 않으므로, 폐기 화면으로 가야 한다는 것을
+        // 여기서 알려주지 않으면 재고가 그대로 남는다.
+        document.getElementById('rmResolution').addEventListener('change', function () {
+            var option = this.options[this.selectedIndex];
+            var followUp = option.getAttribute('data-follow-up');
+            document.getElementById('rmFollowUp').textContent =
+                    followUp || '처리 방법을 고르면 다음에 할 일이 표시됩니다.';
+        });
+    })();
+</script>
+
+</body>
+</html>
