@@ -55,7 +55,7 @@ INSERT INTO products (productId, productCode, name, animalType, productType, wei
 (6,  'FD-PG-002', '육성돈 배합사료',         'PIG',     'FEED',       25, 26000, 680,  90, 180, TRUE,  NULL, NULL, 0),
 (7,  'FD-PG-003', '임신돈 전용 사료',        'PIG',     'FEED',       25, 27000, 300,  70, 180, TRUE,  NULL, NULL, 0),
 (8,  'FD-PL-002', '육계 초기 사료',          'POULTRY', 'FEED',       20, 25000, 240,  50,  90, TRUE,  NULL, NULL, 0),
-(9,  'FD-PL-003', '육계 후기 사료',          'POULTRY', 'FEED',       20, 23000, 600,  60,  90, TRUE,  NULL, NULL, 0),
+(9,  'FD-PL-003', '육계 후기 사료',          'POULTRY', 'FEED',       20, 23000, 720,  60,  90, TRUE,  NULL, NULL, 0),
 (10, 'FD-PL-004', '산란오리 배합사료',       'POULTRY', 'FEED',       25, 26000,  230,  40, 120, TRUE,  NULL, NULL, 0),
 -- 영양제(보조제) : 포장 단위가 작고 유통기한이 길다
 (11, 'SP-CT-001', '한우 비타민 영양제',      'CATTLE',  'SUPPLEMENT',  5, 45000,  560,  30, 365, TRUE,  NULL, NULL, 0),
@@ -85,7 +85,7 @@ INSERT INTO productLots (lotId, productId, lotNo, manufacturedDate, expirationDa
 (8,  6, 'LOT-PG-2613', DATEADD('DAY',  -40, CURRENT_DATE), DATEADD('DAY', 140, CURRENT_DATE), 260, 0),
 (9,  7, 'LOT-PG-2614', DATEADD('DAY',  -30, CURRENT_DATE), DATEADD('DAY', 150, CURRENT_DATE), 180, 0),
 (10, 8, 'LOT-PL-2622', DATEADD('DAY',  -30, CURRENT_DATE), DATEADD('DAY',  60, CURRENT_DATE), 140, 0),
-(11, 9, 'LOT-PL-2623', DATEADD('DAY',  -20, CURRENT_DATE), DATEADD('DAY',  70, CURRENT_DATE), 190, 0),
+(11, 9, 'LOT-PL-2623', DATEADD('DAY',  -20, CURRENT_DATE), DATEADD('DAY',  70, CURRENT_DATE), 310, 0),
 (12, 10, 'LOT-PL-2631', DATEADD('DAY', -30, CURRENT_DATE), DATEADD('DAY',  90, CURRENT_DATE),  90, 0),
 (14, 12, 'LOT-CT-2699', DATEADD('DAY', -140, CURRENT_DATE), DATEADD('DAY', 40, CURRENT_DATE),  10, 0),
 -- 영양제 로트 (shelfLifeDays 365 규칙에 맞춰 제조일자 = 유통기한 - 365)
@@ -291,7 +291,8 @@ INSERT INTO inventories (inventoryId, lotId, binId, quantity, updatedAt, version
 (25, 15, 13, 20, DATEADD('DAY', -6, CURRENT_TIMESTAMP), 0),   -- GJ-PL-02 (20/200 = 10%)
 (26, 16, 9, 30, DATEADD('DAY', -3, CURRENT_TIMESTAMP), 0),   -- YS-COLD-01 (30/200 = 15%)
 (27, 17, 32, 90, DATEADD('DAY', -20, CURRENT_TIMESTAMP), 0),   -- AS-CT-03 (90/400 = 22%)
-(28, 17, 30, 90, DATEADD('DAY', -20, CURRENT_TIMESTAMP), 0),   -- AS-CT-01 (90/400 = 22%)
+-- 90 중 60 을 출고 대기 구역으로 피킹해 두었다(movementId 84) → 30 만 남아 있다
+(28, 17, 30, 30, DATEADD('DAY', -1, CURRENT_TIMESTAMP), 0),   -- AS-CT-01 (30/400 = 8%)
 (29, 18, 31, 100, DATEADD('DAY', -27, CURRENT_TIMESTAMP), 0),   -- AS-CT-02 (100/400 = 25%)
 (30, 18, 33, 100, DATEADD('DAY', -27, CURRENT_TIMESTAMP), 0),   -- AS-CT-04 (100/400 = 25%)
 (31, 19, 5, 75, DATEADD('DAY', -4, CURRENT_TIMESTAMP), 0),   -- YS-PG-01 (75/250 = 30%)
@@ -321,7 +322,21 @@ INSERT INTO inventories (inventoryId, lotId, binId, quantity, updatedAt, version
 (55, 34, 14, 90, DATEADD('DAY', -19, CURRENT_TIMESTAMP), 0),   -- GJ-PL-03 (90/200 = 45%)
 (56, 34, 15, 90, DATEADD('DAY', -19, CURRENT_TIMESTAMP), 0),   -- GJ-PL-04 (90/200 = 45%)
 -- 센터 간 이관(movementId 78)으로 예산에 도착한 로트 12 의 60포대
-(57, 12, 4, 60, DATEADD('DAY', -3, CURRENT_TIMESTAMP), 0);   -- YS-PL-04 (60/200 = 30%)
+(57, 12, 4, 60, DATEADD('DAY', -3, CURRENT_TIMESTAMP), 0),   -- YS-PL-04 (60/200 = 30%)
+-- ------------------------------------------------------------------
+-- 대기 구역 재고 : 적재율에서 빠지지만 실물은 창고에 있다
+--
+--   이 두 줄이 없으면 "보관 구역 재고" 와 "센터 전체 재고" 가 항상 같아져서,
+--   둘을 구분해 둔 설계(적재율의 분자 · 2D 도면의 '+ 대기 구역 N포대 별도' ·
+--   센터 카드의 '보관 N + 대기 K')가 화면에 한 번도 나타나지 않는다.
+--   H2 인메모리라 손으로 입고해 봐도 재시작하면 사라진다.
+-- ------------------------------------------------------------------
+-- 출고 대기 : READY 주문을 위해 보관 구역에서 피킹해 모아 둔 물량 (movementId 84)
+(58, 17, 40, 60, DATEADD('DAY', -1, CURRENT_TIMESTAMP), 0),   -- AS-S-01 (60/400) ※ 적재율 제외
+-- 입고 대기 : 어제 도착해 검수를 기다리는 물량 (movementId 85)
+--   검수 전이므로 출고 후보에서 제외된다. '구역 간 이동' 으로 보관 구역에 넣어야
+--   가용 재고가 된다. 그래서 품목 9 는 "전체 재고는 720인데 출고 가능은 600" 이다.
+(59, 11, 10, 120, DATEADD('DAY', -1, CURRENT_TIMESTAMP), 0);   -- YS-R-01 (120/300) ※ 적재율 제외
 
 -- ---------------------------------------------------------------------
 -- 8. 재고 이력 83건
@@ -428,7 +443,10 @@ INSERT INTO stockMovements (movementId, movementType, productId, lotId, binId, f
 (80, 'OUTBOUND', 3, 5, 1, NULL, 20, 6, '주문 #6 FEFO 출고', 1, '김책임', DATEADD('DAY', -2, CURRENT_TIMESTAMP)),
 (81, 'INBOUND', 13, 16, 9, NULL, 30, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -2, CURRENT_TIMESTAMP)),
 (82, 'INBOUND', 8, 21, 43, NULL, 100, NULL, '정기 발주 입고', 2, '이사원', DATEADD('DAY', -2, CURRENT_TIMESTAMP)),
-(83, 'OUTBOUND', 2, 3, 34, NULL, 10, 5, '주문 #5 FEFO 출고', 1, '김책임', DATEADD('DAY', -1, CURRENT_TIMESTAMP));
+(83, 'OUTBOUND', 2, 3, 34, NULL, 10, 5, '주문 #5 FEFO 출고', 1, '김책임', DATEADD('DAY', -1, CURRENT_TIMESTAMP)),
+-- 대기 구역으로 들어간 재고 (위 inventoryId 58 · 59 의 근거)
+(84, 'MOVE', 4, 17, 40, 30, 60, NULL, '출고 대기 구역으로 피킹 (AS-CT-01 → AS-S-01)', 1, '김책임', DATEADD('DAY', -1, CURRENT_TIMESTAMP)),
+(85, 'INBOUND', 9, 11, 10, NULL, 120, NULL, '정기 발주 입고 - 검수 대기', 2, '이사원', DATEADD('DAY', -1, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
 -- 9. IDENTITY 시퀀스 재시작
@@ -441,5 +459,5 @@ ALTER TABLE productLots ALTER COLUMN lotId RESTART WITH 35;
 ALTER TABLE orders ALTER COLUMN orderId RESTART WITH 16;
 ALTER TABLE orderItems ALTER COLUMN orderItemId RESTART WITH 17;
 ALTER TABLE warehouseBins ALTER COLUMN binId RESTART WITH 52;
-ALTER TABLE inventories ALTER COLUMN inventoryId RESTART WITH 58;
-ALTER TABLE stockMovements ALTER COLUMN movementId RESTART WITH 84;
+ALTER TABLE inventories ALTER COLUMN inventoryId RESTART WITH 60;
+ALTER TABLE stockMovements ALTER COLUMN movementId RESTART WITH 86;
