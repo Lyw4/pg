@@ -347,6 +347,7 @@ python3 ../tools/compile_risk_check.py    # 컴파일 리스크 7종
 python3 ../tools/stub_check.py            # Mockito STRICT_STUBS
 python3 ../tools/verify_seed.py           # 시드 정합성 5규칙 + 표시 품질
 python3 ../tools/verify_farm_seed.py      # 농장 시드
+python3 ../tools/verify_test_expectations.py   # 테스트 기대값 ↔ 프로덕션 계산
 ```
 
 import 누락/미사용 · 괄호 균형 · enum `switch` 망라성 ·

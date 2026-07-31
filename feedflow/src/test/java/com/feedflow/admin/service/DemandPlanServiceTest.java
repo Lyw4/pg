@@ -205,11 +205,17 @@ class DemandPlanServiceTest {
 
         DemandPlanDto plan = demandPlanService.getDemandPlan(TODAY);
 
+        /*
+            판정 근거
+              센터1 소   500 / 720  =  69%  SHORTAGE  → 조치 필요
+              센터1 가금 300 / 200  = 150%  ADEQUATE
+              센터2 돼지 1000 / 900 = 111%  TIGHT     → 조치 필요 (100~120% 구간)
+         */
         CenterCoverageDto yesan = plan.getCenters().get(0);
         assertThat(yesan.getTotalDemand()).isEqualTo(920);
         assertThat(yesan.getTotalSupply()).isEqualTo(800);
         assertThat(yesan.getActionCount())
-                .as("소는 부족(69%), 가금은 과다(150% → 적정). 조치 대상은 소 1건")
+                .as("소는 부족(69%), 가금은 적정(150%). 이 센터의 조치 대상은 소 1건")
                 .isEqualTo(1);
         assertThat(yesan.getShortageQuantity())
                 .as("소 720 − 500 = 220. 가금은 남으므로 0")
@@ -217,9 +223,17 @@ class DemandPlanServiceTest {
 
         assertThat(plan.getTotalDemand()).isEqualTo(1820);
         assertThat(plan.getTotalSupply()).isEqualTo(1800);
-        assertThat(plan.getAnimalsNeedingAction()).isEqualTo(1);
-        assertThat(plan.getCentersNeedingAction()).isEqualTo(1);
-        assertThat(plan.getTotalShortage()).isEqualTo(220);
+        assertThat(plan.getAnimalsNeedingAction())
+                .as("센터1 소(부족) + 센터2 돼지(빠듯) = 2건")
+                .isEqualTo(2);
+        assertThat(plan.getCentersNeedingAction())
+                .as("두 센터 모두 조치가 필요하다")
+                .isEqualTo(2);
+        assertThat(plan.getTotalShortage())
+                .as("조치 필요 건수와 부족 수량은 다르다 — 빠듯(111%)은 이미 수요를 "
+                    + "넘겼으므로 부족분이 0 이다. 그래도 발주가 늦으면 바로 모자라므로 "
+                    + "조치 대상으로는 센다")
+                .isEqualTo(220);
         assertThat(plan.isHasAction()).isTrue();
     }
 
