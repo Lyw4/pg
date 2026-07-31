@@ -1,0 +1,45 @@
+// 1) import
+import com.ex.entity.FarmCustomer.CustomerStatus;
+import com.ex.service.FarmCustomerService;
+
+// 2) ManagementController 필드
+private final FarmCustomerService farmCustomerService;
+
+// 3) 기존 생성자의 마지막 매개변수와 본문에 추가
+FarmCustomerService farmCustomerService
+
+this.farmCustomerService = farmCustomerService;
+
+// 4) 기존 GET /distribution 메서드에서 return "distribution"; 바로 전에 추가
+model.addAttribute("farmCustomers",
+        farmCustomerService.customers());
+model.addAttribute("activeFarmCustomerCount",
+        farmCustomerService.activeCount());
+model.addAttribute("farmMonthlyFeedTotal",
+        farmCustomerService.totalMonthlyFeedQuantity());
+model.addAttribute("farmWarehouseSummaries",
+        farmCustomerService.warehouseSummaries());
+model.addAttribute("farmWarehouses",
+        warehouseManagementService.warehouses());
+
+// 5) Controller 클래스 안에 상태 변경 POST 메서드 추가
+@PostMapping("/distribution/farm-customers/{farmCustomerId}/status")
+public String changeFarmCustomerStatus(
+        @PathVariable("farmCustomerId") Long farmCustomerId,
+        @RequestParam("status") CustomerStatus status,
+        RedirectAttributes redirectAttributes) {
+    return execute(
+            () -> farmCustomerService.changeStatus(
+                    farmCustomerId, status),
+            "/distribution?view=farms",
+            status == CustomerStatus.ACTIVE
+                    ? "농장 고객사의 거래를 재개했습니다."
+                    : "농장 고객사를 거래 보류로 변경했습니다.",
+            redirectAttributes);
+}
+
+/*
+ * 위 코드는 원본 ManagementController의 공통 execute(...) 메서드를 사용합니다.
+ * 팀원 Controller에 execute가 없다면 try/catch 후 RedirectAttributes에
+ * 성공/오류 메시지를 넣고 "/distribution?view=farms"로 redirect하면 됩니다.
+ */

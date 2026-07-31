@@ -1,0 +1,24 @@
+import com.ex.service.FarmCustomerSeeder;
+
+/*
+ * 기존 CommandLineRunner @Bean 메서드의 매개변수에 추가합니다.
+ * 창고 W01~W05가 먼저 존재해야 하므로 창고 Seeder 다음에 실행합니다.
+ */
+CommandLineRunner seedData(
+        // 기존 Repository 및 Seeder 매개변수...
+        WarehousePlanSeeder warehousePlanSeeder,
+        FarmCustomerSeeder farmCustomerSeeder) {
+
+    return args -> {
+        // 기존 상품 초기화...
+
+        warehousePlanSeeder.seed();
+        farmCustomerSeeder.seed();
+    };
+}
+
+/*
+ * SQL로 현재 데이터를 이관한 경우에도 호출할 수 있습니다.
+ * FarmCustomerSeeder는 farm_code 기준으로 찾아 중복 생성을 방지하며,
+ * 이미 존재하는 농장의 거래 상태는 유지합니다.
+ */
