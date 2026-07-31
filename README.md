@@ -390,6 +390,7 @@ JS 가 읽는 JSON 필드 ↔ record 컴포넌트 · `node --check` · CSS 괄�
 
 | 파일 | 내용 |
 |---|---|
+| [`HANDOFF.md`](HANDOFF.md) | **인계 문서 — 환경 제약 · 실행 명령어 · 코드 규칙 · 되돌리면 안 되는 결정** |
 | [`docs/retrospective.md`](docs/retrospective.md) | **회고 — 기술적 난제와 극복 과정** |
 | [`docs/architecture-notes.md`](docs/architecture-notes.md) | 확장 단계별 설계 결정과 근거 |
 | [`docs/requirements.md`](docs/requirements.md) | 요구사항 정의서 (Must / Should / Could), 제외 범위와 이유 |
@@ -399,4 +400,4 @@ JS 가 읽는 JSON 필드 ↔ record 컴포넌트 · `node --check` · CSS 괄�
 | `docs/table-definition.tsv` · `table-catalog.tsv` | 테이블 정의서 (제출 양식용) |
 | `docs/unit-work-report.tsv` · `sql-definition.tsv` | 단위업무보고서 · SQL 정의서 |
 | [`INTEGRATION-NOTES.md`](INTEGRATION-NOTES.md) | 팀원 프로젝트와의 통합 논의 — 결정할 것 4가지 |
-| [`tools/README.md`](tools/README.md) | 검증 스크립트 6종 — 실행 방법과 한계 |
+| [`tools/README.md`](tools/README.md) | 검증 스크립트 7종 — 실행 방법과 한계 |
