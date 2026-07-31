@@ -1,5 +1,6 @@
 package com.feedflow.admin.controller;
 
+import com.feedflow.admin.service.CenterDashboardService;
 import com.feedflow.admin.service.DashboardService;
 import com.feedflow.admin.service.EmployeeService;
 import com.feedflow.domain.Role;
@@ -28,6 +29,7 @@ import java.time.LocalDate;
 public class AdminController {
 
     private final DashboardService dashboardService;
+    private final CenterDashboardService centerDashboardService;
     private final EmployeeService employeeService;
 
     /**
@@ -37,10 +39,16 @@ public class AdminController {
      */
     @GetMapping({"", "/", "/dashboard"})
     public String dashboard(@AuthenticationPrincipal LoginUser loginUser, Model model) {
-        model.addAttribute("today", LocalDate.now());
+        LocalDate today = LocalDate.now();
+
+        model.addAttribute("today", today);
         model.addAttribute("todayTask", dashboardService.getTodayTask());
         model.addAttribute("safetyStockAlerts", dashboardService.getSafetyStockAlerts());
         model.addAttribute("expiringLots", dashboardService.getExpiringLots());
+
+        // 전국 물류망 현황. 재고 정보이므로 STAFF 도 본다 —
+        // 창고 담당자가 "다른 센터에 재고가 있는지" 를 모르면 불필요한 발주를 낸다.
+        model.addAttribute("network", centerDashboardService.getNetworkOverview(today));
 
         // 책임자 전용 데이터 - 일반 사원 응답에는 아예 포함되지 않는다.
         if (loginUser != null && loginUser.isAdmin()) {

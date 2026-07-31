@@ -149,7 +149,232 @@
         </div>
 
         <!-- ==========================================================
-             2. 매출 통계 + 차트 (ADMIN 전용 / DOM 자체가 렌더링되지 않음)
+             2. 전국 물류망 현황 (STAFF · ADMIN 공통)
+
+             매출과 달리 권한을 나누지 않는다. 재고 정보이고, 창고 담당자가
+             "다른 센터에 재고가 있는지" 를 모르면 불필요한 발주를 낸다.
+             ========================================================== -->
+        <h6 class="fw-bold text-secondary mb-2">
+            <i class="bi bi-diagram-3 me-1"></i>전국 물류망 현황
+            <span class="text-muted small ms-1"
+                  th:text="'센터 ' + ${network.centerCount} + '곳 · 최근 ' + ${network.activityDays} + '일 실적'">
+                센터 5곳
+            </span>
+        </h6>
+
+        <div th:if="${network.empty}" class="alert alert-secondary">
+            <i class="bi bi-info-circle me-1"></i>운영 중인 물류센터가 없습니다.
+        </div>
+
+        <div th:unless="${network.empty}">
+
+            <!-- 전국 요약 + 분포 차트 -->
+            <div class="row g-3 mb-3">
+                <div class="col-12 col-xl-7">
+                    <div class="card ff-card h-100">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-6 col-md-3">
+                                    <div class="text-muted small">전국 보관 수량</div>
+                                    <div class="ff-stat-value text-primary"
+                                         th:text="${#numbers.formatInteger(network.totalQuantity, 1, 'COMMA')}">0</div>
+                                    <div class="text-muted" style="font-size: .72rem;"
+                                         th:text="'/ 수용 ' + ${#numbers.formatInteger(network.totalCapacity, 1, 'COMMA')} + ' 포대'">
+                                        / 수용 0 포대
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="text-muted small">전국 적재율</div>
+                                    <div class="ff-stat-value text-dark"
+                                         th:text="${network.usageRate} + '%'">0%</div>
+                                    <div class="text-muted" style="font-size: .72rem;"
+                                         th:text="'여유 ' + ${#numbers.formatInteger(network.remainingCapacity, 1, 'COMMA')}">
+                                        여유 0
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="text-muted small">기간 입고 / 출고</div>
+                                    <div class="ff-stat-value" style="font-size: 1.15rem;">
+                                        <span class="text-success"
+                                              th:text="'+' + ${#numbers.formatInteger(network.totalInbound, 1, 'COMMA')}">+0</span>
+                                        <span class="text-muted">/</span>
+                                        <span class="text-danger"
+                                              th:text="'-' + ${#numbers.formatInteger(network.totalOutbound, 1, 'COMMA')}">-0</span>
+                                    </div>
+                                    <div class="text-muted" style="font-size: .72rem;"
+                                         th:text="'최근 ' + ${network.activityDays} + '일'">최근 7일</div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="text-muted small">센터 간 이관</div>
+                                    <div class="ff-stat-value text-dark" style="font-size: 1.15rem;"
+                                         th:text="${#numbers.formatInteger(network.totalTransferred, 1, 'COMMA')} + '포대'">0포대</div>
+                                    <!-- 이관은 출고·입고가 짝이므로 한쪽만 센다 (더하면 중복 계산) -->
+                                    <div class="text-muted" style="font-size: .72rem;">출고 기준 (짝 중복 제외)</div>
+                                </div>
+                            </div>
+
+                            <hr class="my-3">
+
+                            <!-- 먼저 봐야 할 센터 -->
+                            <div class="d-flex flex-wrap gap-3 small">
+                                <div th:if="${network.busiestCenter != null}">
+                                    <span class="text-muted">재고 최다</span>
+                                    <span class="badge bg-primary ms-1"
+                                          th:text="${network.busiestCenter.centerName}">센터</span>
+                                    <span class="text-muted"
+                                          th:text="${#numbers.formatInteger(network.busiestCenter.quantity, 1, 'COMMA')}
+                                                   + '포대 (' + ${network.busiestCenter.sharePercent} + '%)'">0</span>
+                                </div>
+                                <div th:if="${network.mostLoadedCenter != null}">
+                                    <span class="text-muted">적재율 최고</span>
+                                    <span class="badge bg-dark ms-1"
+                                          th:text="${network.mostLoadedCenter.centerName}">센터</span>
+                                    <span class="text-muted"
+                                          th:text="${network.mostLoadedCenter.usageRate} + '%'">0%</span>
+                                </div>
+                                <div th:if="${network.mostUrgentCenter != null}">
+                                    <span class="text-muted">임박 최다</span>
+                                    <span class="badge bg-warning text-dark ms-1"
+                                          th:text="${network.mostUrgentCenter.centerName}">센터</span>
+                                    <span class="text-muted"
+                                          th:text="${network.mostUrgentCenter.expiringCount} + '건'">0건</span>
+                                </div>
+                            </div>
+
+                            <!-- 재고가 없는 센터는 배분에서 빠졌거나 신설 직후다 -->
+                            <div th:if="${network.hasEmptyCenter}" class="alert alert-secondary py-2 small mt-3 mb-0">
+                                <i class="bi bi-exclamation-circle me-1"></i>
+                                재고가 없는 센터가 있습니다:
+                                <span th:each="c, i : ${network.emptyCenters}">
+                                    <span class="badge bg-light text-dark border"
+                                          th:text="${c.centerName}">센터</span>
+                                </span>
+                                <span class="text-muted ms-1">신설 직후이거나 배분에서 누락된 것입니다.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 센터별 재고 분포 도넛 (fetch 로 따로 가져온다) -->
+                <div class="col-12 col-xl-5">
+                    <div class="card ff-card h-100">
+                        <div class="card-header bg-white border-0 pt-3">
+                            <span class="fw-bold"><i class="bi bi-pie-chart me-1"></i>센터별 재고 분포</span>
+                            <span class="text-muted small ms-2">/api/admin/center-stock</span>
+                        </div>
+                        <div class="card-body">
+                            <div id="centerChartError" class="alert alert-warning d-none py-2 small"></div>
+                            <div style="position: relative; height: 240px;">
+                                <canvas id="centerStockChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 센터 카드 -->
+            <div class="row g-3 mb-4">
+                <div class="col-12 col-md-6 col-xl-4" th:each="c : ${network.centers}">
+                    <div class="card ff-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <a th:href="@{/admin/warehouse-map(centerId=${c.centerId})}"
+                                       class="fw-bold text-decoration-none"
+                                       th:text="${c.centerName}">센터명</a>
+                                    <div class="text-muted" style="font-size: .72rem;"
+                                         th:text="${c.region}">권역</div>
+                                </div>
+                                <span class="badge ff-trace-center" th:text="${c.centerCode}">C1</span>
+                            </div>
+
+                            <!-- 운영 방향. 아래 축종 구성이 이 방향과 맞는지 대조할 수 있다 -->
+                            <div class="text-muted small mb-2" th:if="${c.note != null}">
+                                <i class="bi bi-flag me-1"></i><span th:text="${c.note}">운영 방향</span>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-end">
+                                <div>
+                                    <span class="fs-5 fw-bold"
+                                          th:text="${#numbers.formatInteger(c.quantity, 1, 'COMMA')}">0</span>
+                                    <span class="text-muted small">포대</span>
+                                    <span class="badge bg-light text-dark border ms-1"
+                                          th:text="'전국 ' + ${c.sharePercent} + '%'">0%</span>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge" th:classappend="${c.usageBarClass}"
+                                          th:text="${c.usageLabel} + ' ' + ${c.usageRate} + '%'">여유 0%</span>
+                                </div>
+                            </div>
+
+                            <div class="progress mt-2" style="height: 6px;">
+                                <div class="progress-bar" th:classappend="${c.usageBarClass}"
+                                     role="progressbar"
+                                     th:style="'width:' + ${c.usageRateCapped} + '%'"></div>
+                            </div>
+                            <div class="text-muted mt-1" style="font-size: .7rem;"
+                                 th:text="'수용 ' + ${#numbers.formatInteger(c.capacity, 1, 'COMMA')}
+                                          + ' · 여유 ' + ${#numbers.formatInteger(c.remainingCapacity, 1, 'COMMA')}
+                                          + ' · 재고 ' + ${c.rowCount} + '행'">수용 0</div>
+
+                            <!-- 축종 구성: 운영 방향이 실제 재고로 지켜지는지 -->
+                            <div class="mt-2" th:if="${c.hasAnimalMix}">
+                                <span class="badge bg-light text-dark border me-1"
+                                      th:each="m : ${c.animalMix}"
+                                      th:text="${m.key} + ' ' + ${#numbers.formatInteger(m.value, 1, 'COMMA')}">소 0</span>
+                            </div>
+
+                            <hr class="my-2">
+
+                            <div class="d-flex flex-wrap gap-2" style="font-size: .72rem;">
+                                <span class="text-success" th:if="${c.inboundQuantity > 0}"
+                                      th:text="'입고 +' + ${#numbers.formatInteger(c.inboundQuantity, 1, 'COMMA')}">입고</span>
+                                <span class="text-danger" th:if="${c.outboundQuantity > 0}"
+                                      th:text="'출고 -' + ${#numbers.formatInteger(c.outboundQuantity, 1, 'COMMA')}">출고</span>
+                                <span class="text-danger" th:if="${c.disposalQuantity > 0}"
+                                      th:text="'폐기 -' + ${#numbers.formatInteger(c.disposalQuantity, 1, 'COMMA')}">폐기</span>
+                                <span class="text-muted"
+                                      th:if="${c.inboundQuantity == 0 and c.outboundQuantity == 0 and c.disposalQuantity == 0}"
+                                      th:text="'최근 ' + ${network.activityDays} + '일 입출고 없음'">실적 없음</span>
+                            </div>
+
+                            <!--
+                                센터 간 이관. 순증감이 양수면 재고가 이 센터로 모이고,
+                                음수면 다른 센터로 보내고 있다는 뜻이다.
+                            -->
+                            <div class="mt-2" th:if="${c.hasTransfer}">
+                                <span class="badge bg-dark">
+                                    <i class="bi bi-truck me-1"></i>이관
+                                </span>
+                                <span class="text-muted ms-1" style="font-size: .72rem;"
+                                      th:text="'들어옴 ' + ${c.transferInQuantity} + ' / 나감 ' + ${c.transferOutQuantity}">0</span>
+                                <span class="badge ms-1"
+                                      th:classappend="${c.transferNet >= 0} ? 'bg-success' : 'bg-warning text-dark'"
+                                      th:text="(${c.transferNet >= 0} ? '순증 +' : '순감 ') + ${c.transferNet}">순증 0</span>
+                            </div>
+
+                            <!-- 유통기한 경보 -->
+                            <div class="mt-2" th:if="${c.hasExpiring}">
+                                <span class="badge bg-warning text-dark"
+                                      th:text="${c.expiringSoonDays} + '일 이내 ' + ${c.expiringCount} + '건'">임박</span>
+                                <span class="badge bg-danger ms-1" th:if="${c.hasExpired}"
+                                      th:text="'경과 ' + ${c.expiredCount} + '건'">경과</span>
+                                <a th:href="@{/admin/inventory(centerId=${c.centerId})}"
+                                   class="small ms-1">재고 보기</a>
+                            </div>
+                            <div class="mt-2" th:unless="${c.hasExpiring}">
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check2 me-1"></i>유통기한 이상 없음
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================================
+             3. 매출 통계 + 차트 (ADMIN 전용 / DOM 자체가 렌더링되지 않음)
              ========================================================== -->
         <div sec:authorize="hasRole('ADMIN')">
             <h6 class="fw-bold text-secondary mb-2">
@@ -335,9 +560,91 @@
 
 <div th:replace="~{fragments/layout :: scripts}"></div>
 
-<!-- Chart.js: ADMIN 에게만 로드된다 -->
-<script sec:authorize="hasRole('ADMIN')"
-        src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<!--
+    Chart.js.
+
+    P4a 이전에는 sec:authorize="hasRole('ADMIN')" 로 ADMIN 에게만 로드했다.
+    매출 차트가 유일한 사용처였기 때문이다. 이제 센터별 재고 분포 차트가
+    STAFF 에게도 필요하므로 조건을 걷어냈다.
+
+    권한 차단은 여전히 유효하다 — 매출 데이터는 /api/admin/chart 가
+    @PreAuthorize 로 막고, 차트를 그리는 스크립트 자체가 ADMIN 에게만 렌더링된다.
+    라이브러리를 읽는 것과 데이터를 보는 것은 다른 문제다.
+-->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+<!-- 센터별 재고 분포 (STAFF · ADMIN 공통) -->
+<script th:inline="none">
+    document.addEventListener('DOMContentLoaded', function () {
+        var canvas = document.getElementById('centerStockChart');
+        if (!canvas) {
+            return;                     // 운영 중인 센터가 없으면 캔버스 자체가 없다
+        }
+        var errorBox = document.getElementById('centerChartError');
+
+        fetch('/api/admin/center-stock', {headers: {'Accept': 'application/json'}})
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error('센터별 재고 조회 실패 (HTTP ' + response.status + ')');
+                }
+                return response.json();
+            })
+            .then(function (data) {
+                if (!data.labels || data.labels.length === 0) {
+                    if (errorBox) {
+                        errorBox.textContent = '보관 중인 재고가 없습니다.';
+                        errorBox.classList.remove('d-none');
+                    }
+                    return;
+                }
+
+                new Chart(canvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            data: data.quantities,
+                            backgroundColor: [
+                                '#2f855a', '#2b6cb0', '#b7791f', '#c05621', '#6b46c1',
+                                '#2c7a7b', '#97266d'
+                            ],
+                            borderWidth: 1,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {boxWidth: 12, font: {size: 11}}
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        var qty = context.parsed;
+                                        var share = data.total > 0
+                                            ? Math.round(qty * 100 / data.total)
+                                            : 0;
+                                        return context.label + ' '
+                                            + qty.toLocaleString('ko-KR') + '포대 ('
+                                            + share + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(function (error) {
+                if (errorBox) {
+                    errorBox.textContent = error.message;
+                    errorBox.classList.remove('d-none');
+                }
+            });
+    });
+</script>
 
 <script sec:authorize="hasRole('ADMIN')" th:inline="none">
     document.addEventListener('DOMContentLoaded', function () {

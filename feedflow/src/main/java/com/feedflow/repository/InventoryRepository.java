@@ -1,5 +1,7 @@
 package com.feedflow.repository;
 
+import com.feedflow.admin.dto.CenterAlertRow;
+import com.feedflow.admin.dto.CenterAnimalMixRow;
 import com.feedflow.admin.dto.CenterStockRow;
 import com.feedflow.domain.Inventory;
 
@@ -165,6 +167,59 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
             order by c.centerCode asc
             """)
     List<CenterStockRow> findStockByCenter(@Param("productId") Long productId);
+
+    /**
+     * 센터별 유통기한 경보 집계 (전국 대시보드용).
+     * <p>
+     * 어느 센터에 급한 재고가 몰려 있는지 한 줄로 보여준다.
+     * 센터가 여러 곳이면 "전국에 임박 재고 12건" 만으로는 어디를 먼저 손봐야 할지 알 수 없다.
+     * <p>
+     * <b>운송 중 가상 구역은 제외한다.</b> 트럭 위 재고를 "이 센터에서 처리해야 할 임박 재고"
+     * 로 세면 담당자가 찾을 수 없는 일감이 생긴다.
+     *
+     * @param today         기준일
+     * @param expiringUntil 이 날짜까지 만료되는 재고를 임박으로 본다 (경과분 포함)
+     */
+    @Query("""
+            select new com.feedflow.admin.dto.CenterAlertRow(
+                       c.centerId,
+                       c.name,
+                       count(i),
+                       sum(case when l.expirationDate < :today then 1L else 0L end),
+                       sum(i.quantity))
+            from Inventory i
+                join i.bin b
+                join b.center c
+                join i.lot l
+            where i.quantity > 0
+              and b.binPurpose <> com.feedflow.domain.BinPurpose.IN_TRANSIT
+              and l.expirationDate <= :expiringUntil
+            group by c.centerId, c.name, c.centerCode
+            order by c.centerCode asc
+            """)
+    List<CenterAlertRow> findExpiringByCenter(@Param("today") LocalDate today,
+                                             @Param("expiringUntil") LocalDate expiringUntil);
+
+    /**
+     * 센터별 · 축종별 보관 수량 집계.
+     * <p>
+     * 센터의 운영 방향이 실제 재고로 지켜지는지 확인하는 근거다.
+     * "나주 센터는 닭 · 오리 최우선" 이라고 적어두는 것만으로는 그 방향이 지켜지는지 알 수 없다.
+     */
+    @Query("""
+            select new com.feedflow.admin.dto.CenterAnimalMixRow(
+                       c.centerId, p.animalType, sum(i.quantity))
+            from Inventory i
+                join i.bin b
+                join b.center c
+                join i.lot l
+                join l.product p
+            where i.quantity > 0
+              and b.binPurpose <> com.feedflow.domain.BinPurpose.IN_TRANSIT
+            group by c.centerId, p.animalType
+            order by c.centerId asc, p.animalType asc
+            """)
+    List<CenterAnimalMixRow> findAnimalMixByCenter();
 
     /**
      * 폐기 대상 재고 조회.
