@@ -65,9 +65,11 @@ classes = {}
 for path, src in sources.items():
     pkg = re.search(r'^package\s+([\w.]+);', src, re.M)
     pkg = pkg.group(1) if pkg else ''
+    # 중첩 타입(private record 등)까지 수집해야 한다. 중첩 타입은 import 가 필요 없으므로
+    # 놓치면 "import 하지 않았다" 는 오탐이 대량으로 난다.
     body_types = re.finditer(
-        r'^(?:@[\w.]+(?:\([^)]*\))?\s*)*'
-        r'(?:public\s+|final\s+|abstract\s+)*'
+        r'^\s*(?:@[\w.]+(?:\([^)]*\))?\s*)*'
+        r'(?:public\s+|private\s+|protected\s+|static\s+|final\s+|abstract\s+)*'
         r'(class|interface|enum|record)\s+(\w+)',
         src, re.M)
     for m in body_types:
@@ -106,7 +108,9 @@ for name, info in classes.items():
         m = re.search(r'enum\s+' + name + r'\s*\{(.*?)(?:;|\n\s*(?:private|public|protected|\}))',
                       src, re.S)
         if m:
-            for c in re.finditer(r'\b([A-Z][A-Z0-9_]{1,})\s*(?:\(|,|;|\n)', m.group(1)):
+            # 경계를 lookahead 로 본다. 소비하면 { LOT, PRODUCT } 처럼 마지막 상수가
+            # 본문 끝에 올 때 뒤에 남은 문자가 없어 놓친다.
+            for c in re.finditer(r'\b([A-Z][A-Z0-9_]+)\s*(?=[(,;}\n]|$)', m.group(1)):
                 info['constants'].add(c.group(1))
     if info['kind'] == 'record':
         m = re.search(r'record\s+' + name + r'\s*\((.*?)\)\s*\{', src, re.S)
@@ -115,7 +119,9 @@ for name, info in classes.items():
             info['components'] = [p.strip().split()[-1] for p in params]
 
 TARGET_PREFIXES = ('FarmCustomer', 'CustomerStatus', 'CenterFarm', 'FarmSearch', 'FarmNetwork',
-                   'AdminFarmCustomerController')
+                   'AdminFarmCustomerController', 'CenterAnimalQuantityRow', 'DeliveryScheduleRow',
+                   'CoverageStatus', 'AnimalCoverage', 'CenterCoverage', 'DemandPlan',
+                   'AdminDemandPlanController')
 
 
 def is_target(path):
@@ -137,10 +143,19 @@ for path, src in target_files.items():
     same_pkg = {n for n, i in classes.items() if i['package'] == pkg}
     self_name = os.path.basename(path)[:-5]
 
+    # 같은 파일에 선언된 타입(중첩 record·enum 등)은 import 대상이 아니다
+    declared_here = {n for n, i in classes.items() if i['path'] == path}
+    same_pkg = same_pkg | declared_here
+
     body = re.sub(r'^package[^\n]*\n|^import[^\n]*\n', '', src, flags=re.M)
     body = re.sub(r'"""(.*?)"""', ' ', body, flags=re.S)   # 텍스트 블록(JPQL) 제외
     body = re.sub(r'"(?:[^"\\]|\\.)*"', ' ', body)          # 문자열 제외
     body = re.sub(r'//[^\n]*|/\*.*?\*/', ' ', body, flags=re.S)  # 주석 제외
+
+    # 완전 정규화된 이름(org.assertj.core.groups.Tuple)은 import 가 필요 없다.
+    # 소문자 패키지 경로 뒤에 오는 대문자 식별자를 먼저 지운다.
+    # (CoverageStatus.TIGHT_THRESHOLD 처럼 대문자로 시작하는 앞부분은 남는다)
+    body = re.sub(r'(?:\b[a-z]\w*\.){2,}([A-Z]\w*)', ' ', body)
 
     for tm in re.finditer(r'\b([A-Z][A-Za-z0-9]*)\b', body):
         t = tm.group(1)
@@ -274,19 +289,39 @@ for path, src in target_files.items():
 # ------------------------------------------------------------------
 # 7. Thymeleaf 프로퍼티 ↔ DTO 게터
 # ------------------------------------------------------------------
-DTO_OF_VAR = {
-    'f': 'FarmCustomerDto',
-    'search': 'FarmSearchDto',
-    'farmNetwork': 'FarmNetworkDto',
-    'c': 'CenterFarmSummaryDto',
+TEMPLATE_VARS = {
+    'admin/farm-customers.html': {
+        'f': 'FarmCustomerDto',
+        'search': 'FarmSearchDto',
+        'farmNetwork': 'FarmNetworkDto',
+        'c': 'CenterFarmSummaryDto',
+    },
+    'admin/demand-plan.html': {
+        'plan': 'DemandPlanDto',
+        'c': 'CenterCoverageDto',
+        'a': 'AnimalCoverageDto',
+        's': 'DeliveryScheduleRow',
+    },
 }
 
-tpl = os.path.join(TEMPLATES, 'admin/farm-customers.html')
-if os.path.exists(tpl):
+for rel, var_map in TEMPLATE_VARS.items():
+    tpl = os.path.join(TEMPLATES, rel)
+    if not os.path.exists(tpl):
+        fail(f'[템플릿] {rel} 파일이 없다')
+        continue
     html = open(tpl, encoding='utf-8').read()
-    for pm in re.finditer(r'\$\{(\w+)\.(\w+)', html):
-        var, prop = pm.group(1), pm.group(2)
-        cls = DTO_OF_VAR.get(var)
+
+    # ${...} 표현식 전체를 뽑은 뒤 그 안의 obj.prop 을 모두 본다.
+    #   ${plan.totalDemand}                              ← 이것만 보면
+    #   ${#numbers.formatInteger(plan.totalShortage, 1)}  ← 이건 놓친다.
+    # 템플릿의 숫자 표시는 대부분 후자 형태라 놓치면 검사에 큰 구멍이 생긴다.
+    refs = []
+    for expr in re.findall(r'\$\{([^}]*)\}', html):
+        for rm in re.finditer(r'\b(\w+)\.(\w+)', expr):
+            refs.append((rm.group(1), rm.group(2)))
+
+    for var, prop in refs:
+        cls = var_map.get(var)
         if not cls:
             continue
         info = classes.get(cls)
@@ -296,9 +331,9 @@ if os.path.exists(tpl):
         cands = {prop,
                  'get' + prop[0].upper() + prop[1:],
                  'is' + prop[0].upper() + prop[1:]}
-        if cands & (info['methods'] | info['fields']):
+        if cands & (info['methods'] | info['fields'] | set(info['components'] or [])):
             continue
-        fail(f'[템플릿] farm-customers.html : ${{{var}.{prop}}} — '
+        fail(f'[템플릿] {os.path.basename(rel)} : ${{{var}.{prop}}} — '
              f'{cls} 에 {prop} 게터가 없다')
 
 # ------------------------------------------------------------------

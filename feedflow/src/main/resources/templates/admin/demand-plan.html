@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/layout :: head('수요 계획')}"></head>
+
+<body>
+
+<div th:replace="~{fragments/layout :: sidebar}"></div>
+
+<div class="ff-content">
+
+    <div th:replace="~{fragments/layout :: topbar('재고 관리', '수요 계획')}"></div>
+
+    <main class="ff-main">
+
+        <!-- ============================================================
+             이 화면이 무엇을 대조하는지
+             ============================================================ -->
+        <div class="alert alert-light border small mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            <strong>담당 농장의 월 예상 사료량</strong>과 <strong>센터의 출고 가능 재고</strong>를
+            축종별로 대조합니다.
+            수요는 <strong>거래 중</strong>인 농장만, 공급은 <strong>출고 가능한</strong> 재고만
+            셉니다 &mdash; 검수 전(입고 대기) 재고와 운송 중 재고로는 이 수요를 채울 수 없습니다.
+        </div>
+
+        <!-- ============================================================
+             전국 요약
+             ============================================================ -->
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-lg-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small mb-1">월 예상 수요</div>
+                        <div class="fs-4 fw-bold"
+                             th:text="${#numbers.formatInteger(plan.totalDemand, 1, 'COMMA')}">0</div>
+                        <div class="small text-muted">포대 · 거래 중 농장 기준</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-lg-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small mb-1">출고 가능 재고</div>
+                        <div class="fs-4 fw-bold"
+                             th:text="${#numbers.formatInteger(plan.totalSupply, 1, 'COMMA')}">0</div>
+                        <div class="small text-muted">포대 · 보관 · 출고 대기 구역</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-lg-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small mb-1">전국 충족률</div>
+                        <div class="fs-4 fw-bold">
+                            <span th:text="${plan.totalCoverageRate}">0</span><span class="fs-6">%</span>
+                        </div>
+                        <div class="small text-muted">참고값 · 축종은 대체할 수 없다</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-lg-3">
+                <div class="card ff-card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small mb-1">조치 필요</div>
+                        <div class="fs-4 fw-bold"
+                             th:classappend="${plan.hasAction} ? 'text-danger' : ''">
+                            <span th:text="${plan.animalsNeedingAction}">0</span><span class="fs-6">건</span>
+                        </div>
+                        <div class="small text-muted">
+                            센터 <span th:text="${plan.centersNeedingAction}">0</span>곳 ·
+                            부족 <span th:text="${#numbers.formatInteger(plan.totalShortage, 1, 'COMMA')}">0</span>포대
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             부족 경고
+             ============================================================ -->
+        <div th:if="${plan.hasAction}" class="alert alert-warning">
+            <div class="fw-bold mb-1">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                이번 달 수요를 채우지 못하는 조합이
+                <span th:text="${plan.animalsNeedingAction}">0</span>건 있습니다
+            </div>
+            <div class="small">
+                채우려면 <strong th:text="${#numbers.formatInteger(plan.totalShortage, 1, 'COMMA')} + '포대'">0포대</strong>가
+                더 필요합니다. 다른 센터에 여유가 있어도 <strong>센터 간 이관에는 시간이 걸리고
+                축종이 다르면 대체할 수 없습니다.</strong>
+                입고 등록 또는 구역 간 이동 · 센터 간 이관으로 조치하세요.
+            </div>
+        </div>
+
+        <div th:unless="${plan.hasAction}" class="alert alert-success">
+            <i class="bi bi-check-circle-fill me-1"></i>
+            모든 센터가 담당 농장의 이번 달 수요를 채울 수 있습니다.
+        </div>
+
+        <!-- ============================================================
+             판정 기준
+             ============================================================ -->
+        <div class="card ff-card mb-3">
+            <div class="card-body py-2">
+                <div class="d-flex flex-wrap align-items-center gap-3 small">
+                    <span class="text-muted">판정 기준 (수요 대비 재고)</span>
+                    <span>
+                        <span class="badge bg-danger">부족</span>
+                        <span class="text-muted ms-1">
+                            <span th:text="${tightThreshold}">100</span>% 미만
+                        </span>
+                    </span>
+                    <span>
+                        <span class="badge bg-warning text-dark">빠듯</span>
+                        <span class="text-muted ms-1">
+                            <span th:text="${adequateThreshold}">120</span>% 미만
+                        </span>
+                    </span>
+                    <span>
+                        <span class="badge bg-success">적정</span>
+                        <span class="text-muted ms-1">
+                            <span th:text="${surplusThreshold}">300</span>% 미만
+                        </span>
+                    </span>
+                    <span>
+                        <span class="badge bg-info text-dark">과다</span>
+                        <span class="text-muted ms-1">
+                            <span th:text="${surplusThreshold}">300</span>% 이상 &mdash;
+                            사료는 유통기한이 있어 과다 재고가 폐기로 이어진다
+                        </span>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             센터별 축종 대조
+             ============================================================ -->
+        <div class="row g-3 mb-3">
+            <div class="col-12 col-xl-6" th:each="c : ${plan.centers}">
+                <div class="card ff-card h-100">
+                    <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-start">
+                        <div>
+                            <span class="fw-bold">
+                                <i class="bi bi-buildings me-1"></i><span th:text="${c.centerName}">센터</span>
+                            </span>
+                            <span class="badge bg-light text-dark border ms-1" th:text="${c.centerCode}">C1</span>
+                            <div class="text-muted small" th:text="${c.note}">운영 방향</div>
+                        </div>
+                        <div class="text-end">
+                            <span th:if="${c.needsAction}" class="badge bg-danger">
+                                조치 <span th:text="${c.actionCount}">0</span>건
+                            </span>
+                            <span th:if="${c.noDemand}" class="badge bg-light text-dark border">
+                                담당 농장 없음
+                            </span>
+                            <div class="small text-muted mt-1" th:unless="${c.noDemand}">
+                                합계 <span th:text="${c.totalCoverageRate}">0</span>%
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-body">
+
+                        <div th:if="${#lists.isEmpty(c.animals)}" class="text-muted small text-center py-3">
+                            담당 농장도 재고도 없습니다.
+                        </div>
+
+                        <table th:unless="${#lists.isEmpty(c.animals)}"
+                               class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                            <tr>
+                                <th style="width: 70px;">축종</th>
+                                <th class="text-end" style="width: 90px;">수요</th>
+                                <th class="text-end" style="width: 90px;">재고</th>
+                                <th>충족률</th>
+                                <th class="text-center" style="width: 80px;">판정</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="a : ${c.animals}">
+                                <td>
+                                    <span class="badge bg-light text-dark border"
+                                          th:text="${a.animalTypeDescription}">축종</span>
+                                </td>
+
+                                <td class="text-end"
+                                    th:text="${#numbers.formatInteger(a.demandQuantity, 1, 'COMMA')}">0</td>
+
+                                <td class="text-end">
+                                    <span th:text="${#numbers.formatInteger(a.supplyQuantity, 1, 'COMMA')}">0</span>
+                                </td>
+
+                                <td>
+                                    <div th:if="${a.hasDemand}">
+                                        <div class="d-flex justify-content-between small">
+                                            <span th:text="${a.coverageRate} + '%'">0%</span>
+                                            <span th:if="${a.shortageQuantity > 0}" class="text-danger">
+                                                −<span th:text="${#numbers.formatInteger(a.shortageQuantity, 1, 'COMMA')}">0</span>포대
+                                            </span>
+                                        </div>
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar" role="progressbar"
+                                                 th:classappend="${a.needsAction} ? 'bg-danger' : 'bg-success'"
+                                                 th:style="'width: ' + ${a.barWidth} + '%'"></div>
+                                        </div>
+                                    </div>
+                                    <span th:unless="${a.hasDemand}" class="small text-muted">
+                                        담당 농장이 없어 비율을 계산하지 않는다
+                                    </span>
+                                </td>
+
+                                <td class="text-center">
+                                    <span class="badge" th:classappend="${a.statusBadgeClass}"
+                                          th:text="${a.statusDescription}">적정</span>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             정기 배송 일정
+             ============================================================ -->
+        <div class="card ff-card">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <span class="fw-bold"><i class="bi bi-calendar-check me-1"></i>정기 배송 일정</span>
+                    <span class="text-muted small ms-2">
+                        거래 중 농장 기준 · 배송일 <span th:text="${plan.deliveryDayCount}">0</span>개
+                    </span>
+                </div>
+                <span th:if="${plan.peakDeliveryDay != null}" class="badge bg-dark">
+                    가장 몰리는 날 <span th:text="${plan.peakDeliveryDay.label()}">매월 1일</span>
+                    ·
+                    <span th:text="${#numbers.formatInteger(plan.peakDeliveryDay.amount(), 1, 'COMMA')}">0</span>포대
+                </span>
+            </div>
+
+            <div class="card-body">
+                <div class="alert alert-light border small mb-3">
+                    <i class="bi bi-info-circle me-1"></i>
+                    농장에 기록된 <strong>정기 배송일</strong>을 묶은 것입니다. 실제 배송 건을 추적하는
+                    전표는 만들지 않았습니다 &mdash; 여기서 필요한 것은 <strong>계획</strong>이고,
+                    계획을 위해 테이블을 늘리지 않았습니다.
+                </div>
+
+                <div th:if="${#lists.isEmpty(plan.schedule)}" class="text-center text-muted py-4">
+                    <i class="bi bi-calendar-x fs-3 d-block mb-2"></i>
+                    거래 중인 농장이 없습니다.
+                </div>
+
+                <div th:unless="${#lists.isEmpty(plan.schedule)}" class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th style="width: 130px;">배송일</th>
+                            <th class="text-end" style="width: 110px;">농장 수</th>
+                            <th class="text-end" style="width: 130px;">필요 물량</th>
+                            <th>전국 대비 비중</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="s : ${plan.schedule}">
+                            <td class="fw-semibold" th:text="${s.label()}">매월 1일</td>
+                            <td class="text-end" th:text="${s.farms()} + '곳'">0곳</td>
+                            <td class="text-end">
+                                <span th:text="${#numbers.formatInteger(s.amount(), 1, 'COMMA')}">0</span>
+                                <span class="text-muted small">포대</span>
+                            </td>
+                            <td>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar bg-dark" role="progressbar"
+                                         th:style="'width: ' + ${plan.totalDemand > 0
+                                                   ? (s.amount() * 100 / plan.totalDemand) : 0} + '%'"></div>
+                                </div>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<div th:replace="~{fragments/layout :: scripts}"></div>
+
+</body>
+</html>

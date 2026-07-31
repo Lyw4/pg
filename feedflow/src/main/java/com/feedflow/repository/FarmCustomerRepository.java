@@ -1,6 +1,8 @@
 package com.feedflow.repository;
 
+import com.feedflow.admin.dto.CenterAnimalQuantityRow;
 import com.feedflow.admin.dto.CenterFarmRow;
+import com.feedflow.admin.dto.DeliveryScheduleRow;
 import com.feedflow.domain.AnimalType;
 import com.feedflow.domain.CustomerStatus;
 import com.feedflow.domain.FarmCustomer;
@@ -121,6 +123,49 @@ public interface FarmCustomerRepository extends JpaRepository<FarmCustomer, Long
      * 문제를 실제 데이터로 확인하기 위한 것이다. 지금은 배정 검토 화면에서
      * 경고를 띄우는 데 쓴다.
      */
+    /**
+     * 센터 × 축종별 월 예상 사료량 집계 (수요 계획 화면의 수요 측).
+     *
+     * <h3>거래 중인 농장만 센다</h3>
+     * 보류 중인 농장의 물량을 수요로 잡으면, 실제로 나가지 않을 사료를 기준으로
+     * 재고가 부족하다고 판단하게 된다. 재고 계획에서는 이 구분이 특히 중요하다.
+     *
+     * <h3>재고 쪽 집계와 같은 축(센터 × 축종)으로 낸다</h3>
+     * 두 결과를 {@code (centerId, animalType)} 키로 맞물릴 수 있어야 한다.
+     * 농장의 축종과 품목의 축종이 <b>같은 {@code AnimalType} enum</b> 이라
+     * 이 비교가 성립한다. 팀원 모듈의 자유 문자열을 그대로 뒀다면 불가능했다.
+     */
+    @Query("""
+            select new com.feedflow.admin.dto.CenterAnimalQuantityRow(
+                       c.centerId, f.animalType, sum(f.monthlyFeedQuantity))
+            from FarmCustomer f
+                join f.center c
+            where f.status = com.feedflow.domain.CustomerStatus.ACTIVE
+            group by c.centerId, f.animalType
+            order by c.centerId asc, f.animalType asc
+            """)
+    List<CenterAnimalQuantityRow> findDemandByCenterAndAnimalType();
+
+    /**
+     * 정기 배송일별 농장 수 · 필요 물량 집계 (배송 일정 화면).
+     * <p>
+     * <b>별도 배송 테이블을 만들지 않았다.</b> 농장이 이미 {@code recurringDeliveryDay}
+     * 를 갖고 있어 "매월 며칠에 어느 농장으로 얼마가 나가야 하는가" 는 계산할 수 있다.
+     * 실제 배송 건을 추적하려면 전표가 필요하지만, 그것은 배송 관리 기능의 일이고
+     * 여기서 필요한 것은 <b>계획</b>이다. 계획을 위해 테이블을 늘리지 않는다.
+     * <p>
+     * 거래 중인 농장만 센다. 보류 중이면 그날 나갈 물량이 없다.
+     */
+    @Query("""
+            select new com.feedflow.admin.dto.DeliveryScheduleRow(
+                       f.recurringDeliveryDay, count(f), sum(f.monthlyFeedQuantity))
+            from FarmCustomer f
+            where f.status = com.feedflow.domain.CustomerStatus.ACTIVE
+            group by f.recurringDeliveryDay
+            order by f.recurringDeliveryDay asc
+            """)
+    List<DeliveryScheduleRow> findDeliverySchedule();
+
     @Query("""
             select f
             from FarmCustomer f

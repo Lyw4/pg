@@ -88,6 +88,12 @@
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/demand-plan}"
+               th:classappend="${menu == 'demandPlan'} ? 'active'">
+                <i class="bi bi-clipboard-data me-2"></i>수요 계획
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link" th:href="@{/admin/inventory/inbound}"
                th:classappend="${menu == 'inventory' and subMenu == 'inbound'} ? 'active'">
                 <i class="bi bi-box-arrow-in-down me-2"></i>입고 등록
