@@ -1089,3 +1089,48 @@ body {
     color: #212529;
     background-color: #e9ecef;
 }
+
+/* ==========================================================================
+   전국 거점 지도 (2D 도면 화면)
+
+   Leaflet 은 컨테이너 높이를 CSS 로 잡아주지 않으면 타일을 그리지 않는다.
+   높이가 0 이면 지도가 '로드되지 않은 것처럼' 보이는데 콘솔에는 오류가 없어
+   원인을 찾기 어렵다. 반드시 명시한다.
+   ========================================================================== */
+.ff-center-map {
+    height: 380px;
+    width: 100%;
+    border-radius: .5rem;
+    border: 1px solid #e9ecef;
+    /* 지도 타일이 카드 밖으로 삐져나오지 않게 */
+    overflow: hidden;
+    /* Leaflet 컨트롤이 사이드바 위로 올라오지 않게 (사이드바 z-index 보다 낮게) */
+    z-index: 0;
+}
+
+/* Leaflet 이 만드는 래퍼에는 배경이 없어 divIcon 이 사각형으로 보인다 */
+.ff-map-pin-wrap {
+    background: transparent;
+    border: 0;
+}
+
+.ff-map-pin {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: #fff;
+    font-size: .8rem;
+    /* 선택된 핀이 커질 때 부드럽게 (탭 hover 미리보기에서도 쓰인다) */
+    transition: width .15s ease, height .15s ease, box-shadow .15s ease;
+}
+
+.ff-map-popup {
+    min-width: 190px;
+}
+
+/* Leaflet 팝업이 Bootstrap 글꼴을 따라가게 한다 */
+.leaflet-popup-content {
+    margin: .65rem .8rem;
+    font-family: inherit;
+}

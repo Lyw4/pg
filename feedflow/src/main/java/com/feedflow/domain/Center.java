@@ -76,6 +76,35 @@ public class Center {
     @Column(name = "note", length = 100)
     private String note;
 
+    /* ------------------------------------------------------------------
+     * 지도 좌표
+     *
+     * 전국 거점을 지도에 핀으로 표시하기 위한 위·경도.
+     *
+     * <h3>왜 프론트엔드 Geocoder 를 쓰지 않는가</h3>
+     * 주소({@link #address})를 화면에서 좌표로 변환하는 방법도 있지만 택하지 않았다.
+     * <ul>
+     *     <li>좌표는 <b>기준 정보</b>다. 파생값이 아니라 센터가 가진 속성이다.</li>
+     *     <li>변환 API 는 키와 호출 한도가 있고, 실패하면 지도에 아무 핀도 찍히지 않는다.
+     *         화면을 열 때마다 외부 서비스에 의존할 이유가 없다.</li>
+     *     <li>기획 단계 주소는 {@code "고덕면 몽곡리 667 일대"} 처럼 범위로 적혀 있어
+     *         변환 결과가 호출 시점마다 달라질 수 있다.</li>
+     * </ul>
+     *
+     * <h3>nullable 인 이유</h3>
+     * 좌표를 모르는 센터도 등록할 수 있어야 한다. 부지를 확정하기 전에 센터를 먼저
+     * 만들어 재고를 배분하는 일이 실제로 생긴다. 좌표가 없으면 지도에서만 빠지고
+     * 나머지 기능(도면 · 재고 · 이관)은 그대로 동작한다.
+     * ------------------------------------------------------------------ */
+
+    /** 위도 (WGS84). 지도 핀 위치용. 좌표를 모르면 null */
+    @Column(name = "latitude")
+    private Double latitude;
+
+    /** 경도 (WGS84). 지도 핀 위치용. 좌표를 모르면 null */
+    @Column(name = "longitude")
+    private Double longitude;
+
     /** 사용 여부 (false = 운영 중지) */
     @Column(name = "active", nullable = false)
     private boolean active;
@@ -105,6 +134,21 @@ public class Center {
         this.region = region;
         this.address = address;
         this.note = note;
+    }
+
+    /** 지도 좌표 변경 (부지 확정 후 입력) */
+    public void updateLocation(Double latitude, Double longitude) {
+        this.latitude = latitude;
+        this.longitude = longitude;
+    }
+
+    /**
+     * 지도에 표시할 수 있는 센터인지.
+     * <p>
+     * 둘 중 하나만 있으면 지도에 찍을 수 없다. 위도만 아는 좌표는 좌표가 아니다.
+     */
+    public boolean hasLocation() {
+        return latitude != null && longitude != null;
     }
 
     /** 운영 여부 변경 */

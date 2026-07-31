@@ -1,6 +1,7 @@
 package com.feedflow.admin.service;
 
 import com.feedflow.domain.AnimalType;
+import com.feedflow.domain.BinPurpose;
 import com.feedflow.admin.dto.InboundForm;
 import com.feedflow.admin.dto.InboundResultDto;
 import com.feedflow.admin.dto.CenterStockDto;
@@ -404,6 +405,77 @@ class InventoryServiceTest {
     }
 
     /* ==================================================================
+     * 시나리오 2-1 : 입고한 구역이 출고 대상이 아닐 때의 경고
+     *
+     * 입고 대기 · 검수 구역에 넣은 물건은 검수를 통과하지 않아 출고할 수 없다.
+     * 재고 수량은 늘어나는데 출고 가능 재고는 늘어나지 않으므로, 입고 직후에
+     * 알려주지 않으면 나중에 출고가 막혔을 때 담당자가 원인을 유통기한에서 찾게 된다.
+     * (부족 안내가 제일 먼저 말하는 사유가 그것이다)
+     * ================================================================== */
+
+    @Test
+    @DisplayName("[경고] 입고 대기 구역에 입고하면 출고 대상이 아니라고 알려준다")
+    void receive_intoReceivingBin_flagsNotShippable() {
+        InboundResultDto result = receiveInto(bin(BIN_ID, "R-01-01", 500, BinPurpose.RECEIVING));
+
+        assertThat(result.getBinPurpose()).isEqualTo(BinPurpose.RECEIVING);
+        assertThat(result.isNotShippableBin())
+                .as("검수 전 재고는 출고 후보에서 제외되므로 입고 직후에 알려야 한다")
+                .isTrue();
+        assertThat(result.getBinId())
+                .as("'구역 간 이동' 링크에 넘길 구역 식별자가 있어야 한다")
+                .isEqualTo(BIN_ID);
+    }
+
+    @Test
+    @DisplayName("[경고] 검수 구역도 출고 대상이 아니다")
+    void receive_intoInspectionBin_flagsNotShippable() {
+        assertThat(receiveInto(bin(BIN_ID, "I-01-01", 500, BinPurpose.INSPECTION))
+                .isNotShippableBin()).isTrue();
+    }
+
+    @Test
+    @DisplayName("[경고] 보관 구역과 출고 대기 구역은 경고하지 않는다")
+    void receive_intoShippableBin_doesNotFlag() {
+        assertThat(receiveInto(bin(BIN_ID, "A-01-01", 500, BinPurpose.STORAGE))
+                .isNotShippableBin())
+                .as("보관 구역은 정상 출고 대상이다")
+                .isFalse();
+        assertThat(receiveInto(bin(BIN_ID, "S-01-01", 500, BinPurpose.SHIPPING))
+                .isNotShippableBin())
+                .as("출고 대기 구역은 이미 피킹한 물량이라 출고 대상이다")
+                .isFalse();
+    }
+
+    /**
+     * 용도가 비어 있는 구역에서도 터지지 않아야 한다.
+     * 같은 이유로 적재 한도 검증이 NPE 로 깨진 적이 있다.
+     */
+    @Test
+    @DisplayName("[경고] 구역 용도가 비어 있으면 경고하지 않는다 (NPE 를 내지 않는다)")
+    void receive_intoBinWithoutPurpose_doesNotFlag() {
+        assertThat(receiveInto(bin(BIN_ID, "A-01-01", 500)).isNotShippableBin()).isFalse();
+    }
+
+    /** 지정한 구역으로 10개 입고하고 결과를 돌려준다 */
+    private InboundResultDto receiveInto(WarehouseBin bin) {
+        Product product = product(180);
+        ProductLot lot = lot(product, 0);
+
+        given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
+        given(warehouseBinRepository.findById(BIN_ID)).willReturn(Optional.of(bin));
+        given(inventoryRepository.sumQuantityByBinId(BIN_ID)).willReturn(0L);
+        given(productLotRepository.findByProduct_ProductIdAndLotNo(PRODUCT_ID, LOT_NO))
+                .willReturn(Optional.of(lot));
+        given(inventoryRepository.findByLot_LotIdAndBin_BinId(LOT_ID, BIN_ID))
+                .willReturn(Optional.empty());
+        given(inventoryRepository.save(any(Inventory.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        return inventoryService.receive(inboundForm(BIN_ID, LOT_NO, 10), USER_ID, USER_NAME);
+    }
+
+    /* ==================================================================
      * 시나리오 3 : 유통기한 자동 계산 및 D-Day 계산
      * ================================================================== */
 
@@ -650,11 +722,17 @@ class InventoryServiceTest {
                 .build();
     }
 
+    /** 용도를 지정하지 않은 구역 (기존 테스트가 쓰던 형태 — 용도 null 도 견뎌야 한다) */
     private WarehouseBin bin(Long binId, String binCode, int maxCapacity) {
+        return bin(binId, binCode, maxCapacity, null);
+    }
+
+    private WarehouseBin bin(Long binId, String binCode, int maxCapacity, BinPurpose purpose) {
         return WarehouseBin.builder()
                 .binId(binId)
                 .binCode(binCode)
                 .zone(binCode.substring(0, 1))
+                .binPurpose(purpose)
                 .rack("01")
                 .binLevel(1)
                 .maxCapacity(maxCapacity)

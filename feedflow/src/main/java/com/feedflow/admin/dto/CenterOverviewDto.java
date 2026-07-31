@@ -31,8 +31,22 @@ public class CenterOverviewDto {
 
     /* ---------------- 재고 ---------------- */
 
-    /** 보관 수량 합계 (운송 중 제외) */
+    /**
+     * 이 센터에 있는 재고 수량 <b>전체</b>.
+     * <p>
+     * 보관 구역뿐 아니라 입고 · 출고 대기 구역, 운송 중 가상 구역까지 포함한다.
+     * 분포와 비중을 낼 때는 이 값을 써야 전국 합계가 맞는다.
+     */
     private final int quantity;
+
+    /**
+     * 그중 <b>보관 구역</b>에 있는 수량 — 적재율의 분자.
+     * <p>
+     * {@link #quantity} 를 분자로 쓰면 대기 구역 물건까지 보관 공간을 차지한 것으로
+     * 계산되어 적재율이 부풀려지고 100% 를 넘길 수도 있다. 분모인 {@link #capacity}
+     * 가 보관 구역만 세기 때문이다. 2D 도면도 같은 기준으로 대기분을 따로 표시한다.
+     */
+    private final int storageQuantity;
 
     /** 전국 합계 대비 비중 (%) */
     private final int sharePercent;
@@ -68,13 +82,30 @@ public class CenterOverviewDto {
     /**
      * 보관 구역 적재율 (%).
      * <p>
+     * <b>분자는 보관 구역 재고({@link #storageQuantity})</b>다. 대기 구역이나 운송 중
+     * 재고까지 더하면 보관 공간을 차지하지 않는 물건이 적재율을 올린다.
      * 수용량이 0 이면 나눗셈이 불가능하므로 0% 로 본다. 2D 도면의 적재율과 같은 규칙이다.
      */
     public int getUsageRate() {
         if (capacity <= 0) {
             return 0;
         }
-        return (int) Math.round(quantity * 100.0 / capacity);
+        return (int) Math.round(storageQuantity * 100.0 / capacity);
+    }
+
+    /**
+     * 보관 구역 밖에 있는 수량 (입고 · 출고 대기 + 운송 중).
+     * <p>
+     * 적재율에서는 빠지지만 실물은 이 센터에 있으므로 화면에 따로 알려준다.
+     * 조용히 빼면 "재고 합계와 적재율 기준 수량이 왜 다른가" 를 설명할 수 없다.
+     */
+    public int getWaitingQuantity() {
+        return Math.max(quantity - storageQuantity, 0);
+    }
+
+    /** 대기 · 운송 중 재고가 있는지 (없으면 화면에서 그 줄을 숨긴다) */
+    public boolean isHasWaitingStock() {
+        return getWaitingQuantity() > 0;
     }
 
     /** 진행바 너비용 (100% 초과 시에도 막대는 100 에서 멈춘다) */
@@ -90,17 +121,17 @@ public class CenterOverviewDto {
      * 한쪽만 고쳐졌을 때 같은 센터가 어떤 화면에서는 '보통', 다른 화면에서는 '포화' 로 보인다.
      */
     public String getUsageBarClass() {
-        return BinLoadStatus.of(quantity, getUsageRate()).getBadgeClass();
+        return BinLoadStatus.of(storageQuantity, getUsageRate()).getBadgeClass();
     }
 
     /** 적재 상태 라벨 (여유 / 보통 / 포화 / 비어있음) — 2D 도면과 같은 분류를 쓴다 */
     public String getUsageLabel() {
-        return BinLoadStatus.of(quantity, getUsageRate()).getDescription();
+        return BinLoadStatus.of(storageQuantity, getUsageRate()).getDescription();
     }
 
-    /** 남은 여유 수량 (초과 적재 시 0) */
+    /** 남은 여유 수량 (초과 적재 시 0) — 적재율과 같은 기준(보관 구역)으로 뺀다 */
     public int getRemainingCapacity() {
-        return Math.max(capacity - quantity, 0);
+        return Math.max(capacity - storageQuantity, 0);
     }
 
     public int quantityOf(MovementType type) {

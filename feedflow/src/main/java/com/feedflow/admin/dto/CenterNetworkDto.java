@@ -26,6 +26,10 @@ public class CenterNetworkDto {
     /* ---------------- 전국 요약 ---------------- */
 
     private final int totalQuantity;
+
+    /** 그중 보관 구역에 있는 수량 — 전국 적재율의 분자 (대기 · 운송 중 제외) */
+    private final int totalStorageQuantity;
+
     private final int totalCapacity;
     private final int totalExpiringCount;
     private final int totalExpiredCount;
@@ -41,6 +45,8 @@ public class CenterNetworkDto {
         this.expiringSoonDays = expiringSoonDays;
 
         this.totalQuantity = centers.stream().mapToInt(CenterOverviewDto::getQuantity).sum();
+        this.totalStorageQuantity = centers.stream()
+                .mapToInt(CenterOverviewDto::getStorageQuantity).sum();
         this.totalCapacity = centers.stream().mapToInt(CenterOverviewDto::getCapacity).sum();
         this.totalExpiringCount = centers.stream().mapToInt(CenterOverviewDto::getExpiringCount).sum();
         this.totalExpiredCount = centers.stream().mapToInt(CenterOverviewDto::getExpiredCount).sum();
@@ -70,12 +76,27 @@ public class CenterNetworkDto {
         return centers.isEmpty();
     }
 
-    /** 전국 평균 적재율 (%) — 센터별 적재율의 평균이 아니라 <b>전국 합계 기준</b>이다 */
+    /**
+     * 전국 평균 적재율 (%) — 센터별 적재율의 평균이 아니라 <b>전국 합계 기준</b>이다.
+     * <p>
+     * 센터별 적재율을 평균하면 작은 센터와 큰 센터가 같은 무게를 갖는다.
+     * 분자는 보관 구역 재고이므로 분모(보관 구역 수용량)와 기준이 맞는다.
+     */
     public int getUsageRate() {
         if (totalCapacity <= 0) {
             return 0;
         }
-        return (int) Math.round(totalQuantity * 100.0 / totalCapacity);
+        return (int) Math.round(totalStorageQuantity * 100.0 / totalCapacity);
+    }
+
+    /** 전국에서 보관 구역 밖에 있는 수량 (입고 · 출고 대기 + 운송 중) */
+    public int getWaitingQuantity() {
+        return Math.max(totalQuantity - totalStorageQuantity, 0);
+    }
+
+    /** 대기 · 운송 중 재고가 있는지 (없으면 화면에서 그 줄을 숨긴다) */
+    public boolean isHasWaitingStock() {
+        return getWaitingQuantity() > 0;
     }
 
     /**
@@ -122,8 +143,8 @@ public class CenterNetworkDto {
         return totalExpiringCount > 0;
     }
 
-    /** 전국 남은 여유 수량 */
+    /** 전국 남은 여유 수량 — 적재율과 같은 기준(보관 구역)으로 뺀다 */
     public int getRemainingCapacity() {
-        return Math.max(totalCapacity - totalQuantity, 0);
+        return Math.max(totalCapacity - totalStorageQuantity, 0);
     }
 }

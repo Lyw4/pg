@@ -49,7 +49,10 @@ import java.util.stream.Collectors;
  *
  * <h3>출고 처리 규칙</h3>
  * <ol>
- *     <li>유통기한이 이미 지난 로트와 사용 중지된 구역은 출고 대상에서 제외한다.</li>
+ *     <li>출고 후보에서 제외하는 것 — 유통기한이 이미 지난 로트, 사용 중지된 구역,
+ *         <b>입고 대기 · 검수 구역</b>(검수 전이라 내보낼 수 없다),
+ *         <b>운송 중</b>(트럭 위라 집어올 수 없다).
+ *         조건은 {@code InventoryRepository.findAllocatableByProductId} 의 JPQL 에 있다.</li>
  *     <li>요청 수량을 채울 때까지 <b>여러 로트/구역에 걸쳐 순차적으로 차감</b>한다.</li>
  *     <li>출고 가능 수량이 부족하면 {@link InsufficientStockException} 을 던져
  *         트랜잭션 전체를 롤백한다. (부분 출고 없음)</li>
