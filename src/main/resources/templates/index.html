@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${siteName + ' | 배합사료 구매'}">FEED FLOW | 배합사료 구매</title>
+    <meta name="description" content="축종별 배합사료를 검색하고 LOT 재고와 유통기한을 확인해 주문하는 FEED FLOW 구매 사이트">
+    <link rel="stylesheet" th:href="@{/css/feedflow.css}" href="/css/feedflow.css">
+</head>
+<body>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<div class="notice">
+    <span>농가 맞춤 배합사료 · LOT별 재고 실시간 확인 · <strong id="connection-status">H2 연동됨</strong></span>
+    <div>
+        <button type="button" data-open-account="lookup">주문 조회</button>
+        <a href="/h2-console" target="_blank" rel="noopener">H2 Console</a>
+        <span>고객센터 1588-0427</span>
+    </div>
+</div>
+
+<header class="site-header">
+    <div class="header-main">
+        <button id="mobile-menu" class="mobile-menu" type="button" aria-label="카테고리 메뉴 열기">☰</button>
+        <a class="brand" href="/">
+            <span>F</span>
+            <div><strong>FEED FLOW</strong><small>바른 사료의 흐름</small></div>
+        </a>
+        <label class="search-box">
+            <span>⌕</span>
+            <input id="search-input" type="search" placeholder="사료명, 축종, 성장단계를 검색해보세요" aria-label="상품 검색">
+        </label>
+        <div class="header-actions">
+            <button type="button" data-open-account="login"><span>♙</span><small id="myfarm-label">마이팜</small></button>
+            <button id="open-cart" type="button"><span>▱</span><small>장바구니</small><b id="cart-count">0</b></button>
+        </div>
+    </div>
+    <nav id="category-nav" class="category-nav" aria-label="상품 분류">
+        <button type="button" class="active" data-category="ALL">전체</button>
+        <button type="button" data-category="CATTLE_GROUP">소</button>
+        <button type="button" data-category="PIG">돼지</button>
+        <button type="button" data-category="POULTRY_GROUP">닭·오리</button>
+        <button type="button" data-category="SUPPLEMENT">영양제</button>
+        <a href="#consulting">사료 상담</a>
+    </nav>
+</header>
+
+<main>
+    <section class="hero">
+        <div class="hero-copy">
+            <p class="eyebrow"><span></span> 농가를 위한 투명한 사료 유통</p>
+            <h1>좋은 사료는<br><em>농장의 내일</em>을<br>바꿉니다.</h1>
+            <p>축종과 성장 단계에 맞는 배합사료를 한눈에 비교하고,<br>LOT별 재고와 유통기한까지 확인해 주문하세요.</p>
+            <div class="hero-buttons">
+                <a class="primary-button" href="#products">맞춤 사료 둘러보기 <span>→</span></a>
+                <button type="button" class="link-button" data-scroll-consulting>전문가에게 상담받기</button>
+            </div>
+            <div class="hero-stats">
+                <div><strong>48H</strong><span>수도권 빠른배송</span></div>
+                <div><strong>100%</strong><span>LOT 이력 관리</span></div>
+                <div><strong>1:1</strong><span>농가 맞춤 상담</span></div>
+            </div>
+        </div>
+        <div class="hero-visual" aria-label="FEED FLOW 한우 배합사료">
+            <div class="orbit orbit-one"></div>
+            <div class="orbit orbit-two"></div>
+            <div class="feed-bag large">
+                <small>FEED FLOW</small>
+                <strong>700</strong>
+                <span>한우 · 비육후기</span>
+                <b>25 kg</b>
+            </div>
+            <div class="hero-offer"><small>이번 주 농가 특가</small><strong>3포 이상 10% 할인</strong><a href="#products">바로 주문하기 →</a></div>
+        </div>
+    </section>
+
+    <section class="benefits" aria-label="구매 안내">
+        <article><span>01</span><div><strong>축종별 맞춤 탐색</strong><p>한우부터 오리까지 간편하게</p></div></article>
+        <article><span>02</span><div><strong>LOT 재고 즉시 확인</strong><p>잔여수량과 유통기한을 투명하게</p></div></article>
+        <article><span>03</span><div><strong>농장까지 안전 배송</strong><p>배송 주소와 하차 위치까지 정확하게</p></div></article>
+    </section>
+
+    <section id="products" class="products-section">
+        <div class="section-heading">
+            <div><p class="eyebrow dark"><span></span> FARMER'S CHOICE</p><h2>지금 농가에서 많이 찾는 사료</h2><p>축종과 성장 단계에 맞춰 엄선한 대표 배합사료입니다.</p></div>
+            <label class="sort-control">정렬
+                <select id="sort-select">
+                    <option value="recommended">추천순</option>
+                    <option value="low">낮은가격순</option>
+                    <option value="high">높은가격순</option>
+                    <option value="stock">재고많은순</option>
+                </select>
+            </label>
+        </div>
+        <div id="product-grid" class="product-grid">
+            <article class="product-card" th:each="product : ${products}" th:attr="data-product-id=${product.id}">
+                <div class="product-visual">
+                    <span class="badge" th:if="${product.badge != null}" th:text="${product.badge}">추천</span>
+                    <div class="feed-bag">
+                        <small>FEED FLOW</small>
+                        <strong th:text="${product.shape}">700</strong>
+                        <span th:text="${product.animal + ' · ' + product.stage}">한우 · 비육후기</span>
+                        <b th:text="${product.weight + ' kg'}">25 kg</b>
+                    </div>
+                </div>
+                <div class="product-info">
+                    <div class="product-tags"><span th:text="${product.animal}">한우</span><span th:text="${product.stage}">비육후기</span></div>
+                    <h3 th:text="${product.name}">한우 마스터 700</h3>
+                    <p th:text="${product.description}">상품 상세설명</p>
+                    <div class="stock-line"><span>LOT 재고</span><strong th:text="${product.stock + '포'}">84포</strong></div>
+                    <div class="product-price"><strong th:text="${#numbers.formatDecimal(product.price, 0, 'COMMA', 0, 'POINT') + '원'}">33,800원</strong></div>
+                    <button type="button" class="card-add" th:attr="data-add-cart=${product.id}">장바구니 담기 ＋</button>
+                </div>
+            </article>
+        </div>
+        <div id="empty-products" class="empty-state" hidden>조건에 맞는 상품이 없습니다.</div>
+    </section>
+
+    <section id="consulting" class="consulting">
+        <div><p class="eyebrow"><span></span> FARM CONSULTING</p><h2>우리 농장에 꼭 맞는 사료,<br>전문가와 함께 찾아보세요.</h2></div>
+        <div class="consulting-contact"><span>☎</span><div><small>사료 전문 상담</small><strong>1588-0427</strong><p>평일 08:30 – 17:30</p></div><button type="button" data-consult>상담 신청</button></div>
+    </section>
+</main>
+
+<footer>
+    <div class="footer-brand"><span>F</span><div><strong>FEED FLOW</strong><p>농장에서 식탁까지, 바른 사료의 흐름을 만듭니다.</p></div></div>
+    <div class="footer-links"><a href="/admin">판매자센터</a><button type="button" data-footer-message="이용약관을 준비 중입니다.">이용약관</button><button type="button" data-footer-message="개인정보처리방침을 준비 중입니다.">개인정보처리방침</button></div>
+    <p>상호명 피드플로우 주식회사 · 대표 김농부 · 사업자등록번호 123-45-67890<br>충청남도 천안시 서북구 성환읍 농장로 24 · help@feedflow.kr · © 2026 FEED FLOW</p>
+</footer>
+
+<div id="modal-backdrop" class="modal-backdrop" hidden>
+    <section id="product-modal" class="modal product-modal" role="dialog" aria-modal="true" aria-labelledby="product-modal-title" hidden>
+        <button type="button" class="close-button" data-close-modal aria-label="닫기">×</button>
+        <div id="product-modal-content"></div>
+    </section>
+
+    <section id="account-modal" class="modal account-modal" role="dialog" aria-modal="true" aria-labelledby="account-title" hidden>
+        <button type="button" class="close-button" data-close-modal aria-label="닫기">×</button>
+        <p class="eyebrow dark"><span></span> MY FEED FLOW</p>
+        <h2 id="account-title">농장 계정</h2>
+        <div class="account-tabs">
+            <button id="mypage-tab" type="button" data-account-tab="mypage" hidden>마이페이지</button>
+            <button type="button" class="active" data-account-tab="login">로그인</button>
+            <button type="button" data-account-tab="signup">회원가입</button>
+            <button type="button" data-account-tab="lookup">주문조회</button>
+        </div>
+
+        <section id="mypage-panel" class="account-panel mypage-panel" hidden>
+            <div id="mypage-profile"></div>
+            <div class="mypage-heading"><h3>관심상품</h3><span>현재 브라우저에 저장됩니다.</span></div>
+            <div id="mypage-favorites" class="mypage-list"></div>
+            <div class="mypage-heading"><h3>최근 확인한 주문</h3><button type="button" data-mypage-lookup>주문 조회하기</button></div>
+            <div id="mypage-order" class="mypage-order"></div>
+            <button class="secondary-button full" type="button" data-logout>로그아웃</button>
+        </section>
+
+        <form id="login-form" class="account-panel">
+            <label>이메일<input id="login-email" type="email" required placeholder="farm@feedflow.kr"></label>
+            <label>비밀번호<input id="login-password" type="password" required placeholder="영문·숫자·특수문자 포함"></label>
+            <button class="primary-button full" type="submit">로그인</button>
+        </form>
+
+        <form id="signup-form" class="account-panel form-grid" hidden>
+            <label>이메일<input id="signup-email" type="email" required></label>
+            <label>비밀번호<input id="signup-password" type="password" required></label>
+            <label>성명<input id="signup-name" required></label>
+            <label>농장명<input id="signup-farm-name" required></label>
+            <label>휴대전화<input id="signup-phone" required placeholder="010-1234-5678"></label>
+            <label>사업자번호<input id="signup-business" placeholder="선택 입력"></label>
+            <label>자택 주소<input id="signup-home-address" required></label>
+            <label>자택 상세주소<input id="signup-home-detail"></label>
+            <label>농장 주소<input id="signup-farm-address" required></label>
+            <label>하차 위치<input id="signup-unloading" required></label>
+            <label>정기배송일<input id="signup-day" type="number" min="1" max="28" value="15" required></label>
+            <button class="primary-button full span-two" type="submit">농장 회원가입</button>
+        </form>
+
+        <form id="lookup-form" class="account-panel" hidden>
+            <label>주문번호<input id="lookup-number" required placeholder="FF-20260729-ABC123"></label>
+            <label>주문자 휴대전화<input id="lookup-phone" required placeholder="010-1234-5678"></label>
+            <button class="primary-button full" type="submit">주문 조회</button>
+            <div id="lookup-result" class="lookup-result" hidden></div>
+        </form>
+    </section>
+
+    <section id="cart-modal" class="modal cart-modal" role="dialog" aria-modal="true" aria-labelledby="cart-title" hidden>
+        <button type="button" class="close-button" data-close-modal aria-label="닫기">×</button>
+        <p class="eyebrow dark"><span></span> MY CART</p>
+        <h2 id="cart-title">장바구니 <span id="cart-title-count">0</span></h2>
+        <div id="cart-items"></div>
+        <div id="cart-summary" class="cart-summary"></div>
+        <button id="start-checkout" class="primary-button full" type="button">주문하기</button>
+    </section>
+
+    <section id="checkout-modal" class="modal checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-title" hidden>
+        <button type="button" class="close-button" data-close-modal aria-label="닫기">×</button>
+        <p class="eyebrow dark"><span></span> SECURE CHECKOUT</p>
+        <h2 id="checkout-title">주문 · 결제</h2>
+        <form id="checkout-form" class="checkout-layout">
+            <div class="checkout-fields">
+                <h3>1. 주문자 정보</h3>
+                <div class="form-grid">
+                    <label>이름<input id="order-name" required value="김농부"></label>
+                    <label>휴대전화<input id="order-phone" required value="010-4270-5271"></label>
+                </div>
+                <h3>2. 배송지 정보</h3>
+                <label>농장 주소<input id="order-address" required value="충남 천안시 서북구 성환읍 농장로 24"></label>
+                <div class="form-grid">
+                    <label>상세 주소<input id="order-detail" value="제2축사"></label>
+                    <label>하차 위치<input id="order-unloading" value="사료 보관창고 앞"></label>
+                </div>
+                <label>배송 요청사항
+                    <select id="order-request">
+                        <option>도착 전 연락해주세요</option>
+                        <option>축사 앞에 내려주세요</option>
+                        <option>경비실에 맡겨주세요</option>
+                    </select>
+                </label>
+                <h3>3. 결제 방법</h3>
+                <div class="payment-options">
+                    <label><input type="radio" name="payment" value="CARD" checked><span><b>신용카드</b><small>전 카드사 결제</small></span></label>
+                    <label><input type="radio" name="payment" value="KAKAO_PAY"><span><b>카카오페이</b><small>간편결제</small></span></label>
+                    <label><input type="radio" name="payment" value="BANK_TRANSFER"><span><b>무통장입금</b><small>가상계좌</small></span></label>
+                </div>
+                <label class="check-label"><input id="regular-delivery" type="checkbox"> 정기배송 3% 할인 적용</label>
+            </div>
+            <aside id="checkout-summary" class="checkout-summary"></aside>
+        </form>
+    </section>
+
+    <section id="success-modal" class="modal success-modal" role="dialog" aria-modal="true" aria-labelledby="success-title" hidden>
+        <span class="success-icon">✓</span>
+        <p>ORDER COMPLETE</p>
+        <h2 id="success-title">주문이 완료되었습니다.</h2>
+        <strong id="success-order-number"></strong>
+        <div><button type="button" class="secondary-button" data-view-order>주문내역 확인</button><button type="button" class="primary-button" data-close-modal>쇼핑 계속하기</button></div>
+    </section>
+</div>
+
+<script th:src="@{/js/feedflow.js}" src="/js/feedflow.js" defer></script>
+</body>
+</html>

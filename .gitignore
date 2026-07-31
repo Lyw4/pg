@@ -1,29 +1,39 @@
-# Gradle build and local caches
-.gradle/
-.gradle-user-home/
+HELP.md
+.gradle
 build/
-bin/
-
-# Local H2 database files
+.gradle-user-home*/
 data/
-*.mv.db
-*.trace.db
-*.lock.db
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
 
-# IDE settings
-.settings/
+### STS ###
+.apt_generated
 .classpath
+.factorypath
 .project
-.idea/
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
 *.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
 .vscode/
-
-# Local Codex workspace metadata
-.agents/
-
-# Local environment and OS files
-.env
-.env.*
-!.env.example
-.DS_Store
-Thumbs.db

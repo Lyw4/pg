@@ -1,30 +1,28 @@
 package com.ex.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import jakarta.persistence.*;
+import lombok.*;
 
 @Entity
 @Table(name = "manufacturer")
 @Getter
+@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Manufacturer {
+@AllArgsConstructor
+@Builder
+public class Manufacturer extends BaseTimeEntity {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long manufacturerId;
-	private String companyName;
-	private String contactPerson;
-	private String phone;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "manufacturer_id")
+    private Long id;
 
-	public Manufacturer(String companyName, String contactPerson, String phone) {
-		this.companyName = companyName;
-		this.contactPerson = contactPerson;
-		this.phone = phone;
-	}
+    @Column(nullable = false, unique = true, length = 100)
+    private String name;
+
+    @Column(name = "business_number", length = 20)
+    private String businessNumber;
+
+    @Column(length = 20)
+    private String phone;
 }

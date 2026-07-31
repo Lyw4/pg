@@ -18,22 +18,39 @@ repositories {
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
-	implementation 'nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect'
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	implementation 'org.springframework.boot:spring-boot-starter-security'
-	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
-	developmentOnly 'org.springframework.boot:spring-boot-devtools'
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
-	runtimeOnly 'com.h2database:h2'
+    // 코드 수정 후 저장 시 서버 자동 재실행
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // @Getter @Setter @RequiredArgsConstructor 등 자동 생성
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // Thymeleaf 템플릿 엔진
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+
+    // Thymeleaf 레이아웃 상속 
+    implementation 'nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect'
+
+    // JPA (Entity, Repository 등)
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // H2 DB
+    runtimeOnly 'com.h2database:h2'
+
+    // 유효성 검증 (@NotEmpty @Size 등 폼 데이터 검증)
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // Spring Security ( 로그인 / 로그아웃 / 권한 처리 )
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // Thymeleaf 에서 sec:authorize 등 시큐리티 문법 사용
+    implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
 }
+
 
 tasks.named('test') {
 	useJUnitPlatform()

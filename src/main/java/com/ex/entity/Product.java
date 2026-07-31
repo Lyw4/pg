@@ -1,95 +1,84 @@
 package com.ex.entity;
 
-import java.math.BigDecimal;
+import jakarta.persistence.*;
+import lombok.*;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
-@Table(name = "product")
+@Table(name = "product", indexes = {
+        @Index(name = "idx_product_animal_active", columnList = "animal_type, active")
+})
 @Getter
+@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Product {
+@AllArgsConstructor
+@Builder
+public class Product extends BaseTimeEntity {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long productId;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "product_id")
+    private Long id;
 
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "manufacturer_id")
-	private Manufacturer manufacturer;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "manufacturer_id", nullable = false)
+    private Manufacturer manufacturer;
 
-	private String name;
-	private String animalType;
-	private BigDecimal weightKg;
-	private BigDecimal price;
-	private int totalStock;
-	private int safetyStock;
-	private Integer shelfLifeMonths;
-	private String imageUrl;
-	private String description;
-	private Boolean active = true;
+    @Column(nullable = false, length = 120)
+    private String name;
 
-	public Product(Manufacturer manufacturer, String name, String animalType, BigDecimal weightKg,
-			BigDecimal price, int safetyStock, int shelfLifeMonths, String description) {
-		this.manufacturer = manufacturer;
-		this.name = name;
-		this.animalType = animalType;
-		this.weightKg = weightKg;
-		this.price = price;
-		this.safetyStock = safetyStock;
-		this.shelfLifeMonths = shelfLifeMonths;
-		this.description = description;
-	}
+    @Enumerated(EnumType.STRING)
+    @Column(name = "animal_type", nullable = false, length = 30)
+    private AnimalType animalType;
 
-	public int getEffectiveShelfLifeMonths() {
-		if (shelfLifeMonths != null && shelfLifeMonths > 0) {
-			return shelfLifeMonths;
-		}
-		return "영양제".equals(animalType) ? 24 : 6;
-	}
+    @Column(name = "feed_stage", nullable = false, length = 50)
+    private String feedStage;
 
-	public void configureShelfLife(int months) {
-		if (months <= 0) {
-			throw new IllegalArgumentException("유통기한 개월 수는 1개월 이상이어야 합니다.");
-		}
-		shelfLifeMonths = months;
-	}
+    @Column(nullable = false, length = 500)
+    private String description;
 
-	public void changeStock(int quantity) {
-		int changed = totalStock + quantity;
-		if (changed < 0) {
-			throw new IllegalStateException("상품 재고는 0보다 작을 수 없습니다.");
-		}
-		totalStock = changed;
-	}
+    @Column(name = "weight_kg", nullable = false, precision = 8, scale = 2)
+    private BigDecimal weightKg;
 
-	public boolean isLowStock() {
-		return totalStock <= safetyStock;
-	}
+    @Column(nullable = false)
+    private int price;
 
-	/*
-	 * 주문·LOT·재고 이력을 보존하기 위해 실제 행을 지우는 대신
-	 * 운영 목록에서 제외하는 방식으로 상품을 삭제합니다.
-	 * 기존 DB 데이터는 active 값이 null일 수 있으므로 활성 상품으로 처리합니다.
-	 */
-	public boolean isActive() {
-		return active == null || active;
-	}
+    @Column(name = "original_price")
+    private Integer originalPrice;
 
-	public void deactivate() {
-		if (!isActive()) {
-			throw new IllegalStateException("이미 삭제된 상품입니다.");
-		}
-		active = false;
-	}
+    @Column(name = "protein_percent", nullable = false, precision = 5, scale = 2)
+    private BigDecimal proteinPercent;
+
+    @Column(name = "fat_percent", nullable = false, precision = 5, scale = 2)
+    private BigDecimal fatPercent;
+
+    @Column(name = "fiber_percent", nullable = false, precision = 5, scale = 2)
+    private BigDecimal fiberPercent;
+
+    @Column(name = "calcium_percent", nullable = false, precision = 5, scale = 2)
+    private BigDecimal calciumPercent;
+
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
+
+    @Column(length = 30)
+    private String badge;
+
+    @Column(name = "display_tone", nullable = false, length = 30)
+    private String displayTone;
+
+    @Column(name = "display_shape", nullable = false, length = 30)
+    private String displayShape;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean active = true;
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("expirationDate ASC")
+    @Builder.Default
+    private List<ProductLot> lots = new ArrayList<>();
 }
