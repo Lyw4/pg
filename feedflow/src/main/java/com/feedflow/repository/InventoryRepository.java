@@ -91,6 +91,21 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
      * <b>유통기한이 가장 적게 남은 로트가 먼저 나오도록 정렬</b>하며,
      * 이미 유통기한이 지난 로트와 사용 중지된 구역은 출고 대상에서 제외한다.
      *
+     * <h3>구역 용도에 따라 출고 가능 여부가 갈린다</h3>
+     * 재고가 있다고 다 내보낼 수 있는 것이 아니다.
+     * <ul>
+     *     <li>{@code STORAGE} 보관 — 출고 가능</li>
+     *     <li>{@code SHIPPING} 출고 대기 — 출고 가능. 이미 피킹해 모아 둔 물량이다</li>
+     *     <li>{@code RECEIVING} 입고 대기 · {@code INSPECTION} 검수 — <b>불가.</b>
+     *         아직 검수를 통과하지 않은 물건을 고객에게 보내면 안 된다.
+     *         '구역 간 이동' 으로 보관 구역에 넣어야 가용 재고가 된다</li>
+     *     <li>{@code IN_TRANSIT} 운송 중 — <b>불가.</b> 트럭 위에 있는 재고다.
+     *         집어올 수 있는 물건이 아니다</li>
+     * </ul>
+     * 그래서 <b>{@code Product.totalStock}(전국 전체) 과 출고 가능 수량은 다를 수 있다.</b>
+     * "전체 재고는 있는데 출고 가능 재고가 부족" 한 상태는 오류가 아니라 정상이며,
+     * 출고 미리보기가 부족분을 구역까지 찍어서 알려준다.
+     *
      * @param productId 출고할 품목
      * @param today     기준일 (이 날짜 이전에 만료된 로트는 제외)
      */
@@ -104,6 +119,8 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
               and i.quantity > 0
               and l.expirationDate >= :today
               and b.active = true
+              and b.binPurpose in (com.feedflow.domain.BinPurpose.STORAGE,
+                                   com.feedflow.domain.BinPurpose.SHIPPING)
             order by l.expirationDate asc, b.binCode asc
             """)
     List<Inventory> findAllocatableByProductId(@Param("productId") Long productId,
@@ -287,7 +304,9 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
      * <p>
      * 주문 미리보기는 주문 항목마다 후보 재고를 조회하므로
      * 항목 수만큼 쿼리가 반복(N+1)됐다. 품목 목록을 {@code in} 조건으로 묶어 1회로 줄인다.
-     * 정렬 규칙은 {@link #findAllocatableByProductId} 와 동일하다.
+     * <p>
+     * <b>정렬 규칙과 구역 용도 조건은 {@link #findAllocatableByProductId} 와 같아야 한다.</b>
+     * 한쪽만 고치면 미리보기에서는 보이던 재고가 실제 출고 때 사라진다(또는 그 반대).
      */
     @Query("""
             select i
@@ -299,6 +318,8 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
               and i.quantity > 0
               and l.expirationDate >= :today
               and b.active = true
+              and b.binPurpose in (com.feedflow.domain.BinPurpose.STORAGE,
+                                   com.feedflow.domain.BinPurpose.SHIPPING)
             order by l.expirationDate asc, b.binCode asc
             """)
     List<Inventory> findAllocatableByProductIds(@Param("productIds") Collection<Long> productIds,
