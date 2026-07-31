@@ -1,123 +1,871 @@
 package com.ex.config;
 
-import com.ex.entity.*;
-import com.ex.repository.ManufacturerRepository;
-import com.ex.repository.ProductRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import com.ex.entity.CustomerOrder;
+import com.ex.entity.Manufacturer;
+import com.ex.entity.OrderItem;
+import com.ex.entity.Product;
+import com.ex.entity.ProductLot;
+import com.ex.entity.RecurringDelivery;
+import com.ex.entity.StockLog;
+import com.ex.entity.StockLog.ChangeType;
+import com.ex.repository.CustomerOrderRepository;
+import com.ex.repository.ManufacturerRepository;
+import com.ex.repository.OrderItemRepository;
+import com.ex.repository.ProductLotRepository;
+import com.ex.repository.ProductRepository;
+import com.ex.repository.RecurringDeliveryRepository;
+import com.ex.repository.StockLogRepository;
+import com.ex.service.FarmCustomerSeeder;
+import com.ex.service.WarehouseFulfillmentService;
+import com.ex.service.WarehousePlanSeeder;
+import com.ex.service.WarehouseRecurringDeliverySeeder;
+
 @Configuration
-@RequiredArgsConstructor
-public class DataInitializer implements CommandLineRunner {
+public class DataInitializer {
 
-    private final ManufacturerRepository manufacturerRepository;
-    private final ProductRepository productRepository;
+    /*
+     * name             상품명
+     * category         카테고리
+     * manufacturer     제조사
+     * weightKg         중량
+     * price            가격
+     * stock            초기재고
+     * safetyStock      안전재고
+     * shelfLifeMonths  유통기한(개월)
+     * description      상품설명
+     */
+    private record ProductSeed(
+            String name,
+            String category,
+            String manufacturer,
+            String weightKg,
+            int price,
+            int stock,
+            int safetyStock,
+            int shelfLifeMonths,
+            String description) {
+    }
 
-    @Override
-    @Transactional
-    public void run(String... args) {
-        if (productRepository.count() > 0) {
+    private static final List<ProductSeed> PRODUCT_SEEDS = List.of(
+
+            // =====================================================
+            // 소 사료 10개
+            // =====================================================
+
+            new ProductSeed(
+                    "한우 송아지 스타터",
+                    "소",
+                    "한빛사료",
+                    "20",
+                    31500,
+                    80,
+                    25,
+                    6,
+                    "송아지 초기 성장용 고단백 배합사료"),
+
+            new ProductSeed(
+                    "한우 성장 플러스",
+                    "소",
+                    "한빛사료",
+                    "20",
+                    32800,
+                    75,
+                    25,
+                    6,
+                    "육성기 한우의 골격과 근육 발달용 사료"),
+
+            new ProductSeed(
+                    "한우 비육 전기",
+                    "소",
+                    "대농피드",
+                    "25",
+                    35200,
+                    90,
+                    30,
+                    7,
+                    "비육 전기 섭취량과 증체 개선용 사료"),
+
+            new ProductSeed(
+                    "한우 비육 후기",
+                    "소",
+                    "대농피드",
+                    "25",
+                    36800,
+                    70,
+                    25,
+                    7,
+                    "육질과 마블링 향상을 위한 후기 사료"),
+
+            new ProductSeed(
+                    "낙농 송아지 케어",
+                    "소",
+                    "그린팜영양",
+                    "20",
+                    33400,
+                    55,
+                    20,
+                    6,
+                    "젖소 송아지 면역과 성장 관리용 사료"),
+
+            new ProductSeed(
+                    "젖소 착유우 밸런스",
+                    "소",
+                    "그린팜영양",
+                    "25",
+                    38600,
+                    65,
+                    25,
+                    6,
+                    "착유우의 유량과 유질 균형 관리용 사료"),
+
+            new ProductSeed(
+                    "번식우 컨디션",
+                    "소",
+                    "한빛사료",
+                    "20",
+                    34500,
+                    60,
+                    20,
+                    6,
+                    "번식우의 체형과 번식 컨디션 관리용 사료"),
+
+            new ProductSeed(
+                    "육우 고효율 사료",
+                    "소",
+                    "대농피드",
+                    "25",
+                    35900,
+                    85,
+                    30,
+                    7,
+                    "육우의 사료 효율과 증체 개선용 사료"),
+
+            new ProductSeed(
+                    "반추위 안정화 사료",
+                    "소",
+                    "그린팜영양",
+                    "20",
+                    37200,
+                    50,
+                    20,
+                    6,
+                    "반추위 환경과 소화 균형 관리용 사료"),
+
+            new ProductSeed(
+                    "한우 프리미엄 마블",
+                    "소",
+                    "한빛사료",
+                    "25",
+                    41500,
+                    45,
+                    20,
+                    7,
+                    "출하 전 육질 향상을 위한 프리미엄 사료"),
+
+            // =====================================================
+            // 돼지 사료 10개
+            // =====================================================
+
+            new ProductSeed(
+                    "자돈 스타터 1호",
+                    "돼지",
+                    "대농피드",
+                    "20",
+                    34800,
+                    90,
+                    30,
+                    5,
+                    "이유 초기 자돈의 적응을 위한 사료"),
+
+            new ProductSeed(
+                    "자돈 스타터 2호",
+                    "돼지",
+                    "대농피드",
+                    "20",
+                    33900,
+                    85,
+                    30,
+                    5,
+                    "이유 후 자돈 성장과 장 건강 관리용 사료"),
+
+            new ProductSeed(
+                    "육성돈 그로우",
+                    "돼지",
+                    "한빛사료",
+                    "25",
+                    36500,
+                    110,
+                    35,
+                    6,
+                    "육성돈의 균일한 성장과 증체용 사료"),
+
+            new ProductSeed(
+                    "비육돈 피니셔",
+                    "돼지",
+                    "한빛사료",
+                    "25",
+                    37200,
+                    100,
+                    35,
+                    6,
+                    "비육 후기 사료 효율 개선용 사료"),
+
+            new ProductSeed(
+                    "모돈 임신기 케어",
+                    "돼지",
+                    "그린팜영양",
+                    "20",
+                    38500,
+                    55,
+                    20,
+                    6,
+                    "임신돈 체형과 태아 성장 관리용 사료"),
+
+            new ProductSeed(
+                    "모돈 포유기 파워",
+                    "돼지",
+                    "그린팜영양",
+                    "20",
+                    39800,
+                    60,
+                    20,
+                    6,
+                    "포유돈의 유량과 체력 유지용 사료"),
+
+            new ProductSeed(
+                    "웅돈 컨디션 플러스",
+                    "돼지",
+                    "대농피드",
+                    "20",
+                    37600,
+                    40,
+                    15,
+                    6,
+                    "종돈의 번식 컨디션 관리용 사료"),
+
+            new ProductSeed(
+                    "양돈 장건강 프로",
+                    "돼지",
+                    "그린팜영양",
+                    "20",
+                    39200,
+                    65,
+                    25,
+                    5,
+                    "장내 환경과 소화율 개선용 사료"),
+
+            new ProductSeed(
+                    "양돈 저단백 밸런스",
+                    "돼지",
+                    "한빛사료",
+                    "25",
+                    38100,
+                    75,
+                    25,
+                    6,
+                    "질소 배출 저감을 고려한 균형 사료"),
+
+            new ProductSeed(
+                    "비육돈 프리미엄 골드",
+                    "돼지",
+                    "대농피드",
+                    "25",
+                    40800,
+                    50,
+                    20,
+                    6,
+                    "출하돈 육질과 생산성 관리용 사료"),
+
+            // =====================================================
+            // 조류(닭/오리) 사료 10개
+            // =====================================================
+
+            new ProductSeed(
+                    "병아리 초이 사료",
+                    "조류(닭/오리)",
+                    "새봄애니멀",
+                    "10",
+                    22800,
+                    120,
+                    40,
+                    4,
+                    "병아리 초기 성장과 면역 관리용 사료"),
+
+            new ProductSeed(
+                    "육계 전기 사료",
+                    "조류(닭/오리)",
+                    "새봄애니멀",
+                    "20",
+                    30500,
+                    130,
+                    45,
+                    4,
+                    "육계 전기 빠른 성장과 골격 발달용 사료"),
+
+            new ProductSeed(
+                    "육계 후기 사료",
+                    "조류(닭/오리)",
+                    "새봄애니멀",
+                    "20",
+                    31800,
+                    125,
+                    45,
+                    4,
+                    "육계 후기 증체와 사료 효율 관리용 사료"),
+
+            new ProductSeed(
+                    "산란계 육성 사료",
+                    "조류(닭/오리)",
+                    "한빛사료",
+                    "20",
+                    31200,
+                    95,
+                    35,
+                    5,
+                    "산란 전 육성계 균일 성장용 사료"),
+
+            new ProductSeed(
+                    "산란계 산란 피크",
+                    "조류(닭/오리)",
+                    "한빛사료",
+                    "20",
+                    33400,
+                    100,
+                    35,
+                    5,
+                    "산란 피크의 산란율과 난각 관리용 사료"),
+
+            new ProductSeed(
+                    "토종닭 건강 사료",
+                    "조류(닭/오리)",
+                    "새봄애니멀",
+                    "20",
+                    32600,
+                    80,
+                    30,
+                    5,
+                    "토종닭의 건강한 장기 사육용 사료"),
+
+            new ProductSeed(
+                    "오리 새끼 스타터",
+                    "조류(닭/오리)",
+                    "대농피드",
+                    "20",
+                    31900,
+                    90,
+                    30,
+                    4,
+                    "어린 오리의 초기 성장 관리용 사료"),
+
+            new ProductSeed(
+                    "육용오리 그로워",
+                    "조류(닭/오리)",
+                    "대농피드",
+                    "20",
+                    32900,
+                    105,
+                    35,
+                    4,
+                    "육용오리 증체와 균일도 관리용 사료"),
+
+            new ProductSeed(
+                    "조류 면역 밸런스",
+                    "조류(닭/오리)",
+                    "그린팜영양",
+                    "10",
+                    27600,
+                    70,
+                    25,
+                    4,
+                    "닭과 오리의 면역 균형 보조 사료"),
+
+            new ProductSeed(
+                    "가금 프리미엄 믹스",
+                    "조류(닭/오리)",
+                    "새봄애니멀",
+                    "20",
+                    34800,
+                    60,
+                    25,
+                    5,
+                    "중소 농가용 범용 프리미엄 가금 사료"),
+
+            // =====================================================
+            // 영양제 10개
+            // =====================================================
+
+            new ProductSeed(
+                    "멀티 비타민 프리믹스",
+                    "영양제",
+                    "그린팜영양",
+                    "5",
+                    28500,
+                    70,
+                    20,
+                    12,
+                    "가축 공통 종합 비타민 프리믹스"),
+
+            new ProductSeed(
+                    "미네랄 밸런스 플러스",
+                    "영양제",
+                    "그린팜영양",
+                    "5",
+                    29800,
+                    65,
+                    20,
+                    12,
+                    "칼슘과 미량광물질 균형 보충제"),
+
+            new ProductSeed(
+                    "유산균 장건강 파우더",
+                    "영양제",
+                    "바이오피드랩",
+                    "2",
+                    32400,
+                    80,
+                    25,
+                    10,
+                    "장내 유익균 환경을 위한 생균제"),
+
+            new ProductSeed(
+                    "면역 부스터 베타",
+                    "영양제",
+                    "바이오피드랩",
+                    "2",
+                    36800,
+                    55,
+                    20,
+                    10,
+                    "환절기 면역 컨디션 보조제"),
+
+            new ProductSeed(
+                    "전해질 리커버리",
+                    "영양제",
+                    "새봄애니멀",
+                    "3",
+                    25200,
+                    75,
+                    25,
+                    12,
+                    "고온 스트레스와 탈수 회복 보조제"),
+
+            new ProductSeed(
+                    "간기능 케어믹스",
+                    "영양제",
+                    "바이오피드랩",
+                    "2",
+                    34600,
+                    45,
+                    15,
+                    10,
+                    "대사 부담 완화를 위한 간 건강 보조제"),
+
+            new ProductSeed(
+                    "칼슘 난각 강화제",
+                    "영양제",
+                    "그린팜영양",
+                    "5",
+                    27200,
+                    60,
+                    20,
+                    12,
+                    "산란계 난각 강도와 칼슘 보충용"),
+
+            new ProductSeed(
+                    "번식 비타민 ADE",
+                    "영양제",
+                    "바이오피드랩",
+                    "2",
+                    33500,
+                    50,
+                    15,
+                    12,
+                    "번식축의 비타민 A·D·E 보충제"),
+
+            new ProductSeed(
+                    "사료효율 효소제",
+                    "영양제",
+                    "그린팜영양",
+                    "3",
+                    38900,
+                    55,
+                    20,
+                    10,
+                    "영양소 이용률 향상을 위한 복합 효소제"),
+
+            new ProductSeed(
+                    "곰팡이독소 흡착제",
+                    "영양제",
+                    "바이오피드랩",
+                    "5",
+                    41800,
+                    40,
+                    15,
+                    12,
+                    "사료 내 곰팡이독소 위험 저감 보조제")
+    );
+
+    @Bean
+    CommandLineRunner seedData(
+            ManufacturerRepository manufacturerRepository,
+            ProductRepository productRepository,
+            ProductLotRepository lotRepository,
+            StockLogRepository logRepository,
+            CustomerOrderRepository orderRepository,
+            OrderItemRepository orderItemRepository,
+            WarehousePlanSeeder warehousePlanSeeder,
+            FarmCustomerSeeder farmCustomerSeeder,
+            WarehouseFulfillmentService warehouseFulfillmentService,
+            WarehouseRecurringDeliverySeeder
+            warehouseRecurringDeliverySeeder) {
+
+        return args -> {
+
+            for (int index = 0; index < PRODUCT_SEEDS.size(); index++) {
+
+                ProductSeed seed = PRODUCT_SEEDS.get(index);
+
+                /*
+                 * 같은 상품이 이미 존재하면 생성하지 않습니다.
+                 * 서버를 여러 번 실행해도 중복 데이터가 생기지 않습니다.
+                 */
+                if (productRepository.existsByName(seed.name())) {
+                    continue;
+                }
+
+                Manufacturer manufacturer = findOrCreateManufacturer(
+                        manufacturerRepository,
+                        seed.manufacturer());
+
+                Product product = new Product(
+                        manufacturer,
+                        seed.name(),
+                        seed.category(),
+                        new BigDecimal(seed.weightKg()),
+                        BigDecimal.valueOf(seed.price()),
+                        seed.safetyStock(),
+                        seed.shelfLifeMonths(),
+                        seed.description());
+
+                productRepository.save(product);
+
+                LocalDate manufacturedDate =
+                        LocalDate.now().minusDays((index % 20) + 1);
+
+                String lotNo = createLotNo(
+                        seed.category(),
+                        manufacturedDate,
+                        index + 1);
+
+                LocalDate expirationDate =
+                        manufacturedDate.plusMonths(
+                                seed.shelfLifeMonths());
+
+                ProductLot lot = new ProductLot(
+                        product,
+                        lotNo,
+                        manufacturedDate,
+                        expirationDate,
+                        seed.stock());
+
+                lotRepository.save(lot);
+
+                // 상품의 전체 재고 증가
+                product.changeStock(seed.stock());
+                productRepository.save(product);
+
+                // 최초 입고 이력 저장
+                StockLog stockLog = new StockLog(
+                        lot,
+                        1L,
+                        ChangeType.INBOUND,
+                        seed.stock(),
+                        "더미 상품 초기 입고");
+
+                logRepository.save(stockLog);
+            }
+
+            warehousePlanSeeder.seed();
+
+            farmCustomerSeeder.seed();
+
+            warehouseRecurringDeliverySeeder.seed();
+
+            // 기존 상품에도 상품별 유통기한 설정을 반영합니다.
+            productRepository.findAll().forEach(product ->
+                    PRODUCT_SEEDS.stream()
+                            .filter(seed -> seed.name().equals(product.getName()))
+                            .findFirst()
+                            .ifPresent(seed -> {
+                                product.configureShelfLife(seed.shelfLifeMonths());
+                                productRepository.save(product);
+                            }));
+
+            // 과거 초기 LOT의 날짜 부분을 실제 생산일 기준으로 보정합니다.
+            lotRepository.findAllByOrderByExpirationDateAsc().forEach(lot -> {
+                if (lot.getLotNo().matches(
+                        "LOT-(CATTLE|PIG|BIRD|SUP)-\\d{8}-\\d{3}")) {
+                    String[] parts = lot.getLotNo().split("-");
+                    String manufacturedDate = lot.getManufacturedDate()
+                            .toString().replace("-", "");
+                    String corrected = "%s-%s-%s-%s".formatted(
+                            parts[0], parts[1], manufacturedDate, parts[3]);
+                    if (!corrected.equals(lot.getLotNo())
+                            && !lotRepository.existsByLotNo(corrected)) {
+                        lot.changeLotNo(corrected);
+                        lotRepository.save(lot);
+                    }
+                }
+                if (lot.getWarehouseLocation() == null
+                        || lot.getWarehouseLocation().isBlank()) {
+                    String zone = switch (lot.getProduct().getAnimalType()) {
+                        case "소" -> "A";
+                        case "돼지" -> "B";
+                        case "조류(닭/오리)" -> "C";
+                        default -> "D";
+                    };
+                    long shelf = ((lot.getLotId() - 1) % 12) + 1;
+                    lot.changeWarehouseLocation(
+                            "%s창고-%02d번 선반".formatted(zone, shelf));
+                    lotRepository.save(lot);
+                }
+            });
+
+            // 주문 데이터가 하나도 없을 때만 예제 주문 생성
+            if (orderRepository.count() == 0) {
+
+                CustomerOrder order = new CustomerOrder(
+                        1L,
+                        new BigDecimal("96000"),
+                        BigDecimal.ZERO,
+                        "서울시 강남구 테헤란로 123");
+
+                orderRepository.save(order);
+            }
+
+            // 예제 주문에도 출고 지시를 시험할 수 있는 주문 품목을 연결합니다.
+            if (orderItemRepository.count() == 0 && orderRepository.count() > 0) {
+                CustomerOrder order = orderRepository.findAll().get(0);
+                ProductLot lot = lotRepository.findAllByOrderByExpirationDateAsc()
+                        .stream()
+                        .filter(item -> item.getLotQuantity() >= 3)
+                        .findFirst()
+                        .orElseThrow();
+                orderItemRepository.save(new OrderItem(
+                        order,
+                        lot.getProduct(),
+                        lot,
+                        3,
+                        lot.getProduct().getPrice()));
+            }
+
+            warehouseFulfillmentService.assignUnassignedOrders();
+        };
+    }
+
+    /*
+     * 카테고리별 추천 월간 정기 배송 일정입니다.
+     *
+     * - 소: 매월 1일·15일, 월 약 2톤
+     * - 돼지: 매월 5일·20일, 월 약 2톤
+     * - 조류: 매월 10일·25일, 월 약 2톤
+     * - 영양제: 매월 15일 안전재고 점검 후 부족분만 입고
+     *
+     * 월 2톤은 해당 카테고리 상품에 동일한 중량 비율로 나눕니다.
+     * 포장 중량 때문에 실제 합계에는 소폭의 반올림 차이가 생길 수 있습니다.
+     */
+    private void seedRecommendedRecurringDeliveries(
+            ProductRepository productRepository,
+            RecurringDeliveryRepository recurringDeliveryRepository) {
+
+        if (recurringDeliveryRepository.count() > 0) {
             return;
         }
 
-        Manufacturer manufacturer = manufacturerRepository.save(Manufacturer.builder()
-                .name("피드플로우 천안공장")
-                .businessNumber("123-45-67890")
-                .phone("1588-0427")
-                .build());
+        List<Product> products =
+                productRepository.findAllByOrderByNameAsc();
 
-        productRepository.saveAll(List.of(
-                createProduct(manufacturer, "한우 마스터 700", AnimalType.CATTLE, "비육후기",
-                        "육질과 증체 균형을 위한 고에너지 배합", "25", 33_800, 36_500,
-                        "13", "4.2", "8.0", "0.8", "amber", "베스트", "700",
-                        "FF-HB-260721", 84),
-                createProduct(manufacturer, "데일리 밀크 플러스", AnimalType.DAIRY_CATTLE, "착유기",
-                        "산유량과 반추위 건강을 함께 설계한 균형 사료", "25", 35_200, null,
-                        "18", "4.5", "7.5", "0.9", "blue", "신상품", "MILK+",
-                        "FF-DC-260718", 46),
-                createProduct(manufacturer, "포크 밸런스 S", AnimalType.PIG, "육성돈",
-                        "고른 성장과 사료 효율을 위한 프리미엄 포뮬러", "25", 29_700, 31_200,
-                        "17", "5.0", "6.5", "0.75", "coral", "묶음할인", "S",
-                        "FF-PG-260724", 128),
-                createProduct(manufacturer, "레이어 골드", AnimalType.CHICKEN, "산란계",
-                        "난각 품질과 산란 지속성을 고려한 영양 설계", "20", 26_400, null,
-                        "16", "3.8", "5.5", "3.8", "gold", null, "GOLD",
-                        "FF-CK-260716", 63),
-                createProduct(manufacturer, "덕 그로우 밸런스", AnimalType.DUCK, "육성오리",
-                        "오리의 균일한 성장과 소화율을 고려한 배합", "20", 27_100, null,
-                        "18", "4.0", "6.0", "0.9", "lime", "추천", "DUCK",
-                        "FF-DK-260720", 58),
-                createProduct(manufacturer, "카프 스타트 케어", AnimalType.CATTLE, "어린송아지",
-                        "초기 성장과 면역 균형을 돕는 기호성 배합", "20", 38_900, null,
-                        "20", "5.2", "5.0", "1.0", "mint", "추천", "START",
-                        "FF-CF-260722", 31),
-                createProduct(manufacturer, "미네랄 밸런스 플러스", AnimalType.SUPPLEMENT, "전 축종",
-                        "농장 가축의 무기질 균형을 위한 복합 영양제", "10", 42_900, null,
-                        "8", "2.0", "4.0", "12.0", "navy", "정기배송", "MIN+",
-                        "FF-MN-260715", 22),
-                createProduct(manufacturer, "스마트 소우 케어", AnimalType.PIG, "임신돈",
-                        "모돈 컨디션과 번식 성적을 위한 맞춤 영양", "25", 31_600, null,
-                        "15", "4.0", "7.0", "0.9", "rose", null, "CARE",
-                        "FF-SW-260723", 54)
-        ));
+        List<RecurringDelivery> schedules =
+                new ArrayList<>();
+
+        addFixedCategorySchedules(
+                schedules,
+                products,
+                "소",
+                1,
+                15);
+
+        addFixedCategorySchedules(
+                schedules,
+                products,
+                "돼지",
+                5,
+                20);
+
+        addFixedCategorySchedules(
+                schedules,
+                products,
+                "조류(닭/오리)",
+                10,
+                25);
+
+        products.stream()
+                .filter(product ->
+                        "영양제".equals(
+                                product.getAnimalType()))
+                .forEach(product ->
+                        schedules.add(
+                                new RecurringDelivery(
+                                        product.getManufacturer(),
+                                        product,
+                                        0,
+                                        15,
+                                        nextDeliveryDate(15),
+                                        true,
+                                        "매월 안전재고 점검 후 부족분만 입고")));
+
+        recurringDeliveryRepository.saveAll(schedules);
     }
 
-    private Product createProduct(
-            Manufacturer manufacturer,
-            String name,
-            AnimalType animalType,
-            String feedStage,
-            String description,
-            String weightKg,
-            int price,
-            Integer originalPrice,
-            String protein,
-            String fat,
-            String fiber,
-            String calcium,
-            String tone,
-            String badge,
-            String shape,
-            String lotNumber,
-            int quantity
-    ) {
-        Product product = Product.builder()
-                .manufacturer(manufacturer)
-                .name(name)
-                .animalType(animalType)
-                .feedStage(feedStage)
-                .description(description)
-                .weightKg(decimal(weightKg))
-                .price(price)
-                .originalPrice(originalPrice)
-                .proteinPercent(decimal(protein))
-                .fatPercent(decimal(fat))
-                .fiberPercent(decimal(fiber))
-                .calciumPercent(decimal(calcium))
-                .displayTone(tone)
-                .badge(badge)
-                .displayShape(shape)
-                .active(true)
-                .build();
+    private void addFixedCategorySchedules(
+            List<RecurringDelivery> schedules,
+            List<Product> products,
+            String category,
+            int firstDeliveryDay,
+            int secondDeliveryDay) {
 
-        ProductLot lot = ProductLot.builder()
-                .product(product)
-                .lotNumber(lotNumber)
-                .manufacturedDate(LocalDate.now().minusDays(7))
-                .expirationDate(LocalDate.now().plusMonths(6))
-                .quantity(quantity)
-                .build();
-        product.getLots().add(lot);
-        return product;
+        List<Product> categoryProducts =
+                products.stream()
+                        .filter(product ->
+                                category.equals(
+                                        product.getAnimalType()))
+                        .toList();
+
+        if (categoryProducts.isEmpty()) {
+            return;
+        }
+
+        BigDecimal targetKgPerProduct =
+                BigDecimal.valueOf(2_000)
+                        .divide(
+                                BigDecimal.valueOf(
+                                        categoryProducts.size()),
+                                6,
+                                RoundingMode.HALF_UP);
+
+        for (int index = 0;
+                index < categoryProducts.size();
+                index++) {
+
+            Product product =
+                    categoryProducts.get(index);
+
+            int quantity =
+                    Math.max(
+                            1,
+                            targetKgPerProduct
+                                    .divide(
+                                            product.getWeightKg(),
+                                            0,
+                                            RoundingMode.HALF_UP)
+                                    .intValue());
+
+            int deliveryDay =
+                    index % 2 == 0
+                        ? firstDeliveryDay
+                        : secondDeliveryDay;
+
+            schedules.add(
+                    new RecurringDelivery(
+                            product.getManufacturer(),
+                            product,
+                            quantity,
+                            deliveryDay,
+                            nextDeliveryDate(
+                                    deliveryDay),
+                            false,
+                            "추천 초기 일정 · 카테고리 월 약 2톤 균등배분"));
+        }
     }
 
-    private BigDecimal decimal(String value) {
-        return new BigDecimal(value);
+    private LocalDate nextDeliveryDate(
+            int deliveryDay) {
+
+        LocalDate today =
+                LocalDate.now();
+
+        YearMonth targetMonth =
+                YearMonth.from(today);
+
+        LocalDate candidate =
+                targetMonth.atDay(deliveryDay);
+
+        if (candidate.isBefore(today)) {
+            candidate =
+                    targetMonth
+                            .plusMonths(1)
+                            .atDay(deliveryDay);
+        }
+
+        return candidate;
+    }
+
+    /*
+     * 같은 제조사가 있으면 기존 제조사를 사용하고,
+     * 없으면 새로운 제조사를 생성합니다.
+     */
+    private Manufacturer findOrCreateManufacturer(
+            ManufacturerRepository repository,
+            String companyName) {
+
+        return repository.findByCompanyName(companyName)
+                .orElseGet(() -> repository.save(
+                        new Manufacturer(
+                                companyName,
+                                "유통 담당자",
+                                "02-0000-0000")));
+    }
+
+    /*
+     * 카테고리별 LOT 번호를 생성합니다.
+     *
+     * 예:
+     * LOT-CATTLE-20260727-001
+     * LOT-PIG-20260727-011
+     * LOT-BIRD-20260727-021
+     * LOT-SUP-20260727-031
+     */
+    private String createLotNo(
+            String category,
+            LocalDate manufacturedDate,
+            int sequence) {
+
+        String categoryCode = switch (category) {
+            case "소" -> "CATTLE";
+            case "돼지" -> "PIG";
+            case "조류(닭/오리)" -> "BIRD";
+            default -> "SUP";
+        };
+
+        String productionDate =
+                manufacturedDate
+                        .toString()
+                        .replace("-", "");
+
+        return "LOT-%s-%s-%03d".formatted(
+                categoryCode,
+                productionDate,
+                sequence);
     }
 }

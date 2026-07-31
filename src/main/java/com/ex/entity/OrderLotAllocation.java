@@ -5,7 +5,9 @@ import lombok.*;
 
 @Entity
 @Table(name = "order_lot_allocation", indexes = {
-        @Index(name = "idx_allocation_order_item", columnList = "order_item_id"),
+        @Index(
+                name = "idx_allocation_purchase_order_item",
+                columnList = "purchase_order_item_id"),
         @Index(name = "idx_allocation_product_lot", columnList = "product_lot_id")
 })
 @Getter
@@ -20,8 +22,8 @@ public class OrderLotAllocation extends BaseTimeEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "order_item_id", nullable = false)
-    private OrderItem orderItem;
+    @JoinColumn(name = "purchase_order_item_id", nullable = false)
+    private PurchaseOrderItem orderItem;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "product_lot_id", nullable = false)
@@ -30,7 +32,7 @@ public class OrderLotAllocation extends BaseTimeEntity {
     @Column(nullable = false)
     private int quantity;
 
-    void assignOrderItem(OrderItem orderItem) {
+    void assignOrderItem(PurchaseOrderItem orderItem) {
         this.orderItem = orderItem;
     }
 }

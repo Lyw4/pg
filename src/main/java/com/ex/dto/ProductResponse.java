@@ -33,37 +33,95 @@ public record ProductResponse(
 ) {
     public static ProductResponse from(Product product) {
         ProductLot firstAvailableLot = product.getLots().stream()
-                .filter(lot -> lot.getQuantity() > 0)
+                .filter(lot -> lot.getLotQuantity() > 0)
                 .min(Comparator.comparing(ProductLot::getExpirationDate))
                 .orElse(null);
 
         int stock = product.getLots().stream()
-                .mapToInt(ProductLot::getQuantity)
+                .mapToInt(ProductLot::getLotQuantity)
                 .sum();
+        String animalCode = animalTypeCode(product);
+        String animalLabel = animalLabel(product, animalCode);
+        String stage = hasText(product.getFeedStage())
+                ? product.getFeedStage()
+                : "일반 배합";
 
         return new ProductResponse(
-                product.getId(),
+                product.getProductId(),
                 product.getName(),
-                product.getAnimalType().getLabel(),
-                product.getAnimalType().name(),
-                product.getFeedStage(),
+                animalLabel,
+                animalCode,
+                stage,
                 product.getDescription(),
                 product.getWeightKg(),
-                product.getPrice(),
+                product.getPrice().intValue(),
                 product.getOriginalPrice(),
-                product.getProteinPercent(),
-                product.getFatPercent(),
-                product.getFiberPercent(),
-                product.getCalciumPercent(),
-                firstAvailableLot == null ? null : firstAvailableLot.getLotNumber(),
+                valueOrZero(product.getProteinPercent()),
+                valueOrZero(product.getFatPercent()),
+                valueOrZero(product.getFiberPercent()),
+                valueOrZero(product.getCalciumPercent()),
+                firstAvailableLot == null ? null : firstAvailableLot.getLotNo(),
                 firstAvailableLot == null ? null : firstAvailableLot.getManufacturedDate(),
                 firstAvailableLot == null ? null : firstAvailableLot.getExpirationDate(),
                 stock,
-                product.getDisplayTone(),
+                hasText(product.getDisplayTone())
+                        ? product.getDisplayTone()
+                        : "green",
                 product.getBadge(),
-                product.getDisplayShape(),
+                hasText(product.getDisplayShape())
+                        ? product.getDisplayShape()
+                        : "FF",
                 product.getImageUrl(),
-                product.getManufacturer().getName()
+                product.getManufacturer().getCompanyName()
         );
+    }
+
+    public static String animalTypeCode(Product product) {
+        String category = product.getAnimalType();
+        String searchable = (product.getName() + " "
+                + product.getDescription()).toLowerCase();
+        if ("소".equals(category)) {
+            return searchable.contains("젖소")
+                    || searchable.contains("낙농")
+                    ? "DAIRY_CATTLE"
+                    : "CATTLE";
+        }
+        if ("돼지".equals(category)) {
+            return "PIG";
+        }
+        if ("조류(닭/오리)".equals(category)) {
+            return searchable.contains("오리") ? "DUCK" : "CHICKEN";
+        }
+        if ("영양제".equals(category)) {
+            return "SUPPLEMENT";
+        }
+        if ("반려동물".equals(category)) {
+            return "PET";
+        }
+        return "CATTLE";
+    }
+
+    private static String animalLabel(
+            Product product,
+            String animalCode) {
+        return switch (animalCode) {
+            case "DAIRY_CATTLE" -> "젖소";
+            case "PIG" -> "돼지";
+            case "CHICKEN" -> "닭";
+            case "DUCK" -> "오리";
+            case "SUPPLEMENT" -> "영양제";
+            case "PET" -> "반려동물";
+            default -> hasText(product.getAnimalType())
+                    ? product.getAnimalType()
+                    : "소";
+        };
+    }
+
+    private static BigDecimal valueOrZero(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

@@ -99,14 +99,6 @@ public class ManagementController {
     }
 
     /*
-     * 기본 주소
-     */
-    @GetMapping("/")
-    public String home() {
-        return "redirect:/inventory";
-    }
-
-    /*
      * 재고 관리 화면
      */
     @GetMapping("/inventory")

@@ -48,17 +48,22 @@ public class OrderService {
                     .filter(Product::isActive)
                     .orElseThrow(() -> new IllegalArgumentException("주문할 수 없는 상품입니다: " + line.productId()));
 
-            int lineAmount = Math.multiplyExact(product.getPrice(), line.quantity());
+            int unitPrice = product.getPrice().intValueExact();
+            int lineAmount = Math.multiplyExact(
+                    unitPrice, line.quantity());
             productAmount = Math.addExact(productAmount, lineAmount);
 
-            OrderItem orderItem = OrderItem.builder()
+            PurchaseOrderItem orderItem = PurchaseOrderItem.builder()
                     .product(product)
                     .productName(product.getName())
                     .quantity(line.quantity())
-                    .unitPrice(product.getPrice())
+                    .unitPrice(unitPrice)
                     .lineAmount(lineAmount)
                     .build();
-            decreaseStock(product.getId(), line.quantity(), orderItem);
+            decreaseStock(
+                    product.getProductId(),
+                    line.quantity(),
+                    orderItem);
             order.addItem(orderItem);
         }
 
@@ -94,7 +99,12 @@ public class OrderService {
         order.cancel(phone);
         order.getItems().stream()
                 .flatMap(item -> item.getLotAllocations().stream())
-                .forEach(allocation -> allocation.getProductLot().increase(allocation.getQuantity()));
+                .forEach(allocation -> {
+                    ProductLot lot = allocation.getProductLot();
+                    lot.increase(allocation.getQuantity());
+                    lot.getProduct().changeStock(
+                            allocation.getQuantity());
+                });
         return toResponse(order);
     }
 
@@ -108,11 +118,17 @@ public class OrderService {
         return toResponse(order);
     }
 
-    private void decreaseStock(Long productId, int requestedQuantity, OrderItem orderItem) {
+    private void decreaseStock(
+            Long productId,
+            int requestedQuantity,
+            PurchaseOrderItem orderItem) {
         List<ProductLot> lots = productLotRepository
-                .findByProductIdAndQuantityGreaterThanOrderByExpirationDateAsc(productId, 0);
+                .findByProductProductIdAndLotQuantityGreaterThanOrderByExpirationDateAsc(
+                        productId, 0);
 
-        int totalStock = lots.stream().mapToInt(ProductLot::getQuantity).sum();
+        int totalStock = lots.stream()
+                .mapToInt(ProductLot::getLotQuantity)
+                .sum();
         if (totalStock < requestedQuantity) {
             throw new IllegalArgumentException("상품 재고가 부족합니다.");
         }
@@ -122,8 +138,10 @@ public class OrderService {
             if (remaining == 0) {
                 break;
             }
-            int deduction = Math.min(lot.getQuantity(), remaining);
+            int deduction = Math.min(
+                    lot.getLotQuantity(), remaining);
             lot.decrease(deduction);
+            lot.getProduct().changeStock(-deduction);
             orderItem.addLotAllocation(OrderLotAllocation.builder()
                     .productLot(lot)
                     .quantity(deduction)

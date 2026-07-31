@@ -69,9 +69,9 @@ public class PurchaseOrder extends BaseTimeEntity {
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<OrderItem> items = new ArrayList<>();
+    private List<PurchaseOrderItem> items = new ArrayList<>();
 
-    public void addItem(OrderItem item) {
+    public void addItem(PurchaseOrderItem item) {
         items.add(item);
         item.assignOrder(this);
     }
