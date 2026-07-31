@@ -2,7 +2,7 @@
 
 배합사료 유통 관리 플랫폼 데이터 모델. B2C 쇼핑몰과 WMS(관리자 창고 시스템)가 하나의 DB를 공유한다.
 
-- 테이블 9개 / 컬럼 88개 / 관계 12건
+- 테이블 9개 / 컬럼 90개 / 관계 12건
 - 물리 명명 규칙: `PhysicalNamingStrategyStandardImpl` 적용 → **DB 컬럼도 camelCase 유지**
 - 예약어 회피를 위해 `users`, `orders`, `binLevel` 만 이름을 변경
 
@@ -38,10 +38,12 @@ erDiagram
     centers {
         bigint    centerId   PK "IDENTITY"
         varchar   centerCode UK "업무 식별자 정렬 기준"
-        varchar   name          "화면 표기명 예 제1창고"
-        varchar   region        "권역 예 수도권"
+        varchar   name          "화면 표기명 예 충남 예산 센터"
+        varchar   region        "권역 예 충남 서북부"
         varchar   address       "nullable"
-        varchar   note          "보관 정책 요약 예 상온 배합사료"
+        varchar   note          "운영 방향 예 양계 양돈 중심"
+        double    latitude      "지도 핀 위도 nullable"
+        double    longitude     "지도 핀 경도 nullable"
         boolean   active        "false = 운영 중지"
         timestamp createdAt     "NOT NULL"
     }
@@ -149,8 +151,8 @@ erDiagram
 
 ```mermaid
 flowchart LR
-    C1["centers<br/>WH1 제1창고<br/>수도권"] --> B1["warehouseBins<br/>A · B · C · D 구역"]
-    C2["centers<br/>WH2 제2창고<br/>수도권"] --> B2["warehouseBins<br/>COLD · N 구역"]
+    C1["centers<br/>C1-YS 충남 예산<br/>양계 · 양돈"] --> B1["warehouseBins<br/>PL · PG · COLD 구역"]
+    C2["centers<br/>C5-NJ 전남 나주<br/>닭 · 오리 최우선"] --> B2["warehouseBins<br/>PL 구역"]
     B1 --> I1["inventories<br/>구역별 실물 수량"]
     B2 --> I1
     I1 --> T["products.totalStock<br/><b>전국 합계</b>"]
@@ -160,9 +162,22 @@ flowchart LR
     style T fill:#fff3cd,stroke:#856404
 ```
 
+> `centerCode` 에 순번(`C1`~`C5`)을 담아 정렬 순서를 만든다. 별도 정렬 컬럼 없이
+> 탭 · 선택 상자 · 분포 차트의 순서가 코드 순으로 정해진다.
+>
+> `zone` 은 축종 코드다 — `CT` 소 · `PG` 돼지 · `PL` 가금 · `COLD` 영양제 ·
+> `R` 입고 대기 · `S` 출고 대기 · `TRANSIT` 운송 중(가상). 2D 도면만 봐도
+> 그 센터의 운영 방향이 드러난다.
+>
+> `latitude` · `longitude` 는 **지도 핀 전용**이며 `nullable` 이다. 부지 확정 전
+> 센터를 먼저 등록해 재고를 배분하는 일이 있고, 좌표가 없으면 지도에서만 빠진다.
+> 주소를 화면에서 좌표로 변환(Geocoder)하지 않는 이유는 `address` 가 기획 단계에
+> `"고덕면 몽곡리 667 일대"` 처럼 범위로 적혀 있어 변환 결과가 호출마다 달라질 수
+> 있기 때문이다. 좌표는 파생값이 아니라 기준 정보로 둔다.
+
 - **2D 도면은 센터 단위로 한 장씩** 그린다. 서로 떨어진 센터의 구역이 한 도면에 섞이면 실제 위치를 오해한다.
 - 구역 선택 상자는 `centerCode → binCode` 순으로 정렬하고 `<optgroup>` 으로 센터를 나눈다.
-  구역 코드만으로 정렬하면 제2창고의 `COLD-01` 이 제1창고의 `C-02` 와 `D-01` 사이에 끼어든다.
+  구역 코드만으로 정렬하면 김제의 `GJ-COLD-01` 이 예산의 `YS-PG-01` 보다 앞에 와, 서로 다른 센터의 구역이 뒤섞인다.
 - `warehouseBins.centerId` 는 `optional = false` 다. 기본 센터를 두지 않는다 —
   센터가 여러 곳이면 '기본 센터'라는 개념 자체가 성립하지 않고, 임의로 채우면 엉뚱한 도면에 구역이 나타난다.
 - `products.totalStock` 은 **센터별로 나누지 않고 전국 합계를 유지**한다.

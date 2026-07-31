@@ -7,6 +7,11 @@
  *  품목의 전체 재고(totalStock)와 출고 가능 재고는 다를 수 있다.
  *   · 유통기한이 지난 로트는 출고 대상에서 제외
  *   · 사용 중지된 구역의 재고도 제외
+ *   · 입고 대기 · 검수 구역의 재고도 제외 (검수를 통과하지 않았다)
+ *   · 운송 중(센터 간 이관) 재고도 제외 (트럭 위에 있어 집어올 수 없다)
+ *
+ *  부족 안내에 이 사유를 모두 적어야 한다. 유통기한만 적으면 담당자가
+ *  있지도 않은 만료 로트를 찾게 된다.
  */
 (function () {
     'use strict';
@@ -59,8 +64,11 @@
                 + '출고 가능 재고가 <strong>' + number(plan.shortage) + '개</strong> 부족합니다. '
                 + '(요청 ' + number(plan.requestedQuantity)
                 + ' / 가능 ' + number(plan.availableQuantity) + ')<br>'
-                + '<span class="text-muted">유통기한이 지난 로트와 사용 중지된 구역의 재고는 '
-                + '출고 대상에서 제외되므로, 품목 목록의 전체 재고보다 적을 수 있습니다.</span>'
+                + '<span class="text-muted">유통기한 경과 로트, 사용 중지 구역, '
+                + '입고 대기 · 검수 구역(검수 전), 운송 중 재고는 출고 대상에서 제외되므로 '
+                + '품목 목록의 전체 재고보다 적을 수 있습니다.<br>'
+                + '입고 대기 구역의 재고는 <strong>구역 간 이동</strong>으로 보관 구역에 '
+                + '넣어야 출고할 수 있습니다.</span>'
                 + '</div>';
         } else if (plan.requestedQuantity > 0) {
             html += '<div class="alert alert-success py-2 small mb-3">'

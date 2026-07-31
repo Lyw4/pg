@@ -140,6 +140,7 @@ public class InventoryService {
                 .lotNo(lot.getLotNo())
                 .productCode(product.getProductCode())
                 .productName(product.getName())
+                .binId(bin.getBinId())
                 .binCode(bin.getBinCode())
                 .manufacturedDate(lot.getManufacturedDate())
                 .expirationDate(lot.getExpirationDate())
@@ -150,6 +151,7 @@ public class InventoryService {
                 .newLot(newLot)
                 .newInventory(newInventory)
                 .expiredLot(lot.isExpired(LocalDate.now()))
+                .binPurpose(bin.getBinPurpose())
                 .build();
     }
 

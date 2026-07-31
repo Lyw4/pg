@@ -1,5 +1,6 @@
 package com.feedflow.admin.controller;
 
+import com.feedflow.admin.dto.CenterMapPinDto;
 import com.feedflow.admin.dto.CenterStockChartDto;
 import com.feedflow.admin.dto.SalesChartDto;
 import com.feedflow.admin.service.CenterDashboardService;
@@ -44,5 +45,16 @@ public class AdminRestController {
     @GetMapping("/center-stock")
     public CenterStockChartDto centerStock() {
         return centerDashboardService.getStockChart();
+    }
+
+    /**
+     * 전국 지도에 찍을 센터 핀 (좌표 + 재고 요약).
+     * GET /api/admin/center-pins
+     * <p>
+     * 센터별 재고와 같은 이유로 STAFF 도 조회할 수 있다.
+     */
+    @GetMapping("/center-pins")
+    public CenterMapPinDto.Response centerPins() {
+        return centerDashboardService.getMapPins();
     }
 }

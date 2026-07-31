@@ -4,6 +4,7 @@ import com.feedflow.admin.dto.CenterActivityRow;
 import com.feedflow.admin.dto.CenterAlertRow;
 import com.feedflow.admin.dto.CenterAnimalMixRow;
 import com.feedflow.admin.dto.CenterCapacityRow;
+import com.feedflow.admin.dto.CenterMapPinDto;
 import com.feedflow.admin.dto.CenterNetworkDto;
 import com.feedflow.admin.dto.CenterOverviewDto;
 import com.feedflow.admin.dto.CenterStockChartDto;
@@ -78,6 +79,13 @@ public class CenterDashboardService {
 
         Map<Long, CenterStockRow> stock = index(
                 inventoryRepository.findStockByCenter(null), CenterStockRow::centerId);
+        /*
+            적재율의 분자는 '보관 구역' 재고여야 한다. 분모가 보관 구역 수용량이기
+            때문이다. 전체 재고를 분자로 쓰면 입고 대기 구역의 물건까지 보관 공간을
+            차지한 것으로 계산되어 적재율이 부풀려지고 100% 를 넘길 수도 있다.
+         */
+        Map<Long, CenterStockRow> storageStock = index(
+                inventoryRepository.findStorageStockByCenter(), CenterStockRow::centerId);
         Map<Long, CenterCapacityRow> capacity = index(
                 warehouseBinRepository.findStorageCapacityByCenter(), CenterCapacityRow::centerId);
         Map<Long, CenterAlertRow> alert = index(
@@ -98,6 +106,8 @@ public class CenterDashboardService {
             CenterCapacityRow cap = capacity.get(id);
             CenterAlertRow a = alert.get(id);
 
+            CenterStockRow ss = storageStock.get(id);
+
             int qty = s == null ? 0 : s.totalQuantity();
 
             rows.add(CenterOverviewDto.builder()
@@ -107,6 +117,7 @@ public class CenterDashboardService {
                     .region(c.getRegion())
                     .note(c.getNote())
                     .quantity(qty)
+                    .storageQuantity(ss == null ? 0 : ss.totalQuantity())
                     .sharePercent(share(qty, nationwideQuantity))
                     .capacity(cap == null ? 0 : cap.totalCapacity())
                     .rowCount(s == null ? 0 : s.rows())
@@ -129,6 +140,55 @@ public class CenterDashboardService {
     public CenterStockChartDto getStockChart() {
         List<CenterStockRow> rows = inventoryRepository.findStockByCenter(null);
         return CenterStockChartDto.of(rows);
+    }
+
+    /**
+     * 전국 지도에 찍을 센터 핀.
+     * <p>
+     * 좌표가 없는 센터는 핀을 찍을 수 없어 제외하되, <b>몇 곳이 빠졌는지 함께 알려준다.</b>
+     * 조용히 빼면 핀 수가 센터 수와 달라도 아무도 눈치채지 못한다.
+     * <p>
+     * 재고와 적재율을 함께 담는다. 핀을 눌렀을 때 "이 센터에 얼마나 있는지" 를
+     * 바로 보여주려면 좌표만으로는 부족하고, 지도와 재고를 따로 요청하면
+     * 두 응답을 화면에서 다시 짝지어야 한다.
+     */
+    public CenterMapPinDto.Response getMapPins() {
+        List<Center> centers = centerRepository.findByActiveTrueOrderByCenterCodeAsc();
+
+        Map<Long, CenterStockRow> stock = index(
+                inventoryRepository.findStockByCenter(null), CenterStockRow::centerId);
+        // 적재율 분자는 보관 구역 재고. 대시보드 센터 카드와 같은 기준을 써야
+        // 같은 센터가 지도 팝업과 카드에서 다른 적재율로 보이지 않는다.
+        Map<Long, CenterStockRow> storageStock = index(
+                inventoryRepository.findStorageStockByCenter(), CenterStockRow::centerId);
+        Map<Long, CenterCapacityRow> capacity = index(
+                warehouseBinRepository.findStorageCapacityByCenter(), CenterCapacityRow::centerId);
+
+        List<CenterMapPinDto> pins = new ArrayList<>();
+        int missing = 0;
+
+        for (Center c : centers) {
+            if (!c.hasLocation()) {
+                missing++;
+                continue;
+            }
+            CenterStockRow s = stock.get(c.getCenterId());
+            CenterStockRow ss = storageStock.get(c.getCenterId());
+            CenterCapacityRow cap = capacity.get(c.getCenterId());
+
+            int qty = s == null ? 0 : s.totalQuantity();
+            int storageQty = ss == null ? 0 : ss.totalQuantity();
+            int total = cap == null ? 0 : cap.totalCapacity();
+
+            pins.add(new CenterMapPinDto(
+                    c.getCenterId(), c.getCenterCode(), c.displayName(),
+                    c.getRegion(), c.getNote(),
+                    c.getLatitude(), c.getLongitude(),
+                    qty, storageQty,
+                    total <= 0 ? 0 : (int) Math.round(storageQty * 100.0 / total)));
+        }
+
+        return new CenterMapPinDto.Response(pins, missing);
     }
 
     /* ------------------------------------------------------------------
