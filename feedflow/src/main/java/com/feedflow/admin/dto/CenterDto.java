@@ -43,11 +43,6 @@ public class CenterDto {
                 .build();
     }
 
-    /** 지도에 핀을 찍을 수 있는지 (좌표 둘 다 있어야 한다) */
-    public boolean isMappable() {
-        return latitude != null && longitude != null;
-    }
-
     public String getActiveBadgeClass() {
         return active ? "bg-success" : "bg-secondary";
     }

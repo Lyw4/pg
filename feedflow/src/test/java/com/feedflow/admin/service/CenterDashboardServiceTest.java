@@ -93,7 +93,7 @@ class CenterDashboardServiceTest {
                     new CenterCapacityRow(1L, 2000L, 9L),
                     new CenterCapacityRow(2L, 1000L, 5L)));
             given(inventoryRepository.findExpiringByCenter(any(), any())).willReturn(List.of(
-                    new CenterAlertRow(1L, "충남 예산 센터", 3L, 1L, 120L)));
+                    new CenterAlertRow(1L, "충남 예산 센터", 3L, 1L)));
             given(stockMovementRepository.findActivityByCenter(any(), any())).willReturn(List.of(
                     new CenterActivityRow(1L, "충남 예산 센터", MovementType.INBOUND, 500L, 4L),
                     new CenterActivityRow(1L, "충남 예산 센터", MovementType.OUTBOUND, 80L, 2L),
@@ -265,8 +265,8 @@ class CenterDashboardServiceTest {
                     new CenterCapacityRow(2L, 450L, 2L),       // 89%
                     new CenterCapacityRow(3L, 1000L, 4L)));    // 20%
             given(inventoryRepository.findExpiringByCenter(any(), any())).willReturn(List.of(
-                    new CenterAlertRow(1L, "재고많음", 1L, 0L, 10L),
-                    new CenterAlertRow(3L, "급함", 5L, 2L, 90L)));
+                    new CenterAlertRow(1L, "재고많음", 1L, 0L),
+                    new CenterAlertRow(3L, "급함", 5L, 2L)));
             given(stockMovementRepository.findActivityByCenter(any(), any())).willReturn(List.of());
             given(inventoryRepository.findAnimalMixByCenter()).willReturn(List.of());
 
