@@ -2,7 +2,7 @@
 
 배합사료 유통 관리 플랫폼 데이터 모델. B2C 쇼핑몰과 WMS(관리자 창고 시스템)가 하나의 DB를 공유한다.
 
-- 테이블 9개 / 컬럼 90개 / 관계 12건
+- 테이블 10개 / 컬럼 109개 / 관계 13건
 - 물리 명명 규칙: `PhysicalNamingStrategyStandardImpl` 적용 → **DB 컬럼도 camelCase 유지**
 - 예약어 회피를 위해 `users`, `orders`, `binLevel` 만 이름을 변경
 
@@ -21,6 +21,7 @@ erDiagram
     productLots    |o--o{ orderItems     : "FEFO 대표 로트"
     productLots    ||--o{ stockMovements : "이력이 쌓인다"
     centers        ||--o{ warehouseBins  : "구역을 보유한다"
+    centers        ||--o{ farmCustomers  : "담당 농장을 가진다"
     warehouseBins  ||--o{ inventories    : "재고를 보관한다"
     warehouseBins  |o--o{ stockMovements : "이력의 대상 구역"
     warehouseBins  |o--o{ stockMovements : "이동 이력의 출발 구역"
@@ -46,6 +47,28 @@ erDiagram
         double    longitude     "지도 핀 경도 nullable"
         boolean   active        "false = 운영 중지"
         timestamp createdAt     "NOT NULL"
+    }
+
+    farmCustomers {
+        bigint    farmCustomerId      PK "IDENTITY"
+        varchar   farmCode            UK "업무 식별자 예 F-W01-01"
+        varchar   farmName               "NOT NULL"
+        varchar   representativeName     "대표자"
+        varchar   phone                  "NOT NULL"
+        varchar   postalCode             "NOT NULL"
+        varchar   address                "NOT NULL"
+        double    latitude               "농장 위도 nullable"
+        double    longitude              "농장 경도 nullable"
+        varchar   animalType             "CATTLE / PIG / POULTRY"
+        int       livestockCount         "사육 두수"
+        int       monthlyFeedQuantity    "월 예상 사료량 포대"
+        varchar   preferredFeed          "담당자 설명"
+        int       recurringDeliveryDay   "정기 배송일 1 ~ 28"
+        bigint    centerId            FK "담당 물류센터"
+        double    distanceKm             "센터까지 거리 km"
+        varchar   status                 "ACTIVE / PAUSED"
+        varchar   notes                  "nullable"
+        timestamp createdAt              "NOT NULL"
     }
 
     products {

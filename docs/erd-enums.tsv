@@ -28,3 +28,8 @@ DisposalReason	stockMovements.reason	WET	WET	습기/침수
 DisposalReason	stockMovements.reason	SAMPLE	SAMPLE	샘플 사용	
 DisposalReason	stockMovements.reason	LOSS	LOSS	분실	
 DisposalReason	stockMovements.reason	OTHER	OTHER	기타	
+AnimalType	farmCustomers.animalType	CATTLE	CATTLE	소	농장 사육 축종 / products.animalType 과 같은 enum 을 공유해 센터 취급 축종과 비교 가능
+AnimalType	farmCustomers.animalType	PIG	PIG	돼지	
+AnimalType	farmCustomers.animalType	POULTRY	POULTRY	조류	팀원 원본의 자유 문자열 '조류(닭/오리)' 를 이 상수로 변환했다
+CustomerStatus	farmCustomers.status	ACTIVE	ACTIVE	거래 중	월 예상 사료량 합산 대상 / 뱃지 bg-primary
+CustomerStatus	farmCustomers.status	PAUSED	PAUSED	거래 보류	합산에서 제외하되 담당 농장 수에는 포함 / 뱃지 bg-secondary / '해지' 를 두지 않은 이유는 과거 이력의 상대로 남아야 하고 재개가 흔하기 때문

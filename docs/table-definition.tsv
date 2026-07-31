@@ -89,3 +89,22 @@ stockMovements	10	주문 ID	orderId	BIGINT			FK 아님 (출고 · 취소 이력�
 stockMovements	11	처리자 ID	userId	BIGINT			FK 아님 (처리자 스냅샷)	userId
 stockMovements	12	처리자명	userName	VARCHAR(50)			FK 아님 (퇴사 후에도 이력 보존)	userName
 stockMovements	13	등록일시	createdAt	TIMESTAMP	NN		기간 실적 집계의 기준	createdAt
+farmCustomers	1	농장 고객사 ID	farmCustomerId	BIGINT	PK	IDENTITY		farmCustomerId
+farmCustomers	2	농장 코드	farmCode	VARCHAR(20)	NN, UK		업무 식별자 (예: F-W01-01) / 팀원 모듈이 자연 키로 병합에 쓰므로 형식을 바꾸지 않는다	farmCode
+farmCustomers	3	농장명	farmName	VARCHAR(80)	NN			farmName
+farmCustomers	4	대표자명	representativeName	VARCHAR(30)	NN		배송 · 연락 담당	representativeName
+farmCustomers	5	연락처	phone	VARCHAR(30)	NN			phone
+farmCustomers	6	우편번호	postalCode	VARCHAR(10)	NN			postalCode
+farmCustomers	7	주소	address	VARCHAR(180)	NN			address
+farmCustomers	8	위도	latitude	DOUBLE			농장 위치(WGS84) / 배송 권역 판단 근거 (P4b)	latitude
+farmCustomers	9	경도	longitude	DOUBLE				longitude
+farmCustomers	10	축종	animalType	VARCHAR(20)	NN		enum AnimalType (CATTLE / PIG / POULTRY) / products.animalType 과 같은 값 체계	animalType
+farmCustomers	11	사육 두수	livestockCount	INT	NN		마리	livestockCount
+farmCustomers	12	월 예상 사료량	monthlyFeedQuantity	INT	NN		포대 / 집계는 거래 중(ACTIVE)만 합산한다	monthlyFeedQuantity
+farmCustomers	13	선호 사료	preferredFeed	VARCHAR(80)	NN		담당자가 적는 설명 (품목 코드가 아니다)	preferredFeed
+farmCustomers	14	정기 배송일	recurringDeliveryDay	INT	NN		매월 며칠 / 1~28 로 제한 (29~31 은 2월에 없어 배송이 밀린다)	recurringDeliveryDay
+farmCustomers	15	담당 센터 ID	centerId	BIGINT	NN, FK		FK centers.centerId / ManyToOne(LAZY, optional=false)	center
+farmCustomers	16	센터까지 거리	distanceKm	DOUBLE	NN		km / centers 좌표 기준 하버사인 재계산값	distanceKm
+farmCustomers	17	거래 상태	status	VARCHAR(20)	NN		enum CustomerStatus (ACTIVE 거래 중 / PAUSED 거래 보류)	status
+farmCustomers	18	운영 메모	notes	VARCHAR(200)			보류 사유 · 공급 주기 특이사항	notes
+farmCustomers	19	등록일시	createdAt	TIMESTAMP	NN	자동 생성(PrePersist)		createdAt

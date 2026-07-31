@@ -89,3 +89,22 @@ stockMovements	orderId	BIGINT						FK 아님 (출고/취소 이력의 주문 참
 stockMovements	userId	BIGINT						FK 아님 (처리자 스냅샷)
 stockMovements	userName	VARCHAR(50)						FK 아님 (퇴사 후에도 이력 보존)
 stockMovements	createdAt	TIMESTAMP			Y			
+farmCustomers	farmCustomerId	BIGINT	PK		Y		IDENTITY	
+farmCustomers	farmCode	VARCHAR(20)			Y	UQ		업무 식별자 / 팀원 모듈이 자연 키로 병합에 사용하므로 형식을 바꾸지 않는다
+farmCustomers	farmName	VARCHAR(80)			Y			
+farmCustomers	representativeName	VARCHAR(30)			Y			대표자 (배송 · 연락 담당)
+farmCustomers	phone	VARCHAR(30)			Y			
+farmCustomers	postalCode	VARCHAR(10)			Y			
+farmCustomers	address	VARCHAR(180)			Y			
+farmCustomers	latitude	DOUBLE						농장 위도(WGS84) / 배송 권역 판단 근거 (P4b)
+farmCustomers	longitude	DOUBLE						농장 경도(WGS84)
+farmCustomers	animalType	VARCHAR(20)			Y			enum AnimalType / products.animalType 과 같은 값 체계를 써야 센터 취급 축종과 비교된다
+farmCustomers	livestockCount	INT			Y			사육 두수 (마리)
+farmCustomers	monthlyFeedQuantity	INT			Y			월 예상 사료량(포대) / 집계는 status = ACTIVE 만 합산
+farmCustomers	preferredFeed	VARCHAR(80)			Y			담당자가 적는 설명 (품목 코드가 아니다)
+farmCustomers	recurringDeliveryDay	INT			Y			정기 배송일 1~28 / 29~31 은 2월에 존재하지 않아 제외
+farmCustomers	centerId	BIGINT		FK centers	Y			담당 물류센터 / @ManyToOne(LAZY, optional=false)
+farmCustomers	distanceKm	DOUBLE			Y			담당 센터까지 거리 / centers 좌표 기준 하버사인 재계산값 (원본은 팀원 창고 좌표 기준이라 최대 17km 차이)
+farmCustomers	status	VARCHAR(20)			Y			enum CustomerStatus (ACTIVE/PAUSED)
+farmCustomers	notes	VARCHAR(200)						운영 메모 (보류 사유 · 공급 주기 특이사항)
+farmCustomers	createdAt	TIMESTAMP			Y		@PrePersist	

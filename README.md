@@ -4,10 +4,14 @@
 유통기한이 있는 사료를 다루기 때문에 "재고가 몇 개인가" 만으로는 부족하고,
 **어느 로트가 어느 구역에 얼마나 있고 언제 만료되는지**를 항상 알 수 있어야 합니다.
 
-> 이 저장소는 **관리자 시스템(WMS) 모듈**입니다.
-> 고객용 B2C 쇼핑몰은 팀원이 담당하며 하나의 DB 를 공유합니다.
+> 이 저장소는 **관리자 시스템(WMS) 모듈**입니다. 고객 주문 화면은 팀원이 담당합니다.
 > `Product.imageUrl` · `description` 처럼 쇼핑몰 전용 컬럼은 엔티티에는 두되
 > 관리자 화면에는 노출하지 않습니다.
+>
+> **농장 고객사(`farmCustomers`)는 팀원 모듈에서 옮겨온 것**입니다. 옮기면서 담당 창고를
+> `centers` 참조로, 축종을 `AnimalType` enum 으로 바꾸고 거리를 우리 좌표 기준으로
+> 다시 계산했습니다. 두 프로젝트를 실제로 합치기 전에 정해야 할 것은
+> [`INTEGRATION-NOTES.md`](INTEGRATION-NOTES.md) 에 정리해 두었습니다.
 
 ---
 
@@ -23,8 +27,8 @@
 | 시각화 | Chart.js (매출 · 재고 분포), **Leaflet 1.9.4 + OpenStreetMap** (전국 거점 지도) |
 | Test | JUnit 5, Mockito, AssertJ, `@DataJpaTest` |
 
-**규모** — 프로덕션 클래스 132개(엔티티 17 · DTO 62 · 컨트롤러 20 · 서비스 13 · 리포지토리 8),
-Thymeleaf 템플릿 26개, 테스트 **242개 / 18개 클래스**, 테이블 9개 / 컬럼 90개.
+**규모** — 프로덕션 클래스 142개(도메인 19 · DTO 67 · 컨트롤러 21 · 서비스 14 · 리포지토리 9),
+Thymeleaf 템플릿 27개, 테스트 **259개 / 20개 클래스**, 테이블 10개 / 컬럼 109개.
 
 ---
 
@@ -274,6 +278,7 @@ Leaflet(BSD-2) + OSM 타일은 **키 없이 즉시 동작**하고 마커 · 팝�
 | `/admin/traceability` | 로트 생애주기 타임라인 (입고 → 보관 → 출고 / 취소 / 폐기), 거쳐 간 센터 |
 | `/admin/outbound` | 주문 기반 FEFO 출고 · 출고 취소, 직접 출고 |
 | `/admin/scan` | 바코드 스캔 입출고 · QR 라벨 출력 |
+| `/admin/farm-customers` | **농장 고객사 관리.** 센터별 담당 농장 · 월 예상 사료량 · 사육 규모, 축종 · 거래 상태 · 키워드 필터. 담당 센터가 그 축종을 취급하지 않는 농장을 경고 (거래 상태 변경은 ADMIN) |
 | `/admin/products` · `/admin/bins` · `/admin/employees` | 기준 정보 · 사원 권한 관리 (사원 관리는 ADMIN) |
 
 ---
@@ -296,13 +301,16 @@ Leaflet(BSD-2) + OSM 타일은 **키 없이 즉시 동작**하고 마커 · 팝�
 
 ### 테스트
 
-**242개 / 18개 클래스.** 서비스 단위 테스트(Mockito)가 중심이고,
+**259개 / 20개 클래스.** 서비스 단위 테스트(Mockito)가 중심이고,
 JPQL 안에만 존재하는 조건은 `@DataJpaTest` 로 실제 H2 에 데이터를 넣어 검증합니다.
 
 - `AllocatableStockRepositoryTest` — 다섯 용도의 구역을 만들어 **보관 · 출고 대기만**
   출고 후보로 나오는지, 단건 조회와 미리보기용 일괄 조회의 조건이 같은지
 - `WarehouseMapRepositoryTest` — 재고가 없는 구역도 도면에 남는지(outer join 유지)
 - `DashboardAlertRepositoryTest` — 안전재고 · 유통기한 경보 집계
+- `FarmCustomerRepositoryTest` — **세는 기준이 컬럼마다 다른** 집계
+  (농장 수는 거래 보류 포함, 월 사료량은 거래 중만), 담당 농장이 없는 센터가
+  `group by` 결과에서 빠지는지, 담당 센터가 취급하지 않는 축종 검출(`not exists`)
 
 ### 시드 데이터 (`data.sql`)
 
@@ -341,7 +349,7 @@ CSS 괄호 균형 · **Mockito `STRICT_STUBS` 안전성** ·
 | B2C 쇼핑몰 | 팀원 담당. DB 만 공유 |
 | 반품 절차 | 배송 완료 주문은 취소 대상이 아니다. 실물이 고객에게 있어 창고 재고를 되돌리면 실물과 장부가 어긋난다 |
 | 이관 전표 엔티티 (P3b) | 두 구간이 이미 분리되어 있어 나중에 두 번째를 즉시 호출하지 않으면 된다. 구조를 다시 짜지 않는다 |
-| 스마트 주문 할당 (P4b) | 좌표는 확보했지만 **배송지 좌표와 권역 우선순위가 없다.** 게다가 최단 거리 센터가 그 축종을 취급하지 않을 수 있다 — 나주는 가금 전용이다 |
+| 스마트 주문 할당 (P4b) | 농장 고객사를 통합해 **좌표 · 거리 · 축종 · 담당 센터가 갖춰졌다.** 남은 것은 주문 시점에 어느 센터에서 낼지 고르는 규칙이다. 최단 거리 센터가 그 축종을 취급하지 않을 수 있어(나주는 가금 전용) 거리만으로 정할 수 없고, 그 경우를 `/admin/farm-customers` 가 경고로 보여준다 |
 | 재고 실사 | `ADJUST` 유형만 정의되어 있고 실물 카운트 입력 절차는 없다 |
 
 ---
@@ -356,3 +364,6 @@ CSS 괄호 균형 · **Mockito `STRICT_STUBS` 안전성** ·
 | [`docs/epic-p3-design.md`](docs/epic-p3-design.md) | 센터 간 이관 설계 (`IN_TRANSIT` 가상 구역) |
 | [`docs/erd.md`](docs/erd.md) | ERD (Mermaid) + 재고 3계층 구조도 |
 | `docs/erd-columns.tsv` · `erd-relations.tsv` · `erd-enums.tsv` | 컬럼 · 관계 · enum 정의서 |
+| `docs/table-definition.tsv` · `table-catalog.tsv` | 테이블 정의서 (제출 양식용) |
+| `docs/unit-work-report.tsv` · `sql-definition.tsv` | 단위업무보고서 · SQL 정의서 |
+| [`INTEGRATION-NOTES.md`](INTEGRATION-NOTES.md) | 팀원 프로젝트와의 통합 논의 — 결정할 것 4가지 |

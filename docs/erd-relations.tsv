@@ -11,3 +11,4 @@ centers	warehouseBins	centerId	1 : N	필수	@ManyToOne(LAZY, optional=false)	센
 warehouseBins	inventories	binId	1 : N	필수	@ManyToOne(LAZY)	구역에 여러 로트 적재
 warehouseBins	stockMovements	binId	1 : N	선택(nullable)	@ManyToOne(LAZY)	이력의 대상(도착) 구역
 warehouseBins	stockMovements	fromBinId	1 : N	선택(nullable)	@ManyToOne(LAZY)	구역 간 이동(MOVE)의 출발 구역
+centers	farmCustomers	centerId	1 : N	필수	@ManyToOne(LAZY, optional=false)	센터 1곳이 농장 여러 곳을 담당 / 담당 센터가 없으면 배송 계획을 세울 수 없다

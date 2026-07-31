@@ -59,6 +59,12 @@
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/farm-customers}"
+               th:classappend="${menu == 'farmCustomers'} ? 'active'">
+                <i class="bi bi-house-heart me-2"></i>농장 고객사
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link" th:href="@{/admin/warehouse-map}"
                th:classappend="${menu == 'warehouseMap'} ? 'active'">
                 <i class="bi bi-bounding-box me-2"></i>창고 2D 도면
