@@ -4,6 +4,7 @@ import com.feedflow.admin.dto.CenterActivityRow;
 import com.feedflow.admin.dto.CenterAlertRow;
 import com.feedflow.admin.dto.CenterAnimalMixRow;
 import com.feedflow.admin.dto.CenterCapacityRow;
+import com.feedflow.admin.dto.CenterMapPinDto;
 import com.feedflow.admin.dto.CenterNetworkDto;
 import com.feedflow.admin.dto.CenterOverviewDto;
 import com.feedflow.admin.dto.CenterStockChartDto;
@@ -294,6 +295,97 @@ class CenterDashboardServiceTest {
     }
 
     /* ==================================================================
+     * 전국 지도 핀
+     * ================================================================== */
+
+    @Nested
+    @DisplayName("전국 지도 핀")
+    class MapPins {
+
+        @Test
+        @DisplayName("좌표가 있는 센터만 핀으로 내려주고 재고 · 적재율을 함께 담는다")
+        void buildsPins() {
+            given(centerRepository.findByActiveTrueOrderByCenterCodeAsc()).willReturn(List.of(
+                    located(1L, "C1-YS", "충남 예산 센터", 36.772, 126.771),
+                    located(5L, "C5-NJ", "전남 나주 센터", 35.098, 126.662)));
+            given(inventoryRepository.findStockByCenter(null)).willReturn(List.of(
+                    new CenterStockRow(1L, "충남 예산 센터", 900L, 12L),
+                    new CenterStockRow(5L, "전남 나주 센터", 470L, 6L)));
+            given(warehouseBinRepository.findStorageCapacityByCenter()).willReturn(List.of(
+                    new CenterCapacityRow(1L, 2000L, 9L),
+                    new CenterCapacityRow(5L, 1000L, 5L)));
+
+            CenterMapPinDto.Response res = service.getMapPins();
+
+            assertThat(res.pins())
+                    .extracting(CenterMapPinDto::centerName,
+                            CenterMapPinDto::latitude,
+                            CenterMapPinDto::quantity,
+                            CenterMapPinDto::usageRate)
+                    .containsExactly(
+                            tuple("충남 예산 센터", 36.772, 900, 45),
+                            tuple("전남 나주 센터", 35.098, 470, 47));
+            assertThat(res.missingCount()).isZero();
+            assertThat(res.hasPins()).isTrue();
+        }
+
+        /**
+         * 좌표가 없는 센터를 조용히 빼면 핀 수가 센터 수와 달라도 아무도 눈치채지 못한다.
+         * 부지 확정 전 센터를 먼저 등록하는 일이 실제로 생기므로 몇 곳이 빠졌는지 알려야 한다.
+         */
+        @Test
+        @DisplayName("좌표가 없는 센터는 제외하되 몇 곳이 빠졌는지 함께 알려준다")
+        void reportsMissingCoordinates() {
+            given(centerRepository.findByActiveTrueOrderByCenterCodeAsc()).willReturn(List.of(
+                    located(1L, "C1", "좌표있음", 36.7, 126.7),
+                    center(2L, "C2", "좌표없음"),
+                    partiallyLocated(3L, "C3", "위도만있음", 36.0)));
+            given(inventoryRepository.findStockByCenter(null)).willReturn(List.of());
+            given(warehouseBinRepository.findStorageCapacityByCenter()).willReturn(List.of());
+
+            CenterMapPinDto.Response res = service.getMapPins();
+
+            assertThat(res.pins())
+                    .extracting(CenterMapPinDto::centerName)
+                    .containsExactly("좌표있음");
+            assertThat(res.missingCount())
+                    .as("위도만 있는 센터도 지도에 찍을 수 없으므로 누락으로 센다")
+                    .isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("재고가 없는 센터도 핀은 찍고 수량 0 으로 표시한다")
+        void pinWithoutStock() {
+            given(centerRepository.findByActiveTrueOrderByCenterCodeAsc()).willReturn(List.of(
+                    located(9L, "C9", "신설 센터", 36.0, 127.0)));
+            given(inventoryRepository.findStockByCenter(null)).willReturn(List.of());
+            given(warehouseBinRepository.findStorageCapacityByCenter()).willReturn(List.of());
+
+            CenterMapPinDto.Response res = service.getMapPins();
+
+            assertThat(res.pins()).hasSize(1);
+            assertThat(res.pins().get(0).quantity()).isZero();
+            assertThat(res.pins().get(0).usageRate())
+                    .as("수용량이 0 이면 0 으로 나누지 않는다")
+                    .isZero();
+        }
+
+        @Test
+        @DisplayName("좌표가 등록된 센터가 하나도 없으면 빈 응답을 돌려준다")
+        void noPins() {
+            given(centerRepository.findByActiveTrueOrderByCenterCodeAsc()).willReturn(List.of(
+                    center(1L, "C1", "좌표없음")));
+            given(inventoryRepository.findStockByCenter(null)).willReturn(List.of());
+            given(warehouseBinRepository.findStorageCapacityByCenter()).willReturn(List.of());
+
+            CenterMapPinDto.Response res = service.getMapPins();
+
+            assertThat(res.hasPins()).isFalse();
+            assertThat(res.missingCount()).isEqualTo(1);
+        }
+    }
+
+    /* ==================================================================
      * 분포 차트
      * ================================================================== */
 
@@ -339,6 +431,24 @@ class CenterDashboardServiceTest {
         return Center.builder()
                 .centerId(id).centerCode(code).name(name)
                 .region("권역").note("운영 방향").active(true)
+                .build();
+    }
+
+    /** 좌표가 등록된 센터 (지도 핀 검증용) */
+    private Center located(Long id, String code, String name, double lat, double lng) {
+        return Center.builder()
+                .centerId(id).centerCode(code).name(name)
+                .region("권역").note("운영 방향").active(true)
+                .latitude(lat).longitude(lng)
+                .build();
+    }
+
+    /** 위도만 있는 센터 — 좌표로 쓸 수 없다 */
+    private Center partiallyLocated(Long id, String code, String name, double lat) {
+        return Center.builder()
+                .centerId(id).centerCode(code).name(name)
+                .region("권역").note("운영 방향").active(true)
+                .latitude(lat)
                 .build();
     }
 

@@ -8,10 +8,12 @@ users	role	VARCHAR(20)			Y			enum Role (USER/STAFF/ADMIN)
 users	createdAt	TIMESTAMP			Y		@PrePersist	
 centers	centerId	BIGINT	PK		Y		IDENTITY	Warehouse enum(WH1/WH2)을 승격한 테이블
 centers	centerCode	VARCHAR(20)			Y	UQ		업무 식별자 / 목록·선택상자 정렬 기준
-centers	name	VARCHAR(50)			Y			화면 표기명 예: 제1창고
-centers	region	VARCHAR(30)						권역 예: 수도권 · 영남 · 호남
-centers	address	VARCHAR(200)						
-centers	note	VARCHAR(100)						보관 정책 요약 (도면 탭 부제) 예: 상온 · 배합사료
+centers	name	VARCHAR(50)			Y			화면 표기명 예: 충남 예산 센터
+centers	region	VARCHAR(30)						권역 예: 충남 서북부 · 전북 서부 · 새만금권
+centers	address	VARCHAR(200)						기획 단계에는 범위로 적힌다 예: 고덕면 몽곡리 667 일대
+centers	note	VARCHAR(100)						운영 방향 (도면 탭 부제 · 지도 팝업) 예: 양계 · 양돈 중심
+centers	latitude	DOUBLE						지도 핀 위도(WGS84) / nullable = 부지 확정 전
+centers	longitude	DOUBLE						지도 핀 경도(WGS84) / 위경도 둘 다 있어야 지도에 표시
 centers	active	BOOLEAN			Y		TRUE	false = 운영 중지 / 선택상자에서 제외
 centers	createdAt	TIMESTAMP			Y		@PrePersist	
 products	productId	BIGINT	PK		Y		IDENTITY	
