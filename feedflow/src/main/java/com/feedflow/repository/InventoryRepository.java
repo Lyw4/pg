@@ -230,8 +230,7 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
                        c.centerId,
                        c.name,
                        count(i),
-                       sum(case when l.expirationDate < :today then 1L else 0L end),
-                       sum(i.quantity))
+                       sum(case when l.expirationDate < :today then 1L else 0L end))
             from Inventory i
                 join i.bin b
                 join b.center c

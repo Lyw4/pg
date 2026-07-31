@@ -77,54 +77,59 @@ public class CenterDashboardService {
     public CenterNetworkDto getNetworkOverview(LocalDate today) {
         List<Center> centers = centerRepository.findByActiveTrueOrderByCenterCodeAsc();
 
-        Map<Long, CenterStockRow> stock = index(
-                inventoryRepository.findStockByCenter(null), CenterStockRow::centerId);
         /*
-            적재율의 분자는 '보관 구역' 재고여야 한다. 분모가 보관 구역 수용량이기
-            때문이다. 전체 재고를 분자로 쓰면 입고 대기 구역의 물건까지 보관 공간을
-            차지한 것으로 계산되어 적재율이 부풀려지고 100% 를 넘길 수도 있다.
+            재고를 두 가지로 나눠 읽는다. 이름에 '전체(total)' 와 '보관(storage)' 을
+            분명히 박아 둔 이유 —  둘을 혼동해 적재율의 분자로 전체 재고를 쓰는 버그가
+            실제로 있었다. 짧은 이름(s / ss)으로는 어느 쪽인지 읽는 사람이 알 수 없다.
+
+              전체 재고   : 대기 구역 · 운송 중 포함  → 분포 · 비중 · 재고 총량 표시용
+              보관 구역만 : STORAGE 구역             → 적재율의 분자 (분모와 기준 일치)
          */
-        Map<Long, CenterStockRow> storageStock = index(
+        Map<Long, CenterStockRow> totalStockByCenter = index(
+                inventoryRepository.findStockByCenter(null), CenterStockRow::centerId);
+        Map<Long, CenterStockRow> storageStockByCenter = index(
                 inventoryRepository.findStorageStockByCenter(), CenterStockRow::centerId);
-        Map<Long, CenterCapacityRow> capacity = index(
+        Map<Long, CenterCapacityRow> storageCapacityByCenter = index(
                 warehouseBinRepository.findStorageCapacityByCenter(), CenterCapacityRow::centerId);
-        Map<Long, CenterAlertRow> alert = index(
+        Map<Long, CenterAlertRow> expiryAlertByCenter = index(
                 inventoryRepository.findExpiringByCenter(
                         today, today.plusDays(StockPolicy.EXPIRING_SOON_DAYS)),
                 CenterAlertRow::centerId);
 
-        Map<Long, Map<MovementType, Integer>> activity = groupActivity(today);
-        Map<Long, Map<String, Integer>> animalMix = groupAnimalMix();
+        Map<Long, Map<MovementType, Integer>> activityByCenter = groupActivity(today);
+        Map<Long, Map<String, Integer>> animalMixByCenter = groupAnimalMix();
 
-        int nationwideQuantity = stock.values().stream()
+        int nationwideQuantity = totalStockByCenter.values().stream()
                 .mapToInt(CenterStockRow::totalQuantity).sum();
 
         List<CenterOverviewDto> rows = new ArrayList<>(centers.size());
-        for (Center c : centers) {
-            Long id = c.getCenterId();
-            CenterStockRow s = stock.get(id);
-            CenterCapacityRow cap = capacity.get(id);
-            CenterAlertRow a = alert.get(id);
+        for (Center center : centers) {
+            Long centerId = center.getCenterId();
 
-            CenterStockRow ss = storageStock.get(id);
+            CenterStockRow totalStock = totalStockByCenter.get(centerId);
+            CenterStockRow storageStock = storageStockByCenter.get(centerId);
+            CenterCapacityRow storageCapacity = storageCapacityByCenter.get(centerId);
+            CenterAlertRow expiryAlert = expiryAlertByCenter.get(centerId);
 
-            int qty = s == null ? 0 : s.totalQuantity();
+            // 집계 쿼리는 group by 결과라 해당 센터 행이 아예 없을 수 있다 (재고 0 인 센터)
+            int totalQuantity = totalStock == null ? 0 : totalStock.totalQuantity();
+            int storageQuantity = storageStock == null ? 0 : storageStock.totalQuantity();
 
             rows.add(CenterOverviewDto.builder()
-                    .centerId(id)
-                    .centerCode(c.getCenterCode())
-                    .centerName(c.displayName())
-                    .region(c.getRegion())
-                    .note(c.getNote())
-                    .quantity(qty)
-                    .storageQuantity(ss == null ? 0 : ss.totalQuantity())
-                    .sharePercent(share(qty, nationwideQuantity))
-                    .capacity(cap == null ? 0 : cap.totalCapacity())
-                    .rowCount(s == null ? 0 : s.rows())
-                    .expiringCount(a == null ? 0 : a.expiring())
-                    .expiredCount(a == null ? 0 : a.expired())
-                    .activity(activity.getOrDefault(id, Map.of()))
-                    .animalMix(animalMix.getOrDefault(id, Map.of()))
+                    .centerId(centerId)
+                    .centerCode(center.getCenterCode())
+                    .centerName(center.displayName())
+                    .region(center.getRegion())
+                    .note(center.getNote())
+                    .quantity(totalQuantity)
+                    .storageQuantity(storageQuantity)
+                    .sharePercent(share(totalQuantity, nationwideQuantity))
+                    .capacity(storageCapacity == null ? 0 : storageCapacity.totalCapacity())
+                    .rowCount(totalStock == null ? 0 : totalStock.rows())
+                    .expiringCount(expiryAlert == null ? 0 : expiryAlert.expiring())
+                    .expiredCount(expiryAlert == null ? 0 : expiryAlert.expired())
+                    .activity(activityByCenter.getOrDefault(centerId, Map.of()))
+                    .animalMix(animalMixByCenter.getOrDefault(centerId, Map.of()))
                     .build());
         }
 
@@ -155,40 +160,42 @@ public class CenterDashboardService {
     public CenterMapPinDto.Response getMapPins() {
         List<Center> centers = centerRepository.findByActiveTrueOrderByCenterCodeAsc();
 
-        Map<Long, CenterStockRow> stock = index(
+        // 센터 카드(getNetworkOverview)와 같은 세 쿼리를 같은 기준으로 읽는다.
+        // 기준이 갈리면 같은 센터가 지도 팝업과 카드에서 다른 적재율로 보인다.
+        Map<Long, CenterStockRow> totalStockByCenter = index(
                 inventoryRepository.findStockByCenter(null), CenterStockRow::centerId);
-        // 적재율 분자는 보관 구역 재고. 대시보드 센터 카드와 같은 기준을 써야
-        // 같은 센터가 지도 팝업과 카드에서 다른 적재율로 보이지 않는다.
-        Map<Long, CenterStockRow> storageStock = index(
+        Map<Long, CenterStockRow> storageStockByCenter = index(
                 inventoryRepository.findStorageStockByCenter(), CenterStockRow::centerId);
-        Map<Long, CenterCapacityRow> capacity = index(
+        Map<Long, CenterCapacityRow> storageCapacityByCenter = index(
                 warehouseBinRepository.findStorageCapacityByCenter(), CenterCapacityRow::centerId);
 
         List<CenterMapPinDto> pins = new ArrayList<>();
-        int missing = 0;
+        int centersWithoutLocation = 0;
 
-        for (Center c : centers) {
-            if (!c.hasLocation()) {
-                missing++;
+        for (Center center : centers) {
+            if (!center.hasLocation()) {
+                centersWithoutLocation++;
                 continue;
             }
-            CenterStockRow s = stock.get(c.getCenterId());
-            CenterStockRow ss = storageStock.get(c.getCenterId());
-            CenterCapacityRow cap = capacity.get(c.getCenterId());
+            Long centerId = center.getCenterId();
 
-            int qty = s == null ? 0 : s.totalQuantity();
-            int storageQty = ss == null ? 0 : ss.totalQuantity();
-            int total = cap == null ? 0 : cap.totalCapacity();
+            CenterStockRow totalStock = totalStockByCenter.get(centerId);
+            CenterStockRow storageStock = storageStockByCenter.get(centerId);
+            CenterCapacityRow storageCapacity = storageCapacityByCenter.get(centerId);
+
+            int totalQuantity = totalStock == null ? 0 : totalStock.totalQuantity();
+            int storageQuantity = storageStock == null ? 0 : storageStock.totalQuantity();
+            int storageCapacityTotal = storageCapacity == null ? 0 : storageCapacity.totalCapacity();
 
             pins.add(new CenterMapPinDto(
-                    c.getCenterId(), c.getCenterCode(), c.displayName(),
-                    c.getRegion(), c.getNote(),
-                    c.getLatitude(), c.getLongitude(),
-                    qty, storageQty,
-                    total <= 0 ? 0 : (int) Math.round(storageQty * 100.0 / total)));
+                    centerId, center.getCenterCode(), center.displayName(),
+                    center.getRegion(), center.getNote(),
+                    center.getLatitude(), center.getLongitude(),
+                    totalQuantity, storageQuantity,
+                    usageRate(storageQuantity, storageCapacityTotal)));
         }
 
-        return new CenterMapPinDto.Response(pins, missing);
+        return new CenterMapPinDto.Response(pins, centersWithoutLocation);
     }
 
     /* ------------------------------------------------------------------
@@ -197,6 +204,25 @@ public class CenterDashboardService {
 
     private <T> Map<Long, T> index(List<T> rows, Function<T, Long> key) {
         return rows.stream().collect(Collectors.toMap(key, r -> r, (a, b) -> a));
+    }
+
+    /**
+     * 보관 구역 적재율 (%).
+     * <p>
+     * <b>분자와 분모가 같은 구역 집합을 세야 한다.</b> 이 계산을 호출부마다 인라인으로
+     * 적어 두면 한쪽이 전체 재고를 넘기는 실수를 막을 수 없다 — 실제로 그런 버그가
+     * 있었다. 대기 구역 · 운송 중 재고는 보관 공간을 차지하지 않으므로 분자에서
+     * 빠져야 하고, 그 차이는 화면에서 {@code waitingQuantity} 로 따로 보여준다.
+     *
+     * @param storageQuantity 보관(STORAGE) 구역에 있는 수량 — 분자
+     * @param storageCapacity 활성 보관 구역의 수용량 합계 — 분모
+     * @return 0 ~ (경우에 따라 100 초과 가능). 수용량이 0 이면 나눌 수 없으므로 0
+     */
+    private int usageRate(int storageQuantity, int storageCapacity) {
+        if (storageCapacity <= 0) {
+            return 0;
+        }
+        return (int) Math.round(storageQuantity * 100.0 / storageCapacity);
     }
 
     /**

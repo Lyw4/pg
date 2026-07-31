@@ -136,12 +136,6 @@ public class Center {
         this.note = note;
     }
 
-    /** 지도 좌표 변경 (부지 확정 후 입력) */
-    public void updateLocation(Double latitude, Double longitude) {
-        this.latitude = latitude;
-        this.longitude = longitude;
-    }
-
     /**
      * 지도에 표시할 수 있는 센터인지.
      * <p>
