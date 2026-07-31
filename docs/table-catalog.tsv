@@ -1,7 +1,7 @@
 테이블명	큰 타이틀	DTO명	테이블 설명	컬럼 수	작성일	작성자
 users	< 관리자 시스템(WMS), 사원 계정 · 권한 관리 >	EmployeeDto	사원 · 고객 통합 계정. 권한(Role)으로 관리자 시스템 접근을 통제한다. B2C 쇼핑몰과 공유하는 테이블	7	2026-07-31	이용우
 centers	< 전국 물류망, 물류센터 기준정보 >	CenterDto · CenterOverviewDto	전국 물류센터. 기존 Warehouse enum 을 테이블로 승격한 것	10	2026-07-31	이용우
-products	< 기준정보, 품목(배합사료) 관리 >	ProductDto · ProductForm	배합사료 품목 기준정보. B2C 쇼핑몰과 공유하는 테이블 (imageUrl · description 은 관리자 화면 미노출)	14	2026-07-31	이용우
+products	< 기준정보, 품목(배합사료) 관리 >	ProductDto · ProductForm	배합사료 품목 기준정보. B2C 쇼핑몰과 공유하는 테이블 (imageUrl · description 은 관리자 화면 미노출)	15	2026-07-31	이용우
 productLots	< 재고 관리, 로트 · 유통기한 관리 >	ExpiringLotDto · LotCandidateDto	품목의 제조 단위(로트). 유통기한 관리와 FEFO 출고의 기준	7	2026-07-31	이용우
 warehouseBins	< 창고 도면, 적재 구역 관리 >	WarehouseBinDto · WarehouseBinForm	센터 내부의 적재 구역. 2D 도면 좌표와 적재 한도를 가진다	15	2026-07-31	이용우
 inventories	< 재고 관리, 구역별 실물 재고 >	InventoryDto	로트 × 구역 단위 실물 재고. 재고 3계층의 최하위	6	2026-07-31	이용우
@@ -9,3 +9,6 @@ orders	< 주문 출고, 고객 주문 >	OrderSummaryDto	고객 주문. 출고 ·
 orderItems	< 주문 출고, 주문 상세 항목 >	OrderItemPreviewDto	주문 상세 항목. 주문 당시 단가를 스냅샷으로 보관한다	6	2026-07-31	이용우
 stockMovements	< 재고 이력, 입출고 · 이동 · 이관 추적 >	StockMovementDto	모든 재고 변동 이력. 입고 · 출고 · 이동 · 이관 · 폐기 · 조정	13	2026-07-31	이용우
 farmCustomers	< 기준정보, 농장 고객사 관리 >	FarmCustomerDto · CenterFarmSummaryDto	사료를 공급하는 농장 고객사. 담당 물류센터 · 축종 · 월 예상 사료량 · 정기 배송일을 관리한다. B2C 담당 팀원 모듈에서 옮겨왔다	19	2026-07-31	이용우
+
+manufacturers	< 기준정보, 제조사(공급업체) 관리 >	-	배합사료 제조사(공급업체). 품목의 공급처이며 불량 반품 · 공급업체 평가의 대상. B2C 담당 팀원 모듈에서 옮겨왔다	7	2026-07-31	이용우
+defectRecords	< 품질 관리, 불량 기록 · 처리 >	DefectRecordDto · DefectForm · DefectResolveForm	검수 · 보관 · 출고 · 이관 중 발견한 불량 기록. 격리 → 검사 → 처리 흐름을 남기고 제조사별 · 단계별로 집계한다. 재고 수량은 바꾸지 않는다(차감은 폐기 기능)	15	2026-07-31	이용우

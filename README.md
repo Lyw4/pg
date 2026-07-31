@@ -27,8 +27,8 @@
 | 시각화 | Chart.js (매출 · 재고 분포), **Leaflet 1.9.4 + OpenStreetMap** (전국 거점 지도) |
 | Test | JUnit 5, Mockito, AssertJ, `@DataJpaTest` |
 
-**규모** — 프로덕션 클래스 150개(도메인 20 · DTO 72 · 컨트롤러 22 · 서비스 15 · 리포지토리 9),
-Thymeleaf 템플릿 28개, 테스트 **278개 / 22개 클래스**, 테이블 10개 / 컬럼 109개.
+**규모** — 프로덕션 클래스 165개(도메인 26 · DTO 77 · 컨트롤러 23 · 서비스 16 · 리포지토리 11),
+Thymeleaf 템플릿 29개, 테스트 **315개 / 24개 클래스**, 테이블 12개 / 컬럼 132개.
 
 ---
 
@@ -284,6 +284,7 @@ Leaflet(BSD-2) + OSM 타일은 **키 없이 즉시 동작**하고 마커 · 팝�
 | `/admin/scan` | 바코드 스캔 입출고 · QR 라벨 출력 |
 | `/admin/farm-customers` | **농장 고객사 관리.** 센터별 담당 농장 · 월 예상 사료량 · 사육 규모, 축종 · 거래 상태 · 키워드 필터. 담당 센터가 그 축종을 취급하지 않는 농장을 경고 (거래 상태 변경은 ADMIN) |
 | `/admin/demand-plan` | **수요 계획.** 담당 농장의 월 예상 사료량과 센터의 출고 가능 재고를 **축종별로** 대조해 부족·빠듯·적정·과다를 판정한다. 정기 배송일별 필요 물량도 함께 본다 |
+| `/admin/defects` | **불량 관리.** 검수 · 보관 · 출고 · 이관 중 발견한 불량을 격리 → 검사 → 처리 흐름으로 기록한다. 유형별 · 발견 단계별 · 제조사별 집계와 입고 검사 적발률, 7일 넘게 방치된 건 경고 (등록 · 검사 착수는 STAFF, 처리 완료는 ADMIN) |
 | `/admin/products` · `/admin/bins` · `/admin/employees` | 기준 정보 · 사원 권한 관리 (사원 관리는 ADMIN) |
 
 ---
@@ -306,7 +307,7 @@ Leaflet(BSD-2) + OSM 타일은 **키 없이 즉시 동작**하고 마커 · 팝�
 
 ### 테스트
 
-**278개 / 22개 클래스.** 서비스 단위 테스트(Mockito)가 중심이고,
+**315개 / 24개 클래스.** 서비스 단위 테스트(Mockito)가 중심이고,
 JPQL 안에만 존재하는 조건은 `@DataJpaTest` 로 실제 H2 에 데이터를 넣어 검증합니다.
 
 - `AllocatableStockRepositoryTest` — 다섯 용도의 구역을 만들어 **보관 · 출고 대기만**
@@ -319,6 +320,10 @@ JPQL 안에만 존재하는 조건은 `@DataJpaTest` 로 실제 H2 에 데이터
 - `DemandPlanRepositoryTest` — 공급이 **출고 가능 구역만** 세는지(보관·출고 대기 150 vs
   전체 1,050), 수요가 **거래 중 농장만** 세는지(1,570 vs 3,950), 두 집계가 같은
   `(센터, 축종)` 축으로 나오는지
+- `DefectRecordRepositoryTest` — **제조사가 등록되지 않은 품목의 불량이 사라지지 않는지**
+  (`left join` 하나만 잘못 써도 에러 없이 결과가 조용히 줄어든다), 정렬이 미처리 우선 +
+  오래된 것부터인지, 제조사별 집계 합계가 전체 건수와 맞는지(`coalesce` 로 '미등록' 묶음),
+  관리번호 최댓값을 같은 월 접두어 안에서만 찾는지
 
 ### 시드 데이터 (`data.sql`)
 
@@ -347,6 +352,7 @@ python3 ../tools/compile_risk_check.py    # 컴파일 리스크 7종
 python3 ../tools/stub_check.py            # Mockito STRICT_STUBS
 python3 ../tools/verify_seed.py           # 시드 정합성 5규칙 + 표시 품질
 python3 ../tools/verify_farm_seed.py      # 농장 시드
+python3 ../tools/verify_defect_seed.py    # 불량 · 제조사 시드
 python3 ../tools/verify_test_expectations.py   # 테스트 기대값 ↔ 프로덕션 계산
 ```
 
@@ -355,7 +361,8 @@ JPQL `select new` 인자 수 ↔ record 컴포넌트 수 · 테스트 스텁 ↔
 템플릿 `${}` ↔ 컨트롤러 모델 키 · 템플릿 프로퍼티 ↔ DTO 게터 ·
 JS 가 읽는 JSON 필드 ↔ record 컴포넌트 · `node --check` · CSS 괄호 균형 ·
 **Lombok 빌더 체인 ↔ 실제 필드** · **enum 상수 참조(JPQL 문자열 안까지)** ·
-**JPQL `:param` ↔ `@Param`** · 타입 해석(import · 같은 패키지 · `java.lang`)
+**JPQL `:param` ↔ `@Param`** · 타입 해석(import · 같은 패키지 · `java.lang`) ·
+**주입 필드를 통한 리포지토리 메서드 호출 존재 여부**(Lombok 접근자까지 재현해 비교)
 
 검사기를 만들 때마다 **일부러 오류를 심어 검출되는지 확인한 뒤 원복**했습니다.
 검사기가 조용히 통과만 하고 있는 것과 실제로 잡는 것은 다릅니다.

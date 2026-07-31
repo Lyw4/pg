@@ -2,7 +2,7 @@
 
 배합사료 유통 관리 플랫폼 데이터 모델. B2C 쇼핑몰과 WMS(관리자 창고 시스템)가 하나의 DB를 공유한다.
 
-- 테이블 10개 / 컬럼 109개 / 관계 13건
+- 테이블 12개 / 컬럼 132개 / 관계 16건
 - 물리 명명 규칙: `PhysicalNamingStrategyStandardImpl` 적용 → **DB 컬럼도 camelCase 유지**
 - 예약어 회피를 위해 `users`, `orders`, `binLevel` 만 이름을 변경
 
@@ -25,6 +25,9 @@ erDiagram
     warehouseBins  ||--o{ inventories    : "재고를 보관한다"
     warehouseBins  |o--o{ stockMovements : "이력의 대상 구역"
     warehouseBins  |o--o{ stockMovements : "이동 이력의 출발 구역"
+    manufacturers  |o--o{ products       : "공급한다"
+    productLots    ||--o{ defectRecords  : "불량이 발생한다"
+    warehouseBins  |o--o{ defectRecords  : "불량이 발견된 구역"
 
     users {
         bigint    userId    PK "IDENTITY"
@@ -34,6 +37,16 @@ erDiagram
         varchar   phone        "nullable"
         varchar   role         "USER / STAFF / ADMIN"
         timestamp createdAt    "NOT NULL"
+    }
+
+    manufacturers {
+        bigint    manufacturerId PK "IDENTITY"
+        varchar   name           UK "코드 체계가 없어 이름이 유일한 기준"
+        varchar   businessNumber    "사업자등록번호 nullable"
+        varchar   phone             "반품 연락처 nullable"
+        varchar   contactName       "담당자 nullable"
+        boolean   active            "false = 거래 중지"
+        timestamp createdAt         "NOT NULL"
     }
 
     centers {
@@ -75,6 +88,7 @@ erDiagram
         bigint    productId     PK "IDENTITY"
         varchar   productCode   UK "업무 식별자"
         varchar   name             "NOT NULL"
+        bigint    manufacturerId FK "nullable 제조사 미등록 허용"
         varchar   animalType       "CATTLE / PIG / POULTRY"
         varchar   productType      "FEED / SUPPLEMENT"
         int       weightKg         "포장 무게"
@@ -163,6 +177,24 @@ erDiagram
         bigint    userId          "FK 아님 처리자 스냅샷"
         varchar   userName        "FK 아님 이력 보존"
         timestamp createdAt       "NOT NULL"
+    }
+
+    defectRecords {
+        bigint    defectId       PK "IDENTITY"
+        varchar   defectNo       UK "DF-yyMM-NNN 월별 순번"
+        bigint    lotId          FK "NOT NULL 품목이 아니라 로트 단위"
+        bigint    binId          FK "nullable 이관 중은 구역 특정 불가"
+        int       quantity          "포대 로트 잔여와 비교하지 않는다"
+        varchar   defectType        "DAMAGE / CONTAMINATION / WET / SPECIFICATION / FOREIGN_MATTER / EXPIRED / OTHER"
+        varchar   stage             "RECEIVING / STORAGE / SHIPPING / TRANSFER"
+        varchar   status            "QUARANTINED / INSPECTING / RESOLVED 역행 불가"
+        varchar   resolution        "nullable REWORK / CONCESSION / SUPPLIER_RETURN / DISPOSAL"
+        varchar   memo              "nullable 발견 상황"
+        varchar   resolutionMemo    "nullable 처리 내용"
+        varchar   reportedByName    "FK 아님 발견자 스냅샷"
+        varchar   resolvedByName    "FK 아님 처리자 스냅샷"
+        timestamp createdAt         "NOT NULL 방치 판정 기준"
+        timestamp resolvedAt        "nullable"
     }
 ```
 
@@ -281,3 +313,46 @@ flowchart TD
 
 `/admin/**` 은 `hasAnyRole("STAFF","ADMIN")`, 책임자 전용 기능은 추가로 `@PreAuthorize("hasRole('ADMIN')")` 와
 Thymeleaf `sec:authorize` 로 이중 차단한다.
+
+
+## 불량이 발견되면 어떻게 되는가
+
+검수 전 재고가 출고되지 않도록 막는 것은 구역 용도(`BinPurpose`)가 한다. 그런데 **막은 다음**에
+무엇을 하는지가 없었다. 어느 제조사에서 반복되는지, 어느 단계에서 잡히는지, 격리한 재고를
+며칠째 방치했는지를 알 수 없었다. `defectRecords` 가 그 자리를 채운다.
+
+```mermaid
+flowchart TD
+    D1["불량 발견<br/>(검수 · 보관 · 출고 · 이관)"] --> D2["defectRecords 등록<br/>status = QUARANTINED"]
+    D2 --> D3["검사 착수<br/>status = INSPECTING"]
+    D2 --> D4
+    D3 --> D4{"처리 방법"}
+
+    D4 -->|"REWORK<br/>CONCESSION"| D5["구역 간 이동으로<br/>보관 구역 복귀"]
+    D4 -->|"SUPPLIER_RETURN<br/>DISPOSAL"| D6["재고 폐기 화면에서<br/>수량 차감"]
+
+    D5 --> D7["inventories · stockMovements<br/>변경"]
+    D6 --> D7
+
+    style D2 fill:#f8d7da,stroke:#842029
+    style D3 fill:#fff3cd,stroke:#664d03
+    style D4 fill:#cfe2ff,stroke:#084298
+    style D7 fill:#d1e7dd,stroke:#0f5132
+```
+
+**이 표가 재고 수량을 바꾸지 않는다.** 반품이나 폐기로 처리해도 `inventories` 는 그대로다.
+재고를 줄이는 일은 폐기 기능 하나만 한다. 두 곳에서 줄이면 언젠가 한쪽만 고치게 되고,
+그때 재고는 줄었는데 이력이 없거나 이력은 있는데 재고가 그대로인 상태가 생겨
+어느 쪽이 맞는지 알 수 없어진다. 대신 처리 결과에 **다음에 할 일**(`followUp`)을 붙여
+담당자를 폐기 화면으로 보낸다.
+
+몇 가지 판단을 적어 둔다.
+
+| 결정 | 이유 |
+|---|---|
+| `DefectType` 을 `DisposalReason` 과 합치지 않았다 | 4개 값이 겹치지만 묻는 것이 다르다. 불량 유형은 "무엇이 잘못됐나", 폐기 사유는 "왜 버리나". 불량이 반드시 폐기로 가지 않고(특채 · 재작업), 폐기 사유에는 실사 손실 · 샘플처럼 불량과 무관한 값이 있다. 합치면 "재고 실사 손실" 이라는 불량 유형이 생긴다. 대신 `toDisposalReason()` 매핑을 둔다 |
+| 상태를 되돌릴 수 없다 | 재발을 한 건에 덮어쓰면 "이 로트에서 몇 번 나왔는가" 를 셀 수 없어 공급업체 평가 근거가 뭉개진다. 다시 나왔다면 새 건으로 등록해야 한다 |
+| 품목이 아니라 **로트**를 참조한다 | 같은 품목이어도 제조 단위가 다르면 별개 문제다. 로트를 특정하지 않으면 "이 제조 단위에서 반복되는가" 를 알 수 없다 |
+| `quantity` 가 로트 잔여를 넘어도 막지 않는다 | 폐기 후에도 기록은 남아야 한다. 현재 재고와 비교하는 규칙을 두면 어제 등록한 정상적인 기록이 오늘 오류가 된다 |
+| `Product.manufacturer` 가 nullable 이다 | 제조사를 모르는 상태로 등록하는 실무가 있다(샘플 · 자사생산 · 등록 누락). 필수로 두면 기존 품목을 등록할 방법이 없다. 대신 제조사별 집계에서 `'미등록'` 으로 묶어 **등록이 필요하다는 사실이 화면에 드러나게** 한다 |
+| `DefectStage` 에 `TRANSFER` 를 넣고 생산 · 고객 반품은 넣지 않았다 | 우리는 유통만 한다. 반품 절차는 의도적으로 만들지 않았으므로 없는 기능의 선택지를 두면 안 된다. 대신 센터 간 이관(`IN_TRANSIT`) 구간의 운송 중 파손이 실제로 있다. 결과적으로 4단계가 `BinPurpose` 와 1:1 로 대응한다 |

@@ -12,3 +12,7 @@ warehouseBins	inventories	binId	1 : N	필수	@ManyToOne(LAZY)	구역에 여러 �
 warehouseBins	stockMovements	binId	1 : N	선택(nullable)	@ManyToOne(LAZY)	이력의 대상(도착) 구역
 warehouseBins	stockMovements	fromBinId	1 : N	선택(nullable)	@ManyToOne(LAZY)	구역 간 이동(MOVE)의 출발 구역
 centers	farmCustomers	centerId	1 : N	필수	@ManyToOne(LAZY, optional=false)	센터 1곳이 농장 여러 곳을 담당 / 담당 센터가 없으면 배송 계획을 세울 수 없다
+
+manufacturers	products	manufacturerId	1 : N	선택(nullable)	@ManyToOne(LAZY)	제조사 1곳이 품목 여러 개 / 제조사를 모르는 상태로 등록하는 품목이 있어 nullable (샘플 · 자사생산 · 등록 누락)
+productLots	defectRecords	lotId	1 : N	필수	@ManyToOne(LAZY, optional=false)	불량은 품목이 아니라 로트에 귀속 / 같은 품목이어도 제조 단위가 다르면 별개 문제
+warehouseBins	defectRecords	binId	1 : N	선택(nullable)	@ManyToOne(LAZY)	불량을 발견한 구역 / 센터 간 이관 중 파손은 어느 구역이라 말할 수 없어 nullable

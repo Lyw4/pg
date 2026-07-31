@@ -19,17 +19,18 @@ centers	10	등록일시	createdAt	TIMESTAMP	NN	자동 생성(PrePersist)		create
 products	1	품목 ID	productId	BIGINT	PK	IDENTITY		productId
 products	2	품목 코드	productCode	VARCHAR(30)	NN, UK		업무 식별자 (예: FD-CT-001)	productCode
 products	3	품목명	name	VARCHAR(200)	NN			name
-products	4	축종	animalType	VARCHAR(20)	NN		enum AnimalType (CATTLE / PIG / POULTRY)	animalType
-products	5	품목 구분	productType	VARCHAR(20)	NN	FEED	enum ProductType (FEED / SUPPLEMENT)	productType
-products	6	포장 무게(kg)	weightKg	INT	NN			weightKg
-products	7	판매 단가	price	BIGINT	NN			price
-products	8	총 재고	totalStock	INT	NN	0	비정규화 캐시 = SUM(productLots.lotQuantity) / 전국 합계 (센터별로 나누지 않음)	totalStock
-products	9	안전재고	safetyStock	INT	NN		대시보드 안전재고 알림 기준	safetyStock
-products	10	유통기한 일수	shelfLifeDays	INT	NN		제조일 + 이 값 = 유통기한 자동 계산	shelfLifeDays
-products	11	판매 여부	active	BOOLEAN	NN	TRUE	soft delete (물리 삭제하지 않음)	active
-products	12	버전	version	BIGINT	NN	0	Version 낙관적 락	version
-products	13	이미지 URL	imageUrl	VARCHAR(500)			B2C 쇼핑몰 전용 / 관리자 화면 미노출	imageUrl
-products	14	상세 설명	description	VARCHAR(2000)			B2C 쇼핑몰 전용 / 관리자 화면 미노출	description
+products	4	제조사	manufacturerId	BIGINT	FK		공급업체 / NULL 허용 — 제조사를 모르는 상태로 등록하는 품목이 있다	manufacturer
+products	5	축종	animalType	VARCHAR(20)	NN		enum AnimalType (CATTLE / PIG / POULTRY)	animalType
+products	6	품목 구분	productType	VARCHAR(20)	NN	FEED	enum ProductType (FEED / SUPPLEMENT)	productType
+products	7	포장 무게(kg)	weightKg	INT	NN			weightKg
+products	8	판매 단가	price	BIGINT	NN			price
+products	9	총 재고	totalStock	INT	NN	0	비정규화 캐시 = SUM(productLots.lotQuantity) / 전국 합계 (센터별로 나누지 않음)	totalStock
+products	10	안전재고	safetyStock	INT	NN		대시보드 안전재고 알림 기준	safetyStock
+products	11	유통기한 일수	shelfLifeDays	INT	NN		제조일 + 이 값 = 유통기한 자동 계산	shelfLifeDays
+products	12	판매 여부	active	BOOLEAN	NN	TRUE	soft delete (물리 삭제하지 않음)	active
+products	13	버전	version	BIGINT	NN	0	Version 낙관적 락	version
+products	14	이미지 URL	imageUrl	VARCHAR(500)			B2C 쇼핑몰 전용 / 관리자 화면 미노출	imageUrl
+products	15	상세 설명	description	VARCHAR(2000)			B2C 쇼핑몰 전용 / 관리자 화면 미노출	description
 productLots	1	로트 ID	lotId	BIGINT	PK	IDENTITY		lotId
 productLots	2	품목 ID	productId	BIGINT	NN, FK		FK products.productId / ManyToOne(LAZY)	product
 productLots	3	로트 번호	lotNo	VARCHAR(50)	NN, UK		복합 UK ukProductLotNo (productId, lotNo)	lotNo
@@ -108,3 +109,26 @@ farmCustomers	16	센터까지 거리	distanceKm	DOUBLE	NN		km / centers 좌표 �
 farmCustomers	17	거래 상태	status	VARCHAR(20)	NN		enum CustomerStatus (ACTIVE 거래 중 / PAUSED 거래 보류)	status
 farmCustomers	18	운영 메모	notes	VARCHAR(200)			보류 사유 · 공급 주기 특이사항	notes
 farmCustomers	19	등록일시	createdAt	TIMESTAMP	NN	자동 생성(PrePersist)		createdAt
+
+manufacturers	1	제조사 ID	manufacturerId	BIGINT	PK	IDENTITY		manufacturerId
+manufacturers	2	제조사명	name	VARCHAR(100)	NN, UK		코드 체계가 없어 이름이 유일한 식별 · 정렬 기준	name
+manufacturers	3	사업자등록번호	businessNumber	VARCHAR(20)				businessNumber
+manufacturers	4	연락처	phone	VARCHAR(30)			반품 연락 시 사용	phone
+manufacturers	5	담당자명	contactName	VARCHAR(30)				contactName
+manufacturers	6	거래 여부	active	BOOLEAN	NN	TRUE	FALSE 면 품목 등록 선택 목록에서 제외	active
+manufacturers	7	등록일시	createdAt	TIMESTAMP	NN	@PrePersist		createdAt
+defectRecords	1	불량 ID	defectId	BIGINT	PK	IDENTITY		defectId
+defectRecords	2	불량 관리번호	defectNo	VARCHAR(30)	NN, UK		DF-yyMM-NNN / 월별 순번 리셋 · 실물에 붙여 격리 재고와 기록을 잇는다	defectNo
+defectRecords	3	로트 ID	lotId	BIGINT	FK, NN		품목이 아니라 로트 단위 — 같은 품목이어도 제조 단위가 다르면 별개 문제	lot
+defectRecords	4	발견 구역 ID	binId	BIGINT	FK		센터 간 이관 중 파손은 구역을 특정할 수 없어 NULL 허용	bin
+defectRecords	5	불량 수량	quantity	INT	NN		포대 / 로트 잔여와 비교 검증하지 않는다 — 폐기 후에도 기록은 남아야 한다	quantity
+defectRecords	6	불량 유형	defectType	VARCHAR(30)	NN		enum DefectType (7종) / 폐기 사유와 별개 개념	defectType
+defectRecords	7	발견 단계	stage	VARCHAR(30)	NN		enum DefectStage (4종) / 구역 용도로 추정 가능	stage
+defectRecords	8	처리 상태	status	VARCHAR(30)	NN	QUARANTINED	enum DefectStatus / 격리 → 검사 중 → 처리 완료 (역행 불가)	status
+defectRecords	9	처리 방법	resolution	VARCHAR(30)			enum DefectResolution / 처리 완료 전에는 NULL	resolution
+defectRecords	10	발견 상황	memo	VARCHAR(300)			발견 당시 상황 · 검사 소견	memo
+defectRecords	11	처리 내용	resolutionMemo	VARCHAR(300)			반품 접수번호 · 재작업 내용 등	resolutionMemo
+defectRecords	12	발견자명	reportedByName	VARCHAR(50)			FK 가 아닌 스냅샷 — 담당자가 퇴사해도 남아야 한다	reportedByName
+defectRecords	13	처리자명	resolvedByName	VARCHAR(50)			FK 가 아닌 스냅샷	resolvedByName
+defectRecords	14	등록일시	createdAt	TIMESTAMP	NN	@PrePersist	방치 기간 판정 기준	createdAt
+defectRecords	15	처리일시	resolvedAt	TIMESTAMP			처리 완료 전에는 NULL	resolvedAt

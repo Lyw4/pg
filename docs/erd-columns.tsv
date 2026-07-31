@@ -19,6 +19,7 @@ centers	createdAt	TIMESTAMP			Y		@PrePersist
 products	productId	BIGINT	PK		Y		IDENTITY	
 products	productCode	VARCHAR(30)			Y	UQ		업무 식별자
 products	name	VARCHAR(200)			Y			
+products	manufacturerId	BIGINT		FK				제조사 / 모르는 상태로 등록하는 품목이 있어 NULL 허용 (샘플 · 자사생산 · 등록 누락)
 products	animalType	VARCHAR(20)			Y			enum AnimalType (CATTLE/PIG/POULTRY)
 products	productType	VARCHAR(20)			Y		FEED	enum ProductType (FEED/SUPPLEMENT)
 products	weightKg	INT			Y			포장 무게
@@ -108,3 +109,26 @@ farmCustomers	distanceKm	DOUBLE			Y			담당 센터까지 거리 / centers 좌�
 farmCustomers	status	VARCHAR(20)			Y			enum CustomerStatus (ACTIVE/PAUSED)
 farmCustomers	notes	VARCHAR(200)						운영 메모 (보류 사유 · 공급 주기 특이사항)
 farmCustomers	createdAt	TIMESTAMP			Y		@PrePersist	
+
+manufacturers	manufacturerId	BIGINT	PK		Y		IDENTITY	
+manufacturers	name	VARCHAR(100)			Y	UQ		제조사명 / 코드 체계가 없어 이름이 유일한 식별 · 정렬 기준
+manufacturers	businessNumber	VARCHAR(20)						사업자등록번호
+manufacturers	phone	VARCHAR(30)						반품 연락처
+manufacturers	contactName	VARCHAR(30)						담당자
+manufacturers	active	BOOLEAN			Y		TRUE	거래 중 여부 / FALSE 면 품목 등록 선택 목록에서 제외
+manufacturers	createdAt	TIMESTAMP			Y		@PrePersist	
+defectRecords	defectId	BIGINT	PK		Y		IDENTITY	
+defectRecords	defectNo	VARCHAR(30)			Y	UQ		업무 식별자 DF-yyMM-NNN / 월별 순번 리셋 · 실물에 붙여 격리 재고와 기록을 잇는다
+defectRecords	lotId	BIGINT		FK	Y			불량이 발생한 로트 / 품목이 아니라 로트 단위
+defectRecords	binId	BIGINT		FK				발견 구역 / 센터 간 이관 중 파손은 구역을 특정할 수 없어 NULL
+defectRecords	quantity	INT			Y			불량 수량(포대) / 로트 잔여와 비교 검증하지 않는다(폐기 후에도 기록은 남아야 함)
+defectRecords	defectType	VARCHAR(30)			Y			DefectType / 무엇이 잘못됐나
+defectRecords	stage	VARCHAR(30)			Y			DefectStage / 어느 단계에서 발견했나 · 구역 용도로 추정 가능
+defectRecords	status	VARCHAR(30)			Y		QUARANTINED	DefectStatus / 격리 → 검사 중 → 처리 완료 (역행 불가)
+defectRecords	resolution	VARCHAR(30)						DefectResolution / 처리 완료 전에는 NULL
+defectRecords	memo	VARCHAR(300)						발견 당시 상황 · 검사 소견
+defectRecords	resolutionMemo	VARCHAR(300)						처리 결과 (반품 접수번호 · 재작업 내용)
+defectRecords	reportedByName	VARCHAR(50)						발견자 이름 스냅샷 / FK 가 아니다(담당자가 퇴사해도 남아야 함)
+defectRecords	resolvedByName	VARCHAR(50)						처리자 이름 스냅샷
+defectRecords	createdAt	TIMESTAMP			Y		@PrePersist	발견 등록 일시 / 방치 기간 판정 기준
+defectRecords	resolvedAt	TIMESTAMP						처리 완료 일시 / 완료 전에는 NULL
