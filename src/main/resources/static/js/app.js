@@ -511,6 +511,17 @@ document.addEventListener("DOMContentLoaded", () => {
             ? requestedDeliveryView
             : "all";
         selectDeliveryView(initialDeliveryView);
+
+        const focusOrder = new URLSearchParams(window.location.search)
+            .get("focusOrder");
+        if (focusOrder) {
+            window.setTimeout(() => {
+                const row = document.getElementById(
+                    `distribution-order-${focusOrder}`
+                );
+                row?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 120);
+        }
     }
 
     const demoOrderLot = document.getElementById("demoOrderLot");
@@ -959,6 +970,89 @@ document.addEventListener("DOMContentLoaded", () => {
         let pageSize = options.pageSize ?? 8;
         let keyword = "";
         let category = "all";
+        let sortKey = "";
+        let sortDirection = "";
+
+        const originalRowIndex = new Map(
+            rows.map((row, index) => [row, index])
+        );
+        const sortButtons = options.sortButtonSelector
+            ? all(options.sortButtonSelector, table)
+            : [];
+
+        function updateSortUi() {
+            sortButtons.forEach(button => {
+                const buttonKey = button.dataset.sortKey ?? "";
+                const isActive =
+                    buttonKey === sortKey && Boolean(sortDirection);
+                const isAscending =
+                    isActive && sortDirection === "asc";
+                const ascendingLabel =
+                    button.dataset.sortAscLabel ?? "오름차순";
+                const descendingLabel =
+                    button.dataset.sortDescLabel ?? "내림차순";
+                const currentLabel = isAscending
+                    ? ascendingLabel
+                    : isActive
+                        ? descendingLabel
+                        : "기본 순서";
+                const nextLabel = isAscending
+                    ? descendingLabel
+                    : ascendingLabel;
+                const sortLabel =
+                    button.dataset.sortLabel ?? "목록";
+                const indicator = button.querySelector(
+                    "[data-sort-indicator]"
+                );
+
+                button.dataset.sortDirection = isActive
+                    ? sortDirection
+                    : "none";
+                button.classList.toggle("active", isActive);
+                button.setAttribute(
+                    "aria-label",
+                    `${sortLabel} ${nextLabel}으로 정렬`
+                );
+                button.title = isActive
+                    ? `${currentLabel} · 누르면 ${nextLabel}으로 변경`
+                    : `${sortLabel} ${nextLabel}으로 정렬`;
+
+                if (indicator) {
+                    indicator.textContent = isAscending
+                        ? "↑"
+                        : isActive
+                            ? "↓"
+                            : "↕";
+                }
+
+                button.closest("th")?.setAttribute(
+                    "aria-sort",
+                    isAscending
+                        ? "ascending"
+                        : isActive
+                            ? "descending"
+                            : "none"
+                );
+            });
+        }
+
+        sortButtons.forEach(button => {
+            button.addEventListener("click", () => {
+                const selectedKey =
+                    button.dataset.sortKey ?? "";
+                sortDirection =
+                    sortKey === selectedKey
+                    && sortDirection === "asc"
+                        ? "desc"
+                        : "asc";
+                sortKey = selectedKey;
+                page = 1;
+                updateSortUi();
+                render();
+            });
+        });
+
+        updateSortUi();
 
         const categories = [
             ...new Set(
@@ -1112,7 +1206,7 @@ document.addEventListener("DOMContentLoaded", () => {
         wrap.after(footer);
 
         function matchingRows() {
-            return rows.filter(row => {
+            const filtered = rows.filter(row => {
                 const text = row.textContent.trim().toLowerCase();
                 const matchesKeyword = text.includes(keyword);
                 const matchesCategory =
@@ -1125,6 +1219,23 @@ document.addEventListener("DOMContentLoaded", () => {
                     && matchesCategory
                     && matchesExternal;
             });
+
+            if (sortKey && sortDirection && options.sorter) {
+                filtered.sort((firstRow, secondRow) => {
+                    const compared = options.sorter(
+                        firstRow,
+                        secondRow,
+                        sortKey,
+                        sortDirection
+                    );
+
+                    return compared
+                        || originalRowIndex.get(firstRow)
+                        - originalRowIndex.get(secondRow);
+                });
+            }
+
+            return filtered;
         }
 
         function pageButton(label, targetPage, disabled, active = false) {
@@ -1155,6 +1266,17 @@ document.addEventListener("DOMContentLoaded", () => {
             const first = (page - 1) * pageSize;
             const last = Math.min(first + pageSize, filtered.length);
             const visible = new Set(filtered.slice(first, last));
+
+            if (sortKey && sortDirection && options.sorter) {
+                const filteredRows = new Set(filtered);
+                const remainingRows = rows.filter(
+                    row => !filteredRows.has(row)
+                );
+
+                [...filtered, ...remainingRows].forEach(row => {
+                    tbody.append(row);
+                });
+            }
 
             rows.forEach(row => {
                 row.hidden = !visible.has(row);
@@ -1243,7 +1365,78 @@ document.addEventListener("DOMContentLoaded", () => {
                     ? "출고 번호, 상품, LOT 또는 취소 사유 검색"
                     : isRegisteredProduct
                         ? "상품명 또는 제조사 검색"
-                        : undefined
+                        : undefined,
+                sortButtonSelector: isRegisteredProduct
+                    ? "[data-sort-key]"
+                    : undefined,
+                sorter: isRegisteredProduct
+                    ? (firstRow, secondRow, key, direction) => {
+                        const directionFactor =
+                            direction === "asc" ? 1 : -1;
+
+                        if (key === "category") {
+                            return (
+                                firstRow.dataset.category ?? ""
+                            ).localeCompare(
+                                secondRow.dataset.category ?? "",
+                                "ko"
+                            ) * directionFactor;
+                        }
+
+                        if (key === "manufacturer") {
+                            return (
+                                firstRow.dataset.manufacturer ?? ""
+                            ).localeCompare(
+                                secondRow.dataset.manufacturer ?? "",
+                                "ko"
+                            ) * directionFactor;
+                        }
+
+                        if (key === "weight") {
+                            return (
+                                Number(firstRow.dataset.weight)
+                                - Number(secondRow.dataset.weight)
+                            ) * directionFactor;
+                        }
+
+                        if (key === "lot") {
+                            const lotDifference =
+                                Number(firstRow.dataset.lotCount)
+                                - Number(secondRow.dataset.lotCount);
+
+                            if (lotDifference !== 0) {
+                                return lotDifference * directionFactor;
+                            }
+
+                            return (
+                                Number(firstRow.dataset.lotQuantity)
+                                - Number(secondRow.dataset.lotQuantity)
+                            ) * directionFactor;
+                        }
+
+                        if (key === "expiration") {
+                            const firstDate =
+                                firstRow.dataset.expiration ?? "";
+                            const secondDate =
+                                secondRow.dataset.expiration ?? "";
+
+                            if (!firstDate && !secondDate) {
+                                return 0;
+                            }
+                            if (!firstDate) {
+                                return 1;
+                            }
+                            if (!secondDate) {
+                                return -1;
+                            }
+
+                            return firstDate.localeCompare(secondDate)
+                                * directionFactor;
+                        }
+
+                        return 0;
+                    }
+                    : undefined
             });
 
             if (isActiveLot) {
@@ -1522,10 +1715,30 @@ document.addEventListener("DOMContentLoaded", () => {
      */
     const summaryCards = all("[data-summary-view]");
     const summaryPanels = all("[data-summary-panel]");
+    const inventoryStats = document.querySelector(".inventory-stats");
     const summaryDetailPanel = document.querySelector(
         ".summary-detail-panel"
     );
     const expiryPanel = document.getElementById("expiryManagement");
+    const inventoryPageTitle = document.getElementById("inventoryPageTitle");
+    const inventoryPageDescription = document.getElementById(
+        "inventoryPageDescription"
+    );
+    const inventoryReceiveButton = document.getElementById(
+        "inventoryReceiveButton"
+    );
+    const inventoryAlertCenter = document.querySelector(
+        ".inventory-alert-center"
+    );
+    const inventoryAlertTitle = document.getElementById(
+        "inventoryAlertTitle"
+    );
+    const inventoryAlertDescription = document.getElementById(
+        "inventoryAlertDescription"
+    );
+    const unlocatedAlert = document.querySelector(
+        ".inventory-alert-card.neutral"
+    );
 
     function selectSummaryView(view, scroll = true) {
         summaryCards.forEach(card => {
@@ -1536,6 +1749,53 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         const isExpiry = view === "expiry";
+        const isShipments = view === "shipments";
+
+        if (inventoryStats) {
+            inventoryStats.hidden = isShipments;
+        }
+
+        if (inventoryPageTitle) {
+            inventoryPageTitle.textContent = isShipments
+                ? "출고 대기 주문"
+                : "재고 관리";
+        }
+
+        if (inventoryPageDescription) {
+            inventoryPageDescription.textContent = isShipments
+                ? "출고 대기 주문을 피킹·검수·출고 완료 순서로 처리합니다."
+                : "LOT 단위로 입고하고 유통기한이 빠른 재고부터 출고합니다.";
+        }
+
+        if (inventoryReceiveButton) {
+            inventoryReceiveButton.hidden = isShipments;
+        }
+
+        if (inventoryAlertCenter) {
+            inventoryAlertCenter.classList.toggle(
+                "shipment-context-alert",
+                isShipments
+            );
+        }
+
+        if (inventoryAlertTitle) {
+            inventoryAlertTitle.textContent = isShipments
+                ? "출고 참고 알림"
+                : "재고 알림";
+        }
+
+        if (inventoryAlertDescription) {
+            inventoryAlertDescription.textContent = isShipments
+                ? "재고 부족·유통기한 임박 상품을 출고 전에 확인하세요."
+                : "확인이 필요한 항목을 자동 집계합니다.";
+        }
+
+        if (unlocatedAlert) {
+            unlocatedAlert.classList.toggle(
+                "shipment-alert-hide",
+                isShipments
+            );
+        }
 
         if (summaryDetailPanel) {
             summaryDetailPanel.hidden = isExpiry;
@@ -1584,17 +1844,43 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    if (summaryCards.length > 0) {
+    if (summaryCards.length > 0 || summaryPanels.length > 0) {
         const requestedView =
             new URLSearchParams(window.location.search).get("view");
-        const initialView = summaryCards.some(card =>
-            card.dataset.summaryView === requestedView
-        )
+        const availableViews = summaryCards.length > 0
+            ? summaryCards.map(card => card.dataset.summaryView)
+            : summaryPanels.map(panel => panel.dataset.summaryPanel);
+        const initialView = availableViews.includes(requestedView)
             ? requestedView
             : "registered";
 
         selectSummaryView(initialView, false);
     }
+
+    const defectRows = all("[data-defect-row]");
+    const defectKeyword = document.querySelector("[data-defect-keyword]");
+    const defectStatus = document.querySelector("[data-defect-status]");
+    const defectType = document.querySelector("[data-defect-type]");
+    const defectVisible = document.querySelector("[data-defect-visible]");
+
+    function filterDefects() {
+        const keyword = (defectKeyword?.value || "").trim().toLowerCase();
+        const status = defectStatus?.value || "ALL";
+        const type = defectType?.value || "ALL";
+        let visible = 0;
+        defectRows.forEach(row => {
+            const matches = (!keyword || (row.dataset.search || "").toLowerCase().includes(keyword))
+                && (status === "ALL" || row.dataset.status === status)
+                && (type === "ALL" || row.dataset.type === type);
+            row.hidden = !matches;
+            if (matches) visible += 1;
+        });
+        if (defectVisible) defectVisible.textContent = String(visible);
+    }
+
+    defectKeyword?.addEventListener("input", filterDefects);
+    defectStatus?.addEventListener("change", filterDefects);
+    defectType?.addEventListener("change", filterDefects);
 });
 
 function openEntityModal(modalId, fieldName, button) {

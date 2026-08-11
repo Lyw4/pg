@@ -14,6 +14,9 @@ public interface FarmCustomerRepository
     Optional<FarmCustomer> findByFarmCode(String farmCode);
 
     @EntityGraph(attributePaths = "assignedWarehouse")
+    Optional<FarmCustomer> findByMemberId(Long memberId);
+
+    @EntityGraph(attributePaths = "assignedWarehouse")
     List<FarmCustomer>
             findAllByOrderByAssignedWarehouseDisplayOrderAscFarmNameAsc();
 }

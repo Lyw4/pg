@@ -4,23 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title th:text="${siteName}">FEED FLOW 판매자센터</title>
+    <link rel="icon" type="image/png" th:href="@{/images/feedflow-logo.png}" href="/images/feedflow-logo.png">
     <link rel="stylesheet" th:href="@{/css/feedflow.css}" href="/css/feedflow.css">
 </head>
 <body class="admin-body">
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <main class="admin-page">
+    <aside class="admin-sidebar">
+        <a class="admin-brand" href="/admin/products"><span class="admin-logo"><img th:src="@{/images/feedflow-logo.png}" src="/images/feedflow-logo.png" alt="FEED FLOW"></span><strong>판매자센터</strong></a>
+        <nav>
+            <a class="active" href="#inventory">새 상품 등록</a>
+            <a href="#catalog">상품 관리</a>
+            <a th:href="@{/admin/dashboard}" href="/admin/dashboard">통합 대시보드</a>
+            <a th:href="@{/inventory}" href="/inventory">재고 관리</a>
+            <a th:href="@{/distribution}" href="/distribution">유통 관리</a>
+            <a href="/">구매 사이트</a>
+        </nav>
+        <p>상품·LOT 재고는 H2 DB에 저장되며 구매 화면에 즉시 반영됩니다.</p>
+    </aside>
+
+    <div class="admin-content">
     <header class="admin-hero">
-        <div><p>FEED FLOW · SELLER CENTER</p><h1>상품·LOT 관리</h1><span>등록, 수정, 판매 중지와 LOT 재고를 한 화면에서 관리합니다.</span></div>
+        <div><p>FEED FLOW · SELLER CENTER</p><h1>상품 운영 대시보드</h1><span>등록, 수정, 판매 중지와 LOT 재고를 한 화면에서 관리합니다.</span></div>
         <a href="/">구매 사이트로 돌아가기 →</a>
     </header>
 
-    <section class="admin-auth">
-        <label>관리자 아이디<input id="admin-username" autocomplete="username"></label>
-        <label>관리자 비밀번호<input id="admin-password" type="password" autocomplete="current-password"></label>
-        <p id="admin-message">Spring Boot 실행 환경변수와 같은 관리자 계정을 입력하세요.</p>
+    <section class="admin-auth admin-session" aria-label="관리자 로그인 상태">
+        <div>
+            <strong>관리자 인증 완료</strong>
+            <p id="admin-message">판매 상품과 LOT 정보가 재고·유통 관리에 즉시 반영됩니다.</p>
+        </div>
+        <form method="post" th:action="@{/admin/logout}">
+            <button type="submit">로그아웃</button>
+        </form>
     </section>
 
-    <section class="admin-editor">
+    <section id="dashboard" class="admin-dashboard">
+        <article><span>전체 판매 상품</span><strong id="metric-total">0</strong><small>개</small></article>
+        <article><span>품절 상품</span><strong id="metric-soldout">0</strong><small>개</small></article>
+        <article><span>유통기한 30일 이내</span><strong id="metric-expiry">0</strong><small>LOT</small></article>
+        <article><span>재고 10포 이하</span><strong id="metric-low">0</strong><small>개</small></article>
+        <article><span>오늘 주문</span><strong>실시간</strong><small>주문 API</small></article>
+    </section>
+
+    <section id="inventory" class="admin-editor">
         <div class="admin-title">
             <div><small id="editor-eyebrow">NEW PRODUCT</small><h2 id="editor-title">새 상품 등록</h2></div>
             <button id="cancel-edit" type="button" hidden>수정 취소</button>
@@ -31,9 +58,9 @@
                 <label>제품명<input id="productName" required></label>
                 <label>축종
                     <select id="animalType" required>
-                        <option value="CATTLE">한우</option><option value="DAIRY_CATTLE">젖소</option>
-                        <option value="PIG">돼지</option><option value="CHICKEN">닭</option>
-                        <option value="DUCK">오리</option><option value="PET">반려동물</option>
+                        <option value="CATTLE">소 · 한우</option><option value="DAIRY_CATTLE">소 · 젖소</option>
+                        <option value="PIG">돼지</option><option value="CHICKEN">닭·오리 · 닭</option>
+                        <option value="DUCK">닭·오리 · 오리</option>
                         <option value="SUPPLEMENT">영양제</option>
                     </select>
                 </label>
@@ -60,19 +87,31 @@
                     <label>잔여수량<input id="lotQuantity" type="number" min="0" required value="0"></label>
                 </div>
             </div>
+            <div class="admin-image-preview">
+                <img id="admin-preview-image" th:src="@{/images/feed-bag-warehouse.png}" src="/images/feed-bag-warehouse.png" alt="상품 이미지 미리보기">
+                <div><strong>상품 이미지 미리보기</strong><p>이미지 URL을 입력하지 않으면 기본 사료 사진이 사용됩니다.</p></div>
+            </div>
             <button id="save-product" class="admin-save" type="submit">새 상품 등록</button>
         </form>
     </section>
 
-    <section class="admin-products">
-        <div class="admin-title"><div><small>CATALOG</small><h2>판매 상품 <span id="admin-product-count">0</span>개</h2></div></div>
+    <section id="catalog" class="admin-products">
+        <div class="admin-title"><div><small>CATALOG</small><h2>상품 관리 <span id="admin-product-count">0</span>개</h2></div></div>
+        <div class="admin-tools">
+            <label>검색<input id="admin-search" type="search" placeholder="상품명, 상품 코드, LOT 번호"></label>
+            <label>축종<select id="admin-animal-filter"><option value="ALL">전체 축종</option><option value="CATTLE_GROUP">소</option><option value="PIG">돼지</option><option value="POULTRY_GROUP">닭·오리</option><option value="SUPPLEMENT">영양제</option></select></label>
+            <label>재고<select id="admin-stock-filter"><option value="ALL">전체 재고</option><option value="AVAILABLE">구매 가능</option><option value="LOW">10포 이하</option><option value="SOLDOUT">품절</option></select></label>
+            <label>이벤트<select id="admin-event-filter"><option value="ALL">전체</option><option value="EVENT">이벤트 상품</option><option value="NORMAL">일반 상품</option></select></label>
+            <button id="admin-filter-reset" type="button">초기화</button>
+        </div>
         <div class="admin-table-wrap">
             <table>
-                <thead><tr><th>제품</th><th>축종</th><th>가격</th><th>LOT / 유통기한</th><th>재고</th><th>관리</th></tr></thead>
+                <thead><tr><th>상품 코드 / 제품</th><th>축종</th><th>포장 / 가격</th><th>최근 LOT / 유통기한</th><th>재고 상태</th><th>이벤트</th><th>관리</th></tr></thead>
                 <tbody id="admin-product-table"></tbody>
             </table>
         </div>
     </section>
+    </div>
 </main>
 <script th:src="@{/js/admin.js}" src="/js/admin.js" defer></script>
 </body>

@@ -46,6 +46,7 @@ button { cursor: pointer; }
     text-decoration: none;
     font-size: inherit;
 }
+.notice .notice-admin-logout { margin: 0; }
 
 .site-header {
     position: sticky;
@@ -98,11 +99,13 @@ button { cursor: pointer; }
 .search-box span { font-size: 22px; }
 .search-box input { width: 100%; border: 0; outline: 0; background: transparent; }
 .header-actions { display: grid; grid-template-columns: 1fr 1fr; }
-.header-actions button {
+.header-actions button, .header-actions .header-operator-link {
     position: relative;
     border: 0;
     background: transparent;
     color: var(--ink);
+    text-align: center;
+    text-decoration: none;
 }
 .header-actions span, .header-actions small { display: block; }
 .header-actions span { font-size: 23px; line-height: 1; }
@@ -308,6 +311,11 @@ button { cursor: pointer; }
     color: white;
     font-size: 8px;
 }
+.badge.sale-badge {
+    border-radius: 999px;
+    background: #d84a32;
+    box-shadow: 0 5px 14px rgba(216, 74, 50, .24);
+}
 .favorite {
     position: absolute;
     z-index: 3;
@@ -328,6 +336,7 @@ button { cursor: pointer; }
 .product-info > p { min-height: 34px; margin: 0; color: var(--muted); font-size: 9px; line-height: 1.7; }
 .stock-line { margin: 16px 0 12px; display: flex; justify-content: space-between; color: var(--muted); font-size: 9px; }
 .stock-line strong { color: var(--forest); }
+.stock-line.sale-stock strong { color: #c43f2d; }
 .product-price { min-height: 38px; display: flex; align-items: center; gap: 7px; }
 .product-price del { color: #9b9b92; font-size: 9px; }
 .product-price strong { font-size: 16px; }
@@ -427,6 +436,51 @@ footer { padding: 45px max(30px, calc((100vw - 1180px) / 2)); background: #0d281
 .account-tabs { margin-bottom: 20px; padding: 4px; display: grid; grid-template-columns: repeat(auto-fit, minmax(75px, 1fr)); gap: 5px; background: #ecece4; }
 .account-tabs button { min-height: 36px; border: 0; background: transparent; font-size: 10px; font-weight: 700; }
 .account-tabs button.active { background: white; color: var(--forest); box-shadow: 0 3px 12px rgba(20,40,30,.08); }
+.account-help-actions {
+    margin-top: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: #aaa89f;
+}
+.account-help-actions button,
+.recovery-back-button {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+.account-help-actions button:hover,
+.recovery-back-button:hover {
+    color: var(--forest);
+}
+.recovery-description {
+    margin: -4px 0 20px;
+    padding: 14px 16px;
+    background: #f1f2ec;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.65;
+}
+.recovery-result {
+    margin: 5px 0 16px;
+    padding: 17px;
+    border: 1px solid #bfd6c8;
+    background: #edf7f1;
+    color: var(--forest);
+    font-size: 14px;
+    font-weight: 800;
+    text-align: center;
+}
+.recovery-back-button {
+    width: 100%;
+    min-height: 40px;
+    margin-top: 8px;
+}
 .account-panel label, .checkout-fields > label, .form-grid label, .admin-auth label, .admin-form-grid label {
     display: flex;
     flex-direction: column;
@@ -447,8 +501,6 @@ footer { padding: 45px max(30px, calc((100vw - 1180px) / 2)); background: #0d281
 }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
 .span-two { grid-column: span 2; }
-.lookup-result { margin-top: 15px; padding: 15px; border: 1px solid var(--line); background: white; }
-.lookup-result div { margin: 8px 0; display: flex; justify-content: space-between; font-size: 10px; }
 .mypage-welcome { padding: 18px; background: var(--forest); color: white; }
 .mypage-welcome span { color: var(--gold); font-size: 8px; font-weight: 800; letter-spacing: .16em; }
 .mypage-welcome h3 { margin: 8px 0 4px; font-family: Georgia, "Malgun Gothic", serif; font-size: 22px; }
@@ -482,20 +534,238 @@ footer { padding: 45px max(30px, calc((100vw - 1180px) / 2)); background: #0d281
 .cart-summary { margin: 20px 0; padding: 15px; background: #edede4; }
 .summary-line { margin: 7px 0; display: flex; justify-content: space-between; }
 .summary-line.total { padding-top: 10px; border-top: 1px solid #cccac0; font-weight: 800; }
-.checkout-modal { width: min(970px, 100%); }
-.checkout-layout { display: grid; grid-template-columns: 1.25fr .75fr; gap: 25px; }
-.checkout-fields h3 { margin: 22px 0 13px; }
-.payment-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
-.payment-options label { min-height: 65px; padding: 11px; display: flex; gap: 8px; border: 1px solid var(--line); background: white; font-size: 9px; }
-.payment-options label:has(input:checked) { border-color: var(--forest); box-shadow: inset 0 0 0 1px var(--forest); }
-.payment-options input { width: auto; min-height: auto; }
-.payment-options b, .payment-options small { display: block; }
-.payment-options small { margin-top: 3px; color: var(--muted); }
+.checkout-modal {
+    width: min(1180px, 100%);
+    background: #f7f6f0;
+}
+.checkout-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(300px, .75fr);
+    align-items: start;
+    gap: 22px;
+}
+.checkout-main,
+.checkout-side {
+    display: grid;
+    gap: 18px;
+}
+.checkout-side {
+    position: sticky;
+    top: 0;
+}
+.checkout-card {
+    padding: 24px;
+    border: 1px solid var(--line);
+    background: #fff;
+}
+.checkout-section-heading {
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+}
+.checkout-section-heading > span {
+    color: #ef7d18;
+    font: 800 23px Georgia, serif;
+}
+.checkout-section-heading small {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--forest);
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: .16em;
+}
+.checkout-section-heading h3,
+.checkout-fields h3 {
+    margin: 0;
+    color: var(--forest-dark);
+    font-size: 17px;
+}
+.checkout-section-heading.compact {
+    margin-bottom: 17px;
+}
+.checkout-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+.checkout-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+}
+.checkout-table th,
+.checkout-table td {
+    padding: 13px 11px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    white-space: nowrap;
+}
+.checkout-table th {
+    background: #f2f1ea;
+    color: var(--muted);
+    font-size: 8px;
+    letter-spacing: .05em;
+}
+.checkout-table th:first-child,
+.checkout-table td:first-child {
+    width: 48%;
+    white-space: normal;
+}
+.checkout-table th:not(:first-child),
+.checkout-table td:not(:first-child) {
+    text-align: right;
+}
+.checkout-table td:first-child {
+    color: var(--forest-dark);
+    font-weight: 800;
+}
+.checkout-invoice-total {
+    padding-top: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 22px;
+}
+.checkout-invoice-total span {
+    color: var(--muted);
+    font-size: 10px;
+}
+.checkout-invoice-total strong {
+    color: var(--forest);
+    font: 800 22px Georgia, "Malgun Gothic", serif;
+}
+.payment-panel {
+    background: #efeee7;
+}
+.payment-options {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+.payment-option {
+    position: relative;
+    min-height: 70px;
+    padding: 13px 14px;
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) 20px;
+    align-items: center;
+    gap: 11px;
+    border: 2px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: transform .16s ease, box-shadow .16s ease;
+}
+.payment-option:hover {
+    transform: translateY(-1px);
+}
+.payment-option:has(input:focus-visible) {
+    outline: 3px solid rgba(239, 125, 24, .38);
+    outline-offset: 2px;
+}
+.payment-option:has(input:checked) {
+    border-color: #ef7d18;
+    box-shadow: 0 0 0 2px rgba(239, 125, 24, .2);
+}
+.payment-option input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+.payment-option > span:not(.payment-option-icon),
+.payment-option b,
+.payment-option small {
+    display: block;
+}
+.payment-option b {
+    font-size: 11px;
+}
+.payment-option small {
+    margin-top: 4px;
+    font-size: 8px;
+}
+.payment-option i {
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    font-size: 10px;
+    font-style: normal;
+    opacity: .28;
+}
+.payment-option:has(input:checked) i {
+    opacity: 1;
+}
+.payment-option-icon {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .88);
+    color: #111;
+    font-size: 14px;
+    font-weight: 900;
+}
+.kakao-pay-option {
+    background: #fee500;
+    color: #191919;
+}
+.kakao-pay-option small {
+    color: rgba(25, 25, 25, .65);
+}
+.card-option {
+    background: #171a18;
+    color: #fff;
+}
+.card-option small,
+.bank-option small {
+    color: rgba(255, 255, 255, .7);
+}
+.bank-option {
+    background: #237650;
+    color: #fff;
+}
+.payment-help {
+    margin: 16px 0 0;
+    color: var(--muted);
+    font-size: 8px;
+    line-height: 1.7;
+}
 .check-label { margin-top: 14px; display: flex !important; flex-direction: row !important; align-items: center; }
 .check-label input { width: auto; min-height: auto; }
-.checkout-summary { padding: 22px; background: #edede4; align-self: start; }
-.checkout-summary h3 { margin-top: 0; }
-.checkout-summary button { width: 100%; margin-top: 15px; }
+.checkout-summary {
+    padding: 24px;
+    border: 1px solid var(--line);
+    background: #fff;
+    align-self: start;
+}
+.checkout-summary h3 {
+    margin: 0 0 17px;
+    font-size: 17px;
+}
+.checkout-summary .summary-line {
+    font-size: 10px;
+}
+.checkout-summary .summary-line.total {
+    margin-top: 14px;
+    padding-top: 16px;
+}
+.checkout-summary .summary-line.total strong {
+    color: var(--forest);
+    font-size: 18px;
+}
+.checkout-summary button {
+    width: 100%;
+    min-height: 52px;
+    margin-top: 18px;
+    font-size: 12px;
+}
 .success-modal { text-align: center; }
 .success-icon { width: 65px; height: 65px; margin: auto; display: grid; place-items: center; border-radius: 50%; background: var(--forest); color: white; font-size: 30px; }
 .success-modal > strong { display: inline-block; margin: 12px 0 25px; padding: 8px 12px; background: #edede4; }
@@ -521,6 +791,35 @@ footer { padding: 45px max(30px, calc((100vw - 1180px) / 2)); background: #0d281
 .admin-auth { display: grid; grid-template-columns: 220px 220px 1fr; align-items: end; gap: 14px; }
 .admin-auth label { margin: 0; }
 .admin-auth p { margin: 0 0 12px; color: var(--forest); font-size: 10px; font-weight: 700; }
+.admin-auth.admin-session { grid-template-columns: 1fr auto; align-items: center; }
+.admin-auth.admin-session p { margin: 5px 0 0; }
+.admin-auth.admin-session form { margin: 0; }
+.admin-auth.admin-session button {
+    min-height: 40px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--forest);
+    color: white;
+    font-weight: 700;
+}
+
+.recovery-code-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 2px 0 4px;
+}
+
+.recovery-code-actions .secondary-button {
+    flex: 0 0 auto;
+    min-height: 42px;
+    padding: 0 14px;
+}
+
+.recovery-code-actions small {
+    color: var(--muted, #6b756e);
+}
 .admin-title { margin-bottom: 22px; display: flex; align-items: center; justify-content: space-between; }
 .admin-title small { color: var(--gold); font-size: 8px; font-weight: 800; letter-spacing: .18em; }
 .admin-title h2 { margin: 7px 0 0; font-family: Georgia, "Malgun Gothic", serif; font-size: 25px; }
@@ -594,6 +893,10 @@ footer { padding: 45px max(30px, calc((100vw - 1180px) / 2)); background: #0d281
     .modal-backdrop { padding: 10px; align-items: start; }
     .modal { max-height: calc(100vh - 20px); padding: 38px 22px 25px; }
     .detail-layout, .checkout-layout, .form-grid { grid-template-columns: 1fr; }
+    .checkout-side { position: static; }
+    .checkout-card, .checkout-summary { padding: 18px; }
+    .checkout-section-heading { margin-bottom: 16px; }
+    .checkout-table th, .checkout-table td { padding: 11px 8px; }
     .detail-visual { min-height: 300px; }
     .span-two { grid-column: span 1; }
     .payment-options { grid-template-columns: 1fr; }
@@ -605,6 +908,778 @@ footer { padding: 45px max(30px, calc((100vw - 1180px) / 2)); background: #0d281
     .admin-editor, .admin-products, .admin-auth { padding: 20px 15px; }
 }
 
+/* =========================================================
+   Kakao 주소 검색 입력창
+   ========================================================= */
+.address-search-row {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 110px;
+    gap: 8px;
+}
+
+.address-search-row input {
+    width: 100%;
+    cursor: pointer;
+    background: #fff;
+}
+
+.address-search-button {
+    min-height: 46px;
+    padding: 0 14px;
+    border: 1px solid var(--green, #1f7049);
+    background: var(--green, #1f7049);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.address-search-button:hover {
+    background: #145637;
+}
+
+.checkout-address-row {
+    margin-top: 6px;
+}
+
+.success-payment-detail {
+    max-width: 520px;
+    margin: 14px auto 22px;
+    color: #526057;
+    line-height: 1.7;
+}
+
+@media (max-width: 520px) {
+    .address-search-row {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+}
+
+/* 상세 명세서 통합: 큰 조작 영역과 읽기 쉬운 데스크톱 정보 밀도 */
+:root {
+    --forest: #1f6b45;
+    --forest-dark: #164d34;
+    --paper: #ffffff;
+    --cream: #f5f0e6;
+    --gold: #f28c28;
+    --danger: #d64545;
+}
+.notice { min-height: 40px; font-size: 13px; }
+.notice button, .notice a { min-height: 40px; display: inline-flex; align-items: center; }
+.header-actions button { min-height: 54px; }
+.header-actions small, .brand small { font-size: 12px; }
+.category-nav button, .category-nav a { min-height: 48px; font-size: 14px; }
+.section-heading > div > p, .product-info > p { font-size: 14px; }
+.product-info h3 { font-size: 18px; line-height: 1.45; }
+.product-tags span { padding: 5px 8px; font-size: 12px; }
+.nutrition-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 13px; }
+.nutrition-chips span { padding: 5px 7px; border-radius: 4px; background: #eaf4ee; color: var(--forest-dark); font-size: 12px; }
+.stock-line { min-height: 28px; align-items: center; font-size: 13px; }
+.stock-line.low-stock strong, .warning-text { color: #b85e0c; }
+.stock-line.sold-out strong { color: #6f756f; }
+.product-price del { font-size: 13px; }
+.product-price strong { font-size: 21px; }
+.card-actions { display: grid; grid-template-columns: .8fr 1.2fr; gap: 7px; }
+.card-actions button { min-height: 44px; padding: 0 10px; font-weight: 800; }
+.card-detail { border: 1px solid var(--forest); background: white; color: var(--forest); }
+.card-actions .card-add { min-height: 44px; margin: 0; }
+.product-code { display: block; margin-bottom: 12px; color: var(--muted); font-size: 13px; }
+.detail-info > p { font-size: 14px; }
+.nutrients span { font-size: 11px; }
+.nutrients strong { font-size: 15px; }
+.stock-banner { margin: 18px 0; padding: 13px 15px; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #eaf4ee; }
+.stock-banner span { color: var(--muted); font-size: 12px; }
+.stock-banner.low-stock { background: #fff3df; }
+.stock-banner.sale-stock { background: #fff0eb; }
+.stock-banner.sale-stock strong { color: #c43f2d; }
+.expiry-sale-notice {
+    margin: -6px 0 18px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border: 1px solid #f2b5a7;
+    border-radius: 6px;
+    background: #fff7f4;
+}
+.expiry-sale-notice strong { color: #bd3b28; }
+.expiry-sale-notice span { color: var(--muted); font-size: 12px; }
+.stock-banner.sold-out { background: #eeeeeb; }
+.detail-quantity { display: flex; align-items: center; justify-content: space-between; font-weight: 800; }
+.detail-quantity span { display: flex; border: 1px solid var(--line); }
+.detail-quantity button { width: 42px; height: 42px; border: 0; background: white; font-size: 20px; }
+.detail-quantity input { width: 54px; border: 0; border-right: 1px solid var(--line); border-left: 1px solid var(--line); text-align: center; }
+.detail-lots { margin-top: 30px; padding-top: 25px; border-top: 1px solid var(--line); }
+.detail-lots > div:first-child { display: flex; align-items: baseline; justify-content: space-between; }
+.detail-lots h3 { margin: 0; font-size: 19px; }
+.detail-lots p { color: var(--muted); font-size: 12px; }
+.lot-table-wrap { overflow-x: auto; }
+.lot-table-wrap table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.lot-table-wrap th, .lot-table-wrap td { padding: 12px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.choice-modal { width: min(760px, 100%); }
+.choice-modal > p:not(.eyebrow) { color: var(--muted); line-height: 1.7; }
+.purchase-choice-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 25px; }
+.choice-card { min-height: 150px; padding: 22px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; border: 1px solid var(--line); background: white; text-align: left; }
+.choice-card strong { font-size: 16px; }
+.choice-card span { color: var(--muted); font-size: 13px; line-height: 1.6; }
+.choice-card:hover, .choice-card:focus-visible { border-color: var(--forest); box-shadow: 0 8px 22px rgba(31,107,69,.12); }
+.primary-choice { background: var(--forest); color: white; }
+.primary-choice span { color: rgba(255,255,255,.8); }
+.required-text { color: var(--danger); font-size: 11px; }
+.account-panel label, .checkout-fields > label, .form-grid label, .admin-auth label, .admin-form-grid label { font-size: 13px; }
+.account-panel input, .checkout-fields input, .checkout-fields select, .admin-auth input, .admin-form-grid input, .admin-form-grid select, .admin-form-grid textarea { min-height: 46px; font-size: 14px; }
+.account-tabs button { min-height: 44px; font-size: 13px; }
+
+.admin-page { max-width: none; min-height: 100vh; margin: 0; padding: 0; display: grid; grid-template-columns: 240px minmax(0, 1fr); }
+.admin-sidebar { position: sticky; top: 0; height: 100vh; padding: 30px 20px; background: var(--forest-dark); color: white; }
+.admin-brand { display: flex; align-items: center; gap: 12px; color: white; text-decoration: none; }
+.admin-brand > span { width: 42px; height: 46px; display: grid; place-items: center; border-radius: 7px; background: #fff; color: var(--forest); font: 700 24px Georgia, serif; }
+.admin-brand strong, .admin-brand small { display: block; }
+.admin-brand small { margin-top: 3px; color: rgba(255,255,255,.6); font-size: 11px; }
+.admin-sidebar nav { margin: 40px 0; display: grid; gap: 7px; }
+.admin-sidebar nav a { min-height: 46px; padding: 0 14px; display: flex; align-items: center; border-radius: 7px; color: rgba(255,255,255,.76); text-decoration: none; font-weight: 700; }
+.admin-sidebar nav a:hover, .admin-sidebar nav a.active { background: rgba(255,255,255,.12); color: white; }
+.admin-sidebar > p { color: rgba(255,255,255,.55); font-size: 12px; line-height: 1.7; }
+.admin-content { width: min(1400px, 100%); padding: 32px; }
+.admin-hero { min-height: 190px; }
+.admin-hero p { font-size: 12px; }
+.admin-hero span, .admin-hero a { font-size: 13px; }
+.admin-dashboard { margin-top: 18px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.admin-dashboard article { min-height: 125px; padding: 22px; border: 1px solid var(--line); border-radius: 10px; background: white; }
+.admin-dashboard span, .admin-dashboard strong, .admin-dashboard small { display: block; }
+.admin-dashboard span { color: var(--muted); font-size: 13px; }
+.admin-dashboard strong { margin-top: 16px; color: var(--forest-dark); font-size: 29px; }
+.admin-dashboard small { margin-top: 3px; color: var(--muted); }
+.admin-tools { margin-bottom: 18px; padding: 14px; display: grid; grid-template-columns: 2fr repeat(3, 1fr) auto; align-items: end; gap: 10px; background: #f5f7f4; }
+.admin-tools label { display: grid; gap: 7px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.admin-tools input, .admin-tools select, .admin-tools button { min-height: 44px; padding: 0 12px; border: 1px solid var(--line); background: white; }
+.admin-tools button { color: var(--forest); font-weight: 800; }
+.admin-table-wrap table { font-size: 13px; }
+.admin-table-wrap th, .admin-table-wrap td { padding: 15px 11px; }
+.admin-table-wrap td small { font-size: 11px; line-height: 1.5; }
+.admin-table-wrap td button { min-height: 40px; font-size: 12px; }
+.admin-status, .admin-event { display: inline-block; margin-bottom: 4px; padding: 5px 8px; border-radius: 20px; font-size: 11px; font-weight: 800; }
+.admin-status.available { background: #eaf4ee; color: var(--forest); }
+.admin-status.low-stock, .admin-event { background: #fff1de; color: #aa590e; }
+.admin-status.sold-out { background: #eeeeeb; color: #6b716c; }
+
+@media (max-width: 1050px) {
+    .admin-page { grid-template-columns: 1fr; }
+    .admin-sidebar { position: static; width: 100%; height: auto; }
+    .admin-sidebar nav { margin: 18px 0; grid-template-columns: repeat(5, 1fr); }
+    .admin-dashboard { grid-template-columns: repeat(2, 1fr); }
+    .admin-tools { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 760px) {
+    .purchase-choice-grid { grid-template-columns: 1fr; }
+}
+
+/* 사용자가 제공한 FEED FLOW 실제 브랜드·상품·농장 이미지 */
+.sr-only {
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    position: absolute;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+.brand > .brand-logo {
+    width: 190px;
+    height: 82px;
+    display: block;
+    overflow: hidden;
+    border-radius: 0;
+    background: white;
+    transform: none;
+}
+.brand-logo img {
+    width: 190px;
+    height: auto;
+    display: block;
+    transform: translateY(-43px);
+}
+.hero-visual { background: var(--forest-dark); }
+.hero-farm-image {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    inset: 0;
+    object-fit: cover;
+    object-position: 72% center;
+    filter: saturate(.9) brightness(.88);
+}
+.hero-visual::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(22,77,52,.08), rgba(22,77,52,.22));
+    pointer-events: none;
+}
+.hero-offer { z-index: 4; }
+.product-photo {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #edf0ed;
+}
+.product-photo img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    transition: transform .28s ease;
+}
+.product-card:hover .product-photo img { transform: scale(1.035); }
+.detail-visual .product-photo { min-height: 390px; }
+.detail-visual .product-photo img { object-position: center; }
+.footer-brand > .footer-logo,
+.mypage-footer > .footer-logo {
+    width: 155px;
+    height: 62px;
+    display: block;
+    overflow: hidden;
+    border-radius: 0;
+    background: white;
+    transform: none;
+}
+.footer-logo img {
+    width: 155px;
+    display: block;
+    transform: translateY(-35px);
+}
+.footer-brand > p { max-width: 260px; color: rgba(255,255,255,.72); }
+.account-logo {
+    width: 132px;
+    height: 78px;
+    margin: -25px 0 2px;
+    object-fit: cover;
+    object-position: center;
+}
+.admin-brand > .admin-logo {
+    width: 190px;
+    height: 83px;
+    display: block;
+    overflow: hidden;
+    border-radius: 7px;
+    background: white;
+}
+.admin-logo img {
+    width: 190px;
+    display: block;
+    transform: translateY(-43px);
+}
+.admin-brand { align-items: flex-start; flex-direction: column; }
+.admin-brand > strong { padding-left: 4px; color: rgba(255,255,255,.82); font-size: 13px; }
+.admin-image-preview {
+    margin-top: 18px;
+    padding: 16px;
+    display: grid;
+    grid-template-columns: 210px 1fr;
+    align-items: center;
+    gap: 18px;
+    border: 1px solid var(--line);
+    background: white;
+}
+.admin-image-preview img {
+    width: 210px;
+    height: 118px;
+    object-fit: cover;
+}
+.admin-image-preview strong { display: block; font-size: 15px; }
+.admin-image-preview p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+
+@media (max-width: 760px) {
+    .brand > .brand-logo { width: 150px; height: 66px; }
+    .brand-logo img { width: 150px; transform: translateY(-34px); }
+    .admin-image-preview { grid-template-columns: 1fr; }
+    .admin-image-preview img { width: 100%; height: auto; }
+}/* =========================================================
+   상단 로고 수정
+   원본 PNG의 흰색 배경을 헤더 색상과 자연스럽게 합성합니다.
+   ========================================================= */
+
+.brand > .brand-logo {
+    width: 170px;
+    height: 76px;
+    display: block;
+    overflow: hidden;
+
+    /* 기존 흰색 사각형 배경 제거 */
+    background: transparent;
+
+    /* 기존 로고 장식 제거 */
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    transform: none;
+}
+
+.brand-logo img {
+    width: 170px;
+    height: auto;
+    display: block;
+
+    /*
+     * 흰색 이미지 배경을 헤더 배경과 합성합니다.
+     * 실제 투명 PNG처럼 흰색 사각형이 보이지 않게 합니다.
+     */
+    mix-blend-mode: multiply;
+
+    /* [수정] 심볼은 전부 보이고 아래 FEED FLOW 글자는 숨깁니다. */
+    transform: translateY(-40px);
+}
+
+
+/* =========================================================
+   Hero 오른쪽 영역
+   농장 사진을 원본 비율에 가까운 짧은 배너로 표시합니다.
+   ========================================================= */
+
+.hero-visual {
+    min-height: 560px;
+    display: grid;
+
+    /*
+     * 농장 사진은 230px만 사용하고
+     * 남은 공간은 유통 정보로 채웁니다.
+     */
+    grid-template-rows: 230px 1fr;
+
+    position: relative;
+    place-items: stretch;
+    overflow: hidden;
+    background: var(--forest-dark);
+}
+
+/* 기존의 어두운 반투명 막을 제거합니다. */
+.hero-visual::after {
+    display: none;
+}
+
+.hero-farm-image {
+    width: 100%;
+    height: 230px;
+
+    /* 기존 absolute 배치를 해제합니다. */
+    position: static;
+
+    /*
+     * 가로 비율을 유지해서 확대에 의한 흐림을 줄입니다.
+     * 농장 건물이 있는 오른쪽 영역을 중심으로 표시합니다.
+     */
+    object-fit: cover;
+    object-position: 70% center;
+
+    /*
+     * 기존 brightness(.88) 때문에 어두웠던 이미지를 밝게 하고
+     * 대비와 채도를 조금 높입니다.
+     */
+    filter:
+        brightness(1.05)
+        contrast(1.08)
+        saturate(1.12);
+}
+
+
+/* =========================================================
+   농장 사진 아래 유통 정보 영역
+   ========================================================= */
+
+.hero-visual-info {
+    padding: 30px 38px;
+
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 205px;
+    align-items: start;
+    gap: 22px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #164d34 0%,
+            #1f6b45 100%
+        );
+
+    color: white;
+}
+
+.hero-visual-copy small {
+    display: block;
+    margin-bottom: 10px;
+
+    color: #f4c47b;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+}
+
+.hero-visual-copy h2 {
+    margin: 0 0 11px;
+
+    color: white;
+    font-size: 25px;
+    line-height: 1.35;
+}
+
+.hero-visual-copy p {
+    margin: 0;
+
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+
+/* =========================================================
+   농가 특가 카드
+   기존 absolute 위치를 해제하고 정보 영역 안에 배치합니다.
+   ========================================================= */
+
+.hero-visual .hero-offer {
+    width: 100%;
+    padding: 19px;
+
+    position: static;
+
+    border-right: 6px solid #f28c28;
+    background: white;
+    color: var(--ink);
+}
+
+.hero-visual .hero-offer small,
+.hero-visual .hero-offer strong,
+.hero-visual .hero-offer a {
+    display: block;
+}
+
+.hero-visual .hero-offer strong {
+    margin: 8px 0 15px;
+
+    color: var(--forest-dark);
+    font-size: 16px;
+}
+
+.hero-visual .hero-offer a {
+    color: var(--forest);
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+
+/* =========================================================
+   재고·출고·배송 안내 카드
+   ========================================================= */
+
+.hero-process {
+    grid-column: 1 / -1;
+
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.hero-process article {
+    min-height: 76px;
+    padding: 14px;
+
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.hero-process article > span {
+    color: #f4c47b;
+    font-family: Georgia, serif;
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.hero-process article strong {
+    display: block;
+    margin-bottom: 5px;
+
+    color: white;
+    font-size: 13px;
+}
+
+.hero-process article p {
+    margin: 0;
+
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+
+/* =========================================================
+   작은 화면 대응
+   ========================================================= */
+
+@media (max-width: 760px) {
+    .brand > .brand-logo {
+        width: 140px;
+        height: 60px;
+    }
+
+    .brand-logo img {
+        width: 140px;
+        transform: translateY(-32px);
+    }
+
+    .hero-visual {
+        min-height: auto;
+        grid-template-rows: 190px auto;
+    }
+
+    .hero-farm-image {
+        height: 190px;
+    }
+
+    .hero-visual-info {
+        padding: 25px 20px;
+        grid-template-columns: 1fr;
+    }
+
+    .hero-process {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =========================================================
+   회원가입 유효성 검사
+   ========================================================= */
+
+.field-with-button {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 104px;
+    gap: 8px;
+}
+
+.field-with-button button {
+    min-height: 46px;
+    padding: 0 14px;
+    border: 1px solid var(--forest);
+    background: var(--forest);
+    color: white;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.field-with-button button:hover {
+    background: var(--forest-dark);
+}
+
+.field-with-button button:disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
+
+.validation-message {
+    display: block;
+    min-height: 17px;
+    margin-top: 6px;
+    color: #77756d;
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.validation-message.success {
+    color: #14733f;
+    font-weight: 700;
+}
+
+.validation-message.error {
+    color: #c53b2c;
+    font-weight: 700;
+}
+
+.account-panel input.input-valid {
+    border-color: #258253;
+    box-shadow: inset 0 0 0 1px #258253;
+}
+
+.account-panel input.input-invalid {
+    border-color: #cf4b3d;
+    box-shadow: inset 0 0 0 1px #cf4b3d;
+}
+
+@media (max-width: 520px) {
+    .field-with-button {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =========================================================
+   [최종 수정] 상단 FEED FLOW 로고
+   헤더에서는 심볼 전체만 보이고 아래 글자는 숨깁니다.
+   ========================================================= */
+.site-header .brand > .brand-logo {
+    width: 170px;
+    height: 76px;
+    display: block;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+}
+
+.site-header .brand-logo img {
+    width: 170px;
+    height: auto;
+    display: block;
+    mix-blend-mode: multiply;
+    transform: translateY(-40px);
+}
+
+@media (max-width: 760px) {
+    .site-header .brand > .brand-logo {
+        width: 140px;
+        height: 60px;
+    }
+
+    .site-header .brand-logo img {
+        width: 140px;
+        transform: translateY(-32px);
+    }
+}
+
+/* =========================================================
+   [최종 수정] 모든 화면의 FEED FLOW 전체 로고
+
+   기존 translateY 방식은 심볼만 남기면서 FEED FLOW 글자를 잘랐습니다.
+   아래 규칙에서 이미지 이동을 전부 해제하고, 마이페이지 오른쪽 카드처럼
+   심볼과 FEED FLOW 글자가 함께 보이도록 통일합니다.
+   ========================================================= */
+
+/* 메인 페이지 좌측 상단 */
+.site-header .header-main {
+    height: 104px;
+    grid-template-columns: 180px minmax(0, 1fr) 170px;
+}
+
+.site-header .brand > .brand-logo,
+.mypage-header .brand > .brand-logo {
+    width: 120px;
+    height: 102px;
+    display: block;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+}
+
+.site-header .brand-logo img,
+.mypage-header .brand-logo img {
+    width: 120px;
+    height: 102px;
+    display: block;
+    /* 로고의 심볼과 FEED FLOW 글자를 잘라내지 않고 전부 표시합니다. */
+    object-fit: contain;
+    object-position: center;
+    mix-blend-mode: multiply;
+    transform: none;
+}
+
+/* 로그인·회원가입·계정 찾기 창 */
+.account-logo {
+    width: 120px;
+    height: 102px;
+    margin: -18px 0 4px;
+    display: block;
+    /* 로그인·회원가입 창에서도 원본 로고 전체를 표시합니다. */
+    object-fit: contain;
+    object-position: center;
+    mix-blend-mode: multiply;
+    transform: none;
+}
+
+/* 메인 및 마이페이지 푸터 */
+.footer-brand > .footer-logo,
+.mypage-footer > .footer-logo {
+    width: 110px;
+    height: 98px;
+    display: block;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: white;
+    transform: none;
+}
+
+.footer-brand .footer-logo img,
+.mypage-footer .footer-logo img {
+    width: 110px;
+    height: 98px;
+    display: block;
+    /* 푸터 로고가 잘리지 않도록 원본 비율을 유지합니다. */
+    object-fit: contain;
+    object-position: center;
+    transform: none;
+}
+
+/* 관리자 판매자센터 */
+.admin-brand > .admin-logo {
+    width: 130px;
+    height: 118px;
+    display: block;
+    overflow: hidden;
+    border: 0;
+    border-radius: 8px;
+    background: white;
+    transform: none;
+}
+
+.admin-brand .admin-logo img {
+    width: 130px;
+    height: 118px;
+    display: block;
+    /* 관리자 화면도 동일한 전체 로고를 사용합니다. */
+    object-fit: contain;
+    object-position: center;
+    transform: none;
+}
+
+@media (max-width: 760px) {
+    .site-header .header-main {
+        height: auto;
+        min-height: 150px;
+    }
+
+    .site-header .brand > .brand-logo,
+    .mypage-header .brand > .brand-logo {
+        width: 82px;
+        height: 74px;
+    }
+
+    .site-header .brand-logo img,
+    .mypage-header .brand-logo img {
+        width: 82px;
+        height: 74px;
+        transform: none;
+    }
+
+    .footer-brand > .footer-logo,
+    .mypage-footer > .footer-logo,
+    .footer-brand .footer-logo img,
+    .mypage-footer .footer-logo img {
+        width: 90px;
+        height: 80px;
+    }
 }

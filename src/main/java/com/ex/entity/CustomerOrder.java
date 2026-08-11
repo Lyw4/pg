@@ -2,7 +2,12 @@ package com.ex.entity;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -10,29 +15,90 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "customer_order")
+@Table(
+		name = "customer_order",
+		indexes = {
+				@Index(
+				name = "idx_customer_order_number",
+				columnList = "order_number",
+				unique = true),
+				@Index(
+				name = "idx_customer_order_provider_tx",
+				columnList = "provider_transaction_id",
+				unique = true)
+		})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CustomerOrder {
 
-	public enum OrderStatus { PAID, PREPARING, SHIPPING, DELIVERED, CANCELLED }
+	public enum OrderStatus { PAYMENT_PENDING, PAID, PREPARING, SHIPPING, DELIVERED, CANCELLED }
+	public enum OrderChannel { SHOP, FARM, ADMIN, WMS }
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long orderId;
+
+	@Column(name = "order_number", unique = true, length = 40)
+	private String orderNumber;
+
 	private Long userId;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "member_id")
+	private Member member;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "order_channel", length = 20)
+	private OrderChannel orderChannel;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "payment_method", length = 30)
+	private PaymentMethod paymentMethod;
+
+	private String customerName;
+	private String phone;
+	private BigDecimal productAmount;
+	private BigDecimal deliveryFee;
 	private BigDecimal totalPrice;
 	private BigDecimal discountPrice;
 	private BigDecimal finalPrice;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "payment_provider", length = 20)
+	private PaymentProvider paymentProvider;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "payment_status", length = 30)
+	private PaymentStatus paymentStatus;
+
+	@Column(name = "provider_transaction_id", length = 200)
+	private String providerTransactionId;
+	@Column(name = "payment_callback_token", length = 36)
+	private String paymentCallbackToken;
+	@Column(name = "payment_receipt_url", length = 500)
+	private String paymentReceiptUrl;
+	@Column(name = "virtual_account_bank", length = 40)
+	private String virtualAccountBank;
+	@Column(name = "virtual_account_number", length = 80)
+	private String virtualAccountNumber;
+	@Column(name = "virtual_account_due_date", length = 40)
+	private String virtualAccountDueDate;
+	@Column(name = "payment_approved_at")
+	private LocalDateTime paymentApprovedAt;
+	private Boolean regularDelivery = false;
+	private Boolean inventoryCommitted = false;
 
 	@Enumerated(EnumType.STRING)
 	private OrderStatus status;
@@ -43,6 +109,7 @@ public class CustomerOrder {
 	private String roadAddress;
 	private String jibunAddress;
 	private String detailAddress;
+	private String unloadingLocation;
 	private Double latitude;
 	private Double longitude;
 	private String deliveryRequest;
@@ -58,7 +125,14 @@ public class CustomerOrder {
 	private Double fulfillmentDistanceKm;
 	private String fulfillmentAssignmentBasis;
 
+	@OneToMany(
+			mappedBy = "order",
+			cascade = CascadeType.ALL,
+			orphanRemoval = true)
+	private List<OrderItem> items = new ArrayList<>();
+
 	private LocalDateTime createdAt;
+	private LocalDateTime updatedAt;
 	private LocalDateTime cancelledAt;
 	private String cancellationReason;
 	private String cancellationManager;
@@ -66,14 +140,133 @@ public class CustomerOrder {
 	public CustomerOrder(Long userId, BigDecimal totalPrice, BigDecimal discountPrice, String shippingAddress) {
 		this.userId = userId;
 		this.totalPrice = totalPrice;
+		this.productAmount = totalPrice;
+		this.deliveryFee = BigDecimal.ZERO;
 		this.discountPrice = discountPrice;
 		this.finalPrice = totalPrice.subtract(discountPrice);
 		this.shippingAddress = shippingAddress;
 		this.status = OrderStatus.PAID;
+		this.orderChannel = userId != null && userId == 0L
+				? OrderChannel.ADMIN
+				: OrderChannel.FARM;
+	}
+
+	public static CustomerOrder storefront(
+			String orderNumber,
+			String customerName,
+			String phone,
+			String address,
+			String detailAddress,
+			String unloadingLocation,
+			String deliveryRequest,
+			PaymentMethod paymentMethod,
+			boolean regularDelivery,
+			BigDecimal productAmount,
+			BigDecimal deliveryFee,
+			BigDecimal discountAmount) {
+		CustomerOrder order = new CustomerOrder(
+				0L,
+				productAmount.add(deliveryFee),
+				discountAmount,
+				address);
+		order.orderNumber = orderNumber;
+		order.customerName = customerName;
+		order.phone = phone;
+		order.recipientName = customerName;
+		order.recipientPhone = phone;
+		order.detailAddress = detailAddress;
+		order.unloadingLocation = unloadingLocation;
+		order.deliveryRequest = deliveryRequest;
+		order.paymentMethod = paymentMethod;
+		order.regularDelivery = regularDelivery;
+		order.productAmount = productAmount;
+		order.deliveryFee = deliveryFee;
+		order.totalPrice = productAmount.add(deliveryFee);
+		order.discountPrice = discountAmount;
+		order.finalPrice = order.totalPrice.subtract(discountAmount);
+		order.orderChannel = OrderChannel.SHOP;
+		return order;
 	}
 
 	public void changeStatus(OrderStatus status) {
 		this.status = status;
+	}
+
+	public void prepareExternalPayment() {
+		paymentProvider = PaymentProvider.PORTONE;
+		paymentStatus = PaymentStatus.READY;
+		status = OrderStatus.PAYMENT_PENDING;
+		if (paymentCallbackToken == null) {
+			paymentCallbackToken = UUID.randomUUID().toString();
+		}
+	}
+
+	public void completePayment(String transactionId, String receiptUrl) {
+		providerTransactionId = transactionId;
+		paymentReceiptUrl = receiptUrl;
+		paymentStatus = PaymentStatus.DONE;
+		paymentApprovedAt = LocalDateTime.now();
+		status = OrderStatus.PAID;
+	}
+
+	public void waitForDeposit(
+			String transactionId,
+			String bank,
+			String accountNumber,
+			String dueDate) {
+		providerTransactionId = transactionId;
+		virtualAccountBank = bank;
+		virtualAccountNumber = accountNumber;
+		virtualAccountDueDate = dueDate;
+		paymentStatus = PaymentStatus.WAITING_FOR_DEPOSIT;
+		status = OrderStatus.PAYMENT_PENDING;
+	}
+
+	public void failPayment() {
+		paymentStatus = PaymentStatus.FAILED;
+	}
+
+	public void cancelPayment() {
+		paymentStatus = PaymentStatus.CANCELLED;
+	}
+
+	public void addItem(OrderItem item) {
+		items.add(item);
+		item.assignOrder(this);
+	}
+
+	public void assignMember(Member member) {
+		this.member = member;
+		this.userId = member == null ? 0L : member.getId();
+	}
+
+	public void markInventoryCommitted() {
+		inventoryCommitted = true;
+	}
+
+	public void releaseInventoryCommit() {
+		inventoryCommitted = false;
+	}
+
+	public boolean isRegularDelivery() {
+		return Boolean.TRUE.equals(regularDelivery);
+	}
+
+	public boolean isInventoryCommitted() {
+		return Boolean.TRUE.equals(inventoryCommitted);
+	}
+
+	public void cancelByCustomer(String requestPhone) {
+		if (phone == null || !phone.equals(requestPhone)) {
+			throw new IllegalArgumentException(
+					"주문자의 전화번호가 일치하지 않습니다.");
+		}
+		if (status == OrderStatus.SHIPPING
+				|| status == OrderStatus.DELIVERED) {
+			throw new IllegalStateException(
+					"배송이 시작된 주문은 고객이 직접 취소할 수 없습니다.");
+		}
+		cancel("고객 요청", customerName == null ? "고객" : customerName);
 	}
 
 	public void cancel(String reason, String manager) {
@@ -108,6 +301,12 @@ public class CustomerOrder {
 		}
 		this.recipientName = recipientName.trim();
 		this.recipientPhone = recipientPhone.trim();
+		if (customerName == null) {
+			customerName = this.recipientName;
+		}
+		if (phone == null) {
+			phone = this.recipientPhone;
+		}
 		this.deliveryRequest = deliveryRequest == null
 				? null
 				: deliveryRequest.trim();
@@ -175,6 +374,54 @@ public class CustomerOrder {
 
 	@PrePersist
 	void onCreate() {
-		createdAt = LocalDateTime.now();
+		LocalDateTime now = LocalDateTime.now();
+		createdAt = now;
+		updatedAt = now;
+		if (orderNumber == null || orderNumber.isBlank()) {
+			orderNumber = "LEGACY-"
+					+ UUID.randomUUID().toString()
+							.replace("-", "")
+							.substring(0, 12)
+							.toUpperCase();
+		}
+		if (orderChannel == null) {
+			orderChannel = OrderChannel.ADMIN;
+		}
+		if (regularDelivery == null) {
+			regularDelivery = false;
+		}
+		if (inventoryCommitted == null) {
+			inventoryCommitted = false;
+		}
+		if (paymentStatus == null) {
+			paymentStatus = status == OrderStatus.PAYMENT_PENDING
+					? PaymentStatus.READY
+					: PaymentStatus.DONE;
+		}
+		if (paymentCallbackToken == null) {
+			paymentCallbackToken = UUID.randomUUID().toString();
+		}
+		if (productAmount == null) {
+			productAmount = totalPrice == null
+					? BigDecimal.ZERO
+					: totalPrice;
+		}
+		if (deliveryFee == null) {
+			deliveryFee = BigDecimal.ZERO;
+		}
+		if (discountPrice == null) {
+			discountPrice = BigDecimal.ZERO;
+		}
+		if (totalPrice == null) {
+			totalPrice = productAmount.add(deliveryFee);
+		}
+		if (finalPrice == null) {
+			finalPrice = totalPrice.subtract(discountPrice);
+		}
+	}
+
+	@PreUpdate
+	void onUpdate() {
+		updatedAt = LocalDateTime.now();
 	}
 }

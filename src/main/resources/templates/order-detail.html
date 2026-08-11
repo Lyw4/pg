@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${siteName}">FEED FLOW 주문 상세</title>
+    <link rel="icon" type="image/png" th:href="@{/images/feedflow-logo.png}" href="/images/feedflow-logo.png">
+    <link rel="stylesheet" th:href="@{/css/feedflow.css}" href="/css/feedflow.css">
+    <link rel="stylesheet" th:href="@{/css/mypage.css}" href="/css/mypage.css">
+    <link rel="stylesheet" th:href="@{/css/order-detail.css}" href="/css/order-detail.css">
+</head>
+<body class="mypage-body order-detail-body" th:data-order-number="${orderNumber}">
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<header class="mypage-header">
+    <a class="brand" href="/"><span class="brand-logo"><img th:src="@{/images/feedflow-logo.png}" src="/images/feedflow-logo.png" alt="FEED FLOW"></span></a>
+    <nav>
+        <a href="/">상품 둘러보기</a>
+        <a class="active" href="/mypage">마이페이지</a>
+        <button id="logout-button" type="button">로그아웃</button>
+    </nav>
+</header>
+
+<main class="order-detail-page">
+    <div class="order-detail-back"><a href="/mypage">← 주문·배송 현황으로 돌아가기</a></div>
+    <section class="order-detail-hero">
+        <div>
+            <p>ORDER DETAIL</p>
+            <h1>주문 상세 정보</h1>
+            <span id="order-number-label">주문 정보를 불러오는 중입니다.</span>
+        </div>
+        <div id="order-status-badge" class="order-detail-status">확인 중</div>
+    </section>
+
+    <div id="order-detail-loading" class="order-detail-message">주문 상세 정보를 불러오는 중입니다.</div>
+    <div id="order-detail-error" class="order-detail-message error" hidden></div>
+
+    <div id="order-detail-content" hidden>
+        <section class="order-detail-card order-detail-progress-card">
+            <div class="order-detail-card-heading"><div><p>DELIVERY STATUS</p><h2>배송 진행 현황</h2></div><span id="delivery-status-label"></span></div>
+            <div id="order-timeline" class="order-timeline"></div>
+            <div id="delivery-summary" class="delivery-summary"></div>
+        </section>
+
+        <div class="order-detail-grid">
+            <section class="order-detail-card">
+                <div class="order-detail-card-heading"><div><p>ORDER ITEMS</p><h2>주문 상품</h2></div></div>
+                <div id="order-items" class="order-detail-items"></div>
+                <dl id="order-amounts" class="order-detail-amounts"></dl>
+            </section>
+
+            <section class="order-detail-card">
+                <div class="order-detail-card-heading"><div><p>PAYMENT</p><h2>결제 정보</h2></div></div>
+                <dl id="payment-info" class="order-detail-info-list"></dl>
+                <div id="receipt-action" class="order-detail-receipt"></div>
+            </section>
+
+            <section class="order-detail-card">
+                <div class="order-detail-card-heading"><div><p>RECIPIENT</p><h2>배송지 정보</h2></div></div>
+                <dl id="recipient-info" class="order-detail-info-list"></dl>
+            </section>
+
+            <section class="order-detail-card">
+                <div class="order-detail-card-heading"><div><p>FULFILLMENT</p><h2>출고 창고</h2></div></div>
+                <dl id="fulfillment-info" class="order-detail-info-list"></dl>
+            </section>
+        </div>
+    </div>
+</main>
+
+<footer class="mypage-footer">
+    <span class="footer-logo"><img th:src="@{/images/feedflow-logo.png}" src="/images/feedflow-logo.png" alt="FEED FLOW"></span>
+    <span>농장과 사료를 잇는 빠르고 투명한 배송</span>
+    <a href="/">구매 페이지로 돌아가기</a>
+</footer>
+
+<script th:src="@{/js/order-detail.js}" src="/js/order-detail.js" defer></script>
+</body>
+</html>

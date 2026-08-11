@@ -35,6 +35,7 @@ import com.ex.service.InventoryService;
 import com.ex.service.RecurringDeliveryService;
 import com.ex.service.ShipmentService;
 import com.ex.service.WarehouseManagementService;
+import com.ex.service.AdminActivityService;
 
 @Controller
 public class ManagementController {
@@ -47,6 +48,7 @@ public class ManagementController {
     private final BarcodeService barcodeService;
     private final WarehouseManagementService warehouseManagementService;
     private final FarmCustomerService farmCustomerService;
+    private final AdminActivityService adminActivityService;
 
     public ManagementController(
             InventoryService inventoryService,
@@ -56,7 +58,8 @@ public class ManagementController {
             ShipmentService shipmentService,
             BarcodeService barcodeService,
             WarehouseManagementService warehouseManagementService,
-            FarmCustomerService farmCustomerService) {
+            FarmCustomerService farmCustomerService,
+            AdminActivityService adminActivityService) {
         this.inventoryService = inventoryService;
         this.distributionService = distributionService;
         this.recurringDeliveryService = recurringDeliveryService;
@@ -65,6 +68,7 @@ public class ManagementController {
         this.barcodeService = barcodeService;
         this.warehouseManagementService = warehouseManagementService;
         this.farmCustomerService = farmCustomerService;
+        this.adminActivityService = adminActivityService;
     }
 
     @Value("${kakao.maps.javascript-key:}")
@@ -102,7 +106,13 @@ public class ManagementController {
      * 재고 관리 화면
      */
     @GetMapping("/inventory")
-    public String inventory(Model model) {
+    public String inventory(
+            @RequestParam(name = "view", defaultValue = "registered")
+            String currentView,
+            Model model) {
+
+        model.addAttribute("menu", "inventory");
+        model.addAttribute("currentView", currentView);
 
         LocalDate today =
                 LocalDate.now();
@@ -318,6 +328,7 @@ public class ManagementController {
     private void addDefectAttributes(Model model, List<ProductLot> lots) {
         Map<Long, Integer> reservedLots = inventoryService.reservedStockByLot();
         model.addAttribute("records", defectService.records());
+        model.addAttribute("defectAnalytics", defectService.analytics());
         model.addAttribute("openDefectCount", defectService.unresolvedCount());
         model.addAttribute("defectLots", lots.stream()
                 .filter(lot -> lot.getLotQuantity()
@@ -478,8 +489,16 @@ public class ManagementController {
             @PathVariable("shipmentId") Long shipmentId,
             @RequestParam("worker") String worker,
             RedirectAttributes redirectAttributes) {
-        return execute(() -> shipmentService.complete(shipmentId, worker),
-                "/inventory?view=shipments", "재고 차감과 출고 처리가 완료되었습니다.", redirectAttributes);
+        try {
+            Long orderId = shipmentService.complete(shipmentId, worker);
+            redirectAttributes.addFlashAttribute(
+                    "message",
+                    "재고 차감과 출고 처리가 완료되었습니다. 배송 등록을 위해 유통관리로 이동합니다.");
+            return "redirect:/distribution?view=ready&focusOrder=" + orderId;
+        } catch (RuntimeException exception) {
+            redirectAttributes.addFlashAttribute("error", exception.getMessage());
+            return "redirect:/inventory?view=shipments";
+        }
     }
 
     @PostMapping("/shipments/{shipmentId}/cancel")
@@ -727,7 +746,16 @@ public class ManagementController {
      * 유통 관리 화면
      */
     @GetMapping("/distribution")
-    public String distribution(Model model) {
+    public String distribution(
+            @RequestParam(name = "view", defaultValue = "all")
+            String currentView,
+            @RequestParam(name = "focusOrder", required = false)
+            Long focusOrder,
+            Model model) {
+
+        model.addAttribute("menu", "distribution");
+        model.addAttribute("currentView", currentView);
+        model.addAttribute("focusOrder", focusOrder);
 
         var deliveries = distributionService.deliveries();
         var orders = distributionService.orders();
@@ -1017,6 +1045,8 @@ public class ManagementController {
             @RequestParam("status") DeliveryStatus status,
             @RequestParam(name = "note", required = false) String note,
             RedirectAttributes redirectAttributes) {
+        adminActivityService.record("admin", "DELIVERY_STATUS_CHANGED", "DELIVERY",
+                String.valueOf(deliveryId), "배송 상태 변경 요청: " + status, null);
 
         return execute(
                 () -> distributionService.updateDelivery(
@@ -1034,6 +1064,8 @@ public class ManagementController {
             @RequestParam("status") DeliveryStatus status,
             @RequestParam(name = "note", required = false) String note,
             RedirectAttributes redirectAttributes) {
+        adminActivityService.record("admin", "DELIVERY_STATUS_CHANGED", "DELIVERY",
+                String.valueOf(deliveryId), "배송 상태 변경 요청: " + status, null);
 
         return execute(
                 () -> distributionService.updateDelivery(
@@ -1064,6 +1096,8 @@ public class ManagementController {
             @RequestParam("reason") String reason,
             @RequestParam("manager") String manager,
             RedirectAttributes redirectAttributes) {
+        adminActivityService.record(manager, "ORDER_CANCELLED", "ORDER",
+                String.valueOf(orderId), "관리자 주문 취소 요청: " + reason, null);
 
         return execute(
                 () -> distributionService.cancelOrder(

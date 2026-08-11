@@ -13,6 +13,30 @@
     <div class="alert success" th:if="${message}" th:text="${message}"></div>
     <div class="alert error" th:if="${error}" th:text="${error}"></div>
     <div th:fragment="defectContent">
+    <section class="defect-analytics-grid">
+        <article><span>미처리 건수</span><strong th:text="|${openDefectCount}건|">0건</strong><small>격리·검사 중</small></article>
+        <article><span>미처리 수량</span><strong th:text="|${#numbers.formatInteger(defectAnalytics.openQuantity, 0, 'COMMA')}포|">0포</strong><small>출고 제외 수량</small></article>
+        <article><span>처리 완료</span><strong th:text="|${defectAnalytics.resolvedCount}건|">0건</strong><small>최종 판정 완료</small></article>
+        <article th:classappend="${#lists.isEmpty(defectAnalytics.staleRecords)} ? '' : 'danger'">
+            <span>7일 이상 방치</span><strong th:text="|${#lists.size(defectAnalytics.staleRecords)}건|">0건</strong><small>우선 검사 필요</small>
+        </article>
+    </section>
+
+    <section class="defect-stale-alert" th:unless="${#lists.isEmpty(defectAnalytics.staleRecords)}">
+        <strong>장기 미처리 불량 알림</strong>
+        <span th:each="record : ${defectAnalytics.staleRecords}"
+              th:text="|${record.defectNo} · ${record.lot.product.name} ${record.quantity}포|">불량 건</span>
+    </section>
+
+    <section class="panel defect-stat-panel" th:unless="${#lists.isEmpty(records)}">
+        <div class="panel-title"><div><p class="eyebrow">QUALITY ANALYTICS</p><h2>반복 불량 분석</h2>
+            <p>전체 기록을 기준으로 유형·발견 단계·제조사별 발생 건수와 수량을 비교합니다.</p></div></div>
+        <div class="defect-stat-columns">
+            <div><h3>불량 유형</h3><p th:each="stat : ${defectAnalytics.typeStats}"><span th:text="${stat.label}">유형</span><strong th:text="|${stat.count}건 · ${stat.quantity}포|">0건</strong></p></div>
+            <div><h3>발견 단계</h3><p th:each="stat : ${defectAnalytics.stageStats}"><span th:text="${stat.label}">단계</span><strong th:text="|${stat.count}건 · ${stat.quantity}포|">0건</strong></p></div>
+            <div><h3>제조사</h3><p th:each="stat : ${defectAnalytics.manufacturerStats}"><span th:text="${stat.label}">제조사</span><strong th:text="|${stat.count}건 · ${stat.quantity}포|">0건</strong></p></div>
+        </div>
+    </section>
     <section class="panel"><div class="panel-title"><div><p class="eyebrow">NEW DEFECT</p>
         <h2>불량품 등록</h2><p>등록 수량은 선택한 LOT의 정상 가용 재고에서 차감됩니다.</p></div></div>
         <form class="defect-form" method="post" th:action="@{/inventory/defects}">
@@ -33,9 +57,17 @@
     </section>
     <section class="panel"><div class="panel-title"><div><p class="eyebrow">DEFECT HISTORY</p>
         <h2>불량 처리 현황</h2><p>격리된 수량과 판정 결과를 확인할 수 있습니다.</p></div></div>
+        <div class="defect-filter-bar">
+            <input type="search" data-defect-keyword placeholder="불량번호·상품·LOT·내용 검색">
+            <select data-defect-status><option value="ALL">전체 상태</option><option value="QUARANTINED">격리</option><option value="INSPECTING">검사 중</option><option value="RESOLVED">처리 완료</option></select>
+            <select data-defect-type><option value="ALL">전체 유형</option><option th:each="type : ${defectTypes}" th:value="${type.name()}" th:text="${type.label}">유형</option></select>
+            <span>조회 <strong data-defect-visible th:text="${#lists.size(records)}">0</strong>건</span>
+        </div>
         <div class="table-wrap"><table class="defect-table"><thead><tr><th>불량 번호</th><th>상품 / LOT</th>
             <th>수량</th><th>유형 / 단계</th><th>내용</th><th>상태</th><th>처리</th></tr></thead><tbody>
-        <tr th:each="record : ${records}">
+        <tr th:each="record : ${records}" data-defect-row
+            th:data-status="${record.status.name()}" th:data-type="${record.defectType.name()}"
+            th:data-search="|${record.defectNo} ${record.lot.product.name} ${record.lot.lotNo} ${record.description} ${record.reporter}|">
             <td><strong th:text="${record.defectNo}">DF-0000</strong><small
                 th:text="${#temporals.format(record.occurredAt, 'yyyy-MM-dd HH:mm')}"></small></td>
             <td><strong th:text="${record.lot.product.name}">상품</strong><small th:text="${record.lot.lotNo}">LOT</small></td>

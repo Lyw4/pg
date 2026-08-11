@@ -24,6 +24,9 @@ public class ShipmentItem {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "shipment_id")
     private Shipment shipment;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_item_id")
+    private OrderItem orderItem;
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "product_id")
     private Product product;
@@ -35,9 +38,21 @@ public class ShipmentItem {
 
     public ShipmentItem(Shipment shipment, OrderItem orderItem) {
         this.shipment = shipment;
+        this.orderItem = orderItem;
         this.product = orderItem.getProduct();
         this.lot = orderItem.getLot();
         this.plannedQuantity = orderItem.getQuantity();
+    }
+
+    public ShipmentItem(
+            Shipment shipment,
+            OrderItem orderItem,
+            OrderLotAllocation allocation) {
+        this.shipment = shipment;
+        this.orderItem = orderItem;
+        this.product = orderItem.getProduct();
+        this.lot = allocation.getProductLot();
+        this.plannedQuantity = allocation.getQuantity();
     }
 
     public void completePicking() {

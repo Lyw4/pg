@@ -36,6 +36,7 @@ public class ShipmentService {
     private final StockLogRepository stockLogRepository;
     private final DeliveryRepository deliveryRepository;
     private final WarehouseFulfillmentService warehouseFulfillmentService;
+	private final WmsStockCoordinator wmsStockCoordinator;
 
     public List<Shipment> shipments() {
         return shipmentRepository.findAllByOrderByCreatedAtDesc();
@@ -91,8 +92,17 @@ public class ShipmentService {
         requireText(worker, "출고 담당자를 입력해 주세요.");
         Shipment shipment = shipmentRepository.save(
                 new Shipment(order, worker.trim(), note));
-        shipmentItemRepository.saveAll(orderItems.stream()
-                .map(item -> new ShipmentItem(shipment, item)).toList());
+        List<ShipmentItem> shipmentItems = orderItems.stream()
+                .flatMap(item -> item.getLotAllocations()
+                        .stream()
+                        .map(allocation -> new ShipmentItem(
+                                shipment, item, allocation)))
+                .toList();
+        if (shipmentItems.isEmpty()) {
+            throw new IllegalStateException(
+                    "주문 상품의 LOT 배정 정보가 없습니다.");
+        }
+        shipmentItemRepository.saveAll(shipmentItems);
         order.changeStatus(OrderStatus.PREPARING);
     }
 
@@ -113,17 +123,21 @@ public class ShipmentService {
     }
 
     @Transactional
-    public void complete(Long shipmentId, String worker) {
+    public Long complete(Long shipmentId, String worker) {
         requireText(worker, "출고 담당자를 입력해 주세요.");
         Shipment shipment = find(shipmentId);
         List<ShipmentItem> items =
                 shipmentItemRepository.findByShipmentShipmentId(shipmentId);
+        boolean inventoryCommitted =
+                shipment.getOrder().isInventoryCommitted();
 
         items.forEach(item -> {
             if (item.getPickedQuantity() != item.getPlannedQuantity()) {
                 throw new IllegalStateException("피킹 수량 검수가 완료되지 않았습니다.");
             }
-            if (item.getLot().getLotQuantity() < item.getPickedQuantity()) {
+            if (!inventoryCommitted
+                    && item.getLot().getLotQuantity()
+                            < item.getPickedQuantity()) {
                 throw new IllegalStateException(
                         "출고할 LOT 재고가 부족합니다: " + item.getLot().getLotNo());
             }
@@ -132,17 +146,28 @@ public class ShipmentService {
         warehouseFulfillmentService.deductStock(
                 shipment.getOrder(), items);
 
-        items.forEach(item -> {
-            ProductLot lot = item.getLot();
-            int quantity = item.getPickedQuantity();
-            lot.changeQuantity(-quantity);
-            lot.getProduct().changeStock(-quantity);
-            stockLogRepository.save(new StockLog(
-                    lot, 1L, ChangeType.OUTBOUND, -quantity,
-                    shipment.getShipmentNo() + " 출고"));
-        });
+        if (!inventoryCommitted) {
+            items.forEach(item -> {
+                ProductLot lot = item.getLot();
+                int quantity = item.getPickedQuantity();
+                lot.changeQuantity(-quantity);
+                lot.getProduct().changeStock(-quantity);
+				wmsStockCoordinator.outbound(
+						lot,
+						quantity,
+						shipment.getOrder().getFulfillmentWarehouse(),
+						shipment.getShipmentNo() + " 출고",
+						worker.trim(),
+						shipment.getOrder().getOrderId());
+                stockLogRepository.save(new StockLog(
+                        lot, 1L, ChangeType.OUTBOUND, -quantity,
+                        shipment.getShipmentNo() + " 출고"));
+            });
+            shipment.getOrder().markInventoryCommitted();
+        }
         shipment.complete(worker.trim());
         shipment.getOrder().changeStatus(OrderStatus.SHIPPING);
+        return shipment.getOrder().getOrderId();
     }
 
     @Transactional
@@ -164,14 +189,27 @@ public class ShipmentService {
         }
         List<ShipmentItem> items =
                 shipmentItemRepository.findByShipmentShipmentId(shipmentId);
-        items.forEach(item -> {
-            int quantity = item.getPickedQuantity();
-            item.getLot().changeQuantity(quantity);
-            item.getProduct().changeStock(quantity);
-            stockLogRepository.save(new StockLog(
-                    item.getLot(), 1L, ChangeType.ADJUSTMENT, quantity,
-                    shipment.getShipmentNo() + " 출고 취소: " + note.trim()));
-        });
+        if (shipment.getOrder().isInventoryCommitted()) {
+            items.forEach(item -> {
+                int quantity = item.getPickedQuantity();
+                item.getLot().changeQuantity(quantity);
+                item.getProduct().changeStock(quantity);
+				wmsStockCoordinator.restore(
+						item.getLot(),
+						quantity,
+						shipment.getOrder().getFulfillmentWarehouse(),
+						shipment.getShipmentNo() + " 출고 취소",
+						"관리자",
+						shipment.getOrder().getOrderId());
+                stockLogRepository.save(new StockLog(
+                        item.getLot(), 1L, ChangeType.ADJUSTMENT,
+                        quantity,
+                        shipment.getShipmentNo()
+                                + " 출고 취소: "
+                                + note.trim()));
+            });
+            shipment.getOrder().releaseInventoryCommit();
+        }
         warehouseFulfillmentService.restoreStock(
                 shipment.getOrder(), items);
         shipment.cancelCompleted(note.trim());

@@ -1,0 +1,64 @@
+.order-detail-body { background: #f1f0e8; }
+.order-detail-page { max-width: 1180px; margin: 0 auto; padding: 28px 0 75px; }
+.order-detail-back { margin-bottom: 14px; }
+.order-detail-back a { color: var(--forest); font-size: 13px; font-weight: 800; text-decoration: none; }
+.order-detail-hero { min-height: 190px; padding: 34px 42px; display: flex; align-items: center; justify-content: space-between; background: var(--forest-dark); color: white; }
+.order-detail-hero p { margin: 0 0 10px; color: var(--gold); font-size: 11px; font-weight: 800; letter-spacing: .16em; }
+.order-detail-hero h1 { margin: 0 0 12px; font-family: Georgia, "Malgun Gothic", serif; font-size: 34px; }
+.order-detail-hero span { color: rgba(255,255,255,.72); font-size: 14px; }
+.order-detail-status { min-width: 112px; padding: 12px 17px; border: 1px solid rgba(255,255,255,.35); border-radius: 24px; color: #f2d77c; font-size: 14px; font-weight: 800; text-align: center; }
+.order-detail-message { margin-top: 18px; padding: 28px; border: 1px solid var(--line); background: var(--paper); color: var(--muted); text-align: center; }
+.order-detail-message.error { border-color: #e4b9b4; background: #fff7f5; color: var(--danger); }
+.order-detail-card { padding: 26px; border: 1px solid var(--line); background: var(--paper); }
+.order-detail-progress-card { margin-top: 18px; }
+.order-detail-card-heading { margin-bottom: 20px; display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
+.order-detail-card-heading p { margin: 0 0 5px; color: var(--gold); font-size: 10px; font-weight: 800; letter-spacing: .15em; }
+.order-detail-card-heading h2 { margin: 0; font-family: Georgia, "Malgun Gothic", serif; font-size: 23px; }
+.order-detail-card-heading > span { color: var(--forest); font-size: 13px; font-weight: 800; }
+.order-timeline { display: grid; grid-template-columns: repeat(var(--timeline-count, 5), minmax(0, 1fr)); gap: 0; margin-top: 28px; padding: 0 4px 10px; overflow: visible; }
+.timeline-item { min-width: 0; position: relative; padding: 0 6px; text-align: center; }
+.timeline-item:not(:last-child)::after { content: ""; height: 2px; position: absolute; top: 22px; left: calc(50% + 22px); right: calc(-50% + 22px); background: #d9ddd6; z-index: 0; }
+.timeline-dot { width: 44px; height: 44px; margin: 0 auto 8px; display: grid; place-items: center; position: relative; z-index: 1; overflow: visible; border: 2px solid #d6e9dc; border-radius: 14px; background: #f5fbf5; box-shadow: 0 3px 8px rgba(18,62,47,.12); font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-size: 25px; line-height: 1.15; }
+.timeline-item.current .timeline-dot { border-color: #e6c765; background: #fff8dc; box-shadow: 0 4px 10px rgba(197,166,79,.26); transform: translateY(-2px) scale(1.08); }
+.timeline-label { display: block; font-size: 12px; font-weight: 800; }
+.timeline-date { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; }
+.timeline-note { display: block; margin-top: 5px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.delivery-summary { margin-top: 24px; padding: 15px 17px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+.delivery-summary strong { color: var(--ink); }
+.delivery-summary a { color: var(--forest); font-weight: 800; }
+.order-detail-grid { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.order-detail-items { display: grid; gap: 10px; }
+.order-detail-item { padding: 12px 0; display: grid; grid-template-columns: 1fr auto; gap: 8px 15px; border-bottom: 1px solid var(--line); }
+.order-detail-item:last-child { border-bottom: 0; }
+.order-detail-item strong { font-size: 14px; }
+.order-detail-item span { color: var(--muted); font-size: 12px; }
+.order-detail-item > b { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 14px; white-space: nowrap; }
+.order-detail-amounts, .order-detail-info-list { width: 100%; margin: 18px 0 0; border-top: 1px solid var(--line); }
+.order-detail-amounts div, .order-detail-info-list div { padding: 10px 0; display: flex; justify-content: space-between; gap: 15px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.order-detail-amounts dt, .order-detail-info-list dt { color: var(--muted); }
+.order-detail-amounts dd, .order-detail-info-list dd { margin: 0; font-weight: 800; text-align: right; }
+.order-detail-amounts div:last-child dd { color: var(--forest); font-size: 17px; }
+.order-detail-receipt { margin-top: 18px; }
+.order-detail-receipt a { min-height: 42px; padding: 0 14px; display: inline-flex; align-items: center; border: 1px solid var(--forest); color: var(--forest); font-size: 13px; font-weight: 800; text-decoration: none; }
+.order-detail-receipt a.receipt-original-link { margin-left: 8px; border-color: var(--line); color: var(--muted); font-size: 12px; }
+.order-detail-receipt small { display: block; margin-top: 9px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.order-detail-empty { color: var(--muted); font-size: 13px; }
+
+@media (max-width: 1050px) {
+    .order-detail-page { padding-right: 20px; padding-left: 20px; }
+}
+@media (max-width: 760px) {
+    .order-detail-page { padding: 15px 10px 45px; }
+    .order-detail-hero { min-height: 170px; padding: 28px 24px; }
+    .order-detail-hero h1 { font-size: 27px; }
+    .order-detail-status { min-width: 92px; padding: 9px 10px; font-size: 12px; }
+    .order-detail-card { padding: 21px 17px; }
+    .order-detail-grid { grid-template-columns: 1fr; }
+    .order-timeline { display: grid; grid-template-columns: 1fr; gap: 14px; overflow: visible; }
+    .timeline-item { min-height: 46px; min-width: 0; padding: 0 0 0 54px; text-align: left; }
+    .timeline-item:not(:last-child)::after { width: 2px; height: 100%; top: 44px; left: 21px; right: auto; }
+    .timeline-dot { margin: 0; position: absolute; left: 0; top: 0; }
+    .timeline-label, .timeline-date, .timeline-note { padding-left: 10px; }
+    .delivery-summary { align-items: flex-start; flex-direction: column; gap: 7px; }
+    .order-detail-receipt a.receipt-original-link { margin: 8px 0 0; }
+}

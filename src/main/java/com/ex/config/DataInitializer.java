@@ -10,6 +10,7 @@ import java.util.List;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 
 import com.ex.entity.CustomerOrder;
 import com.ex.entity.Manufacturer;
@@ -55,6 +56,23 @@ public class DataInitializer {
             int safetyStock,
             int shelfLifeMonths,
             String description) {
+    }
+
+    /**
+     * 재고·유통의 40개 기준 상품을 판매 홈페이지에도 그대로 노출하기 위한
+     * 고객용 표시 정보입니다. 별도의 판매 전용 상품을 만들지 않습니다.
+     */
+    private record StorefrontProfile(
+            String stage,
+            BigDecimal protein,
+            BigDecimal fat,
+            BigDecimal fiber,
+            BigDecimal calcium,
+            Integer originalPrice,
+            String badge,
+            String tone,
+            String shape,
+            String imageUrl) {
     }
 
     private static final List<ProductSeed> PRODUCT_SEEDS = List.of(
@@ -517,6 +535,7 @@ public class DataInitializer {
     );
 
     @Bean
+    @Order(100)
     CommandLineRunner seedData(
             ManufacturerRepository manufacturerRepository,
             ProductRepository productRepository,
@@ -602,15 +621,42 @@ public class DataInitializer {
 
             warehouseRecurringDeliverySeeder.seed();
 
-            // 기존 상품에도 상품별 유통기한 설정을 반영합니다.
-            productRepository.findAll().forEach(product ->
-                    PRODUCT_SEEDS.stream()
-                            .filter(seed -> seed.name().equals(product.getName()))
-                            .findFirst()
-                            .ifPresent(seed -> {
-                                product.configureShelfLife(seed.shelfLifeMonths());
-                                productRepository.save(product);
-                            }));
+            /*
+             * 기존 DB를 재사용하더라도 재고·유통 기준 40개 상품의 제조사,
+             * 가격, 설명과 판매 상세정보를 매번 기준 데이터로 맞춥니다.
+             * 과거 판매 전용 초기화가 같은 이름의 상품을 수정했던 경우도
+             * 여기에서 원래 상품으로 복구됩니다.
+             */
+            for (int index = 0; index < PRODUCT_SEEDS.size(); index++) {
+                ProductSeed seed = PRODUCT_SEEDS.get(index);
+                Product product = productRepository.findByName(seed.name())
+                        .orElseThrow(() -> new IllegalStateException(
+                                "기준 상품을 찾을 수 없습니다: " + seed.name()));
+                Manufacturer manufacturer = findOrCreateManufacturer(
+                        manufacturerRepository,
+                        seed.manufacturer());
+                StorefrontProfile profile = storefrontProfile(seed, index);
+
+                product.updateForStorefront(
+                        manufacturer,
+                        seed.name(),
+                        seed.category(),
+                        profile.stage(),
+                        seed.description(),
+                        new BigDecimal(seed.weightKg()),
+                        BigDecimal.valueOf(seed.price()),
+                        profile.originalPrice(),
+                        profile.protein(),
+                        profile.fat(),
+                        profile.fiber(),
+                        profile.calcium(),
+                        profile.imageUrl(),
+                        profile.badge(),
+                        profile.tone(),
+                        profile.shape());
+                product.configureShelfLife(seed.shelfLifeMonths());
+                productRepository.save(product);
+            }
 
             // 과거 초기 LOT의 날짜 부분을 실제 생산일 기준으로 보정합니다.
             lotRepository.findAllByOrderByExpirationDateAsc().forEach(lot -> {
@@ -835,6 +881,114 @@ public class DataInitializer {
                                 companyName,
                                 "유통 담당자",
                                 "02-0000-0000")));
+    }
+
+    private StorefrontProfile storefrontProfile(
+            ProductSeed seed,
+            int index) {
+        int categoryIndex = index % 10;
+        String category = seed.category();
+        BigDecimal[] protein;
+        BigDecimal[] fat;
+        BigDecimal[] fiber;
+        BigDecimal[] calcium;
+
+        if ("소".equals(category)) {
+            protein = decimals("18", "16", "14", "13", "20", "18", "15", "13.5", "12.5", "13");
+            fat = decimals("4.0", "3.8", "4.2", "4.5", "4.5", "4.2", "3.5", "4.0", "3.2", "4.8");
+            fiber = decimals("7.0", "8.0", "9.0", "8.5", "6.0", "7.5", "9.0", "8.0", "10.0", "8.0");
+            calcium = decimals("0.9", "0.8", "0.8", "0.75", "1.0", "0.9", "0.9", "0.8", "0.9", "0.75");
+        } else if ("돼지".equals(category)) {
+            protein = decimals("20", "19", "18", "17", "15", "17", "16", "18", "16", "17");
+            fat = decimals("5.0", "4.8", "5.0", "5.2", "4.0", "5.0", "4.2", "4.5", "4.0", "5.3");
+            fiber = decimals("5.0", "5.5", "6.0", "6.5", "7.0", "6.0", "7.0", "5.5", "6.5", "6.0");
+            calcium = decimals("0.9", "0.85", "0.8", "0.75", "0.9", "0.95", "0.85", "0.8", "0.75", "0.8");
+        } else if ("조류(닭/오리)".equals(category)) {
+            protein = decimals("21", "20", "19", "17", "16.5", "17.5", "21", "18.5", "18", "18");
+            fat = decimals("4.5", "4.2", "4.5", "3.8", "4.0", "4.0", "4.5", "4.2", "3.5", "4.3");
+            fiber = decimals("4.5", "5.0", "5.5", "6.0", "5.5", "6.0", "4.5", "5.5", "5.0", "5.5");
+            calcium = decimals("1.0", "0.95", "0.9", "1.1", "3.8", "1.0", "1.0", "0.95", "1.0", "1.1");
+        } else {
+            protein = decimals("8", "4", "2", "3", "1", "2", "1", "3", "6", "4");
+            fat = decimals("2", "1", "1", "1", "0.5", "1", "0.5", "1", "1", "1");
+            fiber = decimals("4", "3", "2", "2", "1", "2", "1", "2", "3", "2");
+            calcium = decimals("1.2", "12", "0.5", "0.8", "0.6", "0.5", "24", "0.9", "1.0", "0.7");
+        }
+
+        String[] tones = {"amber", "blue", "coral", "gold", "lime", "mint", "navy", "rose", "green", "slate"};
+        String categoryCode = switch (category) {
+            case "소" -> "CATTLE";
+            case "돼지" -> "PIG";
+            case "조류(닭/오리)" -> "BIRD";
+            default -> "SUP";
+        };
+        String imageVariant = categoryIndex % 2 == 0 ? "-v2" : "";
+        String imageUrl = switch (category) {
+            case "소" -> "/images/products/cattle-feed%s.png".formatted(imageVariant);
+            case "돼지" -> "/images/products/pig-feed%s.png".formatted(imageVariant);
+            case "조류(닭/오리)" -> "/images/products/poultry-feed%s.png".formatted(imageVariant);
+            default -> "/images/products/supplement%s.png".formatted(imageVariant);
+        };
+
+        return new StorefrontProfile(
+                feedStage(seed.name(), category),
+                protein[categoryIndex],
+                fat[categoryIndex],
+                fiber[categoryIndex],
+                calcium[categoryIndex],
+                categoryIndex % 4 == 0 ? seed.price() + 3_000 : null,
+                categoryIndex == 0 ? "카테고리 추천"
+                        : categoryIndex == 9 ? "프리미엄" : null,
+                tones[categoryIndex],
+                "%s-%02d".formatted(categoryCode, categoryIndex + 1),
+                imageUrl);
+    }
+
+    private String feedStage(String name, String category) {
+        if ("영양제".equals(category)) {
+            return name.contains("난각") ? "산란계"
+                    : name.contains("번식") ? "번식축"
+                    : "전 축종";
+        }
+        if (name.contains("송아지") || name.contains("병아리")
+                || name.contains("새끼") || name.contains("자돈")) {
+            return "초기 성장";
+        }
+        if (name.contains("비육 전기") || name.contains("육계 전기")) {
+            return "육성 전기";
+        }
+        if (name.contains("비육 후기") || name.contains("피니셔")
+                || name.contains("프리미엄")) {
+            return "비육 후기";
+        }
+        if (name.contains("착유")) {
+            return "착유기";
+        }
+        if (name.contains("임신")) {
+            return "임신기";
+        }
+        if (name.contains("포유")) {
+            return "포유기";
+        }
+        if (name.contains("번식") || name.contains("웅돈")) {
+            return "번식기";
+        }
+        if (name.contains("산란 피크")) {
+            return "산란기";
+        }
+        if (name.contains("육성") || name.contains("성장")
+                || name.contains("그로우") || name.contains("그로워")) {
+            return "육성기";
+        }
+        return "전 성장단계";
+    }
+
+    private BigDecimal[] decimals(String... values) {
+        BigDecimal[] result = new BigDecimal[values.length];
+        for (int index = 0; index < values.length; index++) {
+            result[index] = new BigDecimal(values[index]);
+        }
+        return result;
     }
 
     /*

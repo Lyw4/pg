@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>결제 영수증 테스트 | FEED FLOW</title>
+    <link rel="icon" type="image/png" th:href="@{/images/feedflow-logo.png}" href="/images/feedflow-logo.png">
+    <link rel="stylesheet" th:href="@{/css/feedflow.css}" href="/css/feedflow.css">
+    <link rel="stylesheet" th:href="@{/css/receipt-test.css}" href="/css/receipt-test.css">
+</head>
+<body class="receipt-test-body">
+<header class="receipt-test-header">
+    <a class="receipt-test-brand" href="/">
+        <img th:src="@{/images/feedflow-logo.png}" src="/images/feedflow-logo.png" alt="FEED FLOW">
+        <span>FEED FLOW</span>
+    </a>
+    <nav>
+        <a href="/mypage">마이페이지</a>
+        <a href="/">상품 둘러보기</a>
+    </nav>
+</header>
+
+<main id="receipt-test-app" class="receipt-test-main"
+      th:attr="data-order-number=${param.orderNumber}">
+    <section class="receipt-test-hero">
+        <p>PAYMENT RECEIPT TEST</p>
+        <h1>결제 영수증 테스트</h1>
+        <span>회원님의 PortOne 결제 결과와 영수증 링크를 확인합니다.</span>
+    </section>
+
+    <section class="receipt-test-card">
+        <form id="receipt-search-form" class="receipt-search-form">
+            <label for="receipt-order-number">주문번호</label>
+            <div>
+                <input id="receipt-order-number" name="orderNumber"
+                       placeholder="FF-20260806-ABC123" autocomplete="off">
+                <button type="submit">주문 찾기</button>
+            </div>
+            <small>최근 6개월 주문은 로그인 세션으로 자동 조회됩니다.</small>
+        </form>
+        <div id="receipt-message" class="receipt-message" role="status" aria-live="polite"></div>
+        <div class="receipt-demo-actions">
+            <button id="show-demo-receipt" type="button">샘플 영수증 미리보기</button>
+        </div>
+        <section id="demo-receipt" class="demo-receipt" hidden aria-label="샘플 영수증"></section>
+        <div id="receipt-order-list" class="receipt-order-list">
+            <p class="receipt-empty">주문 내역을 불러오는 중입니다.</p>
+        </div>
+    </section>
+
+    <aside class="receipt-test-note">
+        <strong>테스트 안내</strong>
+        <span>결제 승인된 PortOne 주문만 영수증 URL이 표시됩니다. 가상계좌는 입금 확인 후 영수증이 생성될 수 있습니다.</span>
+    </aside>
+</main>
+
+<script th:src="@{/js/test-receipt.js}" src="/js/test-receipt.js" defer></script>
+</body>
+</html>

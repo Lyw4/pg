@@ -12,6 +12,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -22,7 +23,10 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(
         name = "farm_customer",
-        uniqueConstraints = @UniqueConstraint(columnNames = "farm_code"))
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = "farm_code"),
+                @UniqueConstraint(columnNames = "member_id")
+        })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class FarmCustomer {
@@ -78,6 +82,10 @@ public class FarmCustomer {
 
     private int recurringDeliveryDay;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_id")
+    private Member member;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "warehouse_id")
     private Warehouse assignedWarehouse;
@@ -130,6 +138,47 @@ public class FarmCustomer {
                 distanceKm,
                 status,
                 notes);
+    }
+
+    public static FarmCustomer registeredMember(
+            Member member,
+            String farmCode,
+            String farmName,
+            String representativeName,
+            String phone,
+            String postalCode,
+            String address,
+            double latitude,
+            double longitude,
+            String animalType,
+            int livestockCount,
+            int monthlyFeedQuantity,
+            String preferredFeed,
+            int recurringDeliveryDay,
+            Warehouse assignedWarehouse,
+            double distanceKm,
+            String notes) {
+        FarmCustomer customer = new FarmCustomer(
+                farmCode,
+                farmName,
+                representativeName,
+                phone,
+                postalCode,
+                address,
+                latitude,
+                longitude,
+                animalType,
+                livestockCount,
+                monthlyFeedQuantity,
+                preferredFeed,
+                recurringDeliveryDay,
+                assignedWarehouse,
+                distanceKm,
+                CustomerStatus.ACTIVE,
+                notes);
+        customer.member = member;
+        customer.demoData = false;
+        return customer;
     }
 
     public void updateDetails(

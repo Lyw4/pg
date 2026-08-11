@@ -22,6 +22,7 @@ public class AdminProductService {
     private final ProductRepository productRepository;
     private final ManufacturerRepository manufacturerRepository;
     private final ProductLotRepository productLotRepository;
+	private final WmsStockCoordinator wmsStockCoordinator;
 
     @Transactional
     public ProductResponse create(AdminProductRequest request) {
@@ -42,6 +43,12 @@ public class AdminProductService {
         productLotRepository.save(lot);
         product.addLot(lot);
         product.changeStock(request.lotQuantity());
+		wmsStockCoordinator.inbound(
+				lot,
+				request.lotQuantity(),
+				null,
+				"관리자 상품 등록 초기 LOT",
+				"관리자");
         return ProductResponse.from(product);
     }
 
@@ -63,6 +70,12 @@ public class AdminProductService {
             productLotRepository.save(lot);
             product.addLot(lot);
             product.changeStock(request.lotQuantity());
+			wmsStockCoordinator.inbound(
+					lot,
+					request.lotQuantity(),
+					null,
+					"관리자 상품 수정 신규 LOT",
+					"관리자");
         } else {
             int difference =
                     request.lotQuantity() - lot.getLotQuantity();
@@ -72,6 +85,12 @@ public class AdminProductService {
                     request.expirationDate(),
                     request.lotQuantity());
             product.changeStock(difference);
+			wmsStockCoordinator.adjust(
+					lot,
+					difference,
+					null,
+					"관리자 상품 LOT 수량 수정",
+					"관리자");
         }
         return ProductResponse.from(product);
     }

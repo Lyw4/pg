@@ -9,10 +9,25 @@
 
     <title>재고 관리 | Feed Flow</title>
 
+    <meta name="_csrf" th:content="${_csrf?.token}">
+    <meta name="_csrf_header" th:content="${_csrf?.headerName}">
+
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
     <!-- 기존 CSS 연결 -->
     <link
         rel="stylesheet"
         th:href="@{/css/app.css}">
+
+    <link
+        rel="stylesheet"
+        th:href="@{/css/wms-admin.css}">
 
     <!-- 카테고리 탭 및 모달 JavaScript 연결 -->
     <script
@@ -21,14 +36,15 @@
     </script>
 </head>
 
-<body>
+<body class="wms-management-body">
 
-    <!-- 공통 상단 메뉴 -->
-    <header
-        th:replace="~{fragments :: header('inventory')}">
-    </header>
+    <div th:replace="~{fragments/admin-layout :: sidebar}"></div>
 
-    <main class="container inventory-page">
+    <div class="ff-content">
+        <div th:replace="~{fragments/admin-layout :: topbar('재고 관리', '재고 관리')}"></div>
+
+        <main class="ff-main ff-management-main">
+            <div class="container inventory-page">
 
         <!-- 페이지 제목 -->
         <section class="page-head">
@@ -38,14 +54,24 @@
                     INVENTORY CONTROL
                 </p>
 
-                <h1>재고 관리</h1>
+                <h1
+                    id="inventoryPageTitle"
+                    th:text="${currentView == 'shipments'} ? '출고 대기 주문' : '재고 관리'">
+                    재고 관리
+                </h1>
 
-                <p>
+                <p
+                    id="inventoryPageDescription"
+                    th:text="${currentView == 'shipments'}
+                    ? '출고 대기 주문을 피킹·검수·출고 완료 순서로 처리합니다.'
+                    : 'LOT 단위로 입고하고 유통기한이 빠른 재고부터 출고합니다.'">
                     LOT 단위로 입고하고 유통기한이 빠른 재고부터 출고합니다.
                 </p>
             </div>
 
             <button
+                id="inventoryReceiveButton"
+                th:if="${currentView != 'shipments'}"
                 type="button"
                 class="primary"
                 data-open="receiveModal">
@@ -68,13 +94,26 @@
             th:text="${error}">
         </div>
 
-        <section class="inventory-alert-center" aria-label="재고 알림">
+        <section
+            class="inventory-alert-center"
+            th:classappend="${currentView == 'shipments'} ? ' shipment-context-alert'"
+            aria-label="재고 알림">
             <div class="inventory-alert-heading">
                 <div>
                     <p class="summary-eyebrow">SMART ALERTS</p>
-                    <h2>재고 알림</h2>
+                    <h2
+                        id="inventoryAlertTitle"
+                        th:text="${currentView == 'shipments'} ? '출고 참고 알림' : '재고 알림'">
+                        재고 알림
+                    </h2>
                 </div>
-                <span>확인이 필요한 항목을 자동 집계합니다.</span>
+                <span
+                    id="inventoryAlertDescription"
+                    th:text="${currentView == 'shipments'}
+                    ? '재고 부족·유통기한 임박 상품을 출고 전에 확인하세요.'
+                    : '확인이 필요한 항목을 자동 집계합니다.'">
+                    확인이 필요한 항목을 자동 집계합니다.
+                </span>
             </div>
 
             <div class="inventory-alert-grid">
@@ -104,6 +143,7 @@
 
                 <a
                     class="inventory-alert-card neutral"
+                    th:classappend="${currentView == 'shipments'} ? ' shipment-alert-hide'"
                     th:href="@{/inventory(view='activeLots')}">
                     <span>위치 미지정</span>
                     <strong th:text="${unlocatedLotCount}">0</strong>
@@ -114,6 +154,7 @@
 
         <!-- 클릭 가능한 재고 요약 카드 -->
         <section
+            th:if="${currentView != 'shipments'}"
             class="stats inventory-stats"
             aria-label="재고 요약 보기">
 
@@ -286,11 +327,101 @@
                         <thead>
                             <tr>
                                 <th>상품명</th>
-                                <th>카테고리</th>
-                                <th>제조사</th>
-                                <th>중량</th>
-                                <th>LOT 현황</th>
-                                <th>최근 유통기한</th>
+                                <th
+                                    class="sortable-table-header"
+                                    aria-sort="none">
+                                    <span>카테고리</span>
+                                    <button
+                                        type="button"
+                                        class="table-sort-toggle"
+                                        data-sort-key="category"
+                                        data-sort-label="카테고리"
+                                        data-sort-asc-label="오름차순(가나다 순)"
+                                        data-sort-desc-label="내림차순(역순)"
+                                        aria-label="카테고리 오름차순(가나다 순)으로 정렬"
+                                        title="카테고리 오름차순(가나다 순)으로 정렬">
+                                        <span>정렬</span>
+                                        <span
+                                            data-sort-indicator
+                                            aria-hidden="true">↕</span>
+                                    </button>
+                                </th>
+                                <th
+                                    class="sortable-table-header"
+                                    aria-sort="none">
+                                    <span>제조사</span>
+                                    <button
+                                        type="button"
+                                        class="table-sort-toggle"
+                                        data-sort-key="manufacturer"
+                                        data-sort-label="제조사"
+                                        data-sort-asc-label="오름차순(가나다 순)"
+                                        data-sort-desc-label="내림차순(역순)"
+                                        aria-label="제조사 오름차순(가나다 순)으로 정렬"
+                                        title="제조사 오름차순(가나다 순)으로 정렬">
+                                        <span>정렬</span>
+                                        <span
+                                            data-sort-indicator
+                                            aria-hidden="true">↕</span>
+                                    </button>
+                                </th>
+                                <th
+                                    class="sortable-table-header"
+                                    aria-sort="none">
+                                    <span>중량</span>
+                                    <button
+                                        type="button"
+                                        class="table-sort-toggle"
+                                        data-sort-key="weight"
+                                        data-sort-label="중량"
+                                        data-sort-asc-label="오름차순(가벼운 순)"
+                                        data-sort-desc-label="내림차순(무거운 순)"
+                                        aria-label="중량 오름차순(가벼운 순)으로 정렬"
+                                        title="중량 오름차순(가벼운 순)으로 정렬">
+                                        <span>정렬</span>
+                                        <span
+                                            data-sort-indicator
+                                            aria-hidden="true">↕</span>
+                                    </button>
+                                </th>
+                                <th
+                                    class="sortable-table-header"
+                                    aria-sort="none">
+                                    <span>LOT 현황</span>
+                                    <button
+                                        type="button"
+                                        class="table-sort-toggle"
+                                        data-sort-key="lot"
+                                        data-sort-label="LOT 현황"
+                                        data-sort-asc-label="오름차순(적은 순)"
+                                        data-sort-desc-label="내림차순(많은 순)"
+                                        aria-label="LOT 현황 오름차순(적은 순)으로 정렬"
+                                        title="LOT 현황 오름차순(적은 순)으로 정렬">
+                                        <span>정렬</span>
+                                        <span
+                                            data-sort-indicator
+                                            aria-hidden="true">↕</span>
+                                    </button>
+                                </th>
+                                <th
+                                    class="sortable-table-header"
+                                    aria-sort="none">
+                                    <span>최근 유통기한</span>
+                                    <button
+                                        type="button"
+                                        class="table-sort-toggle"
+                                        data-sort-key="expiration"
+                                        data-sort-label="최근 유통기한"
+                                        data-sort-asc-label="오름차순(임박 순)"
+                                        data-sort-desc-label="내림차순(여유 순)"
+                                        aria-label="최근 유통기한 오름차순(임박 순)으로 정렬"
+                                        title="최근 유통기한 오름차순(임박 순)으로 정렬">
+                                        <span>정렬</span>
+                                        <span
+                                            data-sort-indicator
+                                            aria-hidden="true">↕</span>
+                                    </button>
+                                </th>
                                 <th>관리</th>
                             </tr>
                         </thead>
@@ -298,7 +429,14 @@
                             <tr
                                 th:each="product : ${products}"
                                 th:data-category="${product.animalType}"
-                                th:with="lotSummary=${productLotSummaries[product.productId]}">
+                                th:with="lotSummary=${productLotSummaries[product.productId]}"
+                                th:data-manufacturer="${product.manufacturer.companyName}"
+                                th:data-weight="${product.weightKg}"
+                                th:data-lot-count="${lotSummary.activeLotCount}"
+                                th:data-lot-quantity="${lotSummary.totalQuantity}"
+                                th:data-expiration="${lotSummary.nearestExpirationLot != null
+                                    ? lotSummary.nearestExpirationLot.expirationDate
+                                    : ''}">
                                 <td>
                                     <a
                                         class="product-link"
@@ -2122,7 +2260,9 @@
 
         </div>
 
-    </main>
+            </div>
+        </main>
+    </div>
 
     <!-- =========================================
          창고 현재고 조정 모달
@@ -2608,5 +2748,6 @@
         </form>
     </dialog>
 
+    <div th:replace="~{fragments/admin-layout :: scripts}"></div>
 </body>
 </html>

@@ -20,7 +20,11 @@
 
     const state = {
         products: [],
-        editingId: null
+        editingId: null,
+        query: "",
+        animal: "ALL",
+        stock: "ALL",
+        event: "ALL"
     };
 
     const fields = Object.fromEntries(
@@ -65,22 +69,6 @@
         showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 2600);
     }
 
-    function basicAuthorization() {
-        const username = document.querySelector("#admin-username").value.trim();
-        const password = document.querySelector("#admin-password").value;
-
-        if (!username || !password) {
-            throw new Error("관리자 아이디와 비밀번호를 먼저 입력하세요.");
-        }
-
-        const bytes = new TextEncoder().encode(`${username}:${password}`);
-        let binary = "";
-        bytes.forEach((byte) => {
-            binary += String.fromCharCode(byte);
-        });
-        return `Basic ${window.btoa(binary)}`;
-    }
-
     async function readError(response) {
         try {
             const body = await response.json();
@@ -91,7 +79,7 @@
     }
 
     async function loadProducts() {
-        table.innerHTML = "<tr><td colspan=\"6\">상품을 불러오는 중입니다.</td></tr>";
+        table.innerHTML = "<tr><td colspan=\"7\">상품을 불러오는 중입니다.</td></tr>";
 
         try {
             const response = await fetch("/api/products");
@@ -101,35 +89,61 @@
             state.products = await response.json();
             renderProducts();
         } catch (error) {
-            table.innerHTML = `<tr><td colspan="6">${escapeHtml(error.message)}</td></tr>`;
+            table.innerHTML = `<tr><td colspan="7">${escapeHtml(error.message)}</td></tr>`;
             showToast(error.message, true);
         }
     }
 
     function renderProducts() {
         productCount.textContent = state.products.length;
+        document.querySelector("#metric-total").textContent = number(state.products.length);
+        document.querySelector("#metric-soldout").textContent = number(state.products.filter((product) => product.stock < 1).length);
+        document.querySelector("#metric-low").textContent = number(state.products.filter((product) => product.stock > 0 && product.stock <= 10).length);
+        document.querySelector("#metric-expiry").textContent = number(state.products.flatMap((product) => product.lots || []).filter((lot) => lot.daysRemaining <= 30).length);
 
-        if (!state.products.length) {
-            table.innerHTML = "<tr><td colspan=\"6\">등록된 상품이 없습니다.</td></tr>";
+        const query = state.query.toLowerCase();
+        const products = state.products.filter((product) => {
+            const queryMatch = !query || `${product.name} ${product.productCode} ${product.lot || ""}`.toLowerCase().includes(query);
+            const animalMatch = state.animal === "ALL"
+                || (state.animal === "CATTLE_GROUP" && ["CATTLE", "DAIRY_CATTLE"].includes(product.animalType))
+                || (state.animal === "POULTRY_GROUP" && ["CHICKEN", "DUCK"].includes(product.animalType))
+                || state.animal === product.animalType;
+            const stockMatch = state.stock === "ALL"
+                || (state.stock === "AVAILABLE" && product.stock > 10)
+                || (state.stock === "LOW" && product.stock > 0 && product.stock <= 10)
+                || (state.stock === "SOLDOUT" && product.stock < 1);
+            const eventMatch = state.event === "ALL"
+                || (state.event === "EVENT" && Boolean(product.badge || product.originalPrice))
+                || (state.event === "NORMAL" && !product.badge && !product.originalPrice);
+            return queryMatch && animalMatch && stockMatch && eventMatch;
+        });
+
+        if (!products.length) {
+            table.innerHTML = "<tr><td colspan=\"7\">조건에 맞는 상품이 없습니다.</td></tr>";
             return;
         }
 
-        table.innerHTML = state.products.map((product) => `
+        table.innerHTML = products.map((product) => {
+            const stockLabel = product.stock < 1 ? "품절" : product.stock <= 10 ? "재고 부족" : "판매 중";
+            const stockClass = product.stock < 1 ? "sold-out" : product.stock <= 10 ? "low-stock" : "available";
+            return `
             <tr>
                 <td>
+                    <small>${escapeHtml(product.productCode || `FF-P${product.id}`)}</small>
                     <strong>${escapeHtml(product.name)}</strong>
                     <small>${escapeHtml(product.manufacturer)} · ${escapeHtml(product.stage)}</small>
                 </td>
                 <td>${escapeHtml(product.animal || animalLabels[product.animalType])}</td>
-                <td><strong>${number(product.price)}원</strong><small>${number(product.weight)}kg</small></td>
+                <td><strong>${number(product.weight)}kg / 포</strong><small>${number(product.price)}원</small></td>
                 <td><strong>${escapeHtml(product.lot || "재고 LOT 없음")}</strong><small>${escapeHtml(product.expiry || "-")}</small></td>
-                <td>${number(product.stock)}포</td>
+                <td><span class="admin-status ${stockClass}">${stockLabel}</span><small>${number(product.stock)}포</small></td>
+                <td>${product.badge || product.originalPrice ? `<span class="admin-event">${escapeHtml(product.badge || "할인")}</span>` : "-"}</td>
                 <td>
                     <button type="button" data-action="edit" data-id="${product.id}">수정</button>
                     <button type="button" class="delete" data-action="delete" data-id="${product.id}">판매 중지</button>
                 </td>
             </tr>
-        `).join("");
+        `;}).join("");
     }
 
     function payloadFromForm() {
@@ -177,6 +191,7 @@
         fields.manufacturedDate.value = isoDate(today);
         fields.expirationDate.value = isoDate(nextYear);
         fields.lotNumber.value = `LOT-${isoDate(today).replaceAll("-", "")}-01`;
+        updateImagePreview();
 
         editorEyebrow.textContent = "NEW PRODUCT";
         editorTitle.textContent = "새 상품 등록";
@@ -215,6 +230,7 @@
         defaultExpiry.setFullYear(defaultExpiry.getFullYear() + 1);
         fields.expirationDate.value = product.expiry ?? isoDate(defaultExpiry);
         fields.lotQuantity.value = product.stock ?? 0;
+        updateImagePreview();
 
         editorEyebrow.textContent = `PRODUCT #${product.id}`;
         editorTitle.textContent = "상품 정보 수정";
@@ -229,15 +245,6 @@
             return;
         }
 
-        let authorization;
-        try {
-            authorization = basicAuthorization();
-        } catch (error) {
-            showToast(error.message, true);
-            document.querySelector("#admin-username").focus();
-            return;
-        }
-
         const editing = state.editingId !== null;
         const url = editing ? `/api/admin/products/${state.editingId}` : "/api/admin/products";
         saveButton.disabled = true;
@@ -247,8 +254,7 @@
             const response = await fetch(url, {
                 method: editing ? "PUT" : "POST",
                 headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": authorization
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify(payloadFromForm())
             });
@@ -257,7 +263,7 @@
             }
 
             showToast(editing ? "상품 정보가 수정되었습니다." : "새 상품이 등록되었습니다.");
-            message.textContent = "관리자 인증과 H2 저장이 정상 작동했습니다.";
+            message.textContent = "상품 정보가 통합 재고·유통 데이터에 저장되었습니다.";
             resetForm();
             await loadProducts();
         } catch (error) {
@@ -275,18 +281,9 @@
             return;
         }
 
-        let authorization;
-        try {
-            authorization = basicAuthorization();
-        } catch (error) {
-            showToast(error.message, true);
-            return;
-        }
-
         try {
             const response = await fetch(`/api/admin/products/${productId}`, {
-                method: "DELETE",
-                headers: { "Authorization": authorization }
+                method: "DELETE"
             });
             if (!response.ok) {
                 throw new Error(await readError(response));
@@ -299,6 +296,15 @@
         } catch (error) {
             showToast(error.message, true);
         }
+    }
+
+    function updateImagePreview() {
+        const preview = document.querySelector("#admin-preview-image");
+        preview.src = fields.imageUrl.value.trim() || "/images/feed-bag-warehouse.png";
+        preview.onerror = () => {
+            preview.onerror = null;
+            preview.src = "/images/feed-bag-warehouse.png";
+        };
     }
 
     form.addEventListener("submit", saveProduct);
@@ -315,6 +321,35 @@
             deleteProduct(productId);
         }
     });
+
+    document.querySelector("#admin-search").addEventListener("input", (event) => {
+        state.query = event.target.value.trim();
+        renderProducts();
+    });
+    document.querySelector("#admin-animal-filter").addEventListener("change", (event) => {
+        state.animal = event.target.value;
+        renderProducts();
+    });
+    document.querySelector("#admin-stock-filter").addEventListener("change", (event) => {
+        state.stock = event.target.value;
+        renderProducts();
+    });
+    document.querySelector("#admin-event-filter").addEventListener("change", (event) => {
+        state.event = event.target.value;
+        renderProducts();
+    });
+    document.querySelector("#admin-filter-reset").addEventListener("click", () => {
+        state.query = "";
+        state.animal = "ALL";
+        state.stock = "ALL";
+        state.event = "ALL";
+        document.querySelector("#admin-search").value = "";
+        document.querySelector("#admin-animal-filter").value = "ALL";
+        document.querySelector("#admin-stock-filter").value = "ALL";
+        document.querySelector("#admin-event-filter").value = "ALL";
+        renderProducts();
+    });
+    fields.imageUrl.addEventListener("input", updateImagePreview);
 
     resetForm();
     loadProducts();

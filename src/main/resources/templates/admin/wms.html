@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="~{fragments/admin-layout :: head(${pageTitle})}"></head>
+
+<body>
+<div th:replace="~{fragments/admin-layout :: sidebar}"></div>
+
+<div class="ff-content">
+    <div th:replace="~{fragments/admin-layout :: topbar(${sectionTitle}, ${pageTitle})}"></div>
+
+    <main class="ff-main wms-page">
+        <div th:if="${wmsMessage}"
+             class="alert alert-success alert-dismissible fade show">
+            <i class="bi bi-check-circle-fill me-1"></i>
+            <span th:text="${wmsMessage}">완료</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <div th:if="${wmsError}"
+             class="alert alert-danger alert-dismissible fade show">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+            <span th:text="${wmsError}">오류</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <section th:if="${currentView != 'map'}" class="row g-3 mb-4">
+            <div class="col-6 col-xl-2">
+                <div class="card ff-card h-100"><div class="card-body py-3">
+                    <small class="text-muted">운영 센터</small>
+                    <strong class="d-block fs-4" th:text="${overview.warehouseCount} + '곳'">5곳</strong>
+                </div></div>
+            </div>
+            <div class="col-6 col-xl-2">
+                <div class="card ff-card h-100"><div class="card-body py-3">
+                    <small class="text-muted">창고 구역</small>
+                    <strong class="d-block fs-4" th:text="${overview.binCount} + '개'">30개</strong>
+                </div></div>
+            </div>
+            <div class="col-6 col-xl-2">
+                <div class="card ff-card h-100"><div class="card-body py-3">
+                    <small class="text-muted">재고 보유 구역</small>
+                    <strong class="d-block fs-4 text-primary" th:text="${overview.occupiedBinCount} + '개'">5개</strong>
+                </div></div>
+            </div>
+            <div class="col-6 col-xl-2">
+                <div class="card ff-card h-100"><div class="card-body py-3">
+                    <small class="text-muted">LOT 실재고</small>
+                    <strong class="d-block fs-4 text-success" th:text="${#numbers.formatInteger(overview.physicalStock, 1, 'COMMA')} + '포대'">0포대</strong>
+                </div></div>
+            </div>
+            <div class="col-6 col-xl-2">
+                <div class="card ff-card h-100"><div class="card-body py-3">
+                    <small class="text-muted">30일 내 만료</small>
+                    <strong class="d-block fs-4 text-warning" th:text="${overview.expiringLotCount} + '건'">0건</strong>
+                </div></div>
+            </div>
+            <div class="col-6 col-xl-2">
+                <div class="card ff-card h-100"><div class="card-body py-3">
+                    <small class="text-muted">정합성 오류</small>
+                    <strong class="d-block fs-4"
+                            th:classappend="${overview.inconsistentProductCount > 0} ? 'text-danger' : 'text-success'"
+                            th:text="${overview.inconsistentProductCount} + '건'">0건</strong>
+                </div></div>
+            </div>
+        </section>
+
+        <nav th:if="${currentView != 'map' and currentView != 'bins' and currentView != 'inbound'}" class="wms-view-nav mb-4" aria-label="WMS 기능 메뉴">
+            <a th:href="@{/admin/warehouse-map}"
+               th:classappend="${currentView == 'map'} ? 'active'"><i class="bi bi-grid-3x3-gap"></i>2D 도면</a>
+            <a th:href="@{/admin/wms(view='bins')}"
+               th:classappend="${currentView == 'bins'} ? 'active'"><i class="bi bi-bounding-box"></i>구역</a>
+            <a th:href="@{/admin/wms(view='inbound')}"
+               th:classappend="${currentView == 'inbound'} ? 'active'"><i class="bi bi-box-arrow-in-down"></i>입고</a>
+            <a th:href="@{/admin/wms(view='move')}"
+               th:classappend="${currentView == 'move'} ? 'active'"><i class="bi bi-arrows-move"></i>이동</a>
+            <a th:href="@{/admin/wms(view='disposal')}"
+               th:classappend="${currentView == 'disposal'} ? 'active'"><i class="bi bi-trash3"></i>폐기</a>
+            <a th:href="@{/admin/wms(view='movements')}"
+               th:classappend="${currentView == 'movements'} ? 'active'"><i class="bi bi-clock-history"></i>이력</a>
+            <a th:href="@{/admin/wms(view='traceability')}"
+               th:classappend="${currentView == 'traceability'} ? 'active'"><i class="bi bi-diagram-3"></i>LOT 추적</a>
+            <a th:href="@{/admin/wms(view='sync')}"
+               th:classappend="${currentView == 'sync'} ? 'active'"><i class="bi bi-shield-check"></i>정합성</a>
+            <a th:href="@{/admin/outbound/direct}"
+               th:classappend="${currentView == 'directOutbound'} ? 'active'"><i class="bi bi-box-arrow-up-right"></i>직접 출고</a>
+            <a th:href="@{/admin/scan}"
+               th:classappend="${currentView == 'scan'} ? 'active'"><i class="bi bi-upc-scan"></i>스캔</a>
+            <a th:href="@{/admin/scan/labels}"
+               th:classappend="${currentView == 'labels'} ? 'active'"><i class="bi bi-printer"></i>라벨</a>
+        </nav>
+
+        <section th:if="${currentView == 'map'}">
+            <nav class="wms-center-tabs mb-4" aria-label="물류 센터 선택">
+                <a th:each="warehouse : ${warehouses}"
+                   th:href="@{/admin/warehouse-map(centerId=${warehouse.warehouseId})}"
+                   th:classappend="${warehouse.warehouseId == selectedWarehouseId} ? 'active'">
+                    <i class="bi bi-building"></i>
+                    <span><strong th:text="${warehouse.name}">센터</strong><small th:text="${warehouse.operationFocus}">운영 특성</small></span>
+                </a>
+            </nav>
+
+            <div class="card ff-card mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div><strong><i class="bi bi-geo-alt-fill me-1"></i>전국 거점 지도</strong><small class="text-muted ms-2">핀을 누르면 해당 센터 도면으로 이동합니다.</small></div>
+                    <button type="button" id="wmsNetworkReset" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrows-fullscreen me-1"></i>전국 보기</button>
+                </div>
+                <div class="card-body p-3">
+                    <div id="wmsNetworkMap" class="wms-network-map wms-network-map-compact"
+                         th:data-selected-id="${selectedWarehouseId}"></div>
+                    <div id="wmsNetworkPins" class="d-none">
+                        <span th:each="warehouse : ${warehouses}"
+                              th:data-id="${warehouse.warehouseId}"
+                              th:data-name="${warehouse.name}"
+                              th:data-code="${warehouse.code}"
+                              th:data-lat="${warehouse.latitude}"
+                              th:data-lng="${warehouse.longitude}"
+                              th:data-address="${warehouse.address}"
+                              th:data-quantity="${warehouseQuantities.getOrDefault(warehouse.warehouseId, 0)}"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-sm-6 col-xl-3"><div class="card ff-card h-100"><div class="card-body">
+                    <small class="text-muted">보관 구역 사용률</small><strong class="d-block fs-3 text-primary" th:text="${warehouseMap.storageUsageRate} + '%'">0%</strong>
+                    <span class="small" th:text="|${#numbers.formatInteger(warehouseMap.storageQuantity, 1, 'COMMA')} / ${#numbers.formatInteger(warehouseMap.storageCapacity, 1, 'COMMA')}포대|">0 / 0</span>
+                    <small class="d-block text-muted" th:text="|대기·검수 구역 ${#numbers.formatInteger(warehouseMap.waitingQuantity, 1, 'COMMA')}포대 별도|">별도</small>
+                </div></div></div>
+                <div class="col-sm-6 col-xl-3"><div class="card ff-card h-100"><div class="card-body">
+                    <small class="text-muted"><i class="bi bi-box-seam me-1"></i>남은 여유</small><strong class="d-block fs-3" th:text="${#numbers.formatInteger(warehouseMap.remainingCapacity, 1, 'COMMA')}">0</strong>
+                    <small class="text-muted">보관 구역 추가 적재 가능</small>
+                </div></div></div>
+                <div class="col-sm-6 col-xl-3"><div class="card ff-card h-100"><div class="card-body">
+                    <small class="text-muted"><i class="bi bi-boxes me-1"></i>포화 구역</small><strong class="d-block fs-3" th:classappend="${warehouseMap.saturatedBinCount > 0} ? 'text-danger'" th:text="${warehouseMap.saturatedBinCount} + '칸'">0칸</strong>
+                    <small class="text-muted">90% 이상 적재</small>
+                </div></div></div>
+                <div class="col-sm-6 col-xl-3"><div class="card ff-card h-100"><div class="card-body">
+                    <small class="text-muted"><i class="bi bi-calendar-x me-1"></i>유통기한 임박 구역</small><strong class="d-block fs-3 text-warning" th:text="${warehouseMap.expiringBinCount} + '칸'">0칸</strong>
+                    <small class="text-muted" th:text="|보관 ${warehouseMap.storageBinCount}칸 · 대기 ${warehouseMap.waitingBinCount}칸 · 중지 ${warehouseMap.inactiveBinCount}칸|">구역 현황</small>
+                </div></div></div>
+            </div>
+
+            <div class="wms-map-legend mb-3" aria-label="도면 범례">
+                <span><i class="wms-legend is-low"></i>여유 (60% 미만)</span>
+                <span><i class="wms-legend is-medium"></i>보통 (60~89%)</span>
+                <span><i class="wms-legend is-full"></i>포화 (90% 이상)</span>
+                <span><i class="wms-legend is-empty"></i>비어있음</span>
+                <span><i class="wms-legend is-inactive"></i>사용 중지</span>
+                <span><i class="wms-legend receiving"></i>입고 대기</span>
+                <span><i class="wms-legend shipping"></i>출고 대기</span>
+                <span><i class="wms-legend inspection"></i>검수·격리</span>
+                <span class="wms-legend-divider"></span>
+                <span><i class="wms-zone-outline cold"></i>저온 구역</span>
+                <span><i class="wms-zone-outline normal"></i>상온 구역</span>
+            </div>
+
+            <div class="card ff-card mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div><strong th:text="${warehouseMap.warehouse.name} + ' 2D 도면'">창고 도면</strong><small class="d-block text-muted" th:text="|${warehouseMap.warehouse.address} · ${warehouseMap.warehouse.operationFocus}|">센터 정보</small></div>
+                    <span class="badge text-bg-dark" th:text="${warehouseMap.warehouse.code}">W01</span>
+                </div>
+                <div class="card-body">
+                    <div class="ff-floor-scroll">
+                        <div class="ff-floor" aria-label="창고 구역 도면">
+                            <div th:each="zone : ${warehouseMap.zones}"
+                                 class="ff-zone-area"
+                                 th:classappend="${zone.areaClass}"
+                                 th:style="'grid-area:' + ${zone.gridArea}"
+                                 th:title="|${zone.displayName}|"
+                                 aria-hidden="true"></div>
+
+                            <div th:each="facility : ${warehouseMap.facilities}"
+                                 class="ff-facility"
+                                 th:classappend="${facility.cssClass}"
+                                 th:style="'grid-area:' + ${facility.gridArea}">
+                                <span th:text="${facility.label}">시설</span>
+                            </div>
+
+                            <button th:each="item : ${warehouseMap.binItems}"
+                                    type="button" class="ff-bin-tile"
+                                    th:classappend="${item.statusClass + (item.narrow ? ' ff-bin-narrow' : '') + (item.flat ? ' ff-bin-flat' : '')}"
+                                    th:style="'grid-area:' + ${item.gridArea}"
+                                    th:data-bin-id="${item.bin.binId}"
+                                    th:data-bin-code="${item.bin.binCode}"
+                                    th:aria-label="|${item.bin.binCode} ${item.statusLabel} ${item.quantity}/${item.bin.effectiveMaxCapacity}포대|">
+                                <span class="ff-bin-head">
+                                    <span class="ff-bin-code" th:text="${item.bin.binCode}">YS-PL-01</span>
+                                    <span class="ff-bin-rate" th:if="${item.bin.purpose.name() == 'STORAGE'}" th:text="${item.usageRate} + '%'">0%</span>
+                                </span>
+                                <span class="ff-bin-mid">
+                                    <span class="ff-bin-gauge" th:if="${item.bin.purpose.name() == 'STORAGE'}"><span class="ff-bin-gauge-fill" th:style="|width:${item.usageRateCapped}%|"></span></span>
+                                    <span class="ff-bin-purpose" th:unless="${item.bin.purpose.name() == 'STORAGE'}" th:text="${item.statusLabel}">입고 대기</span>
+                                </span>
+                                <span class="ff-bin-foot">
+                                    <span class="ff-bin-qty" th:text="|${#numbers.formatInteger(item.quantity, 1, 'COMMA')}/${#numbers.formatInteger(item.bin.effectiveMaxCapacity, 1, 'COMMA')}|">0/0</span>
+                                    <span class="ff-bin-meta">
+                                        <b th:if="${item.hasExpiryWarning}" class="badge wms-expiry-chip" th:text="${item.expiryLabel}">D-10</b>
+                                        <span th:if="${!item.bin.active}">중지</span>
+                                        <span th:if="${item.bin.active and item.lotCount > 0}" th:text="|로트 ${item.lotCount} · ${item.productCount}종|">로트</span>
+                                        <span th:if="${item.bin.active and item.bin.purpose.name() == 'STORAGE' and item.lotCount == 0}">비어있음</span>
+                                    </span>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                    <p class="small text-muted mb-0 mt-3"><i class="bi bi-hand-index me-1"></i>구역을 클릭하면 보관 중인 품목과 LOT를 확인할 수 있습니다. 사각형의 위치와 크기는 실제 창고 배치를 따르며 <a th:href="@{/admin/wms(view='bins')}">창고 구역 관리</a>에서 조정합니다.</p>
+                </div>
+            </div>
+
+            <div class="card ff-card">
+                <div class="card-header bg-white"><strong><i class="bi bi-bar-chart-fill me-1"></i>구역별 적재 현황</strong></div>
+                <div class="card-body"><div class="row g-3">
+                    <div th:each="zone : ${warehouseMap.zones}" class="col-sm-6 col-xl-4">
+                        <div class="wms-zone-summary">
+                            <div class="d-flex justify-content-between"><strong th:text="${zone.displayName}">구역</strong><span th:text="${zone.binCount} + '칸'">0칸</span></div>
+                            <small th:text="|${#numbers.formatInteger(zone.quantity, 1, 'COMMA')} / ${#numbers.formatInteger(zone.capacity, 1, 'COMMA')}포대|">0 / 0</small>
+                            <div class="progress mt-2" role="progressbar" th:aria-valuenow="${zone.usageRate}" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar" th:style="|width:${zone.usageRate > 100 ? 100 : zone.usageRate}%|" th:text="${zone.usageRate} + '%'">0%</div></div>
+                        </div>
+                    </div>
+                </div></div>
+            </div>
+
+            <div class="modal fade" id="wmsBinDetailModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+                    <div class="modal-header"><h2 class="modal-title fs-5"><i class="bi bi-box-seam me-1"></i><span id="wmsBinDetailTitle">구역 상세</span></h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button></div>
+                    <div class="modal-body">
+                        <div id="wmsBinDetailLoading" class="text-center py-5"><div class="spinner-border text-secondary"><span class="visually-hidden">불러오는 중</span></div></div>
+                        <div id="wmsBinDetailError" class="alert alert-danger d-none"></div>
+                        <div id="wmsBinDetailBody" class="d-none">
+                            <div class="row g-3 mb-3">
+                                <div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><small class="text-muted d-block">위치</small><strong id="wmsBinDetailLocation">-</strong></div></div>
+                                <div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><small class="text-muted d-block">상태</small><span id="wmsBinDetailStatus" class="badge">-</span></div></div>
+                                <div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><small class="text-muted d-block">적재 / 수용</small><strong id="wmsBinDetailLoad">-</strong></div></div>
+                                <div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><small class="text-muted d-block">남은 여유</small><strong id="wmsBinDetailRemaining">-</strong></div></div>
+                            </div>
+                            <div id="wmsBinExpiredAlert" class="alert alert-warning py-2 d-none"><i class="bi bi-exclamation-triangle-fill me-1"></i>만료된 LOT가 포함되어 있습니다. 출고하지 말고 폐기·반품 처리해 주세요.</div>
+                            <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>품목</th><th>LOT</th><th class="text-center">유통기한</th><th class="text-end">수량</th></tr></thead><tbody id="wmsBinDetailRows"></tbody></table></div>
+                            <div id="wmsBinDetailEmpty" class="text-center text-muted py-4 d-none">보관 중인 재고가 없습니다.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer"><a id="wmsBinInventoryLink" th:href="@{/inventory(view='stock')}" class="btn btn-outline-primary"><i class="bi bi-stack me-1"></i>재고 현황에서 보기</a><a id="wmsBinMoveLink" th:href="@{/admin/wms(view='move')}" class="btn btn-primary"><i class="bi bi-arrows-move me-1"></i>재고 이동</a><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button></div>
+                </div></div>
+            </div>
+        </section>
+
+        <section th:if="${currentView == 'bins'}">
+            <div class="alert alert-info py-2 mb-3"><i class="bi bi-layers me-1"></i><strong>수직 적재 기준:</strong> 각 구역의 층당 기준 용량에 10단 적재를 적용해 입고 가능량과 현재/한도 수량을 계산합니다.</div>
+            <div class="row g-4">
+                <div class="col-12 col-xl-4">
+                    <div class="card ff-card sticky-xl-top" style="top: 96px">
+                        <div class="card-header bg-white fw-bold">새 창고 구역 등록</div>
+                        <div class="card-body">
+                            <form th:action="@{/admin/wms/bins}" method="post" class="row g-3">
+                                <div class="col-12"><label class="form-label">창고</label><select name="warehouseId" class="form-select" required><option th:each="warehouse : ${warehouses}" th:value="${warehouse.warehouseId}" th:text="${warehouse.name}">창고</option></select></div>
+                                <div class="col-6"><label class="form-label">구역 코드</label><input name="binCode" class="form-control" placeholder="B-01" required></div>
+                                <div class="col-6"><label class="form-label">구역명</label><input name="zone" class="form-control" placeholder="B 보관" required></div>
+                                <div class="col-12"><label class="form-label">용도</label><select name="purpose" class="form-select" required><option th:each="purpose : ${binPurposes}" th:if="${purpose.selectableByUser}" th:value="${purpose}" th:text="${purpose.label}">보관</option></select></div>
+                                <div class="col-12"><label class="form-label">층당 기준 적재량 <span class="text-muted small">(현재 10단 적재 적용)</span></label><input type="number" name="maxCapacity" min="1" value="5000" class="form-control" required><small class="text-muted">입력값 × 10단이 실제 적재 가능 포대 수로 계산됩니다.</small></div>
+                                <div class="col-6"><label class="form-label">도면 X / Y</label><div class="input-group"><input type="number" name="posX" min="1" max="20" value="2" class="form-control"><input type="number" name="posY" min="1" max="16" value="2" class="form-control"></div></div>
+                                <div class="col-6"><label class="form-label">너비 / 높이</label><div class="input-group"><input type="number" name="posWidth" min="1" max="20" value="3" class="form-control"><input type="number" name="posHeight" min="1" max="16" value="3" class="form-control"></div></div>
+                                <div class="col-12"><label class="form-label">메모</label><textarea name="memo" class="form-control" rows="2"></textarea></div>
+                                <div class="col-12 d-grid"><button class="btn btn-success"><i class="bi bi-plus-lg me-1"></i>구역 등록</button></div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-xl-8">
+                    <div class="card ff-card">
+                        <div class="wms-bin-center-tabs p-3 pb-0" role="tablist" aria-label="창고별 구역 필터">
+                            <a class="btn btn-sm" th:classappend="${selectedBinWarehouseId == null} ? 'btn-primary' : 'btn-outline-secondary'" th:href="@{/admin/wms(view='bins')}">전체 창고</a>
+                            <a th:each="warehouse : ${warehouses}" class="btn btn-sm" th:classappend="${selectedBinWarehouseId == warehouse.warehouseId} ? 'btn-primary' : 'btn-outline-secondary'" th:href="@{/admin/wms(view='bins',binWarehouseId=${warehouse.warehouseId})}" th:text="${warehouse.name}">창고</a>
+                        </div>
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <strong>5개 센터 구역 목록</strong><span class="badge text-bg-secondary" th:text="${#lists.size(displayBins)} + '개'">0개</span>
+                        </div>
+                        <div class="table-responsive"><table class="table table-hover align-middle mb-0 wms-bin-table"><thead><tr><th>센터</th><th>코드</th><th>용도</th><th>도면 위치</th><th class="text-end">현재 / 한도</th><th class="text-center">상태</th><th class="text-center">관리</th></tr></thead><tbody>
+                            <tr th:each="bin : ${displayBins}">
+                                <td th:text="${bin.warehouse.name}">창고</td>
+                                <td class="font-monospace fw-bold" th:text="${bin.binCode}">A-01</td>
+                                <td><span class="badge text-bg-light" th:text="${bin.purpose.label}">보관</span></td>
+                                <td th:text="|(${bin.posX}, ${bin.posY}) ${bin.posWidth}×${bin.posHeight}|">(1,1)</td>
+                                <td class="text-end" th:text="|${#numbers.formatInteger(binQuantities.getOrDefault(bin.binId, 0), 1, 'COMMA')} / ${bin.purpose.physicalSpace ? #numbers.formatInteger(bin.effectiveMaxCapacity, 1, 'COMMA') : '무제한'}|">0</td>
+                                <td class="text-center"><span class="badge" th:classappend="${bin.active} ? 'text-bg-success' : 'text-bg-secondary'" th:text="${bin.active} ? '사용' : '중지'">사용</span></td>
+                                <td class="text-center wms-bin-actions"><form th:if="${bin.purpose.selectableByUser}" th:action="@{/admin/wms/bins/{binId}/delete(binId=${bin.binId})}" method="post" class="d-inline" onsubmit="return confirm('이 구역을 삭제할까요? 재고가 있으면 삭제할 수 없습니다.')"><input type="hidden" name="warehouseId" th:value="${bin.warehouse.warehouseId}"><button class="btn btn-sm btn-outline-danger" type="submit">삭제</button></form><span th:unless="${bin.purpose.selectableByUser}" class="text-muted small">-</span></td>
+                            </tr>
+                        </tbody></table></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section th:if="${currentView == 'inbound'}">
+            <div class="alert alert-info py-2 mb-3"><i class="bi bi-layers me-1"></i><strong>수직 적재 기준:</strong> 층당 기준 용량 × 10단을 실제 입고 가능 공간으로 사용합니다.</div>
+            <div th:if="${bulkInboundResults != null and !#lists.isEmpty(bulkInboundResults)}" class="alert alert-success">
+                <strong><i class="bi bi-check-circle-fill me-1"></i>일괄 입고 완료</strong>
+                <ul class="mb-0 mt-2"><li th:each="result : ${bulkInboundResults}" th:text="${result}">처리 결과</li></ul>
+            </div>
+            <div th:if="${bulkInboundErrors != null and !#lists.isEmpty(bulkInboundErrors)}" class="alert alert-danger">
+                <strong><i class="bi bi-exclamation-triangle-fill me-1"></i>처리하지 못한 항목</strong>
+                <ul class="mb-0 mt-2"><li th:each="error : ${bulkInboundErrors}" th:text="${error}">실패 사유</li></ul>
+            </div>
+
+            <form th:if="${demandPlan != null and demandPlan.hasAction()}" th:action="@{/admin/wms/inbound/bulk}"
+                  method="post" class="card ff-card mb-4" id="wmsBulkInboundForm">
+                <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div><strong><i class="bi bi-box-arrow-in-down me-1 text-danger"></i>부족 목록 일괄 입고</strong>
+                        <small class="d-block text-muted mt-1">선택 항목을 월 수요의 120%까지 채웁니다. 기존 LOT와 입고 구역은 자동 배정됩니다.</small></div>
+                    <div class="d-flex align-items-center gap-2"><span class="badge text-bg-danger" th:text="|조치 ${demandPlan.animalsNeedingAction}건|">0건</span><span class="small fw-semibold" data-bulk-selected-count>0건 선택</span></div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light"><tr><th class="text-center"><input type="checkbox" class="form-check-input" data-bulk-select-all aria-label="전체 선택"></th><th>창고</th><th>축종</th><th class="text-end">월 수요</th><th class="text-end">현재 재고</th><th class="text-end">충족률</th><th class="text-end">권장 입고</th><th>판정</th></tr></thead>
+                        <tbody>
+                        <th:block th:each="warehousePlan : ${demandPlan.warehouses}">
+                            <tr th:each="row : ${warehousePlan.rows}" th:if="${row.needsAction()}">
+                                <td class="text-center"><input type="checkbox" class="form-check-input" name="targets" th:value="${warehousePlan.warehouse.warehouseId + '|' + row.animalType}" data-bulk-target></td>
+                                <td><strong th:text="${warehousePlan.warehouse.name}">창고</strong><small class="d-block text-muted" th:text="${warehousePlan.warehouse.code}">W01</small></td>
+                                <td><span class="badge bg-light text-dark border" th:text="${row.animalType}">축종</span></td>
+                                <td class="text-end" th:text="|${#numbers.formatInteger(row.demandQuantity, 0, 'COMMA')}포|">0포</td>
+                                <td class="text-end" th:text="|${#numbers.formatInteger(row.supplyQuantity, 0, 'COMMA')}포|">0포</td>
+                                <td class="text-end" th:text="|${row.coverageRate}%|">0%</td>
+                                <td class="text-end fw-bold text-danger" th:text="|+${#numbers.formatInteger(row.recommendedInboundQuantity(), 0, 'COMMA')}포|">+0포</td>
+                                <td><span class="badge" th:classappend="${row.status.badgeClass}" th:text="${row.status.label}">부족</span></td>
+                            </tr>
+                        </th:block>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <small class="text-muted">실패한 항목은 제외하고 성공한 항목은 정상 입고 처리됩니다.</small>
+                    <button type="submit" class="btn btn-danger" disabled data-bulk-submit onclick="return confirm('선택한 부족 항목을 일괄 입고할까요?')"><i class="bi bi-box-arrow-in-down me-1"></i>선택 항목 일괄 입고</button>
+                </div>
+            </form>
+            <div th:if="${demandPlan != null and !demandPlan.hasAction()}" class="alert alert-success"><i class="bi bi-check-circle-fill me-1"></i>현재 일괄 입고가 필요한 부족 항목이 없습니다.</div>
+
+            <div class="row g-4">
+                <div class="col-12 col-xl-7">
+                    <div class="card ff-card"><div class="card-header bg-white fw-bold">LOT 구역 입고</div><div class="card-body">
+                        <form th:action="@{/admin/wms/inbound}" method="post" class="row g-3" id="wmsInboundForm">
+                            <div class="col-12"><label class="form-label">입고 방식</label><div class="btn-group w-100" role="group"><input type="radio" class="btn-check" name="inboundMode" id="existingMode" value="existing" checked><label class="btn btn-outline-primary" for="existingMode">기존 LOT 추가 입고</label><input type="radio" class="btn-check" name="inboundMode" id="newMode" value="new"><label class="btn btn-outline-primary" for="newMode">신규 LOT 입고</label></div></div>
+                            <div class="col-12" data-inbound-existing><label class="form-label">기존 LOT</label><select name="existingLotId" class="form-select"><option value="">LOT 선택</option><optgroup th:if="${!#lists.isEmpty(lowStockLots)}" label="재고 부족 LOT · 우선 입고"><option th:each="lot : ${lowStockLots}" th:value="${lot.lotId}" th:data-preferred-bin="${lotPreferredBins.get(lot.lotId)}" th:text="|⚠ ${lot.lotNo} · ${lot.product.name} · ${lot.lotQuantity}포대|">부족 LOT</option></optgroup><optgroup label="일반 LOT"><option th:each="lot : ${regularLots}" th:value="${lot.lotId}" th:data-preferred-bin="${lotPreferredBins.get(lot.lotId)}" th:text="|${lot.lotNo} · ${lot.product.name} · ${lot.lotQuantity}포대|">LOT</option></optgroup></select><small class="text-danger" th:if="${!#lists.isEmpty(lowStockLots)}">재고 부족 LOT가 위에 표시됩니다.</small></div>
+                            <div class="col-12 row g-3 m-0 p-0 d-none" data-inbound-new>
+                                <div class="col-12"><label class="form-label">상품</label><select name="productId" class="form-select"><option value="">상품 선택</option><option th:each="product : ${products}" th:value="${product.productId}" th:text="|${product.name} · ${product.manufacturer.companyName}|">상품</option></select></div>
+                                <div class="col-12"><label class="form-label">신규 LOT 번호</label><input name="lotNo" class="form-control font-monospace" placeholder="LOT-CATTLE-20260803-001"></div>
+                                <div class="col-6"><label class="form-label">제조일</label><input type="date" name="manufacturedDate" class="form-control"></div>
+                                <div class="col-6"><label class="form-label">유통기한</label><input type="date" name="expirationDate" class="form-control"></div>
+                            </div>
+                            <div class="col-md-8"><label class="form-label">입고 구역</label><select name="binId" class="form-select" required><option value="">구역 선택</option><option th:each="bin : ${selectableBins}" th:value="${bin.binId}" th:data-current-quantity="${binQuantities.getOrDefault(bin.binId, 0)}" th:data-max-capacity="${bin.effectiveMaxCapacity}" th:text="|${bin.warehouse.name} · ${bin.binCode} (${bin.purpose.label})|">구역</option></select><small class="text-success" data-inbound-bin-hint>기존 LOT 선택 시 기존 보관 구역을 자동 선택합니다.</small></div>
+                            <div class="col-md-4"><label class="form-label">수량(포대)</label><input type="number" name="quantity" min="1" value="1" class="form-control" required></div>
+                            <div class="col-12"><label class="form-label">입고 메모</label><textarea name="memo" class="form-control" rows="2" placeholder="거래명세서·차량·검수 결과"></textarea></div>
+                            <div class="col-12 d-grid d-md-flex justify-content-md-end"><button class="btn btn-primary px-4"><i class="bi bi-box-arrow-in-down me-1"></i>입고 확정</button></div>
+                        </form>
+                    </div></div>
+                </div>
+                <div class="col-12 col-xl-5"><div class="alert alert-info"><strong>입고 시 함께 반영됩니다.</strong><ul class="mb-0 mt-2"><li>상품 전체 재고</li><li>LOT 실재고와 창고 위치</li><li>선택한 구역 재고</li><li>센터별 운영 재고와 입고 이력</li></ul></div></div>
+            </div>
+        </section>
+
+        <section th:if="${currentView == 'move' or currentView == 'disposal'}">
+            <div class="row g-4">
+                <div class="col-12 col-xl-5">
+                    <div class="card ff-card"><div class="card-header bg-white fw-bold" th:text="${currentView == 'move'} ? '구역·센터 재고 이동' : '구역 재고 폐기'">작업</div><div class="card-body">
+                        <form th:if="${currentView == 'move'}" th:action="@{/admin/wms/move}" method="post" class="row g-3">
+                            <div class="col-12"><label class="form-label">LOT</label><select name="lotId" class="form-select" required><option value="">LOT 선택</option><option th:each="lot : ${lots}" th:value="${lot.lotId}" th:text="|${lot.lotNo} · ${lot.product.name}|">LOT</option></select></div>
+                            <div class="col-12"><label class="form-label">출발 구역</label><select name="sourceBinId" class="form-select" required><option value="">출발 구역 선택</option><option th:each="bin : ${selectableBins}" th:value="${bin.binId}" th:text="${bin.displayName}">구역</option></select></div>
+                            <div class="col-12"><label class="form-label">도착 구역</label><select name="destinationBinId" class="form-select" required><option value="">도착 구역 선택</option><option th:each="bin : ${selectableBins}" th:value="${bin.binId}" th:text="${bin.displayName}">구역</option></select></div>
+                            <div class="col-12"><label class="form-label">이동 수량</label><input type="number" name="quantity" min="1" value="1" class="form-control" required></div>
+                            <div class="col-12"><label class="form-label">메모</label><textarea name="memo" class="form-control" rows="2"></textarea></div>
+                            <div class="col-12 d-grid"><button class="btn btn-info"><i class="bi bi-arrows-move me-1"></i>이동 확정</button></div>
+                        </form>
+                        <form th:if="${currentView == 'disposal'}" th:action="@{/admin/wms/disposal}" method="post" class="row g-3">
+                            <div class="col-12"><label class="form-label">LOT</label><select name="lotId" class="form-select" required><option value="">LOT 선택</option><option th:each="lot : ${lots}" th:value="${lot.lotId}" th:text="|${lot.lotNo} · ${lot.product.name}|">LOT</option></select></div>
+                            <div class="col-12"><label class="form-label">폐기 출처 구역</label><select name="binId" class="form-select" required><option value="">구역 선택</option><option th:each="bin : ${selectableBins}" th:value="${bin.binId}" th:text="${bin.displayName}">구역</option></select></div>
+                            <div class="col-md-5"><label class="form-label">폐기 수량</label><input type="number" name="quantity" min="1" value="1" class="form-control" required></div>
+                            <div class="col-md-7"><label class="form-label">폐기 사유</label><select name="reason" class="form-select" required><option th:each="reason : ${disposalReasons}" th:value="${reason}" th:text="${reason.label}">사유</option></select></div>
+                            <div class="col-12"><label class="form-label">상세 메모</label><textarea name="memo" class="form-control" rows="2"></textarea></div>
+                            <div class="col-12 d-grid"><button class="btn btn-danger" onclick="return confirm('선택한 재고를 폐기 처리할까요?')"><i class="bi bi-trash3 me-1"></i>폐기 확정</button></div>
+                        </form>
+                    </div></div>
+                </div>
+                <div class="col-12 col-xl-7"><div class="card ff-card"><div class="card-header bg-white fw-bold">현재 구역별 LOT 재고</div><div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0"><thead><tr><th>센터·구역</th><th>상품 / LOT</th><th class="text-end">수량</th></tr></thead><tbody><tr th:each="inventory : ${inventories}"><td th:text="${inventory.bin.displayName}">구역</td><td><span th:text="${inventory.lot.product.name}">상품</span><small class="d-block font-monospace text-muted" th:text="${inventory.lot.lotNo}">LOT</small></td><td class="text-end fw-bold" th:text="${inventory.quantity} + '포대'">0포대</td></tr></tbody></table></div></div></div>
+            </div>
+        </section>
+
+        <section th:if="${currentView == 'directOutbound'}">
+            <div class="row g-4">
+                <div class="col-12 col-xl-5">
+                    <div class="card ff-card h-100">
+                        <div class="card-header bg-white border-0 pt-3">
+                            <h2 class="h5 fw-bold mb-1"><i class="bi bi-box-arrow-up-right me-2 text-primary"></i>상품 직접 출고</h2>
+                            <p class="small text-muted mb-0">유통기한이 가장 가까운 정상 LOT부터 자동으로 출고합니다(FEFO).</p>
+                        </div>
+                        <div class="card-body">
+                            <form th:action="@{/admin/wms/outbound/direct}" method="post" class="row g-3">
+                                <div class="col-12">
+                                    <label class="form-label" for="directOutboundProduct">상품</label>
+                                    <select id="directOutboundProduct" name="productId" class="form-select" required>
+                                        <option value="">상품을 선택하세요</option>
+                                        <option th:each="item : ${directOutboundProducts}"
+                                                th:value="${item.product.productId}"
+                                                th:text="|${item.product.name} · 출고 가능 ${item.availableQuantity}포대|">상품</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label" for="directOutboundQuantity">출고 수량 (포대)</label>
+                                    <input id="directOutboundQuantity" type="number" name="quantity" min="1" class="form-control" required>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label" for="directOutboundMemo">비고</label>
+                                    <textarea id="directOutboundMemo" name="memo" class="form-control" rows="3" placeholder="출고 사유 또는 인수자를 입력하세요"></textarea>
+                                </div>
+                                <div class="col-12 d-grid">
+                                    <button class="btn btn-primary" onclick="return confirm('선택 상품을 FEFO 기준으로 직접 출고할까요?')">
+                                        <i class="bi bi-truck me-1"></i>출고 처리
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-xl-7">
+                    <div class="card ff-card h-100">
+                        <div class="card-header bg-white fw-bold">상품별 출고 가능 재고</div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead><tr><th>상품</th><th class="text-end">가능 수량</th><th class="text-end">보관 위치</th><th>우선 출고 유통기한</th></tr></thead>
+                                <tbody>
+                                <tr th:each="item : ${directOutboundProducts}">
+                                    <td><strong th:text="${item.product.name}">상품명</strong><small class="d-block text-muted" th:text="${item.product.animalType}">축종</small></td>
+                                    <td class="text-end fw-bold" th:text="|${item.availableQuantity}포대|">0포대</td>
+                                    <td class="text-end" th:text="|${item.locationCount}곳|">0곳</td>
+                                    <td th:text="${#temporals.format(item.nearestExpirationDate, 'yyyy-MM-dd')}">2026-01-01</td>
+                                </tr>
+                                <tr th:if="${#lists.isEmpty(directOutboundProducts)}"><td colspan="4" class="text-center text-muted py-5">출고 가능한 정상 재고가 없습니다.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section th:if="${currentView == 'movements'}">
+            <div class="card ff-card"><div class="card-header bg-white d-flex justify-content-between"><strong>최근 입출고·이동 이력</strong><span class="text-muted small">최대 200건</span></div><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>처리 시각</th><th>유형</th><th>상품 / LOT</th><th>이동 경로</th><th class="text-end">수량</th><th>담당자</th><th>메모</th></tr></thead><tbody>
+                <tr th:each="movement : ${movements}"><td class="text-nowrap" th:text="${#temporals.format(movement.createdAt, 'yyyy-MM-dd HH:mm')}">일시</td><td><span class="badge" th:classappend="${movement.movementType.sign < 0} ? 'text-bg-danger' : (${movement.movementType.sign > 0} ? 'text-bg-success' : 'text-bg-info')" th:text="${movement.movementType.label}">이동</span></td><td><span th:text="${movement.lot.product.name}">상품</span><small class="d-block font-monospace text-muted" th:text="${movement.lot.lotNo}">LOT</small></td><td class="small" th:text="${movement.routeLabel}">경로</td><td class="text-end fw-bold" th:text="${movement.quantity} + '포대'">0</td><td th:text="${movement.operatorName}">관리자</td><td class="small text-muted" th:text="${movement.memo}">메모</td></tr>
+                <tr th:if="${#lists.isEmpty(movements)}"><td colspan="7" class="text-center text-muted py-5">아직 WMS 이동 이력이 없습니다.</td></tr>
+            </tbody></table></div></div>
+        </section>
+
+        <section th:if="${currentView == 'traceability'}" class="wms-traceability-page">
+            <nav class="wms-trace-warehouse-tabs mb-4" aria-label="이력 추적 창고 선택">
+                <a class="wms-trace-warehouse-tab"
+                   th:href="@{/admin/wms(view='traceability',lotId=${selectedLotId})}"
+                   th:classappend="${selectedTraceWarehouseId == null} ? 'active'">
+                    <i class="bi bi-buildings"></i><span>전체 창고</span>
+                </a>
+                <a class="wms-trace-warehouse-tab"
+                   th:each="warehouse : ${warehouses}"
+                   th:href="@{/admin/wms(view='traceability',lotId=${selectedLotId},traceWarehouseId=${warehouse.warehouseId})}"
+                   th:classappend="${selectedTraceWarehouseId == warehouse.warehouseId} ? 'active'">
+                    <i class="bi bi-building"></i><span th:text="${warehouse.name}">창고</span>
+                </a>
+            </nav>
+
+            <form method="get" th:action="@{/admin/wms}" class="wms-trace-lot-form card ff-card mb-4">
+                <div class="card-body d-flex gap-2 align-items-end">
+                    <input type="hidden" name="view" value="traceability">
+                    <input type="hidden" name="traceWarehouseId" th:value="${selectedTraceWarehouseId}">
+                    <div class="flex-grow-1">
+                        <label class="form-label" for="traceLotTop">추적할 LOT</label>
+                        <select id="traceLotTop" name="lotId" class="form-select">
+                            <option th:each="lot : ${lots}"
+                                    th:value="${lot.lotId}"
+                                    th:selected="${lot.lotId == selectedLotId}"
+                                    th:text="|${lot.lotNo} · ${lot.product.name}|">LOT</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" type="submit">
+                        <i class="bi bi-search me-1"></i>추적
+                    </button>
+                </div>
+            </form>
+
+            <div class="card ff-card mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <strong>선택 창고 보관 상품</strong>
+                    <span class="text-muted small" th:text="|전체 ${traceTotalCount}건|">전체 0건</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr><th>상품</th><th>LOT</th><th>구역</th><th>용도</th><th class="text-end">수량</th><th>유통기한</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="inventory : ${traceInventories}">
+                                <td class="fw-semibold" th:text="${inventory.lot.product.name}">상품</td>
+                                <td>
+                                    <a class="wms-trace-lot-link font-monospace small"
+                                       th:href="@{|/admin/wms?view=traceability&lotId=${inventory.lot.lotId}&traceWarehouseId=${selectedTraceWarehouseId}#lotTraceability|}"
+                                       th:text="${inventory.lot.lotNo}">LOT</a>
+                                </td>
+                                <td th:text="${inventory.bin.binCode}">구역</td>
+                                <td th:text="${inventory.bin.purpose.label}">용도</td>
+                                <td class="text-end fw-bold" th:text="${inventory.quantity} + '포대'">0포대</td>
+                                <td class="text-nowrap" th:text="${inventory.lot.expirationDate}">날짜</td>
+                            </tr>
+                            <tr th:if="${#lists.isEmpty(traceInventories)}">
+                                <td colspan="6" class="text-center text-muted py-4">선택한 창고에 보관 중인 상품이 없습니다.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <nav th:if="${tracePageCount > 1}" class="wms-trace-pagination" aria-label="보관 상품 페이지 이동">
+                <a class="page-link" th:href="@{/admin/wms(view='traceability',lotId=${selectedLotId},traceWarehouseId=${selectedTraceWarehouseId},tracePage=${tracePage - 1})}"
+                   th:classappend="${tracePage == 0} ? 'disabled'" aria-label="이전 페이지">&laquo;</a>
+                <a class="page-link" th:each="pageNumber : ${#numbers.sequence(0, tracePageCount - 1)}"
+                   th:href="@{/admin/wms(view='traceability',lotId=${selectedLotId},traceWarehouseId=${selectedTraceWarehouseId},tracePage=${pageNumber})}"
+                   th:classappend="${pageNumber == tracePage} ? 'active'"
+                   th:text="${pageNumber + 1}">1</a>
+                <a class="page-link" th:href="@{/admin/wms(view='traceability',lotId=${selectedLotId},traceWarehouseId=${selectedTraceWarehouseId},tracePage=${tracePage + 1})}"
+                   th:classappend="${tracePage == tracePageCount - 1} ? 'disabled'" aria-label="다음 페이지">&raquo;</a>
+            </nav>
+            <div id="lotTraceability" th:if="${traceability != null}" class="row g-4">
+                <div class="col-12 col-xl-4"><div class="card ff-card h-100"><div class="card-body"><span class="badge text-bg-primary mb-2">LOT TRACEABILITY</span><h2 class="h5 font-monospace" th:text="${traceability.lot.lotNo}">LOT</h2><p class="fw-bold" th:text="${traceability.lot.product.name}">상품</p><dl class="row small mb-0"><dt class="col-5">제조일</dt><dd class="col-7" th:text="${traceability.lot.manufacturedDate}">날짜</dd><dt class="col-5">유통기한</dt><dd class="col-7" th:text="${traceability.lot.expirationDate}">날짜</dd><dt class="col-5">LOT 실재고</dt><dd class="col-7 fw-bold" th:text="${traceability.lot.lotQuantity} + '포대'">0</dd><dt class="col-5">위치 합계</dt><dd class="col-7 fw-bold" th:classappend="${traceability.lot.lotQuantity == traceability.locatedQuantity} ? 'text-success' : 'text-danger'" th:text="${traceability.locatedQuantity} + '포대'">0</dd></dl></div></div></div>
+                <div class="col-12 col-xl-8"><div class="card ff-card mb-4"><div class="card-header bg-white fw-bold">현재 보관 위치</div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>센터</th><th>구역</th><th>용도</th><th class="text-end">수량</th></tr></thead><tbody><tr th:each="inventory : ${traceability.inventories}"><td th:text="${inventory.bin.warehouse.name}">센터</td><td th:text="${inventory.bin.binCode}">구역</td><td th:text="${inventory.bin.purpose.label}">용도</td><td class="text-end fw-bold" th:text="${inventory.quantity} + '포대'">0</td></tr></tbody></table></div></div><div class="card ff-card"><div class="card-header bg-white fw-bold">LOT 이동 타임라인</div><div class="card-body"><ol class="wms-timeline"><li th:each="movement : ${traceability.movements}"><strong th:text="${movement.movementType.label}">이동</strong><span th:text="|${movement.quantity}포대 · ${movement.routeLabel}|">상세</span><small th:text="|${#temporals.format(movement.createdAt, 'yyyy-MM-dd HH:mm')} · ${movement.operatorName}|">일시</small></li><li th:if="${#lists.isEmpty(traceability.movements)}" class="text-muted">아직 기록된 WMS 이력이 없습니다.</li></ol></div></div></div>
+            </div>
+        </section>
+
+        <section th:if="${currentView == 'sync'}">
+            <div class="alert" th:classappend="${overview.inconsistentProductCount > 0} ? 'alert-danger' : 'alert-success'"><i class="bi bi-shield-check me-1"></i><strong th:text="${overview.inconsistentProductCount > 0} ? '재고 불일치가 발견되었습니다.' : '3단계 재고가 모두 일치합니다.'">정상</strong><span class="ms-1">상품 전체 재고 = LOT 합계 = 구역 재고 합계 기준입니다.</span></div>
+            <div class="card ff-card"><div class="card-header bg-white d-flex justify-content-between align-items-center"><strong>3단계 재고 정합성</strong><form th:action="@{/admin/wms/sync}" method="post"><button class="btn btn-sm btn-primary" onclick="return confirm('LOT 실재고를 기준으로 구역 재고를 동기화할까요?')"><i class="bi bi-arrow-repeat me-1"></i>전체 동기화</button></form></div><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>상품</th><th class="text-end">상품 전체</th><th class="text-end">LOT 합계</th><th class="text-end">구역 합계</th><th class="text-end">구역 차이</th><th>결과</th></tr></thead><tbody><tr th:each="row : ${consistencyRows}"><td th:text="${row.product.name}">상품</td><td class="text-end" th:text="${row.productStock}">0</td><td class="text-end" th:text="${row.lotStock}">0</td><td class="text-end" th:text="${row.binStock}">0</td><td class="text-end" th:classappend="${row.difference != 0} ? 'text-danger fw-bold'" th:text="|${row.difference > 0 ? '+' : ''}${row.difference}|">0</td><td><span class="badge" th:classappend="${row.consistent} ? 'text-bg-success' : 'text-bg-danger'" th:text="${row.consistent} ? '일치' : '불일치'">일치</span></td></tr></tbody></table></div></div>
+        </section>
+
+        <section th:if="${currentView == 'scan'}">
+            <div id="wmsScanner"
+                 th:data-result-code="${scanResult != null ? scanResult.rawValue : ''}"
+                 th:data-result-type="${scanResult != null ? scanResult.type : ''}"
+                 th:data-result-found="${scanResult != null ? scanResult.found : false}">
+                <div class="card ff-card wms-scanner-card mb-4">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <strong><i class="bi bi-upc-scan me-2"></i>바코드 / QR 스캔</strong>
+                        <span class="badge rounded-pill"
+                              th:classappend="${scanResult == null} ? 'text-bg-secondary' : (${scanResult.found} ? 'text-bg-success' : 'text-bg-danger')"
+                              th:text="${scanResult == null} ? '대기' : (${scanResult.found} ? '조회 완료' : '조회 실패')">대기</span>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="wms-camera-stage mb-3">
+                            <video id="wmsScanVideo" playsinline muted></video>
+                            <div class="wms-camera-guide" aria-hidden="true"></div>
+                            <div id="wmsCameraEmpty" class="wms-camera-empty">
+                                <i class="bi bi-camera-video-off"></i>
+                                <p class="mb-0">카메라가 꺼져 있습니다</p>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 align-items-end">
+                            <div class="col-lg-5">
+                                <label class="form-label small text-muted" for="wmsCameraSelect">카메라 선택</label>
+                                <select id="wmsCameraSelect" class="form-select">
+                                    <option value="">카메라 확인 중</option>
+                                </select>
+                            </div>
+                            <div class="col-lg-7 d-flex flex-wrap gap-2">
+                                <button type="button" id="wmsScanStart" class="btn btn-success">
+                                    <i class="bi bi-camera-video me-1"></i>스캔 시작
+                                </button>
+                                <button type="button" id="wmsScanStop" class="btn btn-outline-secondary" disabled>
+                                    <i class="bi bi-stop-circle me-1"></i>정지
+                                </button>
+                                <div class="d-flex align-items-center gap-3 ms-lg-auto small">
+                                    <label><input id="wmsScanSound" type="checkbox" checked> 소리</label>
+                                    <label><input id="wmsScanVibrate" type="checkbox" checked> 진동</label>
+                                    <label><input id="wmsScanScroll" type="checkbox" checked> 결과로 이동</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="wmsCameraNotice" class="alert alert-info py-2 small mt-3 mb-0 d-none"></div>
+
+                        <hr class="my-4">
+                        <form method="get" th:action="@{/admin/scan}" class="input-group input-group-lg">
+                            <input id="wmsScanInput" name="scanValue" th:value="${scanValue}"
+                                   class="form-control font-monospace"
+                                   aria-label="직접 입력 (LOT 번호, 품목 코드 또는 구역 코드)"
+                                   placeholder="LOT 번호, 품목 코드 또는 창고 구역 코드" autofocus required>
+                            <button class="btn btn-primary" aria-label="조회"><i class="bi bi-search"></i></button>
+                        </form>
+                        <p class="small text-muted mt-2 mb-3">
+                            USB 바코드 리더기는 키보드처럼 입력되므로 이 칸에 포커스를 두면 바로 조회됩니다.
+                        </p>
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <span class="small fw-semibold">샘플 코드로 테스트</span>
+                            <button th:if="${sampleLotNo != null}" type="button" class="btn btn-sm btn-outline-primary"
+                                    data-scan-sample th:data-code="${sampleLotNo}"
+                                    th:text="|${sampleLotNo} (LOT)|">LOT 샘플</button>
+                            <button th:if="${sampleProductCode != null}" type="button" class="btn btn-sm btn-outline-success"
+                                    data-scan-sample th:data-code="${sampleProductCode}"
+                                    th:text="|${sampleProductCode} (품목)|">품목 샘플</button>
+                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                    data-scan-sample data-code="NOT-FOUND-404">없는 코드 (404)</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div th:if="${scanResult != null and (scanResult.type == 'LOT' or scanResult.type == 'PRODUCT')}"
+                     class="card ff-card mb-4" id="wmsScanActions">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <strong><i class="bi bi-lightning-charge me-2"></i>스캔 즉시 입출고</strong>
+                        <span class="badge text-bg-dark font-monospace" th:text="${scanResult.title}">CODE</span>
+                    </div>
+                    <div class="card-body">
+                        <ul class="nav nav-tabs" role="tablist">
+                            <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#wmsScanInbound" type="button"><i class="bi bi-box-arrow-in-down me-1"></i>입고</button></li>
+                            <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#wmsScanOutbound" type="button"><i class="bi bi-box-arrow-up me-1"></i>출고</button></li>
+                        </ul>
+                        <div class="tab-content pt-3">
+                            <div class="tab-pane fade show active" id="wmsScanInbound">
+                                <form th:action="@{/admin/scan/inbound}" method="post" class="row g-3">
+                                    <input type="hidden" name="scanValue" th:value="${scanResult.rawValue}">
+                                    <input th:if="${scanResult.type == 'LOT'}" type="hidden" name="existingLotId" th:value="${scanResult.lotId}">
+                                    <input th:if="${scanResult.type == 'PRODUCT'}" type="hidden" name="productId" th:value="${scanResult.productId}">
+                                    <div class="col-md-5">
+                                        <label class="form-label">입고 구역</label>
+                                        <select name="binId" class="form-select" required>
+                                            <option value="">구역 선택</option>
+                                            <option th:each="bin : ${selectableBins}" th:value="${bin.binId}"
+                                                    th:text="|${bin.warehouse.code}-${bin.binCode} · ${bin.warehouse.name} (한도 ${bin.effectiveMaxCapacity})|">구역</option>
+                                        </select>
+                                    </div>
+                                    <div th:if="${scanResult.type == 'PRODUCT'}" class="col-md-3">
+                                        <label class="form-label">제조일자 (새 LOT)</label>
+                                        <input type="date" name="manufacturedDate" class="form-control" th:value="${today}" required>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">입고 수량</label>
+                                        <input type="number" name="quantity" min="1" value="1" class="form-control" required>
+                                    </div>
+                                    <div class="col-md">
+                                        <label class="form-label">비고</label>
+                                        <input name="memo" class="form-control" placeholder="바코드 스캔 입고">
+                                    </div>
+                                    <div class="col-12 d-flex justify-content-end">
+                                        <button class="btn btn-primary"><i class="bi bi-box-arrow-in-down me-1"></i>입고 처리</button>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="tab-pane fade" id="wmsScanOutbound">
+                                <form th:action="@{/admin/scan/outbound}" method="post" class="row g-3">
+                                    <input type="hidden" name="scanValue" th:value="${scanResult.rawValue}">
+                                    <div class="col-md-6">
+                                        <label class="form-label">출고 LOT·구역</label>
+                                        <select name="stockLocation" class="form-select" required>
+                                            <option value="">LOT와 구역 선택</option>
+                                            <option th:each="inventory : ${scanResult.inventories}"
+                                                    th:value="|${inventory.lot.lotId}:${inventory.bin.binId}|"
+                                                    th:text="|${inventory.lot.lotNo} · ${inventory.bin.warehouse.code}-${inventory.bin.binCode} · ${inventory.quantity}포대|">재고</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">출고 수량</label>
+                                        <input type="number" name="quantity" min="1" value="1" class="form-control" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">비고</label>
+                                        <input name="memo" class="form-control" placeholder="바코드 스캔 출고">
+                                    </div>
+                                    <div class="col-12 d-flex justify-content-end">
+                                        <button class="btn btn-danger"><i class="bi bi-box-arrow-up me-1"></i>출고 처리</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div th:if="${scanResult != null}" id="wmsScanResult"
+                     class="wms-scan-result mb-4"
+                     th:classappend="${scanResult.type == 'UNKNOWN'} ? 'is-error' : 'is-success'">
+                    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                        <div>
+                            <span class="badge text-bg-dark" th:text="${scanResult.type}">LOT</span>
+                            <h2 class="h5 font-monospace mt-2 mb-1" th:text="${scanResult.title}">결과</h2>
+                            <p class="mb-0" th:text="${scanResult.detail}">상세</p>
+                        </div>
+                        <div th:if="${scanResult.product != null}" class="d-flex gap-4 text-center">
+                            <span><small class="d-block text-muted">전체 재고</small><strong th:text="${scanResult.product.totalStock}">0</strong></span>
+                            <span><small class="d-block text-muted">안전 재고</small><strong th:text="${scanResult.product.safetyStock}">0</strong></span>
+                            <span><small class="d-block text-muted">보관 구역</small><strong th:text="${scanResult.locationCount}">0</strong></span>
+                        </div>
+                    </div>
+                    <div th:if="${scanResult.product != null and scanResult.product.lowStock}" class="alert alert-warning py-2 mt-3 mb-0">
+                        <i class="bi bi-exclamation-triangle me-1"></i>안전재고 미달 품목입니다.
+                    </div>
+                    <div th:if="${scanResult.lot != null}" class="row g-3 mt-1 small">
+                        <div class="col-md-3"><span class="text-muted d-block">품목 코드</span><strong th:text="${scanResult.productCode}">CODE</strong></div>
+                        <div class="col-md-3"><span class="text-muted d-block">제조일자</span><strong th:text="${scanResult.lot.manufacturedDate}">날짜</strong></div>
+                        <div class="col-md-3"><span class="text-muted d-block">유통기한</span><strong th:text="${scanResult.lot.expirationDate}">날짜</strong></div>
+                        <div class="col-md-3"><span class="text-muted d-block">LOT 잔여</span><strong th:text="${scanResult.lot.lotQuantity} + '포대'">0</strong></div>
+                    </div>
+                    <div th:if="${!#lists.isEmpty(scanResult.inventories)}" class="table-responsive mt-3">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>센터·구역</th><th>LOT</th><th>유통기한</th><th class="text-end">수량</th></tr></thead>
+                            <tbody><tr th:each="inventory : ${scanResult.inventories}">
+                                <td th:text="|${inventory.bin.warehouse.name} · ${inventory.bin.binCode}|">구역</td>
+                                <td class="font-monospace" th:text="${inventory.lot.lotNo}">LOT</td>
+                                <td th:text="${inventory.lot.expirationDate}">날짜</td>
+                                <td class="text-end fw-bold" th:text="${inventory.quantity} + '포대'">0</td>
+                            </tr></tbody>
+                        </table>
+                    </div>
+                    <div class="mt-3 d-flex gap-2 flex-wrap">
+                        <a th:if="${scanResult.lotId != null}" th:href="@{/admin/wms(view='traceability',lotId=${scanResult.lotId})}" class="btn btn-sm btn-outline-primary">LOT 전체 이력</a>
+                        <a th:if="${scanResult.productId != null}" th:href="@{/inventory(view='stock',productId=${scanResult.productId})}" class="btn btn-sm btn-outline-primary">재고 현황</a>
+                        <a th:if="${scanResult.binId != null}" th:href="@{/admin/warehouse-map}" class="btn btn-sm btn-outline-primary">창고 도면</a>
+                    </div>
+                </div>
+
+                <div class="card ff-card">
+                    <div class="card-header bg-white"><strong><i class="bi bi-clock-history me-2"></i>최근 스캔</strong><small class="text-muted ms-2">이 브라우저의 최근 조회 기록</small></div>
+                    <div class="card-body"><ul id="wmsRecentScans" class="list-group list-group-flush"><li class="list-group-item text-muted">스캔 기록이 없습니다.</li></ul></div>
+                </div>
+            </div>
+        </section>
+
+        <section th:if="${currentView == 'labels'}">
+            <div class="alert alert-info wms-print-hidden">
+                <strong><i class="bi bi-info-circle me-1"></i>모바일 스캔 테스트 방법</strong>
+                <span>이 화면을 PC에 띄운 뒤 휴대폰에서 <a th:href="@{/admin/scan}">바코드 스캔</a> 화면을 열고 QR 코드를 비추세요. 실제 파렛트·포대 부착용으로 바로 인쇄할 수도 있습니다.</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-3 wms-print-hidden">
+                <div><h2 class="h5 fw-bold mb-1"><i class="bi bi-qr-code me-2"></i>QR 라벨</h2><p class="small text-muted mb-0" th:text="|LOT ${#lists.size(lotLabels)}건 · 품목 ${#lists.size(productLabels)}건|">라벨 수</p></div>
+                <button class="btn btn-outline-dark" onclick="window.print()"><i class="bi bi-printer me-1"></i>인쇄</button>
+            </div>
+
+            <h3 class="h6 text-muted mb-3"><i class="bi bi-tag-fill me-1"></i>LOT 라벨 <small>스캔하면 LOT와 구역별 재고가 조회됩니다.</small></h3>
+            <div class="wms-label-grid mb-5">
+                <article class="wms-barcode-label" th:each="label : ${lotLabels}">
+                    <img class="wms-qr-image" th:src="${label.qrDataUri}" th:alt="${label.code}">
+                    <strong class="font-monospace" th:text="${label.code}">LOT</strong>
+                    <span class="wms-label-name" th:text="${label.lot.product.name}">상품</span>
+                    <span th:text="|${label.productCode} · ${label.lot.product.weightKg}kg|">품목</span>
+                    <span th:text="|유통기한 ${#temporals.format(label.lot.expirationDate, 'yyyy-MM-dd')}|">유통기한</span>
+                    <span class="d-flex gap-2 mt-1"><b class="badge"
+                          th:classappend="${label.daysRemaining < 0} ? 'text-bg-danger' : (${label.daysRemaining <= 30} ? 'text-bg-warning' : 'text-bg-light')"
+                          th:text="${label.daysRemaining < 0} ? |만료 ${-label.daysRemaining}일 경과| : |D-${label.daysRemaining}|">D-30</b><b class="badge text-bg-light" th:text="|잔여 ${label.lot.lotQuantity}|">잔여</b></span>
+                </article>
+            </div>
+
+            <h3 class="h6 text-muted mb-3"><i class="bi bi-box-seam-fill me-1"></i>품목 라벨 <small>스캔 후 입고하면 제조일 기준 신규 LOT가 자동 생성됩니다.</small></h3>
+            <div class="wms-label-grid">
+                <article class="wms-barcode-label" th:each="label : ${productLabels}">
+                    <img class="wms-qr-image" th:src="${label.qrDataUri}" th:alt="${label.code}">
+                    <strong class="font-monospace" th:text="${label.code}">CODE</strong>
+                    <span class="wms-label-name" th:text="${label.product.name}">상품</span>
+                    <span th:text="|${label.product.animalType} · ${label.product.weightKg}kg|">정보</span>
+                    <span th:text="|현재 재고 ${label.product.totalStock}포대|">재고</span>
+                </article>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<div th:replace="~{fragments/admin-layout :: scripts}"></div>
+<script th:src="@{/js/wms-operations.js}"></script>
+</body>
+</html>

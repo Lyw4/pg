@@ -36,6 +36,8 @@ public interface ProductLotRepository extends JpaRepository<ProductLot, Long> {
 
     boolean existsByLotNo(String lotNo);
 
+    Optional<ProductLot> findByLotNo(String lotNo);
+
     @EntityGraph(attributePaths = {
         "product",
         "product.manufacturer"

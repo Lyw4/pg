@@ -15,6 +15,7 @@ import com.ex.entity.OrderItem;
 import com.ex.entity.CustomerOrder.OrderStatus;
 import com.ex.entity.StockLog;
 import com.ex.entity.StockLog.ChangeType;
+import com.ex.entity.Warehouse;
 import com.ex.repository.ProductLotRepository;
 import com.ex.repository.ProductRepository;
 import com.ex.repository.OrderItemRepository;
@@ -31,6 +32,7 @@ public class InventoryService {
 	private final ProductLotRepository lotRepository;
 	private final StockLogRepository stockLogRepository;
 	private final OrderItemRepository orderItemRepository;
+	private final WmsStockCoordinator wmsStockCoordinator;
 
 	private static final EnumSet<OrderStatus> RESERVING_STATUSES =
 			EnumSet.of(OrderStatus.PAID, OrderStatus.PREPARING);
@@ -84,6 +86,10 @@ public class InventoryService {
 		int restored = -log.getChangedQty();
 		log.getLot().changeQuantity(restored);
 		log.getLot().getProduct().changeStock(restored);
+		wmsStockCoordinator.restore(
+				log.getLot(), restored, null,
+				"직접 출고 취소: " + cancelReason.trim(),
+				"관리자", null);
 		stockLogRepository.save(new StockLog(
 				log.getLot(), 1L, ChangeType.ADJUSTMENT, restored,
 				"출고 취소 #" + log.getLogId() + ": " + cancelReason.trim()));
@@ -98,8 +104,12 @@ public class InventoryService {
 
 	public Map<Long, Integer> reservedStockByLot() {
 		Map<Long, Integer> result = new HashMap<>();
-		activeReservations().forEach(item -> result.merge(
-				item.getLot().getLotId(), item.getQuantity(), Integer::sum));
+		activeReservations().forEach(item ->
+				item.getLotAllocations().forEach(allocation ->
+						result.merge(
+								allocation.getProductLot().getLotId(),
+								allocation.getQuantity(),
+								Integer::sum)));
 		return result;
 	}
 
@@ -167,6 +177,20 @@ public class InventoryService {
 	@Transactional
 	public void receive(Long productId, String lotNo, LocalDate manufacturedDate,
 			LocalDate expirationDate, int quantity, String reason) {
+		receive(
+				productId,
+				lotNo,
+				manufacturedDate,
+				expirationDate,
+				quantity,
+				reason,
+				null);
+	}
+
+	@Transactional
+	public void receive(Long productId, String lotNo, LocalDate manufacturedDate,
+			LocalDate expirationDate, int quantity, String reason,
+			Warehouse preferredWarehouse) {
 		if (quantity <= 0) throw new IllegalArgumentException("입고 수량은 1개 이상이어야 합니다.");
 		if (lotRepository.existsByLotNo(lotNo)) throw new IllegalArgumentException("이미 존재하는 LOT 번호입니다.");
 		if (!expirationDate.isAfter(manufacturedDate)) {
@@ -177,6 +201,8 @@ public class InventoryService {
 				new ProductLot(product, lotNo, manufacturedDate, expirationDate, quantity));
 		product.changeStock(quantity);
 		stockLogRepository.save(new StockLog(lot, 1L, ChangeType.INBOUND, quantity, reason));
+		wmsStockCoordinator.inbound(
+				lot, quantity, preferredWarehouse, reason, "관리자");
 	}
 
 	@Transactional
@@ -186,6 +212,8 @@ public class InventoryService {
 		lot.changeQuantity(changedQty);
 		lot.getProduct().changeStock(changedQty);
 		stockLogRepository.save(new StockLog(lot, 1L, ChangeType.ADJUSTMENT, changedQty, reason));
+		wmsStockCoordinator.adjust(
+				lot, changedQty, null, reason, "관리자");
 	}
 
 	@Transactional
@@ -216,6 +244,9 @@ public class InventoryService {
 		stockLogRepository.save(new StockLog(
 				lot, 1L, ChangeType.INVENTORY_AUDIT, difference,
 				auditReason + " (실사 수량 " + actualQuantity + "개)"));
+		wmsStockCoordinator.adjust(
+				lot, difference, null,
+				"재고 실사: " + auditReason, "관리자");
 	}
 
 	@Transactional
@@ -244,6 +275,9 @@ public class InventoryService {
 		log.cancelInbound(cancelReason.trim());
 		lot.changeQuantity(-received);
 		lot.getProduct().changeStock(-received);
+		wmsStockCoordinator.adjust(
+				lot, -received, null,
+				"입고 취소: " + cancelReason.trim(), "관리자");
 		stockLogRepository.save(new StockLog(
 				lot, 1L, ChangeType.INBOUND_CANCEL, -received,
 				"입고 #" + logId + " 취소: " + cancelReason.trim()));
@@ -271,6 +305,8 @@ public class InventoryService {
 			if (released == 0) continue;
 			lot.changeQuantity(-released);
 			product.changeStock(-released);
+			wmsStockCoordinator.outbound(
+					lot, released, null, reason, "관리자", null);
 			stockLogRepository.save(new StockLog(lot, 1L, ChangeType.OUTBOUND, -released, reason));
 			remaining -= released;
 			if (remaining == 0) return;
@@ -281,8 +317,12 @@ public class InventoryService {
 	@Transactional
 	public void shipReservedOrder(List<OrderItem> items) {
 		Map<ProductLot, Integer> quantitiesByLot = new HashMap<>();
-		items.forEach(item -> quantitiesByLot.merge(
-				item.getLot(), item.getQuantity(), Integer::sum));
+		items.forEach(item ->
+				item.getLotAllocations().forEach(allocation ->
+						quantitiesByLot.merge(
+								allocation.getProductLot(),
+								allocation.getQuantity(),
+								Integer::sum)));
 
 		quantitiesByLot.forEach((lot, quantity) -> {
 			if (lot.getLotQuantity() < quantity) {
@@ -294,13 +334,30 @@ public class InventoryService {
 		quantitiesByLot.forEach((lot, quantity) -> {
 			lot.changeQuantity(-quantity);
 			lot.getProduct().changeStock(-quantity);
+			wmsStockCoordinator.outbound(
+					lot,
+					quantity,
+					items.isEmpty()
+							? null
+							: items.getFirst().getOrder()
+									.getFulfillmentWarehouse(),
+					"주문 예약 재고 출고",
+					"관리자",
+					items.isEmpty()
+							? null
+							: items.getFirst().getOrder().getOrderId());
 			stockLogRepository.save(new StockLog(
 					lot, 1L, ChangeType.OUTBOUND, -quantity, "주문 예약 재고 출고"));
 		});
 	}
 
 	private List<OrderItem> activeReservations() {
-		return orderItemRepository.findByOrderStatusIn(RESERVING_STATUSES);
+		return orderItemRepository.findByOrderStatusIn(
+						RESERVING_STATUSES)
+				.stream()
+				.filter(item ->
+						!item.getOrder().isInventoryCommitted())
+				.toList();
 	}
 
 	private Product findProduct(Long id) {

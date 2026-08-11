@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${siteName}">FEED FLOW 관리자 로그인</title>
+    <link rel="stylesheet" th:href="@{/css/feedflow.css}" href="/css/feedflow.css">
+</head>
+<body class="admin-body">
+<main class="admin-page admin-login-page">
+    <header class="admin-hero">
+        <div>
+            <p>FEED FLOW · MANAGEMENT</p>
+            <h1>관리자 로그인</h1>
+            <span>판매·유통·재고 관리 시스템에 로그인합니다.</span>
+        </div>
+        <a th:href="@{/}" href="/">판매 홈페이지로 돌아가기 →</a>
+    </header>
+
+    <form class="admin-auth admin-login-form"
+          method="post"
+          th:action="@{/admin/login}">
+        <label>
+            관리자 아이디
+            <input name="username"
+                   autocomplete="username"
+                   autofocus
+                   required>
+        </label>
+        <label>
+            관리자 비밀번호
+            <input name="password"
+                   type="password"
+                   autocomplete="current-password"
+                   required>
+        </label>
+        <button class="admin-save" type="submit">로그인</button>
+        <p class="admin-login-error"
+           th:if="${param.error}">
+            관리자 아이디 또는 비밀번호가 올바르지 않습니다.
+        </p>
+        <p th:if="${param.logout}">
+            안전하게 로그아웃되었습니다.
+        </p>
+    </form>
+</main>
+</body>
+</html>

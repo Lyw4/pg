@@ -23,4 +23,6 @@ public interface WarehouseAllocationRepository
     })
     List<WarehouseAllocation>
             findAllByOrderByWarehouseDisplayOrderAscProductAnimalTypeAscProductNameAsc();
+
+    List<WarehouseAllocation> findByProductProductId(Long productId);
 }

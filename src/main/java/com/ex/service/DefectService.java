@@ -1,7 +1,11 @@
 package com.ex.service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,10 +29,23 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class DefectService {
 
+    public record DefectStat(String label, long count, int quantity) {
+    }
+
+    public record DefectAnalytics(
+            List<DefectRecord> staleRecords,
+            List<DefectStat> typeStats,
+            List<DefectStat> stageStats,
+            List<DefectStat> manufacturerStats,
+            long resolvedCount,
+            int openQuantity) {
+    }
+
     private final DefectRecordRepository defectRepository;
     private final ProductLotRepository lotRepository;
     private final StockLogRepository stockLogRepository;
     private final InventoryService inventoryService;
+	private final WmsStockCoordinator wmsStockCoordinator;
 
     public List<DefectRecord> records() {
         return defectRepository.findAllByOrderByCreatedAtDesc();
@@ -40,6 +57,40 @@ public class DefectService {
 
     public List<DefectRecord> recordsForLot(Long lotId) {
         return defectRepository.findByLotLotIdOrderByCreatedAtDesc(lotId);
+    }
+
+    public DefectAnalytics analytics() {
+        List<DefectRecord> records = records();
+        LocalDateTime staleThreshold = LocalDateTime.now().minusDays(7);
+        List<DefectRecord> stale = records.stream()
+                .filter(record -> record.getStatus() != DefectStatus.RESOLVED)
+                .filter(record -> record.getCreatedAt() != null
+                        && record.getCreatedAt().isBefore(staleThreshold))
+                .toList();
+        return new DefectAnalytics(
+                stale,
+                stats(records, record -> record.getDefectType().getLabel()),
+                stats(records, record -> record.getOccurrenceStage().getLabel()),
+                stats(records, record -> record.getLot().getProduct()
+                        .getManufacturer().getCompanyName()),
+                records.stream().filter(record -> record.getStatus() == DefectStatus.RESOLVED).count(),
+                records.stream().filter(record -> record.getStatus() != DefectStatus.RESOLVED)
+                        .mapToInt(DefectRecord::getQuantity).sum());
+    }
+
+    private List<DefectStat> stats(
+            List<DefectRecord> records,
+            java.util.function.Function<DefectRecord, String> labelExtractor) {
+        Map<String, List<DefectRecord>> grouped = new LinkedHashMap<>();
+        records.forEach(record -> grouped.computeIfAbsent(
+                labelExtractor.apply(record), ignored -> new ArrayList<>()).add(record));
+        return grouped.entrySet().stream()
+                .map(entry -> new DefectStat(
+                        entry.getKey(),
+                        entry.getValue().size(),
+                        entry.getValue().stream().mapToInt(DefectRecord::getQuantity).sum()))
+                .sorted(Comparator.comparingLong(DefectStat::count).reversed())
+                .toList();
     }
 
     @Transactional
@@ -57,6 +108,12 @@ public class DefectService {
 
         lot.changeQuantity(-quantity);
         lot.getProduct().changeStock(-quantity);
+		wmsStockCoordinator.adjust(
+				lot,
+				-quantity,
+				null,
+				"불량 격리: " + description.trim(),
+				reporter.trim());
         DefectRecord record = defectRepository.save(new DefectRecord(
                 lot, quantity, defectType, occurrenceStage,
                 description.trim(), reporter.trim(), occurredAt));
@@ -103,6 +160,12 @@ public class DefectService {
             ProductLot lot = record.getLot();
             lot.changeQuantity(record.getQuantity());
             lot.getProduct().changeStock(record.getQuantity());
+			wmsStockCoordinator.adjust(
+					lot,
+					record.getQuantity(),
+					null,
+					"불량 처리 복원: " + resolutionType.getLabel(),
+					processor.trim());
             stockLogRepository.save(new StockLog(
                     lot, 1L, ChangeType.DEFECT_RECOVERY, record.getQuantity(),
                     "불량 처리 " + record.getDefectNo() + ": " + resolutionType.getLabel()));

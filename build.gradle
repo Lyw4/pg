@@ -20,6 +20,7 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     // 코드 수정 후 저장 시 서버 자동 재실행
@@ -43,9 +44,13 @@ dependencies {
 
     // 유효성 검증 (@NotEmpty @Size 등 폼 데이터 검증)
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
 
     // Spring Security ( 로그인 / 로그아웃 / 권한 처리 )
     implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // 현장 작업용 QR 라벨 생성
+    implementation 'com.google.zxing:core:3.5.3'
 
     // Thymeleaf 에서 sec:authorize 등 시큐리티 문법 사용
     implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'

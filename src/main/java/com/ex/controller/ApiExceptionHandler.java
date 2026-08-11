@@ -5,6 +5,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import jakarta.persistence.PessimisticLockException;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -27,6 +30,16 @@ public class ApiExceptionHandler {
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
                 .orElse("입력값을 확인해주세요.");
         return errorBody(message);
+    }
+
+    @ExceptionHandler({
+            DataIntegrityViolationException.class,
+            ObjectOptimisticLockingFailureException.class,
+            PessimisticLockException.class
+    })
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, Object> handleConcurrency(RuntimeException exception) {
+        return errorBody("동시에 처리된 요청과 충돌했습니다. 최신 상태를 확인한 뒤 다시 시도해주세요.");
     }
 
     private Map<String, Object> errorBody(String message) {

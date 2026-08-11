@@ -7,9 +7,11 @@
 			<span>FEED FLOW <small>배합사료 유통관리</small></span>
 		</a>
 		<nav>
+			<a th:href="@{/}">판매 홈페이지</a>
+			<a th:href="@{/admin/dashboard}" th:classappend="${active == 'dashboard'} ? 'active'">대시보드</a>
+			<a th:href="@{/admin/products}" th:classappend="${active == 'admin'} ? 'active'">상품 관리</a>
 			<a th:href="@{/inventory}" th:classappend="${active == 'inventory'} ? 'active'">재고 관리</a>
 			<a th:href="@{/distribution}" th:classappend="${active == 'distribution'} ? 'active'">유통 관리</a>
-			<a th:href="@{/h2-console}" target="_blank">H2 DB</a>
 		</nav>
 	</header>
 </body>

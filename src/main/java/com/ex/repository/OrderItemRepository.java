@@ -15,7 +15,8 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
 			"order.fulfillmentWarehouse",
 			"order.farmCustomer",
 			"product",
-			"lot"
+			"lotAllocations",
+			"lotAllocations.productLot"
 	})
 	List<OrderItem> findByOrderStatusIn(Collection<OrderStatus> statuses);
 }

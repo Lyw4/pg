@@ -48,6 +48,7 @@ public class DistributionService {
 	private final DefectService defectService;
 	private final WarehouseFulfillmentService warehouseFulfillmentService;
 	private final FarmCustomerRepository farmCustomerRepository;
+	private final WmsStockCoordinator wmsStockCoordinator;
 
 	public List<CustomerOrder> orders() {
 		return orderRepository.findAllByOrderByCreatedAtDesc();
@@ -149,8 +150,16 @@ public class DistributionService {
 		int reserved = orderItemRepository.findByOrderStatusIn(
 				List.of(OrderStatus.PAID, OrderStatus.PREPARING))
 				.stream()
-				.filter(item -> item.getLot().getLotId().equals(lotId))
-				.mapToInt(OrderItem::getQuantity)
+				.filter(item ->
+						!item.getOrder().isInventoryCommitted())
+				.flatMap(item ->
+						item.getLotAllocations().stream())
+				.filter(allocation ->
+						allocation.getProductLot()
+								.getLotId()
+								.equals(lotId))
+				.mapToInt(allocation ->
+						allocation.getQuantity())
 				.sum();
 		int available = lot.getLotQuantity() - reserved;
 		if (quantity > available) {
@@ -302,6 +311,7 @@ public class DistributionService {
 			}
 		});
 
+		restoreCommittedOrderStock(order, reason);
 		order.cancel(reason, manager);
 	}
 
@@ -400,6 +410,13 @@ public class DistributionService {
 				ProductLot lot = item.getLot();
 				lot.changeQuantity(quantity);
 				lot.getProduct().changeStock(quantity);
+				wmsStockCoordinator.restore(
+						lot,
+						quantity,
+						delivery.getOrder().getFulfillmentWarehouse(),
+						"고객 회수 정상 재입고 DLV-" + deliveryId,
+						inspector.trim(),
+						delivery.getOrder().getOrderId());
 				stockLogRepository.save(new StockLog(
 						lot, 1L, ChangeType.INBOUND, quantity,
 						"고객 회수 정상 재입고 DLV-" + deliveryId
@@ -447,12 +464,22 @@ public class DistributionService {
 	}
 
 	private void restoreShippedStock(Shipment shipment, String reason) {
+		if (!shipment.getOrder().isInventoryCommitted()) {
+			return;
+		}
 		List<ShipmentItem> items = shipmentItemRepository
 				.findByShipmentShipmentId(shipment.getShipmentId());
 		items.forEach(item -> {
 			int quantity = item.getPickedQuantity();
 			item.getLot().changeQuantity(quantity);
 			item.getProduct().changeStock(quantity);
+			wmsStockCoordinator.restore(
+					item.getLot(),
+					quantity,
+					shipment.getOrder().getFulfillmentWarehouse(),
+					shipment.getShipmentNo() + " 주문 취소 재고 원복",
+					"관리자",
+					shipment.getOrder().getOrderId());
 			stockLogRepository.save(new StockLog(
 					item.getLot(), 1L, ChangeType.ADJUSTMENT, quantity,
 					shipment.getShipmentNo() + " 주문 취소 재고 원복: "
@@ -460,6 +487,40 @@ public class DistributionService {
 		});
 		warehouseFulfillmentService.restoreStock(
 				shipment.getOrder(), items);
+		shipment.getOrder().releaseInventoryCommit();
+	}
+
+	private void restoreCommittedOrderStock(
+			CustomerOrder order,
+			String reason) {
+		if (!order.isInventoryCommitted()) {
+			return;
+		}
+		orderItemRepository.findByOrderOrderId(
+				order.getOrderId()).stream()
+				.flatMap(item ->
+						item.getLotAllocations().stream())
+				.forEach(allocation -> {
+					int quantity = allocation.getQuantity();
+					ProductLot lot = allocation.getProductLot();
+					lot.changeQuantity(quantity);
+					lot.getProduct().changeStock(quantity);
+					wmsStockCoordinator.restore(
+							lot,
+							quantity,
+							order.getFulfillmentWarehouse(),
+							"주문 취소 재고 복원",
+							"관리자",
+							order.getOrderId());
+					stockLogRepository.save(new StockLog(
+							lot,
+							1L,
+							ChangeType.ADJUSTMENT,
+							quantity,
+							"주문 취소 재고 복원: "
+									+ reason.trim()));
+				});
+		order.releaseInventoryCommit();
 	}
 
 	private void requireText(String value, String message) {

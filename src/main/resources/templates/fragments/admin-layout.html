@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<!--
+    feedflow-wms-module/fragments/layout.html을 루트 통합 앱의 실제 경로에 맞게
+    이식한 관리자 공통 레이아웃이다.
+-->
+<head th:fragment="head(pageTitle)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="_csrf" th:content="${_csrf?.token}">
+    <meta name="_csrf_header" th:content="${_csrf?.headerName}">
+    <title th:text="|FeedFlow Admin · ${pageTitle}|">FeedFlow Admin</title>
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/css/wms-admin.css}">
+</head>
+
+<body>
+
+<div th:fragment="sidebar">
+    <aside class="ff-sidebar" id="ffSidebar">
+        <div class="ff-brand d-flex align-items-start justify-content-between">
+            <a th:href="@{/admin/dashboard}" class="ff-brand-link">
+                <i class="bi bi-box-seam"></i>
+                <span>FeedFlow</span>
+                <small class="d-block">배합사료 유통 관리</small>
+            </a>
+            <button type="button"
+                    class="btn btn-sm btn-link text-white-50 p-0 d-lg-none"
+                    id="ffSidebarClose" aria-label="메뉴 닫기">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <ul class="nav flex-column ff-nav">
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/admin/dashboard}"
+                   th:classappend="${menu == 'dashboard'} ? 'active'">
+                    <i class="bi bi-speedometer2 me-2"></i>대시보드
+                </a>
+            </li>
+
+            <li class="nav-item mt-3"><span class="ff-nav-title">기준 정보</span></li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/admin/products}"
+                   th:classappend="${menu == 'products'} ? 'active'">
+                    <i class="bi bi-box2 me-2"></i>품목·LOT 관리
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/distribution(view='farms')}"
+                   th:classappend="${menu == 'distribution' and currentView == 'farms'} ? 'active'">
+                    <i class="bi bi-house-heart me-2"></i>농장 고객사
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/admin/warehouse-map}"
+                   th:classappend="${menu == 'wms' and currentView == 'map'} ? 'active'">
+                    <i class="bi bi-grid-3x3-gap me-2"></i>창고 2D 도면
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/admin/wms(view='bins')}"
+                   th:classappend="${menu == 'wms' and currentView == 'bins'} ? 'active'">
+                    <i class="bi bi-bounding-box me-2"></i>창고 구역 관리
+                </a>
+            </li>
+
+            <li class="nav-item mt-3"><span class="ff-nav-title">재고 관리</span></li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/inventory(view='stock')}"
+                   th:classappend="${menu == 'inventory' and (currentView == 'registered' or currentView == 'stock' or currentView == 'lowStock' or currentView == 'activeLots')} ? 'active'">
+                    <i class="bi bi-stack me-2"></i>재고 현황
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/admin/demand-plan}"
+                   th:classappend="${menu == 'demandPlan'} ? 'active'">
+                    <i class="bi bi-clipboard-data me-2"></i>수요·정기입고 계획
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/admin/wms(view='inbound')}"
+                   th:classappend="${menu == 'wms' and currentView == 'inbound'} ? 'active'">
+                    <i class="bi bi-box-arrow-in-down me-2"></i>입고 등록
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/admin/wms(view='move')}"
+                   th:classappend="${menu == 'wms' and currentView == 'move'} ? 'active'">
+                    <i class="bi bi-arrows-move me-2"></i>구역 간 이동
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/inventory(view='defects')}"
+                   th:classappend="${menu == 'inventory' and currentView == 'defects'} ? 'active'">
+                    <i class="bi bi-exclamation-octagon me-2"></i>불량 관리
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/admin/wms(view='disposal')}"
+                   th:classappend="${menu == 'wms' and currentView == 'disposal'} ? 'active'">
+                    <i class="bi bi-trash3 me-2"></i>재고 폐기
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/admin/wms(view='movements')}"
+                   th:classappend="${menu == 'wms' and currentView == 'movements'} ? 'active'">
+                    <i class="bi bi-clock-history me-2"></i>입출고 이력
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/admin/wms(view='traceability')}"
+                   th:classappend="${menu == 'wms' and currentView == 'traceability'} ? 'active'">
+                    <i class="bi bi-diagram-3 me-2"></i>제품 이력 추적
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/admin/wms(view='sync')}"
+                   th:classappend="${menu == 'wms' and currentView == 'sync'} ? 'active'">
+                    <i class="bi bi-shield-check me-2"></i>재고 정합성 점검
+                </a>
+            </li>
+
+            <li class="nav-item mt-3"><span class="ff-nav-title">현장 작업</span></li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/admin/scan}"
+                   th:classappend="${menu == 'wms' and currentView == 'scan'} ? 'active'">
+                    <i class="bi bi-upc-scan me-2"></i>바코드 스캔
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/admin/scan/labels}"
+                   th:classappend="${menu == 'wms' and currentView == 'labels'} ? 'active'">
+                    <i class="bi bi-printer me-2"></i>QR·바코드 라벨 출력
+                </a>
+            </li>
+            <li class="nav-item mt-3"><span class="ff-nav-title">출고·유통 관리</span></li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/inventory(view='shipments')}"
+                   th:classappend="${menu == 'inventory' and currentView == 'shipments'} ? 'active'">
+                    <i class="bi bi-box-arrow-up me-2"></i>출고 대기 주문
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/admin/outbound/direct}"
+                   th:classappend="${menu == 'wms' and currentView == 'directOutbound'} ? 'active'">
+                    <i class="bi bi-box-arrow-up-right me-2"></i>직접 출고
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/distribution}"
+                   th:classappend="${menu == 'distribution' and currentView != 'farms' and currentView != 'returns'} ? 'active'">
+                    <i class="bi bi-truck me-2"></i>주문·배송 현황
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/distribution(view='returns')}"
+                   th:classappend="${menu == 'distribution' and currentView == 'returns'} ? 'active'">
+                    <i class="bi bi-arrow-counterclockwise me-2"></i>취소·회수 관리
+                </a>
+            </li>
+
+            <li class="nav-item mt-3"><span class="ff-nav-title">판매·시스템</span></li>
+            <li class="nav-item" sec:authorize="hasRole('ADMIN')">
+                <a class="nav-link" th:href="@{/admin/employees}"
+                   th:classappend="${menu == 'employees'} ? 'active'">
+                    <i class="bi bi-people-fill me-2"></i>사원 관리
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/}">
+                    <i class="bi bi-shop me-2"></i>판매 홈페이지
+                </a>
+            </li>
+        </ul>
+    </aside>
+    <div class="ff-sidebar-backdrop" id="ffSidebarBackdrop"></div>
+</div>
+
+<div th:fragment="topbar(section, page)">
+    <header class="ff-topbar">
+        <div class="d-flex align-items-center gap-2 ff-topbar-left">
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary d-lg-none"
+                    id="ffSidebarToggle" aria-label="메뉴 열기">
+                <i class="bi bi-list"></i>
+            </button>
+            <h6 class="mb-0 fw-bold ff-topbar-title"
+                th:text="${page}">페이지</h6>
+        </div>
+
+        <div class="d-flex align-items-center gap-2"
+             sec:authorize="isAuthenticated()">
+            <div class="text-end small ff-topbar-user">
+                <span class="fw-semibold"
+                      sec:authentication="name">관리자</span>
+                <span sec:authorize="hasRole('ADMIN')" class="badge bg-danger">ADMIN</span>
+                <span sec:authorize="hasRole('STAFF')" class="badge bg-secondary">STAFF</span>
+            </div>
+            <form th:action="@{/admin/logout}" method="post" class="m-0">
+                <button type="submit"
+                        class="btn btn-sm btn-outline-secondary text-nowrap">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span class="d-none d-md-inline ms-1">로그아웃</span>
+                </button>
+            </form>
+        </div>
+    </header>
+
+    <nav class="ff-breadcrumb" aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item">
+                <a th:href="@{/admin/dashboard}">
+                    <i class="bi bi-house-door-fill"></i>
+                    <span class="d-none d-sm-inline ms-1">홈</span>
+                </a>
+            </li>
+            <li class="breadcrumb-item"
+                th:if="${section != null}"
+                th:text="${section}">상위 메뉴</li>
+            <li class="breadcrumb-item active"
+                aria-current="page"
+                th:text="${page}">현재 화면</li>
+        </ol>
+    </nav>
+</div>
+
+<div th:fragment="scripts">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script th:src="@{/js/wms-admin-layout.js}"></script>
+</div>
+
+</body>
+</html>

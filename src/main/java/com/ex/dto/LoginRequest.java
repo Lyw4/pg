@@ -1,11 +1,19 @@
 package com.ex.dto;
 
-import jakarta.validation.constraints.Email;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record LoginRequest(
-        @NotBlank @Email @Size(max = 120) String email,
+        @JsonAlias({"username", "email"})
+        @NotBlank @Size(max = 120) String identifier,
         @NotBlank @Size(max = 100) String password
 ) {
+    public String username() {
+        return identifier;
+    }
+
+    public String email() {
+        return identifier;
+    }
 }

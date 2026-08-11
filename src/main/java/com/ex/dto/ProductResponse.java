@@ -2,13 +2,17 @@ package com.ex.dto;
 
 import com.ex.entity.Product;
 import com.ex.entity.ProductLot;
+import com.ex.service.ExpirySaleService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
+import java.util.List;
 
 public record ProductResponse(
         Long id,
+        String productCode,
         String name,
         String animal,
         String animalType,
@@ -29,15 +33,29 @@ public record ProductResponse(
         String badge,
         String shape,
         String imageUrl,
-        String manufacturer
+        String manufacturer,
+        List<LotResponse> lots,
+        boolean expirySale,
+        int discountRate,
+        int saleStock,
+        long saleDaysRemaining,
+        LocalDate saleExpirationDate,
+        String saleLabel
 ) {
     public static ProductResponse from(Product product) {
-        ProductLot firstAvailableLot = product.getLots().stream()
+        LocalDate today = LocalDate.now();
+        List<ProductLot> availableLots = product.getLots().stream()
                 .filter(lot -> lot.getLotQuantity() > 0)
+                .filter(lot -> ChronoUnit.DAYS.between(
+                        today, lot.getExpirationDate())
+                        >= ExpirySaleService.MINIMUM_SELLABLE_DAYS)
+                .sorted(Comparator.comparing(ProductLot::getExpirationDate))
+                .toList();
+        ProductLot firstAvailableLot = availableLots.stream()
                 .min(Comparator.comparing(ProductLot::getExpirationDate))
                 .orElse(null);
 
-        int stock = product.getLots().stream()
+        int stock = availableLots.stream()
                 .mapToInt(ProductLot::getLotQuantity)
                 .sum();
         String animalCode = animalTypeCode(product);
@@ -48,6 +66,7 @@ public record ProductResponse(
 
         return new ProductResponse(
                 product.getProductId(),
+                "FF-P" + String.format("%05d", product.getProductId()),
                 product.getName(),
                 animalLabel,
                 animalCode,
@@ -72,8 +91,76 @@ public record ProductResponse(
                         ? product.getDisplayShape()
                         : "FF",
                 product.getImageUrl(),
-                product.getManufacturer().getCompanyName()
+                product.getManufacturer().getCompanyName(),
+                availableLots.stream().map(LotResponse::from).toList(),
+                false,
+                0,
+                0,
+                0,
+                null,
+                null
         );
+    }
+
+    public ProductResponse withExpirySale(
+            ExpirySaleService.SaleOffer offer) {
+        if (offer == null || offer.saleStock() <= 0) {
+            return this;
+        }
+        return new ProductResponse(
+                id,
+                productCode,
+                name,
+                animal,
+                animalType,
+                stage,
+                description,
+                weight,
+                offer.salePrice(),
+                price,
+                protein,
+                fat,
+                fiber,
+                calcium,
+                lot,
+                manufacturedDate,
+                expiry,
+                stock,
+                tone,
+                badge,
+                shape,
+                imageUrl,
+                manufacturer,
+                lots,
+                true,
+                offer.discountRate(),
+                offer.saleStock(),
+                offer.daysRemaining(),
+                offer.expirationDate(),
+                offer.label());
+    }
+
+    public record LotResponse(
+            String lotNumber,
+            LocalDate manufacturedDate,
+            LocalDate expirationDate,
+            int quantity,
+            long daysRemaining,
+            String status) {
+        static LotResponse from(ProductLot lot) {
+            long daysRemaining = ChronoUnit.DAYS.between(
+                    LocalDate.now(), lot.getExpirationDate());
+            String status = daysRemaining <= 30
+                    ? "유통기한 임박"
+                    : lot.getLotQuantity() <= 10 ? "재고 부족" : "판매 가능";
+            return new LotResponse(
+                    lot.getLotNo(),
+                    lot.getManufacturedDate(),
+                    lot.getExpirationDate(),
+                    lot.getLotQuantity(),
+                    daysRemaining,
+                    status);
+        }
     }
 
     public static String animalTypeCode(Product product) {

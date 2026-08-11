@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${product.name + ' | ' + siteName}">상품 상세 | FEED FLOW</title>
+    <meta name="description" th:content="${product.description}">
+    <link rel="stylesheet" th:href="@{/css/feedflow.css}" href="/css/feedflow.css">
+</head>
+<body class="storefront-detail-body">
+<div class="notice">
+    <span>전국 5개 거점 재고 연동 · LOT 기준 판매 상품</span>
+    <div>
+        <a sec:authorize="!hasAnyRole('ADMIN','STAFF')" th:href="@{/(account='login')}">로그인·회원가입</a>
+        <a sec:authorize="hasAnyRole('ADMIN','STAFF')" th:href="@{/admin/dashboard}">관리자 대시보드</a>
+        <form sec:authorize="hasAnyRole('ADMIN','STAFF')"
+              class="notice-logout-form"
+              method="post"
+              th:action="@{/admin/logout}">
+            <button type="submit">관리자 로그아웃</button>
+        </form>
+        <span>고객센터 1588-0427</span>
+    </div>
+</div>
+
+<header class="site-header storefront-detail-header">
+    <div class="header-main">
+        <a class="brand" th:href="@{/}">
+            <span>F</span>
+            <div><strong>FEED FLOW</strong><small>바른 사료의 흐름</small></div>
+        </a>
+        <nav class="storefront-detail-nav" aria-label="상품 상세 메뉴">
+            <a th:href="@{/(category='ALL')} + '#products'">전체 상품</a>
+            <a th:href="@{/admin/dashboard}" sec:authorize="hasAnyRole('ADMIN','STAFF')">통합 대시보드</a>
+        </nav>
+    </div>
+</header>
+
+<main class="storefront-detail-main">
+    <nav class="storefront-breadcrumb" aria-label="현재 위치">
+        <a th:href="@{/}">홈</a><span>›</span>
+        <a th:href="@{/(category=${product.animalType})} + '#products'"
+           th:text="${product.animal}">축종</a><span>›</span>
+        <strong th:text="${product.name}">상품명</strong>
+    </nav>
+
+    <section class="storefront-product-hero">
+        <div class="storefront-product-image">
+            <span class="storefront-detail-badge" th:if="${product.expirySale}"
+                  th:text="${product.saleLabel}">D-14 · 30% 할인</span>
+            <span class="storefront-detail-badge" th:if="${!product.expirySale and product.badge != null}"
+                  th:text="${product.badge}">추천</span>
+            <img th:if="${product.imageUrl != null}"
+                 th:src="${product.imageUrl}" th:alt="${product.name}">
+            <div class="storefront-package-mark">
+                <small>FEED FLOW · VERIFIED FEED</small>
+                <strong th:text="${product.shape}">CATTLE-01</strong>
+                <span th:text="|${product.animal} · ${product.stage}|">축종 · 단계</span>
+            </div>
+        </div>
+
+        <div class="storefront-product-copy">
+            <div class="product-tags">
+                <span th:text="${product.animal}">축종</span>
+                <span th:text="${product.stage}">급여 단계</span>
+                <span th:text="${product.manufacturer}">제조사</span>
+            </div>
+            <h1 th:text="${product.name}">상품명</h1>
+            <p class="storefront-product-description" th:text="${product.description}">
+                상품 설명
+            </p>
+
+            <div class="storefront-detail-price">
+                <del th:if="${product.originalPrice != null}"
+                     th:text="|${#numbers.formatInteger(product.originalPrice, 0, 'COMMA')}원|">0원</del>
+                <strong th:text="|${#numbers.formatInteger(product.price, 0, 'COMMA')}원|">0원</strong>
+                <span th:text="|${product.weight}kg / 1포|">25kg / 1포</span>
+            </div>
+
+            <div class="storefront-stock-summary">
+                <article><span th:text="${product.expirySale ? '특가 판매 재고' : '판매 가능 재고'}">판매 가능 재고</span><strong th:text="|${#numbers.formatInteger(product.expirySale ? product.saleStock : product.stock, 0, 'COMMA')}포|">0포</strong></article>
+                <article><span>출고 LOT</span><strong th:text="${product.lot != null ? product.lot : '입고 예정'}">LOT</strong></article>
+                <article><span>유통기한</span><strong th:text="${product.expiry != null ? product.expiry : '확인 중'}">날짜</strong></article>
+            </div>
+
+            <div class="storefront-detail-actions">
+                <a class="primary-button"
+                   th:href="@{/(detail=${product.id})} + '#products'">구매 화면에서 주문하기</a>
+                <a class="secondary-button" th:href="@{/} + '#products'">상품 목록으로</a>
+            </div>
+            <p class="storefront-stock-note">실제 주문 시 가까운 운영 창고와 출고 가능한 LOT가 자동 배정됩니다.</p>
+        </div>
+    </section>
+
+    <section class="storefront-spec-section">
+        <div class="section-heading compact">
+            <div>
+                <p class="eyebrow dark"><span></span> PRODUCT SPECIFICATION</p>
+                <h2>상품 상세 정보</h2>
+            </div>
+        </div>
+        <div class="storefront-spec-grid">
+            <article><span>조단백</span><strong th:text="|${product.protein}%|">0%</strong><small>성장·생산성 기준</small></article>
+            <article><span>조지방</span><strong th:text="|${product.fat}%|">0%</strong><small>에너지 공급 기준</small></article>
+            <article><span>조섬유</span><strong th:text="|${product.fiber}%|">0%</strong><small>소화 균형 기준</small></article>
+            <article><span>칼슘</span><strong th:text="|${product.calcium}%|">0%</strong><small>골격·난각 기준</small></article>
+        </div>
+        <dl class="storefront-product-facts">
+            <div><dt>제조사</dt><dd th:text="${product.manufacturer}">제조사</dd></div>
+            <div><dt>축종</dt><dd th:text="${product.animal}">축종</dd></div>
+            <div><dt>권장 급여 단계</dt><dd th:text="${product.stage}">단계</dd></div>
+            <div><dt>포장 중량</dt><dd th:text="|${product.weight}kg|">25kg</dd></div>
+            <div><dt>대표 LOT 제조일</dt><dd th:text="${product.manufacturedDate != null ? product.manufacturedDate : '입고 예정'}">날짜</dd></div>
+            <div><dt>대표 LOT 유통기한</dt><dd th:text="${product.expiry != null ? product.expiry : '입고 예정'}">날짜</dd></div>
+        </dl>
+    </section>
+
+    <section class="storefront-related" th:if="${!#lists.isEmpty(relatedProducts)}">
+        <div class="section-heading compact">
+            <div><p class="eyebrow dark"><span></span> SAME CATEGORY</p><h2>같은 축종의 다른 상품</h2></div>
+        </div>
+        <div class="storefront-related-grid">
+            <a th:each="related : ${relatedProducts}"
+               th:href="@{/shop/products/{id}(id=${related.id})}"
+               class="storefront-related-card">
+                <img th:src="${related.imageUrl}" th:alt="${related.name}">
+                <div><small th:text="|${related.animal} · ${related.stage}|">축종 · 단계</small>
+                    <strong th:text="${related.name}">상품명</strong>
+                    <span th:text="|${#numbers.formatInteger(related.price, 0, 'COMMA')}원|">0원</span></div>
+            </a>
+        </div>
+    </section>
+</main>
+
+<footer>
+    <div class="footer-brand"><span>F</span><div><strong>FEED FLOW</strong><p>판매·유통·재고가 하나의 상품 데이터로 연결됩니다.</p></div></div>
+    <p>고객센터 1588-0427 · help@feedflow.kr · © 2026 FEED FLOW</p>
+</footer>
+</body>
+</html>

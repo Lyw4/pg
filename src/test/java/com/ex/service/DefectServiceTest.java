@@ -28,6 +28,7 @@ class DefectServiceTest {
     private ProductLotRepository lotRepository;
     private StockLogRepository stockLogRepository;
     private InventoryService inventoryService;
+    private WmsStockCoordinator wmsStockCoordinator;
     private DefectService service;
 
     @BeforeEach
@@ -36,8 +37,13 @@ class DefectServiceTest {
         lotRepository = mock(ProductLotRepository.class);
         stockLogRepository = mock(StockLogRepository.class);
         inventoryService = mock(InventoryService.class);
+		wmsStockCoordinator = mock(WmsStockCoordinator.class);
         service = new DefectService(
-                defectRepository, lotRepository, stockLogRepository, inventoryService);
+                defectRepository,
+				lotRepository,
+				stockLogRepository,
+				inventoryService,
+				wmsStockCoordinator);
     }
 
     @Test

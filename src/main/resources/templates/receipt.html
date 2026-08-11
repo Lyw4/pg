@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FEED FLOW 결제 영수증</title>
+    <link rel="stylesheet" th:href="@{/css/receipt.css}" href="/css/receipt.css">
+</head>
+<body class="receipt-page">
+<main class="receipt-sheet">
+    <div class="receipt-test-banner">
+        <span>TEST RECEIPT</span>
+        <strong>가상 영수증 · 테스트용</strong>
+        <small>실제 카드 매출전표·세금계산서가 아닌 FeedFlow 결제 확인 화면입니다.</small>
+    </div>
+    <header class="receipt-header">
+        <div><p>FEED FLOW</p><h1>결제 영수증</h1></div>
+        <button type="button" onclick="window.print()">인쇄하기</button>
+    </header>
+
+    <section class="receipt-section receipt-order-summary">
+        <dl>
+            <div><dt>주문번호</dt><dd th:text="${detail.order.orderNumber}">FF-00000000-XXXXXX</dd></div>
+            <div><dt>주문일시</dt><dd th:text="${#temporals.format(detail.order.orderedAt, 'yyyy-MM-dd HH:mm')}">2026-08-06 12:00</dd></div>
+            <div><dt>결제수단</dt><dd th:text="${detail.payment.method}">CARD</dd></div>
+            <div><dt>결제상태</dt><dd class="receipt-paid" th:text="${detail.payment.status}">DONE</dd></div>
+            <div th:if="${detail.payment.transactionId != null and !#strings.isEmpty(detail.payment.transactionId)}"><dt>거래번호</dt><dd th:text="${detail.payment.transactionId}">imp_xxx</dd></div>
+            <div th:if="${detail.payment.approvedAt != null}"><dt>승인일시</dt><dd th:text="${#temporals.format(detail.payment.approvedAt, 'yyyy-MM-dd HH:mm')}">2026-08-06 12:00</dd></div>
+        </dl>
+    </section>
+
+    <section class="receipt-section">
+        <h2>주문 상품</h2>
+        <table>
+            <thead><tr><th>상품명</th><th>수량</th><th>단가</th><th>금액</th></tr></thead>
+            <tbody>
+            <tr th:each="item : ${detail.order.items}">
+                <td th:text="${item.productName}">배합사료</td>
+                <td th:text="${item.quantity}">1</td>
+                <td th:text="${#numbers.formatInteger(item.unitPrice, 3, 'COMMA') + '원'}">0원</td>
+                <td th:text="${#numbers.formatInteger(item.lineAmount, 3, 'COMMA') + '원'}">0원</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="receipt-section receipt-total">
+        <dl>
+            <div><dt>상품금액</dt><dd th:text="${#numbers.formatInteger(detail.order.productAmount, 3, 'COMMA') + '원'}">0원</dd></div>
+            <div><dt>배송비</dt><dd th:text="${#numbers.formatInteger(detail.order.deliveryFee, 3, 'COMMA') + '원'}">0원</dd></div>
+            <div><dt>할인금액</dt><dd th:text="${#numbers.formatInteger(detail.order.discountAmount, 3, 'COMMA') + '원'}">0원</dd></div>
+            <div class="grand-total"><dt>최종 결제금액</dt><dd th:text="${#numbers.formatInteger(detail.order.totalAmount, 3, 'COMMA') + '원'}">0원</dd></div>
+        </dl>
+    </section>
+
+    <section class="receipt-section receipt-delivery">
+        <h2>배송 정보</h2>
+        <dl>
+            <div><dt>받는 분</dt><dd th:text="${detail.recipient.name}">고객</dd></div>
+            <div><dt>연락처</dt><dd th:text="${detail.recipient.phone}">010-0000-0000</dd></div>
+            <div><dt>주소</dt><dd th:text="${detail.recipient.roadAddress != null ? detail.recipient.roadAddress : detail.recipient.jibunAddress}">주소</dd></div>
+            <div th:if="${detail.recipient.detailAddress != null and !#strings.isEmpty(detail.recipient.detailAddress)}"><dt>상세주소</dt><dd th:text="${detail.recipient.detailAddress}">상세주소</dd></div>
+        </dl>
+    </section>
+
+    <footer class="receipt-footer">
+        <p>본 화면은 FeedFlow 주문 DB에 저장된 결제 정보를 기반으로 생성한 확인용 영수증입니다.</p>
+        <a href="/mypage">마이페이지로 돌아가기</a>
+    </footer>
+</main>
+</body>
+</html>

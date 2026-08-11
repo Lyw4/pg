@@ -123,6 +123,57 @@ public class WarehousePlanSeeder {
         });
     }
 
+    /**
+     * 판매 홈페이지에서 추가된 상품도 5개 거점 창고의 재고로 사용할 수 있게
+     * 현재 총재고를 창고 수에 맞춰 균등 배치한다.
+     */
+    @Transactional
+    public void ensureAllocationsForAllProducts() {
+        List<Warehouse> warehouses =
+                warehouseRepository
+                        .findAllByActiveTrueOrderByDisplayOrderAsc();
+        if (warehouses.isEmpty()) {
+            return;
+        }
+
+        productRepository
+                .findAllByActiveTrueOrderByProductIdAsc()
+                .forEach(product ->
+                        ensureProductAllocations(product, warehouses));
+    }
+
+    private void ensureProductAllocations(
+            Product product,
+            List<Warehouse> warehouses) {
+        int baseQuantity =
+                product.getTotalStock() / warehouses.size();
+        int remainder =
+                product.getTotalStock() % warehouses.size();
+
+        for (int index = 0; index < warehouses.size(); index++) {
+            Warehouse warehouse = warehouses.get(index);
+            var existing = allocationRepository
+                    .findByWarehouseWarehouseIdAndProductProductId(
+                            warehouse.getWarehouseId(),
+                            product.getProductId());
+            if (existing.isPresent()) {
+                existing.get().initializeCurrentStockIfMissing();
+                continue;
+            }
+
+            int targetStockQuantity =
+                    baseQuantity + (index < remainder ? 1 : 0);
+            int monthlyPlannedQuantity =
+                    (targetStockQuantity * 30 + 21) / 22;
+            allocationRepository.save(
+                    new WarehouseAllocation(
+                            warehouse,
+                            product,
+                            monthlyPlannedQuantity,
+                            targetStockQuantity));
+        }
+    }
+
     private Warehouse findOrCreateWarehouse(WarehouseSeed seed) {
         Warehouse warehouse = warehouseRepository.findByCode(seed.code())
                 .orElseGet(() -> new Warehouse(

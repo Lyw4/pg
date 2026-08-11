@@ -1,0 +1,43 @@
+package com.ex.repository;
+
+import com.ex.entity.CustomerOrder;
+import jakarta.persistence.LockModeType;
+import org.junit.jupiter.api.Test;
+import org.springframework.data.jpa.repository.Lock;
+
+import java.lang.reflect.Method;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+class ConcurrencyConstraintTest {
+
+    @Test
+    void stockAndOrderMutationQueriesUsePessimisticWriteLocks() throws Exception {
+        Method lotQuery = ProductLotRepository.class.getMethod(
+                "findByProductProductIdAndLotQuantityGreaterThanOrderByExpirationDateAsc",
+                Long.class, int.class);
+        Method binQuery = BinInventoryRepository.class.getMethod(
+                "findByLotLotIdAndQuantityGreaterThanOrderByBinBinCodeAsc",
+                Long.class, int.class);
+        Method orderQuery = CustomerOrderRepository.class.getMethod(
+                "findByOrderNumberForUpdate", String.class);
+
+        assertEquals(LockModeType.PESSIMISTIC_WRITE,
+                lotQuery.getAnnotation(Lock.class).value());
+        assertEquals(LockModeType.PESSIMISTIC_WRITE,
+                binQuery.getAnnotation(Lock.class).value());
+        assertEquals(LockModeType.PESSIMISTIC_WRITE,
+                orderQuery.getAnnotation(Lock.class).value());
+    }
+
+    @Test
+    void customerOrderKeepsProviderTransactionIndexUnique() {
+        jakarta.persistence.Table table = CustomerOrder.class
+                .getAnnotation(jakarta.persistence.Table.class);
+        assertNotNull(table);
+        assertEquals(2, table.indexes().length);
+        assertEquals("idx_customer_order_provider_tx", table.indexes()[1].name());
+        assertEquals("provider_transaction_id", table.indexes()[1].columnList());
+        assertEquals(true, table.indexes()[1].unique());
+    }
+}

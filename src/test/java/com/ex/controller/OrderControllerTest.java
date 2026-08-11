@@ -1,6 +1,8 @@
 package com.ex.controller;
 
 import com.ex.entity.Product;
+import com.ex.entity.CustomerOrder;
+import com.ex.repository.CustomerOrderRepository;
 import com.ex.repository.ProductRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,6 +16,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -29,6 +33,9 @@ class OrderControllerTest {
 
     @Autowired
     private ProductRepository productRepository;
+
+    @Autowired
+    private CustomerOrderRepository customerOrderRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -69,6 +76,18 @@ class OrderControllerTest {
 
         JsonNode json = objectMapper.readTree(response);
         String orderNumber = json.get("orderNumber").asText();
+        CustomerOrder integratedOrder = customerOrderRepository
+                .findByOrderNumber(orderNumber)
+                .orElseThrow();
+
+        assertEquals(
+                CustomerOrder.OrderChannel.SHOP,
+                integratedOrder.getOrderChannel());
+        assertNotNull(integratedOrder.getFulfillmentWarehouse());
+        assertFalse(integratedOrder.getItems().isEmpty());
+        assertFalse(
+                integratedOrder.getItems().getFirst()
+                        .getLotAllocations().isEmpty());
 
         mockMvc.perform(patch("/api/orders/{orderNumber}/cancel", orderNumber)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -80,5 +99,6 @@ class OrderControllerTest {
                 initialStock,
                 product.getLots().stream().mapToInt(lot -> lot.getQuantity()).sum()
         );
+        assertFalse(integratedOrder.isInventoryCommitted());
     }
 }

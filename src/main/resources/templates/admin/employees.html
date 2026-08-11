@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security6">
+<head th:replace="~{fragments/admin-layout :: head('사원 관리')}"></head>
+<body>
+<div class="ff-admin-shell">
+    <div th:replace="~{fragments/admin-layout :: sidebar}"></div>
+    <div class="ff-main-wrap">
+        <div th:replace="~{fragments/admin-layout :: topbar('시스템 관리', '사원 관리')}"></div>
+
+        <main class="ff-content">
+            <div th:if="${employeeMessage}" class="alert alert-success" th:text="${employeeMessage}"></div>
+            <div th:if="${employeeError}" class="alert alert-danger" th:text="${employeeError}"></div>
+
+            <section class="card ff-card">
+                <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h5 fw-bold mb-1"><i class="bi bi-people-fill me-2 text-primary"></i>사원 계정 및 권한</h1>
+                        <p class="small text-muted mb-0">책임자는 사원을 책임자로 승격하거나 다시 사원 권한으로 변경할 수 있습니다.</p>
+                    </div>
+                    <span class="badge text-bg-light border" th:text="|총 ${#lists.size(employees)}명|">총 0명</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>이름</th>
+                            <th>로그인 ID</th>
+                            <th>연락처</th>
+                            <th>현재 권한</th>
+                            <th>등록일</th>
+                            <th>권한 변경</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="employee, stat : ${employees}">
+                            <td th:text="${stat.count}">1</td>
+                            <td>
+                                <strong th:text="${employee.name}">김사원</strong>
+                                <span th:if="${employee.currentUser}" class="badge text-bg-primary ms-1">내 계정</span>
+                            </td>
+                            <td><code th:text="${employee.username}">staff</code></td>
+                            <td th:text="${employee.phone}">010-0000-0000</td>
+                            <td>
+                                <span class="badge"
+                                      th:classappend="${employee.role.name() == 'ADMIN'} ? 'text-bg-danger' : 'text-bg-secondary'"
+                                      th:text="|${employee.role.label} (${employee.role.name()})|">사원</span>
+                            </td>
+                            <td th:text="${#temporals.format(employee.createdAt, 'yyyy-MM-dd')}">2026-01-01</td>
+                            <td>
+                                <form th:if="${!employee.currentUser}"
+                                      th:action="@{/admin/employees/{id}/role(id=${employee.id})}"
+                                      method="post" class="d-flex gap-2">
+                                    <select name="role" class="form-select form-select-sm" aria-label="변경할 권한">
+                                        <option th:each="role : ${roles}"
+                                                th:value="${role}"
+                                                th:selected="${role == employee.role}"
+                                                th:text="|${role.label} (${role.name()})|">권한</option>
+                                    </select>
+                                    <button class="btn btn-sm btn-outline-primary text-nowrap">변경</button>
+                                </form>
+                                <span th:if="${employee.currentUser}" class="small text-muted">본인 변경 불가</span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+<div th:replace="~{fragments/admin-layout :: scripts}"></div>
+</body>
+</html>

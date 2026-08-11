@@ -8,6 +8,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "member", indexes = {
+        @Index(name = "idx_member_username", columnList = "username", unique = true),
         @Index(name = "idx_member_email", columnList = "email", unique = true)
 })
 @Getter
@@ -21,6 +22,9 @@ public class Member extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "member_id")
     private Long id;
+
+    @Column(unique = true, length = 20)
+    private String username;
 
     @Column(nullable = false, unique = true, length = 120)
     private String email;

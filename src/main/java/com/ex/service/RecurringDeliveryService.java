@@ -207,7 +207,8 @@ public class RecurringDeliveryService {
 				"정기 배송 입고 - "
 						+ delivery.getWarehouse().getName()
 						+ " / "
-						+ delivery.getManufacturer().getCompanyName());
+						+ delivery.getManufacturer().getCompanyName(),
+				delivery.getWarehouse());
 
 		allocation.adjustCurrentStock(
 				allocation.getCurrentStockQuantity()

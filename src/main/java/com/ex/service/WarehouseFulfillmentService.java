@@ -60,6 +60,17 @@ public class WarehouseFulfillmentService {
     }
 
     @Transactional
+    public Warehouse assignNearest(
+            CustomerOrder order,
+            List<OrderItem> items) {
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "창고를 배정할 주문 상품이 없습니다.");
+        }
+        return assignNearest(order, needsFromOrderItems(items));
+    }
+
+    @Transactional
     public void assignUnassignedOrders() {
         orderRepository.findAllByOrderByCreatedAtDesc().stream()
                 .filter(order -> order.getFulfillmentWarehouse() == null)
