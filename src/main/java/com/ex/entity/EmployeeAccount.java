@@ -63,4 +63,10 @@ public class EmployeeAccount extends BaseTimeEntity {
         this.phone = phone;
         this.active = true;
     }
+
+    public void repairSeededProfile(String name, String phone) {
+        this.name = name;
+        this.phone = phone;
+        this.active = true;
+    }
 }

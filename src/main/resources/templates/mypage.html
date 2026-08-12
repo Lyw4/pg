@@ -43,7 +43,9 @@
     <div class="mypage-workspace">
         <aside class="mypage-sidebar" aria-label="마이페이지 메뉴">
             <strong>마이페이지</strong>
-            <button class="active" type="button" data-mypage-tab="orders">주문·배송 내역</button>
+            <button class="active" type="button" data-mypage-tab="dashboard">농장 대시보드</button>
+            <button type="button" data-mypage-tab="orders">주문·배송 내역</button>
+            <button type="button" data-mypage-tab="farmmodel">농장 맞춤 분석</button>
             <button type="button" data-mypage-tab="favorites">관심상품</button>
             <button type="button" data-mypage-tab="profile">회원·배송 정보</button>
             <a href="/#products">상품 둘러보기</a>
@@ -51,7 +53,40 @@
         </aside>
 
         <div class="mypage-content">
-            <section id="mypage-orders-panel" class="mypage-panel">
+            <section id="mypage-dashboard-panel" class="mypage-panel farm-dashboard-panel">
+                <div class="mypage-card-heading">
+                    <div><p>FARM DASHBOARD</p><h2>우리 농장 운영 한눈에 보기</h2></div>
+                    <a class="farm-report-download" href="/api/farm-insights/monthly-report.csv">월간 리포트 내려받기</a>
+                </div>
+                <div id="farm-dashboard-summary" class="farm-dashboard-summary">
+                    <article><span>다음 달 권장 발주량</span><strong id="farm-next-quantity">-</strong><small>실사용량 자동 보정</small></article>
+                    <article><span>담당 공급 거점</span><strong id="farm-dashboard-warehouse">-</strong><small id="farm-dashboard-distance">-</small></article>
+                    <article><span>최근 12개월 구매</span><strong id="farm-dashboard-spend">-</strong><small id="farm-dashboard-saving">-</small></article>
+                    <article><span>추천 적합도</span><strong id="farm-feedback-rate">-</strong><small id="farm-feedback-count">평가 전</small></article>
+                </div>
+                <div class="farm-dashboard-grid">
+                    <section class="farm-dashboard-card farm-alert-card">
+                        <div class="farm-dashboard-card-title"><div><p>SMART ALERT</p><h3>운영 알림</h3></div><span id="farm-alert-count">0건</span></div>
+                        <div id="farm-dashboard-alerts" class="farm-dashboard-alerts"><p class="mypage-empty">알림을 불러오는 중입니다.</p></div>
+                    </section>
+                    <section class="farm-dashboard-card">
+                        <div class="farm-dashboard-card-title"><div><p>FEED USAGE</p><h3>월별 사용량과 예측</h3></div></div>
+                        <div id="farm-usage-chart" class="farm-usage-chart"><p class="mypage-empty">사용량 기록을 입력하면 비교 그래프가 표시됩니다.</p></div>
+                        <form id="farm-usage-form" class="farm-usage-form">
+                            <label>사용 월<input id="farm-usage-month" type="month" required></label>
+                            <label>실제 사용량<input id="farm-usage-quantity" type="number" min="1" required><span>포대</span></label>
+                            <label class="usage-note">메모<input id="farm-usage-note" maxlength="200" placeholder="사육 규모 변경, 계절 요인 등"></label>
+                            <button type="submit">사용량 저장·다음 달 자동 보정</button>
+                        </form>
+                    </section>
+                </div>
+                <section class="farm-dashboard-card farm-recent-card">
+                    <div class="farm-dashboard-card-title"><div><p>RECENT FLOW</p><h3>최근 주문·배송 상태</h3></div><button type="button" data-mypage-tab="orders">전체 주문 보기</button></div>
+                    <div id="farm-dashboard-orders" class="farm-dashboard-orders"><p class="mypage-empty">주문 정보를 불러오는 중입니다.</p></div>
+                </section>
+            </section>
+
+            <section id="mypage-orders-panel" class="mypage-panel" hidden>
                 <div class="mypage-card-heading">
                     <div><p>ORDER HISTORY</p><h2>최근 6개월 주문·배송</h2></div>
                     <span><a href="/payments/test-receipt">결제 영수증 테스트</a> · 로그인 후 주문한 내역이 자동 저장됩니다.</span>
@@ -64,6 +99,52 @@
                 </div>
                 <div id="mypage-order-list" class="mypage-order-list"><p class="mypage-empty">주문 내역을 불러오는 중입니다.</p></div>
 
+            </section>
+
+            <section id="mypage-farmmodel-panel" class="mypage-panel" hidden>
+                <div class="mypage-card-heading">
+                    <div><p>FARM FEED MODEL</p><h2>우리 농장 배합사료 공급안</h2></div>
+                    <span>가상 농장 표본과 현재 판매 상품을 기준으로 계산한 참고 정보입니다.</span>
+                </div>
+                <div class="farm-model-empty" th:if="${member.farmModel == null}">
+                    농장 분석 정보가 없습니다. 고객센터에 농장 프로필 등록을 요청해주세요.
+                </div>
+                <div class="farm-model-content" th:if="${member.farmModel != null}">
+                    <div class="farm-model-summary">
+                        <article><span>주 사육 축종</span><strong th:text="${member.farmModel.animalType}">소</strong><small th:text="|사육 규모 ${#numbers.formatInteger(member.farmModel.livestockCount, 1, 'COMMA')}두/수|">사육 규모</small></article>
+                        <article><span>월 예상 사용량</span><strong th:text="|${#numbers.formatInteger(member.farmModel.monthlyFeedQuantity, 1, 'COMMA')}포대|">0포대</strong><small th:text="${member.farmModel.monthlyQuantityEstimated ? '유사 농장 기반 예측값' : '회원 직접 입력값'}">산정 방식</small></article>
+                        <article><span>담당 공급 거점</span><strong th:text="${member.farmAssignment.warehouseName}">창고</strong><small th:text="|농장 기준 약 ${#numbers.formatDecimal(member.farmAssignment.distanceKm, 1, 1)}km|">거리</small></article>
+                        <article><span>모델 비교 표본</span><strong th:text="|${member.farmModel.comparableFarmCount}개 농장|">0개 농장</strong><small th:text="${member.farmModel.modelBasis}">분석 기준</small></article>
+                    </div>
+                    <div class="farm-model-heading"><h3>추천 배합사료</h3><span th:text="|선호 기준: ${member.farmModel.preferredFeed}|">선호 사료</span></div>
+                    <div class="farm-model-confidence">
+                        <span th:classappend="| confidence-${member.farmModel.confidenceLevel}|" th:text="|추천 신뢰도 ${member.farmModel.confidenceLevel}|">추천 신뢰도</span>
+                        <strong th:text="${member.farmModel.confidenceReason}">신뢰도 근거</strong>
+                        <small th:text="|데이터 기준일 ${member.farmModel.dataAsOf} · 모델 v${member.farmModel.modelVersion}|">기준일·버전</small>
+                    </div>
+                    <div class="farm-model-products">
+                        <article th:each="feed : ${member.farmModel.recommendedFeeds}">
+                            <img th:src="${feed.imageUrl != null ? feed.imageUrl : '/images/feed-bag-warehouse.png'}" th:alt="${feed.name}">
+                            <div><small th:text="|${feed.animalType} · ${feed.feedStage != null ? feed.feedStage : '일반 배합'}|">축종·단계</small><h3 th:text="${feed.name}">추천 사료</h3><p th:text="${feed.reason}">추천 이유</p><small class="farm-stock-note" th:text="|${feed.availabilityLabel} · 판매 가능 ${#numbers.formatInteger(feed.sellableStock, 1, 'COMMA')}포대|">공급 가능 재고</small></div>
+                            <strong th:text="|${#numbers.formatInteger(feed.price, 1, 'COMMA')}원|">0원</strong>
+                            <a th:href="@{/shop/products/{id}(id=${feed.productId})}">상세 보기</a>
+                            <div class="recommend-feedback" th:data-feedback-product="${feed.productId}">
+                                <span>추천이 적합했나요?</span>
+                                <button type="button" th:classappend="${feed.suitableFeedback == true} ? 'selected'" data-suitable="true">적합해요</button>
+                                <button type="button" th:classappend="${feed.suitableFeedback == false} ? 'selected negative'" data-suitable="false">아쉬워요</button>
+                            </div>
+                            <div class="alternative-feed-list" th:if="${!#lists.isEmpty(feed.alternatives)}">
+                                <span>품절 시 대체 사료</span>
+                                <a th:each="alternative : ${feed.alternatives}" th:href="@{/shop/products/{id}(id=${alternative.productId})}">
+                                    <strong th:text="${alternative.name}">대체 상품</strong>
+                                    <small th:text="|${#numbers.formatInteger(alternative.price, 1, 'COMMA')}원 · ${alternative.comparisonLabel}|">비교</small>
+                                </a>
+                            </div>
+                        </article>
+                        <p class="mypage-empty" th:if="${#lists.isEmpty(member.farmModel.recommendedFeeds)}">해당 축종에 유통기한 안전 기준을 통과한 판매 가능 LOT가 없어 상담 후 안내가 필요합니다.</p>
+                    </div>
+                    <p class="farm-model-notice">이 결과는 발표·기능 검증용 가상 농장 데이터를 활용한 예측값입니다. 실제 급여량은 사육 단계, 체중, 계절과 수의·영양 상담 결과에 따라 조정해야 합니다.</p>
+                </div>
             </section>
 
             <section id="mypage-favorites-panel" class="mypage-panel" hidden>

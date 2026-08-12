@@ -34,6 +34,7 @@ public class FarmCustomerRegistrationService {
 
     private final FarmCustomerRepository farmCustomerRepository;
     private final WarehouseRepository warehouseRepository;
+    private final FarmFeedModelService farmFeedModelService;
 
     @Transactional
     public FarmCustomer register(Member member, SignupRequest request) {
@@ -63,11 +64,12 @@ public class FarmCustomerRegistrationService {
                         "자동 배정할 운영 창고가 없습니다."));
 
         SignupRequest.FarmProfileRequest profile = request.farmProfile();
+        var modeledProfile = farmFeedModelService.model(profile);
         String address = joinAddress(
                 request.farmAddress().baseAddress(),
                 request.farmAddress().detailAddress());
         int deliveryDay = request.regularDeliveryDay() == null
-                ? 15
+                ? 0
                 : request.regularDeliveryDay();
 
         FarmCustomer customer = FarmCustomer.registeredMember(
@@ -80,22 +82,18 @@ public class FarmCustomerRegistrationService {
                 address,
                 locatedFarm.coordinate().latitude(),
                 locatedFarm.coordinate().longitude(),
-                valueOrDefault(
-                        profile == null ? null : profile.animalType(),
-                        "미등록"),
-                nonNegative(profile == null
-                        ? null
-                        : profile.livestockCount()),
-                nonNegative(profile == null
-                        ? null
-                        : profile.monthlyFeedQuantity()),
-                valueOrDefault(
-                        profile == null ? null : profile.preferredFeed(),
-                        "상담 후 지정"),
+                modeledProfile.animalType(),
+                modeledProfile.livestockCount(),
+                modeledProfile.monthlyFeedQuantity(),
+                modeledProfile.preferredFeed(),
                 deliveryDay,
                 assignment.warehouse(),
                 assignment.distanceKm(),
-                "회원가입 자동 등록 · " + locatedFarm.source());
+                "회원가입 자동 등록 · " + locatedFarm.source()
+                        + " · " + modeledProfile.modelBasis()
+                        + (modeledProfile.monthlyQuantityEstimated()
+                                ? " · 월 사용량 모델 예측"
+                                : " · 월 사용량 직접 입력"));
         return farmCustomerRepository.save(customer);
     }
 

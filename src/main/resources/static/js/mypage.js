@@ -118,6 +118,71 @@
         }
     }
 
+    function renderUsageChart(usages) {
+        const container = $("#farm-usage-chart");
+        if (!usages?.length) {
+            container.innerHTML = `<p class="mypage-empty">사용량 기록을 입력하면 예측값과 실제값 비교 그래프가 표시됩니다.</p>`;
+            return;
+        }
+        const recent = usages.slice(-6);
+        const max = Math.max(1, ...recent.flatMap((usage) => [
+            usage.predictedQuantity,
+            usage.actualQuantity
+        ]));
+        container.innerHTML = `
+            <div class="usage-chart-legend"><span><i class="predicted"></i>예측</span><span><i class="actual"></i>실제</span></div>
+            <div class="usage-chart-bars">
+                ${recent.map((usage) => `
+                    <article title="예측 ${usage.predictedQuantity}포 · 실제 ${usage.actualQuantity}포">
+                        <div><i class="predicted" style="height:${Math.max(5, usage.predictedQuantity / max * 100)}%"></i><i class="actual" style="height:${Math.max(5, usage.actualQuantity / max * 100)}%"></i></div>
+                        <strong>${escapeHtml(String(usage.month).slice(2, 7))}</strong>
+                        <small>정확도 ${usage.accuracyRate}%</small>
+                    </article>`).join("")}
+            </div>`;
+    }
+
+    function renderFarmAlerts(alerts) {
+        $("#farm-alert-count").textContent = `${alerts?.length || 0}건`;
+        $("#farm-dashboard-alerts").innerHTML = alerts?.length
+            ? alerts.map((alert) => `
+                <a class="farm-dashboard-alert level-${escapeHtml(alert.level)}" href="${escapeHtml(alert.actionUrl)}">
+                    <span>${escapeHtml(alert.title)}</span>
+                    <strong>${escapeHtml(alert.message)}</strong>
+                </a>`).join("")
+            : `<div class="farm-dashboard-clear"><strong>확인할 긴급 알림이 없습니다.</strong><span>재고·유통기한·정기배송·배송 지연을 자동 점검했습니다.</span></div>`;
+    }
+
+    function renderFarmRecentOrders(orders) {
+        $("#farm-dashboard-orders").innerHTML = orders?.length
+            ? orders.slice(0, 4).map((order) => `
+                <a href="/mypage/orders/${encodeURIComponent(order.orderNumber)}">
+                    <div><strong>${escapeHtml(order.orderNumber)}</strong><span>${escapeHtml(new Date(order.orderedAt).toLocaleDateString("ko-KR"))}</span></div>
+                    <span>${order.quantity.toLocaleString("ko-KR")}포 · ${won(order.amount)}</span>
+                    <b class="${order.delayed ? "delayed" : ""}">${escapeHtml(order.delayed ? "배송 지연" : order.deliveryStatus)}</b>
+                </a>`).join("")
+            : `<p class="mypage-empty">최근 주문 내역이 없습니다.</p>`;
+    }
+
+    async function loadFarmDashboard() {
+        try {
+            const dashboard = await api("/api/farm-insights");
+            $("#farm-next-quantity").textContent = `${Number(dashboard.adjustedNextMonthQuantity || 0).toLocaleString("ko-KR")}포대`;
+            $("#farm-dashboard-warehouse").textContent = dashboard.warehouseName || "-";
+            $("#farm-dashboard-distance").textContent = `농장 기준 약 ${Number(dashboard.warehouseDistanceKm || 0).toFixed(1)}km`;
+            $("#farm-dashboard-spend").textContent = won(dashboard.totalPurchaseAmount);
+            $("#farm-dashboard-saving").textContent = `정기·특가 활용 시 약 ${won(dashboard.estimatedSavingAmount)} 절감 가능`;
+            $("#farm-feedback-rate").textContent = dashboard.feedbackSummary.suitableCount + dashboard.feedbackSummary.unsuitableCount
+                ? `${dashboard.feedbackSummary.suitabilityRate}%`
+                : "평가 전";
+            $("#farm-feedback-count").textContent = `적합 ${dashboard.feedbackSummary.suitableCount} · 아쉬움 ${dashboard.feedbackSummary.unsuitableCount}`;
+            renderFarmAlerts(dashboard.alerts);
+            renderUsageChart(dashboard.usages);
+            renderFarmRecentOrders(dashboard.recentOrders);
+        } catch (error) {
+            $("#farm-dashboard-alerts").innerHTML = `<p class="mypage-empty">${escapeHtml(error.message)}</p>`;
+        }
+    }
+
     function fillProfile(data) {
         member = data;
         const home = data.addresses?.find((item) => item.addressType === "HOME");
@@ -152,6 +217,29 @@
     document.addEventListener("click", async (event) => {
         const tab = event.target.closest("[data-mypage-tab]");
         if (tab) switchPanel(tab.dataset.mypageTab);
+
+        const feedbackButton = event.target.closest("[data-feedback-product] [data-suitable]");
+        if (feedbackButton) {
+            const feedback = feedbackButton.closest("[data-feedback-product]");
+            try {
+                const result = await api("/api/farm-insights/feedback", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        productId: Number(feedback.dataset.feedbackProduct),
+                        suitable: feedbackButton.dataset.suitable === "true",
+                        comment: null
+                    })
+                });
+                $$('[data-suitable]', feedback).forEach((button) => button.classList.remove("selected", "negative"));
+                feedbackButton.classList.add("selected");
+                if (feedbackButton.dataset.suitable === "false") feedbackButton.classList.add("negative");
+                await loadFarmDashboard();
+                showToast(result.message);
+            } catch (error) {
+                showToast(error.message, true);
+            }
+        }
 
         const remove = event.target.closest("[data-remove-favorite]");
         if (remove) {
@@ -211,6 +299,28 @@
         }
     });
 
+    $("#farm-usage-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!event.currentTarget.reportValidity()) return;
+        try {
+            const usage = await api("/api/farm-insights/usages", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    month: $("#farm-usage-month").value,
+                    actualQuantity: Number($("#farm-usage-quantity").value),
+                    note: $("#farm-usage-note").value.trim() || null
+                })
+            });
+            $("#farm-usage-quantity").value = "";
+            $("#farm-usage-note").value = "";
+            await loadFarmDashboard();
+            showToast(`사용량을 저장했습니다. 다음 달 권장량은 ${usage.adjustedNextMonthQuantity.toLocaleString("ko-KR")}포대입니다.`);
+        } catch (error) {
+            showToast(error.message, true);
+        }
+    });
+
     $("#profile-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         if (!event.currentTarget.reportValidity()) return;
@@ -246,4 +356,6 @@
         .catch(() => { window.location.href = "/"; });
     loadOrders();
     renderFavorites();
+    loadFarmDashboard();
+    $("#farm-usage-month").value = new Date().toLocaleDateString("sv-SE").slice(0, 7);
 })();

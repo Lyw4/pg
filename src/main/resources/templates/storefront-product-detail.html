@@ -86,7 +86,7 @@
 
             <div class="storefront-detail-actions">
                 <a class="primary-button"
-                   th:href="@{/(detail=${product.id})} + '#products'">구매 화면에서 주문하기</a>
+                   th:href="@{/(detail=${product.id})} + '#products'">이 상품 주문하기</a>
                 <a class="secondary-button" th:href="@{/} + '#products'">상품 목록으로</a>
             </div>
             <p class="storefront-stock-note">실제 주문 시 가까운 운영 창고와 출고 가능한 LOT가 자동 배정됩니다.</p>
@@ -100,7 +100,7 @@
                 <h2>상품 상세 정보</h2>
             </div>
         </div>
-        <div class="storefront-spec-grid">
+        <div class="storefront-spec-grid" aria-label="영양 성분">
             <article><span>조단백</span><strong th:text="|${product.protein}%|">0%</strong><small>성장·생산성 기준</small></article>
             <article><span>조지방</span><strong th:text="|${product.fat}%|">0%</strong><small>에너지 공급 기준</small></article>
             <article><span>조섬유</span><strong th:text="|${product.fiber}%|">0%</strong><small>소화 균형 기준</small></article>

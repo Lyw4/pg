@@ -134,6 +134,9 @@
 
                 if (postcodeInput) {
                     postcodeInput.value = data.zonecode || "";
+                    postcodeInput.dispatchEvent(
+                        new Event("change", { bubbles: true })
+                    );
                 }
 
                 if (focusInputId) {
@@ -839,11 +842,26 @@
             return;
         }
 
+        const farmModelModal = $("#farm-model-modal");
+        const hideToday = $("#farm-popup-hide-today");
+        if (farmModelModal && !farmModelModal.hidden
+            && hideToday?.checked && state.member?.id) {
+            const today = new Date().toLocaleDateString("sv-SE");
+            window.localStorage.setItem(
+                `feedflow-farm-model-hide-day-${state.member.id}`,
+                today
+            );
+        }
+
         backdrop.hidden = true;
 
         $$(".modal").forEach((modal) => {
             modal.hidden = true;
         });
+
+        if (hideToday) {
+            hideToday.checked = false;
+        }
 
         document.body.style.overflow = "";
     }
@@ -1385,6 +1403,16 @@
         }
 
         updateMemberUi();
+        const forcedMemberId = window.sessionStorage.getItem(
+            "feedflow-show-farm-model-after-login"
+        );
+        const forcePopup = forcedMemberId === String(state.member?.id || "");
+        if (forcePopup) {
+            window.sessionStorage.removeItem(
+                "feedflow-show-farm-model-after-login"
+            );
+        }
+        showFarmModelPopup(forcePopup);
 
         const query = new URLSearchParams(window.location.search);
         if (query.get("sessionExpired") === "true" && !state.member) {
@@ -1456,6 +1484,62 @@
         if (loggedIn) {
             fillCheckoutFromMember();
         }
+    }
+
+    function showFarmModelPopup(force = false) {
+        const model = state.member?.farmModel;
+        const assignment = state.member?.farmAssignment;
+        if (!model || !assignment || !model.recommendedFeeds?.length) {
+            return;
+        }
+
+        // 메인 페이지 재방문이 아니라 로그인 성공 직후에만 자동 표시합니다.
+        if (!force) {
+            return;
+        }
+
+        const createdAt = Date.parse(state.member.createdAt || "");
+        const oneWeek = 7 * 24 * 60 * 60 * 1000;
+        const membershipAge = Date.now() - createdAt;
+        if (!Number.isFinite(createdAt)
+            || membershipAge < 0
+            || membershipAge >= oneWeek) {
+            return;
+        }
+
+        const today = new Date().toLocaleDateString("sv-SE");
+        const hideTodayKey = `feedflow-farm-model-hide-day-${state.member.id}`;
+        if (window.localStorage.getItem(hideTodayKey) === today) {
+            return;
+        }
+
+        const hideToday = $("#farm-popup-hide-today");
+        if (hideToday) {
+            hideToday.checked = false;
+        }
+
+        const remainingDays = Math.max(
+            1,
+            Math.ceil((oneWeek - membershipAge) / (24 * 60 * 60 * 1000))
+        );
+        const period = $("#farm-popup-period");
+        if (period) {
+            period.textContent = `신규 회원 맞춤 안내 · 앞으로 ${remainingDays}일간 로그인 시 제공`;
+        }
+        $("#farm-popup-animal").textContent = model.animalType || "-";
+        $("#farm-popup-quantity").textContent =
+            `${Number(model.monthlyFeedQuantity || 0).toLocaleString("ko-KR")}포대${model.monthlyQuantityEstimated ? " (예측)" : ""}`;
+        $("#farm-popup-warehouse").textContent = assignment.warehouseName || "-";
+        $("#farm-popup-products").innerHTML = model.recommendedFeeds
+            .slice(0, 3)
+            .map((feed) => `
+                <article>
+                    <img src="${escapeHtml(feed.imageUrl || "/images/feed-bag-warehouse.png")}" alt="${escapeHtml(feed.name)}">
+                    <div><small>${escapeHtml(feed.animalType || model.animalType)} · ${escapeHtml(feed.feedStage || "일반 배합")}</small><strong>${escapeHtml(feed.name)}</strong><span>${escapeHtml(feed.reason || "농장 맞춤 추천")}</span><small>${escapeHtml(feed.availabilityLabel || "판매 가능")} · ${Number(feed.sellableStock || 0).toLocaleString("ko-KR")}포대</small></div>
+                    <a href="/shop/products/${encodeURIComponent(feed.productId)}">상세 보기</a>
+                </article>`)
+            .join("");
+        window.setTimeout(() => openModal("farm-model-modal"), 250);
     }
 
     function fillCheckoutFromMember() {
@@ -1953,6 +2037,54 @@
         }
     );
 
+    const formatSignupPhone = function (value) {
+        const digits = value.replace(/\D/g, "").slice(0, 11);
+        if (digits.length <= 3) return digits;
+        if (digits.length <= 7) return digits.slice(0, 3) + "-" + digits.slice(3);
+        return digits.slice(0, 3) + "-" + digits.slice(3, 7) + "-" + digits.slice(7);
+    };
+
+    $("#signup-phone")?.addEventListener("input", function (event) {
+        event.target.value = formatSignupPhone(event.target.value);
+    });
+
+    $("#signup-same-address")?.addEventListener("change", function (event) {
+        const farmAddress = $("#signup-farm-address");
+        const farmPostcode = $("#signup-farm-postcode");
+        const homeAddress = $("#signup-home-address");
+        const homePostcode = $("#signup-home-postcode");
+        const searchButton = $("#search-farm-address");
+        if (event.target.checked) {
+            farmAddress.dataset.previousValue = farmAddress.value;
+            farmPostcode.dataset.previousValue = farmPostcode.value;
+            farmAddress.value = homeAddress.value;
+            farmPostcode.value = homePostcode.value;
+            farmAddress.readOnly = true;
+            searchButton.disabled = true;
+            searchButton.title = "자택 주소와 동일하게 사용 중입니다.";
+        } else {
+            farmAddress.value = farmAddress.dataset.previousValue || "";
+            farmPostcode.value = farmPostcode.dataset.previousValue || "";
+            searchButton.disabled = false;
+            searchButton.title = "";
+        }
+    });
+
+    $("#signup-home-address")?.addEventListener("change", function () {
+        const sameAddress = $("#signup-same-address");
+        if (sameAddress?.checked) {
+            $("#signup-farm-address").value = $("#signup-home-address").value;
+            $("#signup-farm-postcode").value = $("#signup-home-postcode").value;
+        }
+    });
+
+    $("#signup-home-postcode")?.addEventListener("change", function () {
+        const sameAddress = $("#signup-same-address");
+        if (sameAddress?.checked) {
+            $("#signup-farm-postcode").value = $("#signup-home-postcode").value;
+        }
+    });
+
     $("#reset-password-send-code")?.addEventListener(
         "click",
         async () => {
@@ -2035,6 +2167,11 @@
                 window.sessionStorage.setItem(
                     "feedflow-member",
                     JSON.stringify(member)
+                );
+
+                window.sessionStorage.setItem(
+                    "feedflow-show-farm-model-after-login",
+                    String(member.id)
                 );
 
                 updateMemberUi();
@@ -2225,6 +2362,25 @@
                             businessNumber:
                                 $("#signup-business").value
                                 || null,
+                            regularDeliveryDay:
+                                $("#signup-delivery-day").value
+                                    ? Number($("#signup-delivery-day").value)
+                                    : null,
+                            farmProfile: {
+                                animalType:
+                                    $("#signup-animal-type").value,
+                                livestockCount:
+                                    Number($("#signup-livestock-count").value),
+                                monthlyFeedQuantity:
+                                    $("#signup-monthly-feed").value
+                                        ? Number($("#signup-monthly-feed").value)
+                                        : null,
+                                preferredFeed:
+                                    $("#signup-preferred-feed").value.trim()
+                                    || null,
+                                latitude: null,
+                                longitude: null
+                            },
                             homeAddress: {
                                 addressType: "HOME",
                                 recipientName: name,
@@ -2246,7 +2402,10 @@
                                     $("#signup-farm-postcode").value,
                                 baseAddress:
                                     $("#signup-farm-address").value,
-                                detailAddress: "",
+                                detailAddress:
+                                    $("#signup-same-address")?.checked
+                                        ? $("#signup-home-detail").value
+                                        : "",
                                 unloadingLocation:
                                     $("#signup-unloading").value,
                                 defaultAddress: false
@@ -2259,12 +2418,28 @@
                     member.username;
                 $("#login-password").value = "";
                 state.usernameAvailable = false;
-
-                switchAccountTab("login");
-
-                showToast(
-                    "회원가입이 완료되었습니다. 로그인해주세요."
-                );
+                const model = member.farmModel;
+                const assignment = member.farmAssignment;
+                if (model && assignment) {
+                    $("#signup-result-warehouse").textContent =
+                        `${assignment.warehouseName} · 약 ${Number(assignment.distanceKm).toFixed(1)}km`;
+                    $("#signup-result-quantity").textContent =
+                        `${Number(model.monthlyFeedQuantity).toLocaleString("ko-KR")}포대${model.monthlyQuantityEstimated ? " (예측)" : ""}`;
+                    $("#signup-result-samples").textContent =
+                        `유사 농장 ${model.comparableFarmCount}곳`;
+                    $("#signup-result-feed").textContent =
+                        model.recommendedFeeds?.[0]?.name
+                        || model.preferredFeed
+                        || "상담 후 지정";
+                    $("#signup-result-basis").textContent = model.modelBasis;
+                    $("#signup-model-result").hidden = false;
+                    $("#signup-submit-button").disabled = true;
+                    $("#signup-model-result").scrollIntoView({
+                        behavior: "smooth",
+                        block: "nearest"
+                    });
+                }
+                showToast("회원가입과 농장 맞춤 분석이 완료되었습니다.");
             } catch (error) {
                 showToast(error.message);
             }
@@ -2362,6 +2537,9 @@
                     }
                 );
             } finally {
+                window.sessionStorage.removeItem(
+                    "feedflow-show-farm-model-after-login"
+                );
                 state.member = null;
                 state.cart = new Map();
                 state.favorites = new Set();

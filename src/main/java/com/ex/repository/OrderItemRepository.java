@@ -19,4 +19,7 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
 			"lotAllocations.productLot"
 	})
 	List<OrderItem> findByOrderStatusIn(Collection<OrderStatus> statuses);
+
+	@EntityGraph(attributePaths = {"order", "product"})
+	List<OrderItem> findByOrderMemberId(Long memberId);
 }

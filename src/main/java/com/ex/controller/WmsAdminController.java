@@ -174,6 +174,10 @@ public class WmsAdminController {
 
         if ("traceability".equals(selectedView)) {
             var allTraceInventories = wmsOperationsService.inventories(selectedTraceWarehouseId);
+            if (lotId == null && !allTraceInventories.isEmpty()) {
+                selectedLotId = allTraceInventories.getFirst().getLot().getLotId();
+                model.addAttribute("selectedLotId", selectedLotId);
+            }
             int traceTotalCount = allTraceInventories.size();
             int tracePageCount = (traceTotalCount + TRACE_PAGE_SIZE - 1) / TRACE_PAGE_SIZE;
             int selectedTracePage = Math.max(0, tracePage);

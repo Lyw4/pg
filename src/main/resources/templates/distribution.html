@@ -62,7 +62,13 @@
         <div class="alert success" th:if="${message}" th:text="${message}"></div>
         <div class="alert error" th:if="${error}" th:text="${error}"></div>
 
-        <section class="distribution-dashboard" aria-label="배송 현황">
+        <section class="distribution-workspace-nav" aria-label="유통 관리 업무 선택">
+            <div class="distribution-workflow-group order-flow-group">
+                <div class="distribution-workflow-heading">
+                    <span class="distribution-workflow-icon"><i class="bi bi-truck"></i></span>
+                    <div><strong>주문·배송 현황</strong><small>출고 준비부터 고객 인도까지 단계별로 관리합니다.</small></div>
+                </div>
+                <div class="distribution-dashboard order-flow-dashboard">
             <button
                 type="button"
                 class="distribution-kpi total active"
@@ -124,6 +130,15 @@
                 <small th:text="|진행 중 ${delayedProgressTotal - delayedProgressCompleted}건|">진행 중 0건</small>
                 <i class="kpi-progress"><b th:style="|width: ${delayedProgressTotal == 0 ? 0 : delayedProgressCompleted * 100.0 / delayedProgressTotal}%|"></b></i>
             </button>
+                </div>
+            </div>
+
+            <div class="distribution-workflow-group exception-flow-group">
+                <div class="distribution-workflow-heading">
+                    <span class="distribution-workflow-icon"><i class="bi bi-arrow-counterclockwise"></i></span>
+                    <div><strong>취소·회수 관리</strong><small>취소 사유, 재배송, 회수 검수와 재고 반영을 처리합니다.</small></div>
+                </div>
+                <div class="distribution-dashboard exception-flow-dashboard">
             <button
                 type="button"
                 class="distribution-kpi cancelled"
@@ -154,6 +169,15 @@
                 <small th:text="|진행 중 ${cancelledOrderProgressTotal - cancelledOrderProgressCompleted}건|">진행 중 0건</small>
                 <i class="kpi-progress"><b th:style="|width: ${cancelledOrderProgressTotal == 0 ? 0 : cancelledOrderProgressCompleted * 100.0 / cancelledOrderProgressTotal}%|"></b></i>
             </button>
+                </div>
+            </div>
+
+            <div class="distribution-workflow-group customer-flow-group">
+                <div class="distribution-workflow-heading">
+                    <span class="distribution-workflow-icon"><i class="bi bi-buildings"></i></span>
+                    <div><strong>고객사 관리</strong><small>거점별 농장과 월간 예상 수요를 확인합니다.</small></div>
+                </div>
+                <div class="distribution-dashboard customer-flow-dashboard">
             <button
                 type="button"
                 class="distribution-kpi farm-customers"
@@ -171,6 +195,8 @@
                     ? 0
                     : activeFarmCustomerCount * 100.0 / #lists.size(farmCustomers)}%|"></b></i>
             </button>
+                </div>
+            </div>
         </section>
 
         <section
@@ -368,8 +394,9 @@
                                 <strong th:text="${farm.preferredFeed}">
                                     선호 사료
                                 </strong>
-                                <small th:text="|매월 ${farm.recurringDeliveryDay}일
-                                    · ${farm.notes}|">
+                                <small th:text="${farm.recurringDeliveryDay > 0
+                                    ? '매월 ' + farm.recurringDeliveryDay + '일 · ' + farm.notes
+                                    : '정기배송 미신청 · ' + farm.notes}">
                                     정기 배송
                                 </small>
                             </td>
@@ -419,6 +446,12 @@
                                         th:data-longitude="${farm.longitude}">
                                         이 농장으로 주문
                                     </button>
+                                    <form method="post"
+                                          class="farm-delete-form"
+                                          th:action="@{/distribution/farm-customers/{farmCustomerId}/delete(farmCustomerId=${farm.farmCustomerId})}"
+                                          onsubmit="return confirm('이 농장 고객사를 삭제할까요? 기존 주문 이력은 보존됩니다.');">
+                                        <button type="submit" class="farm-status-change delete">삭제</button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>
@@ -779,22 +812,65 @@
                 </div>
             </div>
 
+            <div class="distribution-process-guide" data-process-guide="delivery">
+                <article><span>1</span><div><strong>출고 준비</strong><small>주문·재고·창고 배정 확인</small></div></article>
+                <i class="bi bi-chevron-right"></i>
+                <article><span>2</span><div><strong>택배 인계</strong><small>운송사와 운송장 등록</small></div></article>
+                <i class="bi bi-chevron-right"></i>
+                <article><span>3</span><div><strong>배송 중</strong><small>도착 예정과 지연 확인</small></div></article>
+                <i class="bi bi-chevron-right"></i>
+                <article><span>4</span><div><strong>배송 완료</strong><small>고객 인도 및 이력 보관</small></div></article>
+            </div>
+
+            <div class="distribution-process-guide return-process-guide" data-process-guide="returns" hidden>
+                <article><span>1</span><div><strong>회수 접수</strong><small>담당자와 회수 사유 등록</small></div></article>
+                <i class="bi bi-chevron-right"></i>
+                <article><span>2</span><div><strong>회수 중</strong><small>고객 농장에서 물품 회수</small></div></article>
+                <i class="bi bi-chevron-right"></i>
+                <article><span>3</span><div><strong>검수 대기</strong><small>포장과 내용물 상태 확인</small></div></article>
+                <i class="bi bi-chevron-right"></i>
+                <article><span>4</span><div><strong>처리 완료</strong><small>정상 재고 또는 불량 격리</small></div></article>
+            </div>
+
+            <div class="distribution-process-guide cancel-process-guide" data-process-guide="cancelled" hidden>
+                <article><span>1</span><div><strong>배송 취소</strong><small>담당자와 취소 사유 확인</small></div></article>
+                <i class="bi bi-chevron-right"></i>
+                <article><span>2</span><div><strong>재배송 판단</strong><small>고객 요청과 상품 상태 확인</small></div></article>
+                <i class="bi bi-chevron-right"></i>
+                <article><span>3</span><div><strong>운송장 재등록</strong><small>새 운송사·운송장 입력</small></div></article>
+                <i class="bi bi-chevron-right"></i>
+                <article><span>4</span><div><strong>배송 재개</strong><small>택배 인계 단계로 복귀</small></div></article>
+            </div>
+
             <div class="distribution-table-tools">
-                <input
-                    type="search"
-                    id="deliverySearch"
-                    placeholder="배송번호, 주문번호, 운송사, 운송장 검색"
-                    aria-label="배송 검색">
-                <select id="deliveryStatusFilter" aria-label="배송 상태 필터">
-                    <option value="all">전체 상태</option>
-                    <option
-                        th:each="status : ${deliveryStatuses}"
-                        th:value="${status.name()}"
-                        th:text="${status.label}">
-                        상태
-                    </option>
-                    <option value="DELAYED">배송 지연</option>
-                </select>
+                <div class="distribution-search-field">
+                    <i class="bi bi-search"></i>
+                    <input
+                        type="search"
+                        id="deliverySearch"
+                        placeholder="배송번호, 주문번호, 운송사, 운송장 검색"
+                        aria-label="배송 검색">
+                </div>
+                <div class="distribution-filter-group">
+                    <select id="deliveryStatusFilter" aria-label="배송 상태 필터">
+                        <option value="all">전체 배송 상태</option>
+                        <option
+                            th:each="status : ${deliveryStatuses}"
+                            th:value="${status.name()}"
+                            th:text="${status.label}">
+                            상태
+                        </option>
+                        <option value="DELAYED">배송 지연</option>
+                    </select>
+                    <select id="returnStatusFilter" aria-label="회수 상태 필터" hidden>
+                        <option value="all">전체 회수 상태</option>
+                        <option value="REQUESTED">회수 요청</option>
+                        <option value="COLLECTING">회수 중</option>
+                        <option value="INSPECTING">회수 완료·검수 대기</option>
+                        <option value="COMPLETED">회수 처리 완료</option>
+                    </select>
+                    <span class="distribution-visible-count"><strong id="deliveryVisibleCount">0</strong>건 표시</span>
+                </div>
             </div>
 
             <div class="table-wrap">
@@ -896,6 +972,24 @@
 
                                     <form
                                         method="post"
+                                        th:if="${delivery.status.name() != 'CANCELLED'
+                                            and delivery.trackingNumber != null
+                                            and !#strings.isEmpty(delivery.trackingNumber)}"
+                                        th:action="@{/distribution/deliveries/{id}/tracking/sync(
+                                            id=${delivery.deliveryId})}">
+                                        <input type="hidden" name="redirect" value="list">
+                                        <button
+                                            class="ghost compact"
+                                            th:disabled="${!deliveryApiEnabled}"
+                                            th:title="${deliveryApiEnabled
+                                                ? '택배사 최신 상태 조회'
+                                                : '서버에 택배 API 환경변수를 설정해 주세요.'}">
+                                            택배 API 조회
+                                        </button>
+                                    </form>
+
+                                    <form
+                                        method="post"
                                         th:if="${delivery.status.name() == 'READY'}"
                                         th:action="@{/distribution/status}">
                                         <input type="hidden" name="deliveryId"
@@ -931,16 +1025,25 @@
                                             method="post"
                                             th:action="@{/distribution/deliveries/{id}/tracking(
                                                 id=${delivery.deliveryId})}">
-                                            <input
-                                                name="carrierName"
-                                                required
-                                                th:value="${delivery.carrierName}"
-                                                placeholder="운송사">
+                                            <select name="carrierName" required>
+                                                <option value="">운송사 선택</option>
+                                                <option value="CJ대한통운" th:selected="${delivery.carrierName == 'CJ대한통운'}">CJ대한통운</option>
+                                                <option value="롯데택배" th:selected="${delivery.carrierName == '롯데택배'}">롯데택배</option>
+                                                <option value="한진택배" th:selected="${delivery.carrierName == '한진택배'}">한진택배</option>
+                                                <option value="우체국택배" th:selected="${delivery.carrierName == '우체국택배'}">우체국택배</option>
+                                                <option value="경동택배" th:selected="${delivery.carrierName == '경동택배'}">경동택배</option>
+                                                <option value="대신택배" th:selected="${delivery.carrierName == '대신택배'}">대신택배</option>
+                                                <option value="로젠택배" th:selected="${delivery.carrierName == '로젠택배'}">로젠택배</option>
+                                                <option value="합동택배" th:selected="${delivery.carrierName == '합동택배'}">합동택배</option>
+                                                <option value="쿠팡" th:selected="${delivery.carrierName == '쿠팡'}">쿠팡</option>
+                                                <option value="우리택배" th:selected="${delivery.carrierName == '우리택배'}">우리택배</option>
+                                            </select>
                                             <input
                                                 name="trackingNumber"
                                                 required
                                                 th:value="${delivery.trackingNumber}"
-                                                placeholder="운송장">
+                                                placeholder="운송장 번호">
+                                            <button type="button" class="ghost tracking-generate-button">테스트 번호 자동 생성</button>
                                             <button class="ghost">수정 저장</button>
                                         </form>
                                     </details>
@@ -1085,14 +1188,24 @@
                                         th:if="${delivery.status.name() == 'CANCELLED'}"
                                         th:action="@{/distribution/deliveries/{id}/reactivate(
                                             id=${delivery.deliveryId})}">
-                                        <input
-                                            name="carrierName"
-                                            required
-                                            placeholder="재배송 운송사">
+                                        <select name="carrierName" required>
+                                            <option value="">운송사 선택</option>
+                                            <option value="CJ대한통운">CJ대한통운</option>
+                                            <option value="롯데택배">롯데택배</option>
+                                            <option value="한진택배">한진택배</option>
+                                            <option value="우체국택배">우체국택배</option>
+                                            <option value="경동택배">경동택배</option>
+                                            <option value="대신택배">대신택배</option>
+                                            <option value="로젠택배">로젠택배</option>
+                                            <option value="합동택배">합동택배</option>
+                                            <option value="쿠팡">쿠팡</option>
+                                            <option value="우리택배">우리택배</option>
+                                        </select>
                                         <input
                                             name="trackingNumber"
                                             required
                                             placeholder="새 운송장 번호">
+                                        <button type="button" class="ghost tracking-generate-button">테스트 번호 자동 생성</button>
                                         <button class="primary compact">
                                             재배송 등록
                                         </button>
@@ -1309,12 +1422,26 @@
             <p class="selected-name"></p>
             <label>
                 운송사
-                <input name="carrierName" placeholder="CJ대한통운" required>
+                <select name="carrierName" required>
+                    <option value="">운송사 선택</option>
+                    <option value="CJ대한통운">CJ대한통운</option>
+                    <option value="롯데택배">롯데택배</option>
+                    <option value="한진택배">한진택배</option>
+                    <option value="우체국택배">우체국택배</option>
+                    <option value="경동택배">경동택배</option>
+                    <option value="대신택배">대신택배</option>
+                    <option value="로젠택배">로젠택배</option>
+                    <option value="합동택배">합동택배</option>
+                    <option value="쿠팡">쿠팡</option>
+                    <option value="우리택배">우리택배</option>
+                </select>
             </label>
             <label>
                 운송장 번호
-                <input name="trackingNumber" placeholder="1234-5678-9012" required>
+                <input name="trackingNumber" placeholder="실제 발급 번호 또는 테스트 번호" required>
+                <button type="button" class="ghost tracking-generate-button">테스트 번호 자동 생성</button>
             </label>
+            <small class="form-help">자동 생성 번호는 화면 테스트용이며 실제 택배 조회에는 사용할 수 없습니다.</small>
             <button class="primary full">배송 시작</button>
         </form>
     </dialog>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${siteName}">FEED FLOW 농장 맞춤 상세분석</title>
+    <link rel="icon" type="image/png" th:href="@{/images/feedflow-logo.png}">
+    <link rel="stylesheet" th:href="@{/css/feedflow.css}">
+    <link rel="stylesheet" th:href="@{/css/farm-model-analysis.css}">
+</head>
+<body class="farm-analysis-body">
+<header class="farm-analysis-header">
+    <a class="brand" href="/"><span class="brand-logo"><img th:src="@{/images/feedflow-logo.png}" alt="FEED FLOW"></span></a>
+    <nav><a href="/">상품 둘러보기</a><a href="/mypage">마이페이지</a><a class="active" href="/mypage/farm-model">추천 상세분석</a></nav>
+</header>
+
+<main class="farm-analysis-page">
+    <div class="farm-analysis-breadcrumb"><a href="/mypage">마이페이지</a><span>›</span><strong>농장 맞춤 추천 상세분석</strong></div>
+
+    <section class="farm-analysis-hero">
+        <div>
+            <p>FARM FEED MODEL · EXPLAINABLE REPORT</p>
+            <h1><span th:text="${member.farmName}">우리 농장</span>에는<br>왜 이 사료를 추천했을까요?</h1>
+            <span>회원가입 정보, 가상 유사 농장 표본, 현재 판매 상품과 공급 거점을 단계별로 비교한 결과입니다.</span>
+        </div>
+        <aside th:if="${member.farmModel != null}">
+            <span>분석 결과 요약</span>
+            <strong th:text="|${member.farmModel.animalType} · 월 ${#numbers.formatInteger(member.farmModel.monthlyFeedQuantity, 1, 'COMMA')}포대|">축종·사용량</strong>
+            <small th:text="|유사 농장 ${member.farmModel.comparableFarmCount}곳 비교|">표본</small>
+        </aside>
+    </section>
+
+    <section class="analysis-empty" th:if="${member.farmModel == null}">
+        <h2>분석할 농장 프로필이 없습니다.</h2>
+        <p>농장 축종과 사육 규모를 등록하면 상세 추천 근거를 확인할 수 있습니다.</p>
+        <a href="/mypage">마이페이지로 돌아가기</a>
+    </section>
+
+    <div th:if="${member.farmModel != null}">
+        <section class="analysis-section">
+            <div class="analysis-section-title"><span>01</span><div><p>INPUT PROFILE</p><h2>추천에 사용한 우리 농장 정보</h2></div></div>
+            <div class="analysis-input-grid">
+                <article><span>주 사육 축종</span><strong th:text="${member.farmModel.animalType}">소</strong><small>같은 축종 상품만 추천 대상으로 분류</small></article>
+                <article><span>사육 규모</span><strong th:text="|${#numbers.formatInteger(member.farmModel.livestockCount, 1, 'COMMA')}두/수|">0두/수</strong><small>월 사용량 계산의 기준값</small></article>
+                <article><span>선호 사료</span><strong th:text="${member.farmModel.preferredFeed}">선호 사료</strong><small>상품 우선순위에 먼저 반영</small></article>
+                <article><span>담당 창고</span><strong th:text="${member.farmAssignment.warehouseName}">창고</strong><small th:text="|농장과 직선거리 약 ${#numbers.formatDecimal(member.farmAssignment.distanceKm, 1, 1)}km|">거리</small></article>
+            </div>
+        </section>
+
+        <section class="analysis-section">
+            <div class="analysis-section-title"><span>02</span><div><p>QUANTITY MODEL</p><h2>월 예상 사용량은 이렇게 계산했습니다</h2></div></div>
+            <div class="quantity-explanation">
+                <div class="quantity-formula">
+                    <article><span>마리당 월 환산량</span><strong th:text="|${#numbers.formatDecimal(member.farmModel.monthlyBagsPerHead, 1, 1)}포대|">0포대</strong></article>
+                    <i>×</i>
+                    <article><span>우리 농장 사육 규모</span><strong th:text="|${#numbers.formatInteger(member.farmModel.livestockCount, 1, 'COMMA')}두/수|">0</strong></article>
+                    <i>→</i>
+                    <article class="result"><span>월 예상 사용량</span><strong th:text="|${#numbers.formatInteger(member.farmModel.monthlyFeedQuantity, 1, 'COMMA')}포대|">0포대</strong></article>
+                </div>
+                <div class="quantity-detail">
+                    <strong th:text="|마리당 월 환산량 약 ${#numbers.formatDecimal(member.farmModel.monthlyBagsPerHead, 1, 1)}포대|">환산량</strong>
+                    <p th:text="${member.farmModel.quantityReason}">사용량 산정 이유</p>
+                    <small th:text="${member.farmModel.modelBasis}">분석 기준</small>
+                </div>
+            </div>
+        </section>
+
+        <section class="analysis-section">
+            <div class="analysis-section-title"><span>03</span><div><p>WAREHOUSE ASSIGNMENT</p><h2>이 공급 거점이 배정된 이유</h2></div></div>
+            <div class="warehouse-reason">
+                <div><span th:text="${member.farmAssignment.warehouseCode}">W01</span><strong th:text="${member.farmAssignment.warehouseName}">담당 창고</strong></div>
+                <p>회원가입 때 등록한 농장 주소 좌표 또는 주소 권역을 5개 운영 창고와 비교하여 가장 가까운 활성 창고를 선택했습니다.</p>
+                <dl><div><dt>예상 거리</dt><dd th:text="|약 ${#numbers.formatDecimal(member.farmAssignment.distanceKm, 1, 1)}km|">0km</dd></div><div><dt>배정 기록</dt><dd th:text="${member.farmAssignment.assignmentBasis}">배정 기준</dd></div></dl>
+            </div>
+        </section>
+
+        <section class="analysis-section">
+            <div class="analysis-section-title"><span>04</span><div><p>PRODUCT RANKING</p><h2>추천 제품별 선정 근거</h2></div></div>
+            <p class="product-ranking-basis" th:text="${member.farmModel.productSelectionReason}">상품 선정 기준</p>
+            <div class="analysis-products">
+                <article th:each="feed, stat : ${member.farmModel.recommendedFeeds}">
+                    <span class="recommend-rank" th:text="|추천 ${stat.count}순위|">추천 1순위</span>
+                    <img th:src="${feed.imageUrl != null ? feed.imageUrl : '/images/feed-bag-warehouse.png'}" th:alt="${feed.name}">
+                    <div class="analysis-product-copy">
+                        <small th:text="|${feed.animalType} · ${feed.feedStage != null ? feed.feedStage : '일반 배합'}|">축종·단계</small>
+                        <h3 th:text="${feed.name}">상품명</h3>
+                        <p th:text="${feed.reason}">추천 이유</p>
+                        <ul>
+                            <li>가입 농장의 주 사육 축종과 상품 축종이 일치합니다.</li>
+                            <li th:if="${feed.name == member.farmModel.preferredFeed}">입력하거나 유사 농장에서 도출된 선호 사료와 일치합니다.</li>
+                            <li th:text="|배송 안전기간을 통과한 판매 가능 LOT ${#numbers.formatInteger(feed.sellableStock, 1, 'COMMA')}포대를 확인했습니다.|">판매 가능 LOT 확인</li>
+                            <li th:text="${feed.assignedWarehouseStock > 0 ? '담당 창고에 ' + #numbers.formatInteger(feed.assignedWarehouseStock, 1, 'COMMA') + '포대가 있어 우선 공급할 수 있습니다.' : '담당 창고 재고가 없어 주문 시 재고가 있는 다음 가까운 거점을 자동 탐색합니다.'}">담당 창고 재고</li>
+                            <li th:if="${feed.nearestExpirationDate != null}" th:text="|가장 가까운 유통기한은 ${#temporals.format(feed.nearestExpirationDate, 'yyyy-MM-dd')}입니다.|">유통기한</li>
+                        </ul>
+                    </div>
+                    <div class="analysis-product-action"><strong th:text="|${#numbers.formatInteger(feed.price, 1, 'COMMA')}원|">0원</strong><a th:href="@{/shop/products/{id}(id=${feed.productId})}">상품 상세보기</a></div>
+                </article>
+            </div>
+        </section>
+
+        <section class="analysis-caution">
+            <strong>결과 해석 시 참고해주세요.</strong>
+            <p>이 분석은 발표·기능 검증을 위해 구성한 가상 농장 데이터와 현재 시스템 상품을 활용한 통계·규칙 기반 추천입니다. 실제 급여량은 가축의 체중, 성장 단계, 계절, 건강 상태와 영양 전문가의 판단에 따라 달라질 수 있습니다.</p>
+        </section>
+    </div>
+</main>
+</body>
+</html>

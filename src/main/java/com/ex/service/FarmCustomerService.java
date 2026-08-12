@@ -62,6 +62,14 @@ public class FarmCustomerService {
         customer.changeStatus(status);
     }
 
+    @Transactional
+    public void delete(Long farmCustomerId) {
+        FarmCustomer customer = farmCustomerRepository.findById(farmCustomerId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "농장 고객사를 찾을 수 없습니다."));
+        customer.markDeleted();
+    }
+
     public Map<String, WarehouseFarmSummary> warehouseSummaries() {
         List<FarmCustomer> customers = customers();
         Map<String, WarehouseFarmSummary> summaries =

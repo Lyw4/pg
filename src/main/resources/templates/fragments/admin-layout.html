@@ -167,6 +167,12 @@
             </li>
 
             <li class="nav-item mt-3"><span class="ff-nav-title">판매·시스템</span></li>
+            <li class="nav-item">
+                <a class="nav-link" th:href="@{/admin/feed-model}"
+                   th:classappend="${menu == 'feedModel'} ? 'active'">
+                    <i class="bi bi-graph-up-arrow me-2"></i>추천·분석 모델
+                </a>
+            </li>
             <li class="nav-item" sec:authorize="hasRole('ADMIN')">
                 <a class="nav-link" th:href="@{/admin/employees}"
                    th:classappend="${menu == 'employees'} ? 'active'">

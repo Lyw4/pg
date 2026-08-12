@@ -33,7 +33,8 @@ public class FarmCustomer {
 
     public enum CustomerStatus {
         ACTIVE("거래 중"),
-        PAUSED("거래 보류");
+        PAUSED("거래 보류"),
+        DELETED("삭제됨");
 
         private final String label;
 
@@ -202,9 +203,9 @@ public class FarmCustomer {
             throw new IllegalArgumentException(
                     "사육 규모와 월 예상 사료량은 0 이상이어야 합니다.");
         }
-        if (recurringDeliveryDay < 1 || recurringDeliveryDay > 28) {
+        if (recurringDeliveryDay < 0 || recurringDeliveryDay > 28) {
             throw new IllegalArgumentException(
-                    "정기 배송일은 1일부터 28일 사이여야 합니다.");
+                    "정기 배송일은 신청 안함 또는 1일부터 28일 사이여야 합니다.");
         }
         this.farmName = farmName;
         this.representativeName = representativeName;
@@ -235,6 +236,19 @@ public class FarmCustomer {
                     "변경할 거래 상태를 선택해 주세요.");
         }
         this.status = status;
+    }
+
+    /** 주문 이력과 연결된 농장 정보는 물리 삭제하지 않고 목록에서 제외합니다. */
+    public void markDeleted() {
+        this.status = CustomerStatus.DELETED;
+    }
+
+    /** 실제 소비 기록을 반영해 다음 달 기준 발주량을 갱신합니다. */
+    public void adjustMonthlyFeedQuantity(int adjustedQuantity) {
+        if (adjustedQuantity < 0) {
+            throw new IllegalArgumentException("보정 발주량은 0포대 이상이어야 합니다.");
+        }
+        this.monthlyFeedQuantity = adjustedQuantity;
     }
 
     @PrePersist

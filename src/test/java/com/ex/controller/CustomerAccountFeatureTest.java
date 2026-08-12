@@ -65,6 +65,12 @@ class CustomerAccountFeatureTest {
                 .andExpect(content().string(containsString("MY FEED FLOW")))
                 .andExpect(content().string(containsString(signedUp.username())));
 
+        mockMvc.perform(get("/mypage/farm-model").session(session))
+                .andExpect(status().isOk())
+                .andExpect(view().name("farm-model-analysis"))
+                .andExpect(content().string(containsString("왜 이 사료를 추천했을까요?")))
+                .andExpect(content().string(containsString("월 예상 사용량은 이렇게 계산했습니다")));
+
         Long productId = productRepository.findAllByActiveTrueOrderByIdAsc()
                 .getFirst().getProductId();
         mockMvc.perform(post("/api/wishlist/{productId}", productId).session(session))
@@ -130,6 +136,28 @@ class CustomerAccountFeatureTest {
                                 """.formatted(signedUp.username())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accountType").value("CUSTOMER"));
+    }
+
+    @Test
+    void signupModelsMonthlyFeedAndRecommendsProductsFromDemoFarms() {
+        String email = "model-" + UUID.randomUUID() + "@feedflow.test";
+        var signedUp = memberService.signup(new SignupRequest(
+                email, "Farm!234", "모델회원", "모델농장", "010-5555-6666",
+                null, 15,
+                address(AddressType.HOME, "서울시 농장로 1"),
+                address(AddressType.FARM, "충남 예산군 고덕면 농장로 2"),
+                new SignupRequest.FarmProfileRequest(
+                        "소", 200, null, null, null, null)));
+
+        org.junit.jupiter.api.Assertions.assertNotNull(signedUp.farmAssignment());
+        org.junit.jupiter.api.Assertions.assertNotNull(signedUp.farmModel());
+        org.junit.jupiter.api.Assertions.assertEquals("소", signedUp.farmModel().animalType());
+        org.junit.jupiter.api.Assertions.assertTrue(
+                signedUp.farmModel().monthlyFeedQuantity() > 0);
+        org.junit.jupiter.api.Assertions.assertTrue(
+                signedUp.farmModel().monthlyQuantityEstimated());
+        org.junit.jupiter.api.Assertions.assertFalse(
+                signedUp.farmModel().recommendedFeeds().isEmpty());
     }
 
     private SignupRequest.AddressRequest address(AddressType type, String address) {

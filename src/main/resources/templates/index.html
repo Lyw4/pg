@@ -706,6 +706,36 @@
         <div id="product-modal-content"></div>
     </section>
 
+    <!-- 로그인 회원 농장 맞춤 추천 팝업 -->
+    <section
+        id="farm-model-modal"
+        class="modal farm-model-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="farm-model-modal-title"
+        hidden
+    >
+        <button type="button" class="close-button" data-close-modal aria-label="닫기">×</button>
+        <p class="eyebrow dark"><span></span> FARM FEED MODEL</p>
+        <h2 id="farm-model-modal-title">우리 농장 맞춤 공급안</h2>
+        <span id="farm-popup-period" class="farm-popup-period">신규 회원 맞춤 안내</span>
+        <p class="farm-model-modal-intro">등록하신 농장 정보와 유사 농장 데이터를 바탕으로 추천 사료를 준비했습니다.</p>
+        <div class="farm-model-modal-summary">
+            <article><span>주 사육 축종</span><strong id="farm-popup-animal">-</strong></article>
+            <article><span>월 예상 사용량</span><strong id="farm-popup-quantity">-</strong></article>
+            <article><span>담당 공급 거점</span><strong id="farm-popup-warehouse">-</strong></article>
+        </div>
+        <div class="farm-model-modal-products" id="farm-popup-products"></div>
+        <label class="farm-popup-hide-option">
+            <input id="farm-popup-hide-today" type="checkbox">
+            <span>오늘 하루 보지 않기</span>
+        </label>
+        <div class="farm-model-modal-actions">
+            <a class="primary-button" href="/mypage/farm-model">추천 근거 상세보기</a>
+            <button type="button" class="secondary-button" data-close-modal>닫기</button>
+        </div>
+    </section>
+
     <!-- 로그인·회원가입·주문조회 모달 -->
     <section
         id="account-modal"
@@ -1083,6 +1113,46 @@
             </label>
 
             <label>
+                주 사육 축종
+                <select id="signup-animal-type" required>
+                    <option value="">축종을 선택해주세요</option>
+                    <option value="소">소(한우·젖소)</option>
+                    <option value="돼지">돼지</option>
+                    <option value="조류(닭/오리)">조류(닭·오리)</option>
+                </select>
+            </label>
+
+            <label>
+                사육 규모
+                <input id="signup-livestock-count" type="number" min="1" required placeholder="현재 사육 두수·수수">
+            </label>
+
+            <label>
+                월 사료 사용량(포대)
+                <input id="signup-monthly-feed" type="number" min="0" placeholder="비워두면 유사 농장 기준 예측">
+            </label>
+
+            <label>
+                현재 선호 사료
+                <input id="signup-preferred-feed" maxlength="80" placeholder="비워두면 모델이 추천">
+            </label>
+
+            <label>
+                희망 정기 배송일
+                <select id="signup-delivery-day">
+                    <option value="">신청 안함</option>
+                    <option value="1">매월 1일</option>
+                    <option value="5">매월 5일</option>
+                    <option value="10">매월 10일</option>
+                    <option value="15" selected>매월 15일</option>
+                    <option value="20">매월 20일</option>
+                    <option value="25">매월 25일</option>
+                    <option value="28">매월 28일</option>
+                </select>
+                <small class="form-help">신청하지 않으면 필요할 때만 일반 주문으로 이용합니다.</small>
+            </label>
+
+            <label>
                 휴대전화
                 <input
                     id="signup-phone"
@@ -1128,6 +1198,12 @@
                 <input id="signup-home-postcode" type="hidden">
             </label>
 
+            <label class="address-same-check span-two">
+                <input id="signup-same-address" type="checkbox">
+                <span>자택 주소와 농장 주소가 같음</span>
+                <small>체크하면 자택 주소가 농장 주소에 자동으로 입력됩니다.</small>
+            </label>
+
             <label class="span-two">
                 상세주소
                 <input
@@ -1171,11 +1247,25 @@
             </label>
 
             <button
+                id="signup-submit-button"
                 class="primary-button full span-two"
                 type="submit"
             >
                 농장 회원가입
             </button>
+
+            <section id="signup-model-result" class="signup-model-result span-two" hidden>
+                <p>FARM FEED MODEL</p>
+                <h3>우리 농장 맞춤 공급안이 만들어졌습니다.</h3>
+                <div>
+                    <article><span>담당 창고</span><strong id="signup-result-warehouse">-</strong></article>
+                    <article><span>월 예상 사용량</span><strong id="signup-result-quantity">-</strong></article>
+                    <article><span>분석 표본</span><strong id="signup-result-samples">-</strong></article>
+                    <article><span>우선 추천</span><strong id="signup-result-feed">-</strong></article>
+                </div>
+                <small id="signup-result-basis"></small>
+                <button type="button" class="primary-button full" data-account-tab="login">로그인하고 상세 결과 보기</button>
+            </section>
         </form>
 
     </section>

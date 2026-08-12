@@ -38,6 +38,31 @@ public class PasswordResetMailSender {
                     "비밀번호 찾기 이메일 발송 주소가 설정되지 않았습니다. 관리자에게 문의해 주세요.");
         }
 
+        sendNotice(
+                recipient,
+                "[FeedFlow] 비밀번호 재설정 인증번호",
+                """
+                FeedFlow 비밀번호 재설정 요청이 접수되었습니다.
+
+                인증번호: %s
+                유효 시간: %s까지
+
+                본인이 요청하지 않았다면 이 이메일을 무시해 주세요.
+                """.formatted(code, EXPIRY_FORMAT.format(expiresAt)));
+    }
+
+    public boolean isConfigured() {
+        return StringUtils.hasText(from)
+                && mailSenderProvider.getIfAvailable() != null;
+    }
+
+    public void sendNotice(String recipient, String subject, String text) {
+        if (!StringUtils.hasText(recipient)) {
+            throw new IllegalArgumentException("회원 이메일이 없어 안내를 발송할 수 없습니다.");
+        }
+        if (!StringUtils.hasText(from)) {
+            throw new IllegalStateException("이메일 발송 주소가 설정되지 않았습니다.");
+        }
         JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
         if (mailSender == null) {
             throw new IllegalStateException(
@@ -47,15 +72,8 @@ public class PasswordResetMailSender {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(recipient.trim());
         message.setFrom(from.trim());
-        message.setSubject("[FeedFlow] 비밀번호 재설정 인증번호");
-        message.setText("""
-                FeedFlow 비밀번호 재설정 요청이 접수되었습니다.
-
-                인증번호: %s
-                유효 시간: %s까지
-
-                본인이 요청하지 않았다면 이 이메일을 무시해 주세요.
-                """.formatted(code, EXPIRY_FORMAT.format(expiresAt)));
+        message.setSubject(subject);
+        message.setText(text);
 
         try {
             mailSender.send(message);

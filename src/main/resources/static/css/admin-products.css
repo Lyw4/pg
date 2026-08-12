@@ -1,0 +1,270 @@
+/* 품목·LOT 관리 화면을 관리자 공통 디자인에 맞추는 전용 어댑터 */
+.ff-product-admin-body {
+    background: var(--ff-bg);
+}
+
+/* 판매 화면의 상품 배지 규칙이 관리자 공통 배지에 적용되지 않게 복원합니다. */
+.ff-product-admin-body .badge {
+    position: static;
+    inset: auto;
+    padding: .35em .65em;
+    font-size: .75em;
+}
+
+.ff-product-admin {
+    width: auto;
+    max-width: none;
+    padding: 1.25rem 1.5rem 3rem;
+}
+
+.ff-product-admin .admin-hero {
+    min-height: 150px;
+    margin: 0 0 1rem;
+    padding: 1.5rem 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    color: #fff;
+    border: 0;
+    border-radius: .75rem;
+    background: linear-gradient(125deg, var(--ff-navy), #245a72 62%, var(--ff-green));
+    box-shadow: 0 .35rem 1rem rgba(16, 35, 56, .12);
+}
+
+.ff-product-admin .admin-hero p {
+    margin: 0 0 .45rem;
+    color: #9ed8bd;
+    font-family: inherit;
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .14em;
+}
+
+.ff-product-admin .admin-hero h1 {
+    margin: 0 0 .45rem;
+    font-family: inherit;
+    font-size: 1.75rem;
+    font-weight: 800;
+}
+
+.ff-product-admin .admin-hero span {
+    color: rgba(255,255,255,.75);
+    font-size: .86rem;
+}
+
+.ff-product-admin .admin-hero a {
+    color: var(--ff-navy);
+    font-size: .82rem;
+    font-weight: 750;
+    text-decoration: none;
+}
+
+.ff-product-admin .admin-auth,
+.ff-product-admin .admin-editor,
+.ff-product-admin .admin-products {
+    margin: 0 0 1rem;
+    padding: 1.25rem;
+    border: 1px solid var(--ff-border);
+    border-radius: .75rem;
+    background: #fff;
+    box-shadow: 0 .15rem .6rem rgba(16, 35, 56, .04);
+}
+
+.ff-product-admin .admin-auth.admin-session {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.ff-product-admin .admin-auth strong {
+    color: var(--ff-navy);
+    font-size: .92rem;
+}
+
+.ff-product-admin .admin-auth p {
+    margin: .25rem 0 0;
+    color: #6c757d;
+    font-size: .78rem;
+}
+
+.ff-product-admin .admin-dashboard {
+    margin: 0 0 1rem;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: .75rem;
+}
+
+.ff-product-admin .admin-dashboard article {
+    min-height: 112px;
+    padding: 1rem;
+    border: 1px solid var(--ff-border);
+    border-radius: .75rem;
+    background: #fff;
+}
+
+.ff-product-admin .admin-dashboard span,
+.ff-product-admin .admin-dashboard strong,
+.ff-product-admin .admin-dashboard small {
+    display: block;
+}
+
+.ff-product-admin .admin-dashboard span {
+    color: #6c757d;
+    font-size: .76rem;
+}
+
+.ff-product-admin .admin-dashboard strong {
+    margin-top: .65rem;
+    color: var(--ff-navy);
+    font-size: 1.55rem;
+    line-height: 1.1;
+}
+
+.ff-product-admin .admin-dashboard small {
+    margin-top: .2rem;
+    color: #8a949d;
+    font-size: .7rem;
+}
+
+.ff-product-admin .admin-title {
+    margin-bottom: 1rem;
+    padding-bottom: .85rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #edf0f2;
+}
+
+.ff-product-admin .admin-title small {
+    color: var(--ff-green);
+    font-size: .68rem;
+    font-weight: 850;
+    letter-spacing: .12em;
+}
+
+.ff-product-admin .admin-title h2 {
+    margin: .25rem 0 0;
+    color: var(--ff-navy);
+    font-family: inherit;
+    font-size: 1.2rem;
+    font-weight: 800;
+}
+
+.ff-product-admin .admin-title button {
+    padding: .35rem .65rem;
+    color: #6c757d;
+    border: 1px solid #ced4da;
+    border-radius: .35rem;
+    background: #fff;
+    font-size: .74rem;
+    text-decoration: none;
+}
+
+.ff-product-admin .admin-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .9rem 1rem;
+}
+
+.ff-product-admin .admin-form-grid.four-columns {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ff-product-admin .admin-form-grid label {
+    display: grid;
+    gap: .38rem;
+    color: #536171;
+    font-size: .76rem;
+    font-weight: 750;
+}
+
+.ff-product-admin .admin-form-grid input,
+.ff-product-admin .admin-form-grid select,
+.ff-product-admin .admin-form-grid textarea {
+    width: 100%;
+    min-height: 40px;
+    padding: .5rem .7rem;
+    color: #24313d;
+    border: 1px solid #d9dee3;
+    border-radius: .4rem;
+    background: #fff;
+    font-size: .82rem;
+}
+
+.ff-product-admin .admin-form-grid input:focus,
+.ff-product-admin .admin-form-grid select:focus,
+.ff-product-admin .admin-form-grid textarea:focus {
+    border-color: #62aa84;
+    box-shadow: 0 0 0 .18rem rgba(47,133,90,.13);
+    outline: 0;
+}
+
+.ff-product-admin .span-two { grid-column: span 2; }
+.ff-product-admin .lot-editor { margin-top: 1.1rem; padding: 1rem; border: 1px solid #dfe9e3; border-radius: .6rem; background: #f7faf8; }
+.ff-product-admin .lot-editor h3 { margin: 0 0 .85rem; color: var(--ff-navy); font-size: .94rem; font-weight: 800; }
+
+.ff-product-admin .admin-image-preview {
+    margin-top: 1rem;
+    padding: .85rem;
+    display: grid;
+    grid-template-columns: 86px 1fr;
+    align-items: center;
+    gap: 1rem;
+    border: 1px dashed #cdd8d2;
+    border-radius: .6rem;
+    background: #fbfcfb;
+}
+
+.ff-product-admin .admin-image-preview img { width: 86px; height: 86px; object-fit: cover; border-radius: .5rem; }
+.ff-product-admin .admin-image-preview strong { display: block; color: var(--ff-navy); font-size: .85rem; }
+.ff-product-admin .admin-image-preview p { margin: .3rem 0 0; color: #7a8580; font-size: .72rem; }
+.ff-product-admin .admin-save { width: 100%; min-height: 44px; margin-top: 1rem; color: #fff; border: 0; border-radius: .45rem; background: var(--ff-green); font-size: .84rem; font-weight: 800; }
+.ff-product-admin .admin-save:hover { background: #267249; }
+
+.ff-product-admin .admin-tools {
+    margin-bottom: 1rem;
+    padding: .9rem;
+    display: grid;
+    grid-template-columns: 2fr repeat(3, minmax(130px,1fr)) auto;
+    align-items: end;
+    gap: .65rem;
+    border: 1px solid #e4e8eb;
+    border-radius: .55rem;
+    background: #f7f9fa;
+}
+
+.ff-product-admin .admin-tools label { display:grid; gap:.35rem; color:#68737e; font-size:.7rem; font-weight:750; }
+.ff-product-admin .admin-tools input,
+.ff-product-admin .admin-tools select,
+.ff-product-admin .admin-tools button { min-height:39px; padding:0 .65rem; border:1px solid #d7dce0; border-radius:.38rem; background:#fff; font-size:.78rem; }
+.ff-product-admin .admin-tools button { color:var(--ff-green); font-weight:800; }
+
+.ff-product-admin .admin-table-wrap { overflow-x:auto; border:1px solid var(--ff-border); border-radius:.55rem; }
+.ff-product-admin .admin-table-wrap table { width:100%; margin:0; border-collapse:collapse; font-size:.78rem; }
+.ff-product-admin .admin-table-wrap th { padding:.8rem .7rem; color:#53606c; background:#f4f6f8; font-size:.72rem; white-space:nowrap; }
+.ff-product-admin .admin-table-wrap td { padding:.8rem .7rem; border-top:1px solid #e7eaed; vertical-align:middle; }
+.ff-product-admin .admin-table-wrap td strong,.ff-product-admin .admin-table-wrap td small { display:block; }
+.ff-product-admin .admin-table-wrap td small { margin-top:.2rem; color:#7d8790; font-size:.68rem; }
+.ff-product-admin .admin-table-wrap td button { min-height:32px; margin:.1rem .15rem .1rem 0; padding:0 .55rem; border:1px solid #ced4da; border-radius:.35rem; background:#fff; font-size:.7rem; }
+.ff-product-admin .admin-table-wrap td button.delete { color:#dc3545; border-color:#efb8be; }
+
+.ff-product-admin-body > .toast { position:fixed; z-index:2000; right:1.25rem; bottom:1.25rem; width:auto; max-width:380px; padding:.8rem 1rem; color:#fff; border:0; border-radius:.5rem; background:#246e4a; opacity:0; pointer-events:none; }
+.ff-product-admin-body > .toast.show { opacity:1; }
+.ff-product-admin-body > .toast.error { background:#b53a43; }
+
+@media (max-width:1200px) {
+    .ff-product-admin .admin-dashboard { grid-template-columns:repeat(3,1fr); }
+    .ff-product-admin .admin-tools { grid-template-columns:repeat(2,1fr); }
+}
+
+@media (max-width:768px) {
+    .ff-product-admin { padding:1rem .8rem 2rem; }
+    .ff-product-admin .admin-hero { min-height:0; align-items:flex-start; flex-direction:column; }
+    .ff-product-admin .admin-dashboard { grid-template-columns:repeat(2,1fr); }
+    .ff-product-admin .admin-form-grid,
+    .ff-product-admin .admin-form-grid.four-columns { grid-template-columns:1fr; }
+    .ff-product-admin .span-two { grid-column:span 1; }
+    .ff-product-admin .admin-tools { grid-template-columns:1fr; }
+}

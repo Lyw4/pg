@@ -66,6 +66,18 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
+    /* 실제 송장 대신 화면 흐름을 시험할 때 사용할 임시 번호 생성 */
+    all(".tracking-generate-button").forEach(button => {
+        button.addEventListener("click", () => {
+            const input = button.form?.querySelector('[name="trackingNumber"]');
+            if (!input) return;
+            const stamp = String(Date.now()).slice(-8);
+            const random = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+            input.value = stamp + random;
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+    });
+
     /*
      * ID와 이름을 전달해야 하는 모달
      */
@@ -196,6 +208,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const deliverySearch = document.getElementById("deliverySearch");
     const deliveryStatusFilter =
         document.getElementById("deliveryStatusFilter");
+    const returnStatusFilter =
+        document.getElementById("returnStatusFilter");
+    const deliveryVisibleCount =
+        document.getElementById("deliveryVisibleCount");
+    const deliveryProcessGuides = all("[data-process-guide]");
     const deliveryRows = all(
         "#deliveryTrackingTable tbody tr[data-status]"
     );
@@ -256,6 +273,8 @@ document.addEventListener("DOMContentLoaded", () => {
             deliverySearch?.value.trim().toLowerCase() ?? "";
         const selectedStatus =
             deliveryStatusFilter?.value ?? "all";
+        const selectedReturnStatus =
+            returnStatusFilter?.value ?? "all";
         let visible = 0;
 
         deliveryRows.forEach(row => {
@@ -277,8 +296,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     selectedStatus === "DELAYED"
                     && row.dataset.delayed === "true"
                 );
+            const matchesReturnStatus =
+                activeDeliveryView !== "returns"
+                || selectedReturnStatus === "all"
+                || row.dataset.returnStatus === selectedReturnStatus;
             const show =
-                matchesKeyword && matchesView && matchesStatus;
+                matchesKeyword && matchesView && matchesStatus
+                && matchesReturnStatus;
             row.hidden = !show;
             if (show) {
                 visible++;
@@ -288,10 +312,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (deliveryFilterEmpty) {
             deliveryFilterEmpty.hidden = visible !== 0;
         }
+        if (deliveryVisibleCount) {
+            deliveryVisibleCount.textContent = String(visible);
+        }
     }
 
     deliverySearch?.addEventListener("input", filterDeliveries);
     deliveryStatusFilter?.addEventListener("change", filterDeliveries);
+    returnStatusFilter?.addEventListener("change", filterDeliveries);
 
     const cancelledOrderSearch =
         document.getElementById("cancelledOrderSearch");
@@ -487,7 +515,20 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             if (deliveryStatusFilter) {
                 deliveryStatusFilter.value = "all";
+                deliveryStatusFilter.hidden = view === "returns";
             }
+            if (returnStatusFilter) {
+                returnStatusFilter.value = "all";
+                returnStatusFilter.hidden = view !== "returns";
+            }
+            deliveryProcessGuides.forEach(guide => {
+                const guideType = guide.dataset.processGuide;
+                guide.hidden = view === "returns"
+                    ? guideType !== "returns"
+                    : view === "cancelled"
+                        ? guideType !== "cancelled"
+                        : guideType !== "delivery";
+            });
             filterDeliveries();
         }
 

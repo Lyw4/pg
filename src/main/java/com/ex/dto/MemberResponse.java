@@ -17,6 +17,7 @@ public record MemberResponse(
         Integer regularDeliveryDay,
         List<AddressResponse> addresses,
         FarmAssignmentResponse farmAssignment,
+        FarmModelResponse farmModel,
         LocalDateTime createdAt
 ) {
     public static MemberResponse from(Member member) {
@@ -26,6 +27,13 @@ public record MemberResponse(
     public static MemberResponse from(
             Member member,
             FarmCustomer farmCustomer) {
+        return from(member, farmCustomer, null);
+    }
+
+    public static MemberResponse from(
+            Member member,
+            FarmCustomer farmCustomer,
+            FarmModelResponse farmModel) {
         return new MemberResponse(
                 member.getId(),
                 member.getUsername(),
@@ -55,6 +63,7 @@ public record MemberResponse(
                                 farmCustomer.getAssignedWarehouse().getName(),
                                 farmCustomer.getDistanceKm(),
                                 farmCustomer.getNotes()),
+                farmModel,
                 member.getCreatedAt()
         );
     }

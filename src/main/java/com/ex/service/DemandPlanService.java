@@ -187,6 +187,7 @@ public class DemandPlanService {
 
         List<DeliverySchedule> schedule = farms.stream()
                 .filter(farm -> farm.getStatus() == CustomerStatus.ACTIVE)
+                .filter(farm -> farm.getRecurringDeliveryDay() > 0)
                 .collect(java.util.stream.Collectors.groupingBy(
                         FarmCustomer::getRecurringDeliveryDay,
                         java.util.TreeMap::new,

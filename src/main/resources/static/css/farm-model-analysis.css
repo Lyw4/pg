@@ -1,0 +1,55 @@
+:root { --analysis-green:#176d45; --analysis-ink:#15271e; --analysis-muted:#6b7871; --analysis-line:#dfe7e2; --analysis-paper:#fff; }
+* { box-sizing:border-box; }
+.farm-analysis-body { margin:0; background:#f4f6f3; color:var(--analysis-ink); font-family:"Malgun Gothic",sans-serif; }
+.farm-analysis-header { display:flex; align-items:center; justify-content:space-between; min-height:76px; padding:12px max(24px,calc((100vw - 1180px)/2)); border-bottom:1px solid var(--analysis-line); background:#fff; }
+.farm-analysis-header .brand-logo img { width:145px; height:48px; object-fit:contain; }
+.farm-analysis-header nav { display:flex; gap:24px; }
+.farm-analysis-header nav a { color:#536159; font-size:13px; text-decoration:none; }
+.farm-analysis-header nav a.active { color:var(--analysis-green); font-weight:800; }
+.farm-analysis-page { width:min(1180px,calc(100% - 36px)); margin:0 auto; padding:24px 0 70px; }
+.farm-analysis-breadcrumb { display:flex; gap:10px; margin-bottom:18px; color:var(--analysis-muted); font-size:12px; }
+.farm-analysis-breadcrumb a { color:inherit; text-decoration:none; }
+.farm-analysis-hero { display:grid; grid-template-columns:1fr 330px; gap:28px; align-items:end; padding:42px; border-radius:24px; background:linear-gradient(125deg,#183f2d,#24744c); color:#fff; box-shadow:0 16px 40px rgba(23,61,43,.14); }
+.farm-analysis-hero p,.analysis-section-title p { margin:0 0 8px; color:#e8a657; font-size:11px; font-weight:900; letter-spacing:.13em; }
+.farm-analysis-hero h1 { margin:0 0 15px; font-size:38px; line-height:1.28; }
+.farm-analysis-hero > div > span { color:#d9e7df; font-size:13px; line-height:1.7; }
+.farm-analysis-hero aside { display:grid; gap:7px; padding:22px; border:1px solid rgba(255,255,255,.22); border-radius:18px; background:rgba(255,255,255,.1); }
+.farm-analysis-hero aside span,.farm-analysis-hero aside small { color:#d9e7df; font-size:12px; }
+.farm-analysis-hero aside strong { font-size:21px; }
+.analysis-section { margin-top:22px; padding:30px; border:1px solid var(--analysis-line); border-radius:20px; background:var(--analysis-paper); }
+.analysis-section-title { display:flex; align-items:center; gap:14px; margin-bottom:24px; }
+.analysis-section-title > span { display:grid; width:42px; height:42px; place-items:center; border-radius:13px; background:#e8f4ed; color:var(--analysis-green); font-weight:900; }
+.analysis-section-title p { color:var(--analysis-green); margin-bottom:3px; }
+.analysis-section-title h2 { margin:0; font-size:23px; }
+.analysis-input-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.analysis-input-grid article { display:grid; gap:7px; padding:18px; border-radius:15px; background:#f6f9f7; }
+.analysis-input-grid span,.analysis-input-grid small { color:var(--analysis-muted); font-size:11px; }
+.analysis-input-grid strong { color:var(--analysis-green); font-size:18px; }
+.quantity-explanation { display:grid; grid-template-columns:1.5fr 1fr; gap:20px; }
+.quantity-formula { display:flex; align-items:stretch; gap:9px; }
+.quantity-formula article { display:grid; flex:1; gap:7px; align-content:center; min-height:105px; padding:15px; border:1px solid var(--analysis-line); border-radius:14px; text-align:center; }
+.quantity-formula article.result { border-color:#aad0ba; background:#edf8f1; }
+.quantity-formula article span { color:var(--analysis-muted); font-size:11px; }
+.quantity-formula article strong { font-size:19px; }
+.quantity-formula i { align-self:center; color:#92a098; font-style:normal; font-weight:900; }
+.quantity-detail { padding:19px; border-radius:14px; background:#f5f1e7; }
+.quantity-detail strong { color:#745b2d; }
+.quantity-detail p,.quantity-detail small { color:#6f6655; font-size:12px; line-height:1.65; }
+.warehouse-reason { display:grid; grid-template-columns:190px 1fr; gap:20px; align-items:center; }
+.warehouse-reason > div:first-child { display:grid; gap:5px; padding:20px; border-radius:15px; background:#edf7f1; }
+.warehouse-reason > div:first-child span { color:var(--analysis-green); font-size:12px; font-weight:800; }
+.warehouse-reason p { color:var(--analysis-muted); font-size:13px; line-height:1.7; }
+.warehouse-reason dl { grid-column:1/-1; display:grid; grid-template-columns:1fr 2fr; gap:10px; margin:0; }
+.warehouse-reason dl div { display:grid; gap:4px; padding:13px 16px; border:1px solid var(--analysis-line); border-radius:12px; }
+.warehouse-reason dt { color:var(--analysis-muted); font-size:11px; }.warehouse-reason dd { margin:0; font-size:12px; font-weight:700; }
+.product-ranking-basis { margin:-10px 0 20px; padding:13px 16px; border-left:4px solid var(--analysis-green); background:#f4f8f5; color:#526159; font-size:12px; }
+.analysis-products { display:grid; gap:14px; }
+.analysis-products article { position:relative; display:grid; grid-template-columns:120px 1fr 130px; gap:20px; align-items:center; padding:20px; border:1px solid var(--analysis-line); border-radius:16px; }
+.recommend-rank { position:absolute; top:10px; left:10px; padding:5px 8px; border-radius:20px; background:var(--analysis-green); color:#fff; font-size:10px; font-weight:800; }
+.analysis-products img { width:110px; height:120px; object-fit:contain; background:#f4f1e9; }
+.analysis-product-copy small { color:var(--analysis-muted); font-size:11px; }.analysis-product-copy h3 { margin:5px 0; }.analysis-product-copy p { margin:0; color:var(--analysis-green); font-size:12px; font-weight:700; }
+.analysis-product-copy ul { margin:10px 0 0; padding-left:18px; color:#647169; font-size:11px; line-height:1.8; }
+.analysis-product-action { display:grid; gap:12px; text-align:right; }.analysis-product-action strong { color:var(--analysis-green); font-size:18px; }.analysis-product-action a { padding:10px; border-radius:9px; background:var(--analysis-green); color:#fff; font-size:11px; text-align:center; text-decoration:none; }
+.analysis-caution,.analysis-empty { margin-top:22px; padding:20px 24px; border-radius:16px; background:#eee9dc; color:#665d49; }.analysis-caution p,.analysis-empty p { margin:7px 0 0; font-size:12px; line-height:1.75; }
+@media(max-width:850px){.farm-analysis-hero{grid-template-columns:1fr}.analysis-input-grid{grid-template-columns:repeat(2,1fr)}.quantity-explanation{grid-template-columns:1fr}.analysis-products article{grid-template-columns:90px 1fr}.analysis-product-action{grid-column:2;text-align:left}.warehouse-reason{grid-template-columns:1fr}.warehouse-reason dl{grid-template-columns:1fr}.farm-analysis-header nav{gap:10px}}
+@media(max-width:560px){.farm-analysis-header{align-items:flex-start;flex-direction:column}.farm-analysis-header nav{flex-wrap:wrap}.farm-analysis-page{width:min(100% - 20px,1180px)}.farm-analysis-hero{padding:26px}.farm-analysis-hero h1{font-size:29px}.analysis-section{padding:20px}.analysis-input-grid{grid-template-columns:1fr}.quantity-formula{flex-direction:column}.quantity-formula i{text-align:center}.analysis-products article{grid-template-columns:1fr}.analysis-products img{margin:auto}.analysis-product-action{grid-column:1}.analysis-section-title h2{font-size:19px}}

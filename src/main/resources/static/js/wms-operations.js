@@ -475,6 +475,35 @@
         });
     }
 
+    const traceResult = document.getElementById("lotTraceability");
+    if (traceResult && window.location.hash === "#lotTraceability") {
+        window.setTimeout(function () {
+            const traceTop = traceResult.getBoundingClientRect().top + window.scrollY;
+            window.scrollTo({ top: Math.max(0, traceTop - 92), behavior: "smooth" });
+        }, 180);
+    }
+
+    const timeline = document.querySelector("[data-timeline-list]");
+    if (timeline) {
+        const timelineItems = Array.from(timeline.querySelectorAll("li[data-timestamp]"));
+        const sortButtons = Array.from(document.querySelectorAll("[data-timeline-sort]"));
+        sortButtons.forEach(function (button) {
+            button.addEventListener("click", function () {
+                const direction = button.dataset.timelineSort;
+                timelineItems
+                    .slice()
+                    .sort(function (left, right) {
+                        const comparison = left.dataset.timestamp.localeCompare(right.dataset.timestamp);
+                        return direction === "asc" ? comparison : -comparison;
+                    })
+                    .forEach(function (item) { timeline.appendChild(item); });
+                sortButtons.forEach(function (candidate) {
+                    candidate.classList.toggle("active", candidate === button);
+                });
+            });
+        });
+    }
+
     const mapElement = document.getElementById("wmsNetworkMap");
     const pinsElement = document.getElementById("wmsNetworkPins");
     if (!mapElement || !pinsElement) {

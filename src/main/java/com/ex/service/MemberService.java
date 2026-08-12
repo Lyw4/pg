@@ -22,6 +22,7 @@ public class MemberService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final FarmCustomerRegistrationService farmRegistrationService;
+    private final FarmFeedModelService farmFeedModelService;
 
     @Transactional
     public MemberResponse signup(SignupRequest request) {
@@ -57,9 +58,8 @@ public class MemberService {
         addAddress(member, request.farmAddress());
 
         Member savedMember = memberRepository.save(member);
-        return MemberResponse.from(
-                savedMember,
-                farmRegistrationService.register(savedMember, request));
+        var farmCustomer = farmRegistrationService.register(savedMember, request);
+        return memberResponse(savedMember, farmCustomer);
     }
 
     @Transactional(readOnly = true)
@@ -74,7 +74,7 @@ public class MemberService {
         if (!passwordEncoder.matches(request.password(), member.getPassword())) {
             throw new IllegalArgumentException("아이디 또는 비밀번호가 일치하지 않습니다.");
         }
-        return MemberResponse.from(
+        return memberResponse(
                 member,
                 farmRegistrationService.findByMemberId(member.getId())
                         .orElse(null));
@@ -106,7 +106,7 @@ public class MemberService {
 
     @Transactional(readOnly = true)
     public MemberResponse findById(Long memberId) {
-        return MemberResponse.from(
+        return memberResponse(
                 requireActiveMember(memberId),
                 farmRegistrationService.findByMemberId(memberId).orElse(null));
     }
@@ -124,9 +124,20 @@ public class MemberService {
                 request.homeAddress(), request.homeDetailAddress(), "");
         updateAddress(member, com.ex.entity.AddressType.FARM,
                 request.farmAddress(), "", request.unloadingLocation());
-        return MemberResponse.from(
+        return memberResponse(
                 member,
                 farmRegistrationService.findByMemberId(memberId).orElse(null));
+    }
+
+    private MemberResponse memberResponse(
+            Member member,
+            com.ex.entity.FarmCustomer farmCustomer) {
+        return MemberResponse.from(
+                member,
+                farmCustomer,
+                farmCustomer == null
+                        ? null
+                        : farmFeedModelService.recommendation(farmCustomer));
     }
 
     private Member requireActiveMember(Long memberId) {

@@ -35,6 +35,18 @@ public class PasswordResetSmsSender {
     }
 
     public void sendCode(String phone, String code) {
+        sendNotice(phone, "[FeedFlow] 비밀번호 찾기 인증번호: " + code
+                + " (5분 이내 입력)");
+    }
+
+    public boolean isEnabled() {
+        return enabled && StringUtils.hasText(serviceId)
+                && StringUtils.hasText(accessKey)
+                && StringUtils.hasText(secretKey)
+                && StringUtils.hasText(senderPhone);
+    }
+
+    public void sendNotice(String phone, String content) {
         if (!enabled) return;
         if (!StringUtils.hasText(phone) || !StringUtils.hasText(serviceId)
                 || !StringUtils.hasText(accessKey) || !StringUtils.hasText(secretKey)
@@ -44,9 +56,11 @@ public class PasswordResetSmsSender {
         String timestamp = String.valueOf(Instant.now().toEpochMilli());
         String uri = "/sms/v2/services/" + serviceId + "/messages";
         String signature = sign("POST", uri, timestamp);
+        String safeContent = content.replace("\\", "\\\\")
+                .replace("\"", "\\\"");
         String body = "{\"type\":\"SMS\",\"from\":\"" + senderPhone
-                + "\",\"content\":\"[FeedFlow] 비밀번호 찾기 인증번호: " + code
-                + " (5분 이내 입력)\",\"messages\":[{\"to\":\""
+                + "\",\"content\":\"" + safeContent
+                + "\",\"messages\":[{\"to\":\""
                 + phone.replaceAll("[^0-9]", "") + "\"}]}";
         client.post().uri(uri).contentType(MediaType.APPLICATION_JSON)
                 .header("x-ncp-apigw-timestamp", timestamp)

@@ -2,6 +2,7 @@ package com.ex.service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +50,7 @@ public class DistributionService {
 	private final WarehouseFulfillmentService warehouseFulfillmentService;
 	private final FarmCustomerRepository farmCustomerRepository;
 	private final WmsStockCoordinator wmsStockCoordinator;
+	private final DeliveryTrackingClient deliveryTrackingClient;
 
 	public List<CustomerOrder> orders() {
 		return orderRepository.findAllByOrderByCreatedAtDesc();
@@ -80,6 +82,112 @@ public class DistributionService {
 		deliveryDetail(deliveryId);
 		return deliveryHistoryRepository
 				.findByDeliveryDeliveryIdOrderByChangedAtDesc(deliveryId);
+	}
+
+	public boolean isDeliveryApiEnabled() {
+		return deliveryTrackingClient.isEnabled();
+	}
+
+	@Transactional
+	public DeliveryTrackingSyncResult syncDeliveryTracking(Long deliveryId) {
+		Delivery delivery = deliveryRepository.findDetailByDeliveryId(deliveryId)
+				.orElseThrow(() -> new IllegalArgumentException("배송 정보를 찾을 수 없습니다."));
+		if (delivery.getStatus() == DeliveryStatus.CANCELLED) {
+			throw new IllegalStateException("취소된 배송은 택배 API로 조회할 수 없습니다.");
+		}
+
+		var snapshot = deliveryTrackingClient.trace(
+				"DLV-" + deliveryId,
+				delivery.getCarrierName(),
+				delivery.getTrackingNumber());
+		DeliveryStatus previousStatus = delivery.getStatus();
+		DeliveryStatus externalStatus = mapExternalStatus(snapshot);
+		boolean statusChanged = externalStatus != null
+				&& statusRank(externalStatus) > statusRank(previousStatus);
+
+		if (statusChanged) {
+			delivery.update(delivery.getCarrierName(), delivery.getTrackingNumber(), externalStatus);
+			delivery.getOrder().changeStatus(externalStatus == DeliveryStatus.DELIVERED
+					? OrderStatus.DELIVERED
+					: OrderStatus.SHIPPING);
+			deliveryHistoryRepository.save(new DeliveryStatusHistory(
+					delivery, previousStatus, externalStatus,
+					limitHistoryNote(trackingNote(snapshot))));
+		}
+
+		String statusText = snapshot.statusText() == null
+				|| snapshot.statusText().isBlank()
+					? "상태 확인"
+					: snapshot.statusText();
+		String location = snapshot.latestLocation() == null
+				|| snapshot.latestLocation().isBlank()
+					? ""
+					: " · " + snapshot.latestLocation();
+		String result = "택배 API 조회: " + statusText + location;
+		if (statusChanged) {
+			result += " (내부 상태를 " + externalStatus.getLabel() + "로 반영했습니다.)";
+		} else {
+			result += " (현재 내부 상태는 유지했습니다.)";
+		}
+		return new DeliveryTrackingSyncResult(statusChanged, externalStatus, result);
+	}
+
+	private DeliveryStatus mapExternalStatus(
+			DeliveryTrackingClient.TrackingSnapshot snapshot) {
+		String value = (snapshot.statusCode() + " " + snapshot.statusText())
+				.toUpperCase(Locale.ROOT);
+		if (snapshot.delivered() || value.contains("DELIVERED")
+				|| value.contains("배송완료") || value.contains("배달완료")) {
+			return DeliveryStatus.DELIVERED;
+		}
+		if (value.contains("IN_TRANSIT") || value.contains("OUT_FOR_DELIVERY")
+				|| value.contains("배송중") || value.contains("배달중")
+				|| value.contains("이동중")) {
+			return DeliveryStatus.IN_TRANSIT;
+		}
+		if (value.contains("PICKED_UP") || value.contains("AT_PICKUP")
+				|| value.contains("INFO_RECEIVED") || value.contains("INFORMATION_RECEIVED")
+				|| value.contains("집화") || value.contains("상품인수")
+				|| value.contains("접수")) {
+			return DeliveryStatus.PICKED_UP;
+		}
+		return null;
+	}
+
+	private int statusRank(DeliveryStatus status) {
+		return switch (status) {
+			case READY -> 0;
+			case PICKED_UP -> 1;
+			case IN_TRANSIT -> 2;
+			case DELIVERED -> 3;
+			case CANCELLED -> -1;
+		};
+	}
+
+	private String trackingNote(
+			DeliveryTrackingClient.TrackingSnapshot snapshot) {
+		StringBuilder note = new StringBuilder("택배 API 동기화");
+		appendTrackingNote(note, snapshot.statusText());
+		appendTrackingNote(note, snapshot.latestLocation());
+		appendTrackingNote(note, snapshot.latestDescription());
+		appendTrackingNote(note, snapshot.lastProgressAt());
+		return note.toString();
+	}
+
+	private void appendTrackingNote(StringBuilder note, String value) {
+		if (value != null && !value.isBlank()) {
+			note.append(" · ").append(value.trim());
+		}
+	}
+
+	private String limitHistoryNote(String note) {
+		return note.length() <= 500 ? note : note.substring(0, 497) + "...";
+	}
+
+	public record DeliveryTrackingSyncResult(
+			boolean statusChanged,
+			DeliveryStatus externalStatus,
+			String message) {
 	}
 
 	public long delayedCount() {

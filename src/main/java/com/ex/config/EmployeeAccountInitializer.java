@@ -68,12 +68,15 @@ public class EmployeeAccountInitializer implements ApplicationRunner {
             return;
         }
         String normalizedUsername = username.trim().toLowerCase();
+        String safeName = isCorruptedSeedName(name)
+                ? defaultSeedName(role)
+                : name.trim();
         EmployeeAccount account = employeeRepository
                 .findByUsernameIgnoreCase(normalizedUsername)
                 .orElseGet(() -> EmployeeAccount.builder()
                         .username(normalizedUsername)
                         .password(passwordEncoder.encode(rawPassword))
-                        .name(name)
+                        .name(safeName)
                         .phone(phone)
                         .role(role)
                         .active(true)
@@ -82,6 +85,32 @@ public class EmployeeAccountInitializer implements ApplicationRunner {
         // 최초 실행 시 계정이 없을 때만 기본 계정을 생성합니다.
         if (account.getId() == null) {
             employeeRepository.save(account);
+        } else if ((normalizedUsername.equals(adminUsername.trim().toLowerCase())
+                || normalizedUsername.equals(staffUsername.trim().toLowerCase()))
+                && !safeName.equals(account.getName())) {
+            // 기본 admin/staff 계정은 설정된 정상 이름으로 항상 맞춥니다.
+            account.repairSeededProfile(safeName, phone);
         }
+    }
+
+    private String defaultSeedName(EmployeeRole role) {
+        return role == EmployeeRole.ADMIN ? "김책임" : "김사원";
+    }
+
+    private boolean isCorruptedSeedName(String name) {
+        if (name == null || name.isBlank()) {
+            return true;
+        }
+        return name.indexOf('\ufffd') >= 0
+                || name.indexOf('?') >= 0
+                || name.contains("ê")
+                || name.contains("ì")
+                || name.contains("ë")
+                || name.contains("ï")
+                || name.contains("源")
+                || name.contains("梨")
+                || name.contains("낆")
+                || name.contains("ъ")
+                || name.contains("썝");
     }
 }

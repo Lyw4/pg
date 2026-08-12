@@ -45,4 +45,25 @@ class EmployeeManagementServiceTest {
                         EmployeeRole.STAFF,
                         administrator.getUsername()));
     }
+
+    @Test
+    void brokenSeededNamesAreShownAsKoreanNames() {
+        var administrator = employeeRepository
+                .findByUsernameIgnoreCase("admin")
+                .orElseThrow();
+        var staff = employeeRepository
+                .findByUsernameIgnoreCase("staff@feedflow.co.kr")
+                .orElseThrow();
+        administrator.repairSeededProfile("ê¹€ì±…ìž„", administrator.getPhone());
+        staff.repairSeededProfile("ê¹€ì‚¬ì›", staff.getPhone());
+
+        var employees = employeeManagementService.employees("admin");
+
+        assertEquals("김책임", employees.stream()
+                .filter(employee -> employee.username().equals("admin"))
+                .findFirst().orElseThrow().name());
+        assertEquals("김사원", employees.stream()
+                .filter(employee -> employee.username().equals("staff@feedflow.co.kr"))
+                .findFirst().orElseThrow().name());
+    }
 }

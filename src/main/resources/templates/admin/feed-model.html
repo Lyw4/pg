@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/admin-layout :: head('추천·분석 모델')}"></head>
+<body>
+<div class="ff-admin-shell">
+    <div th:replace="~{fragments/admin-layout :: sidebar}"></div>
+    <div class="ff-main-wrap">
+        <div th:replace="~{fragments/admin-layout :: topbar('판매·시스템', '추천·분석 모델')}"></div>
+        <main class="ff-content ff-feed-model-page">
+            <div th:if="${modelMessage}" class="alert alert-success" th:text="${modelMessage}"></div>
+            <div th:if="${modelError}" class="alert alert-danger" th:text="${modelError}"></div>
+
+            <section class="card ff-card mb-3">
+                <div class="card-header bg-white border-0 pt-3">
+                    <strong><i class="bi bi-sliders me-1 text-success"></i>축종별 추천 모델 관리</strong>
+                    <div class="small text-muted">소비계수·추천 우선순위·제외 상품을 변경하면 모델 버전이 자동 증가합니다.</div>
+                </div>
+                <div class="card-body row g-3">
+                    <div class="col-12 col-xl-4" th:each="policy : ${policies}">
+                        <form class="border rounded-3 p-3 h-100" method="post"
+                              th:action="@{/admin/feed-model/policies/{id}(id=${policy.policyId})}">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <strong th:text="${policy.animalType}">축종</strong>
+                                <span class="badge bg-dark" th:text="|MODEL v${policy.modelVersion}|">v1</span>
+                            </div>
+                            <label class="form-label small">마리당 월 소비계수(포)</label>
+                            <input class="form-control form-control-sm mb-2" type="number" min="0.001" step="0.001"
+                                   name="bagsPerHead" th:value="${policy.bagsPerHead}" required>
+                            <div class="row g-2 mb-2">
+                                <div class="col-6"><label class="form-label small">선호 사료 가중치</label><input class="form-control form-control-sm" type="number" min="0" name="preferredFeedWeight" th:value="${policy.preferredFeedWeight}" required></div>
+                                <div class="col-6"><label class="form-label small">담당 창고 재고 가중치</label><input class="form-control form-control-sm" type="number" min="0" name="warehouseStockWeight" th:value="${policy.warehouseStockWeight}" required></div>
+                            </div>
+                            <label class="form-label small">추천 제외 상품 ID <span class="text-muted">쉼표 구분</span></label>
+                            <input class="form-control form-control-sm mb-3" name="excludedProductIds" th:value="${policy.excludedProductIds}" placeholder="예: 4, 17">
+                            <button class="btn btn-sm btn-success w-100" type="submit">기준 저장·새 버전 발행</button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card ff-card mb-3">
+                <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-start">
+                    <div><strong><i class="bi bi-truck-flatbed me-1 text-primary"></i>창고 간 재고 이동 추천</strong><div class="small text-muted">부족량·과잉량·센터 직선거리·400포 차량 기준 예상 이동비를 함께 계산합니다.</div></div>
+                    <span class="badge bg-primary" th:text="|${#lists.size(transfers)}건|">0건</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light"><tr><th>상품</th><th>이동 경로</th><th class="text-end">권장량</th><th class="text-end">거리</th><th class="text-end">예상 비용</th><th>처리</th></tr></thead>
+                        <tbody>
+                        <tr th:each="transfer : ${transfers}">
+                            <td><strong th:text="${transfer.productName}">상품</strong><small class="d-block text-muted" th:text="${transfer.reason}">근거</small></td>
+                            <td><span th:text="${transfer.sourceWarehouseName}">출발</span><i class="bi bi-arrow-right mx-2 text-muted"></i><span th:text="${transfer.destinationWarehouseName}">도착</span></td>
+                            <td class="text-end fw-bold" th:text="|${#numbers.formatInteger(transfer.quantity, 0, 'COMMA')}포|">0포</td>
+                            <td class="text-end" th:text="|${#numbers.formatDecimal(transfer.distanceKm, 1, 1)}km|">0km</td>
+                            <td class="text-end" th:text="|약 ${#numbers.formatInteger(transfer.estimatedCost, 0, 'COMMA')}원|">0원</td>
+                            <td>
+                                <form method="post" th:action="@{/admin/feed-model/transfers}" class="d-flex gap-1">
+                                    <input type="hidden" name="productId" th:value="${transfer.productId}">
+                                    <input type="hidden" name="sourceWarehouseId" th:value="${transfer.sourceWarehouseId}">
+                                    <input type="hidden" name="destinationWarehouseId" th:value="${transfer.destinationWarehouseId}">
+                                    <input class="form-control form-control-sm" style="width:85px" type="number" min="1" name="quantity" th:max="${transfer.quantity}" th:value="${transfer.quantity}" required>
+                                    <button class="btn btn-sm btn-outline-primary text-nowrap" type="submit">자동 이동</button>
+                                </form>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(transfers)}"><td colspan="6" class="ff-empty">다른 센터의 과잉 재고로 해결할 수 있는 부족 항목이 없습니다.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="card ff-card mb-3">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div><strong><i class="bi bi-geo-alt-fill me-1"></i>지역별 축종 분포 지도</strong><small class="text-muted ms-2">마커를 누르면 농장·축종·담당 창고를 확인할 수 있습니다.</small></div>
+                    <button type="button" id="farmDistributionReset" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrows-fullscreen me-1"></i>전국 보기</button>
+                </div>
+                <div class="card-body p-3">
+                    <div id="farmDistributionMap" class="wms-network-map wms-network-map-compact ff-farm-leaflet-map"></div>
+                    <div id="farmDistributionPins" class="d-none">
+                        <span th:each="point : ${analytics.farmMapPoints}"
+                              th:data-name="${point.farmName}"
+                              th:data-animal="${point.animalType}"
+                              th:data-warehouse="${point.warehouseName}"
+                              th:data-lat="${point.latitude}"
+                              th:data-lng="${point.longitude}"
+                              th:data-x="${point.xPercent}"
+                              th:data-y="${point.yPercent}"></span>
+                    </div>
+                    <div class="ff-farm-map-legend"><span><i class="cattle"></i>소</span><span><i class="pig"></i>돼지</span><span><i class="poultry"></i>조류(닭/오리)</span></div>
+                </div>
+            </section>
+
+            <section class="row g-3 mb-3">
+                <div class="col-12 col-xl-4">
+                    <article class="card ff-card h-100"><div class="card-header bg-white border-0 pt-3"><strong>지역 담당 농장 축종 분포</strong></div><div class="card-body">
+                        <div class="mb-3" th:each="point : ${analytics.animalDistribution}"><div class="d-flex justify-content-between small mb-1"><span th:text="${point.label}">축종</span><strong th:text="|${point.value}곳|">0</strong></div><div class="progress" style="height:9px"><div class="progress-bar bg-success" th:style="|width:${point.percent}%|"></div></div></div>
+                    </div></article>
+                </div>
+                <div class="col-12 col-xl-4">
+                    <article class="card ff-card h-100"><div class="card-header bg-white border-0 pt-3"><strong>창고별 월 수요량</strong></div><div class="card-body">
+                        <div class="mb-3" th:each="point : ${analytics.warehouseDemand}"><div class="d-flex justify-content-between small mb-1"><span th:text="${point.label}">창고</span><strong th:text="|${#numbers.formatInteger(point.value, 0, 'COMMA')}포|">0</strong></div><div class="progress" style="height:9px"><div class="progress-bar bg-primary" th:style="|width:${point.percent}%|"></div></div></div>
+                    </div></article>
+                </div>
+                <div class="col-12 col-xl-4">
+                    <article class="card ff-card h-100"><div class="card-header bg-white border-0 pt-3"><strong>월별 주문 추이</strong></div><div class="card-body">
+                        <div class="mb-3" th:each="point : ${analytics.monthlyOrders}"><div class="d-flex justify-content-between small mb-1"><span th:text="${point.label}">월</span><strong th:text="|${point.value}건|">0</strong></div><div class="progress" style="height:9px"><div class="progress-bar bg-warning" th:style="|width:${point.percent}%|"></div></div></div>
+                    </div></article>
+                </div>
+            </section>
+
+            <section class="card ff-card">
+                <div class="card-header bg-white border-0 pt-3"><strong>추천 발주 기준 대비 창고 재고 변화</strong><div class="small text-muted">현재고와 목표 재고의 차이로 이동·입고 우선순위를 발표할 수 있습니다.</div></div>
+                <div class="table-responsive"><table class="table align-middle mb-0"><thead class="table-light"><tr><th>창고</th><th class="text-end">현재고</th><th class="text-end">목표</th><th class="text-end">차이</th><th>상태</th></tr></thead><tbody>
+                    <tr th:each="impact : ${analytics.inventoryImpacts}"><td th:text="${impact.warehouseName}">창고</td><td class="text-end" th:text="${#numbers.formatInteger(impact.currentStock, 0, 'COMMA')}">0</td><td class="text-end" th:text="${#numbers.formatInteger(impact.targetStock, 0, 'COMMA')}">0</td><td class="text-end fw-bold" th:classappend="${impact.gap < 0} ? 'text-danger' : 'text-success'" th:text="${impact.gap > 0 ? '+' + impact.gap : impact.gap}">0</td><td><span class="badge" th:classappend="${impact.gap < 0} ? 'bg-danger' : 'bg-success'" th:text="${impact.gap < 0 ? '보충 필요' : '운영 가능'}">상태</span></td></tr>
+                </tbody></table></div>
+            </section>
+        </main>
+    </div>
+</div>
+<div th:replace="~{fragments/admin-layout :: scripts}"></div>
+<script th:src="@{/js/feed-model-map.js}"></script>
+</body>
+</html>

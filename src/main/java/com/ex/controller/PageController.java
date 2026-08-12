@@ -93,6 +93,35 @@ public class PageController {
         return "order-detail";
     }
 
+    @GetMapping("/mypage/farm-model")
+    public String farmModelAnalysis(
+            HttpSession session,
+            Authentication authentication,
+            Model model) {
+        boolean operator = authentication != null
+                && authentication.isAuthenticated()
+                && !(authentication instanceof AnonymousAuthenticationToken)
+                && authentication.getAuthorities().stream()
+                        .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority())
+                                || "ROLE_STAFF".equals(authority.getAuthority()));
+        if (operator) {
+            return "redirect:/admin/dashboard";
+        }
+        Long memberId = sessionMemberId(session);
+        if (memberId == null) {
+            return "redirect:/?account=login&sessionExpired=true";
+        }
+        try {
+            var member = memberService.findById(memberId);
+            model.addAttribute("siteName", "FEED FLOW 농장 맞춤 상세분석");
+            model.addAttribute("member", member);
+            return "farm-model-analysis";
+        } catch (IllegalArgumentException exception) {
+            session.invalidate();
+            return "redirect:/?account=login&sessionExpired=true";
+        }
+    }
+
     private Long sessionMemberId(HttpSession session) {
         Object value = session.getAttribute("memberId");
         if (value instanceof Number number) {

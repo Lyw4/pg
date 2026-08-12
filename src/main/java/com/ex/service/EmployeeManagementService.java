@@ -71,13 +71,43 @@ public class EmployeeManagementService {
                 boolean currentUser) {
             return new EmployeeView(
                     employee.getId(),
-                    employee.getName(),
+                    displayName(employee),
                     employee.getUsername(),
                     employee.getPhone(),
                     employee.getRole(),
                     employee.isActive(),
                     employee.getCreatedAt(),
                     currentUser);
+        }
+
+        private static String displayName(EmployeeAccount employee) {
+            String name = employee.getName();
+            if (!isBrokenKorean(name)) {
+                return name;
+            }
+            if ("admin".equalsIgnoreCase(employee.getUsername())) {
+                return "김책임";
+            }
+            if ("staff@feedflow.co.kr".equalsIgnoreCase(employee.getUsername())) {
+                return "김사원";
+            }
+            return "이름 확인 필요";
+        }
+
+        private static boolean isBrokenKorean(String name) {
+            return name == null
+                    || name.isBlank()
+                    || name.indexOf('\ufffd') >= 0
+                    || name.indexOf('?') >= 0
+                    || name.contains("ê")
+                    || name.contains("ì")
+                    || name.contains("ë")
+                    || name.contains("ï")
+                    || name.contains("源")
+                    || name.contains("梨")
+                    || name.contains("낆")
+                    || name.contains("ъ")
+                    || name.contains("썝");
         }
     }
 }

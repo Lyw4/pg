@@ -930,6 +930,8 @@ public class ManagementController {
                 farmCustomerService.warehouseSummaries());
         model.addAttribute("farmWarehouses",
                 warehouseManagementService.warehouses());
+        model.addAttribute("deliveryApiEnabled",
+                distributionService.isDeliveryApiEnabled());
 
         return "distribution";
     }
@@ -946,6 +948,17 @@ public class ManagementController {
                 status == CustomerStatus.ACTIVE
                         ? "농장 고객사의 거래를 재개했습니다."
                         : "농장 고객사를 거래 보류로 변경했습니다.",
+                redirectAttributes);
+    }
+
+    @PostMapping("/distribution/farm-customers/{farmCustomerId}/delete")
+    public String deleteFarmCustomer(
+            @PathVariable("farmCustomerId") Long farmCustomerId,
+            RedirectAttributes redirectAttributes) {
+        return execute(
+                () -> farmCustomerService.delete(farmCustomerId),
+                "/distribution?view=farms",
+                "농장 고객사를 삭제했습니다. 기존 주문 이력은 보존됩니다.",
                 redirectAttributes);
     }
 
@@ -1002,6 +1015,8 @@ public class ManagementController {
                 distributionService.deliveryHistories(deliveryId));
         model.addAttribute("deliveryStatuses", DeliveryStatus.values());
         model.addAttribute("defectTypes", DefectType.values());
+        model.addAttribute("deliveryApiEnabled",
+                distributionService.isDeliveryApiEnabled());
 
         return "delivery-detail";
     }
@@ -1073,6 +1088,22 @@ public class ManagementController {
                 "/distribution/deliveries/" + deliveryId,
                 "배송 상태가 변경되고 이력에 기록되었습니다.",
                 redirectAttributes);
+    }
+
+    @PostMapping("/distribution/deliveries/{deliveryId}/tracking/sync")
+    public String syncDeliveryTracking(
+            @PathVariable("deliveryId") Long deliveryId,
+            @RequestParam(name = "redirect", defaultValue = "detail") String redirect,
+            RedirectAttributes redirectAttributes) {
+        try {
+            var result = distributionService.syncDeliveryTracking(deliveryId);
+            redirectAttributes.addFlashAttribute("message", result.message());
+        } catch (RuntimeException exception) {
+            redirectAttributes.addFlashAttribute("error", exception.getMessage());
+        }
+        return "redirect:" + ("list".equals(redirect)
+                ? "/distribution?view=transit"
+                : "/distribution/deliveries/" + deliveryId);
     }
 
     @PostMapping("/distribution/deliveries/{deliveryId}/cancel")
