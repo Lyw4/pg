@@ -213,7 +213,10 @@ public class WmsStockCoordinator {
                 .sorted(preferredFirst(preferredWarehouse))
                 .toList();
         if (bins.isEmpty()) {
-            return;
+            throw new IllegalStateException(
+                    "입고 가능한 구역이 없습니다. LOT=" + lot.getLotNo()
+                            + ", 수량=" + quantity
+                            + " (활성 보관 또는 입고 대기 구역을 확보하세요.)");
         }
 
         WarehouseBin target = existingLocation(lot, preferredWarehouse)
@@ -223,7 +226,10 @@ public class WmsStockCoordinator {
                         .findFirst()
                         .orElse(null));
         if (target == null) {
-            return;
+            throw new IllegalStateException(
+                    "입고 구역 용량이 부족합니다. LOT=" + lot.getLotNo()
+                            + ", 수량=" + quantity
+                            + " (적재 공간을 확보한 뒤 다시 시도하세요.)");
         }
         BinInventory inventory = inventoryRepository
                 .findByLotLotIdAndBinBinId(
@@ -258,11 +264,16 @@ public class WmsStockCoordinator {
                 .findByLotLotIdAndQuantityGreaterThanOrderByBinBinCodeAsc(
                         lot.getLotId(), 0)
                 .stream()
-                .sorted(Comparator.comparingInt(inventory ->
-                        isPreferred(
-                                inventory.getBin(), preferredWarehouse)
-                                ? 0
-                                : 1))
+                .filter(inventory -> WmsAllocationPolicy
+                        .isAllocatable(inventory.getBin()))
+                .sorted(Comparator
+                        .comparingInt((BinInventory inventory) ->
+                                isPreferred(inventory.getBin(), preferredWarehouse)
+                                        ? 0 : 1)
+                        .thenComparing(inventory -> inventory.getLot()
+                                .getExpirationDate())
+                        .thenComparing(inventory -> inventory.getBin()
+                                .getBinCode()))
                 .toList();
         int remaining = quantity;
         for (BinInventory inventory : locations) {
@@ -286,6 +297,13 @@ public class WmsStockCoordinator {
                 return;
             }
         }
+        if (remaining > 0) {
+            throw new IllegalStateException(
+                    "출고 가능한 구역 재고가 부족합니다. LOT=" + lot.getLotNo()
+                            + ", 요청=" + quantity + ", 부족=" + remaining
+                            + " (입고 대기·검수·운송 중 구역의 재고는 출고할 수 없습니다. "
+                            + "구역 이동으로 보관 구역에 넣은 뒤 다시 시도하세요.)");
+        }
     }
 
     private java.util.Optional<WarehouseBin> existingLocation(
@@ -295,11 +313,20 @@ public class WmsStockCoordinator {
                 .findByLotLotIdAndQuantityGreaterThanOrderByBinBinCodeAsc(
                         lot.getLotId(), 0)
                 .stream()
-                .sorted(Comparator.comparingInt(inventory ->
-                        isPreferred(
-                                inventory.getBin(), preferredWarehouse)
-                                ? 0
-                                : 1))
+                .filter(inventory -> inventory.getBin().isActive())
+                .filter(inventory -> inventory.getBin().getPurpose()
+                        != BinPurpose.IN_TRANSIT)
+                .filter(inventory -> inventory.getBin().getPurpose()
+                        != BinPurpose.INSPECTION)
+                .sorted(Comparator
+                        .comparingInt((BinInventory inventory) ->
+                                isPreferred(inventory.getBin(), preferredWarehouse)
+                                        ? 0 : 1)
+                        .thenComparingInt(inventory ->
+                                inventory.getBin().getPurpose()
+                                        == BinPurpose.STORAGE ? 0 : 1)
+                        .thenComparing(inventory -> inventory.getBin()
+                                .getBinCode()))
                 .map(BinInventory::getBin)
                 .findFirst();
     }
@@ -309,6 +336,8 @@ public class WmsStockCoordinator {
         return Comparator
                 .comparingInt((WarehouseBin bin) ->
                         isPreferred(bin, preferredWarehouse) ? 0 : 1)
+                .thenComparingInt(bin ->
+                        bin.getPurpose() == BinPurpose.STORAGE ? 0 : 1)
                 .thenComparing(bin ->
                         bin.getWarehouse().getDisplayOrder())
                 .thenComparing(WarehouseBin::getBinCode);

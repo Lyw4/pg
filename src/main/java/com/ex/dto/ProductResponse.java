@@ -140,6 +140,16 @@ public record ProductResponse(
                 offer.label());
     }
 
+    public ProductResponse withSellableStock(int sellableStock) {
+        return new ProductResponse(
+                id, productCode, name, animal, animalType, stage,
+                description, weight, price, originalPrice, protein, fat,
+                fiber, calcium, lot, manufacturedDate, expiry,
+                Math.max(0, sellableStock), tone, badge, shape, imageUrl,
+                manufacturer, lots, expirySale, discountRate, saleStock,
+                saleDaysRemaining, saleExpirationDate, saleLabel);
+    }
+
     public record LotResponse(
             String lotNumber,
             LocalDate manufacturedDate,

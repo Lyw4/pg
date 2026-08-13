@@ -19,6 +19,7 @@ public class ProductCatalogService {
 
     private final ProductRepository productRepository;
     private final ExpirySaleService expirySaleService;
+    private final SellableStockQuery sellableStockQuery;
 
     public List<ProductResponse> findProducts(AnimalType animalType, String query) {
         String normalizedQuery = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
@@ -31,11 +32,17 @@ public class ProductCatalogService {
                 .toList();
         Map<Long, ExpirySaleService.SaleOffer> saleOffers =
                 expirySaleService.offersFor(products);
-
+        Map<Long, Integer> sellableStocks =
+                sellableStockQuery.sellableByProductIds(
+                        products.stream()
+                                .map(Product::getProductId)
+                                .toList());
         return products.stream()
                 .map(product -> ProductResponse.from(product)
                         .withExpirySale(saleOffers.get(
-                                product.getProductId())))
+                                product.getProductId()))
+                        .withSellableStock(sellableStocks.getOrDefault(
+                                product.getProductId(), 0)))
                 .filter(product -> animalType == null
                         || animalType.name().equals(product.animalType()))
                 .filter(product -> {
@@ -57,6 +64,7 @@ public class ProductCatalogService {
                 .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다."));
         return ProductResponse.from(product)
                 .withExpirySale(expirySaleService.offerFor(product)
-                        .orElse(null));
+                        .orElse(null))
+                .withSellableStock(sellableStockQuery.sellable(productId));
     }
 }

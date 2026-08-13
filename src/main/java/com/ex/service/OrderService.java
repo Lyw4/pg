@@ -52,8 +52,9 @@ public class OrderService {
     private final MemberRepository memberRepository;
     private final PaymentProperties paymentProperties;
     private final WarehouseFulfillmentService warehouseFulfillmentService;
-	private final WmsStockCoordinator wmsStockCoordinator;
+    private final WmsStockCoordinator wmsStockCoordinator;
     private final ExpirySaleService expirySaleService;
+    private final SellableStockQuery sellableStockQuery;
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request) {
@@ -238,13 +239,14 @@ public class OrderService {
                 .filter(lot -> line.saleLotIds().isEmpty()
                         || line.saleLotIds().contains(lot.getLotId()))
                 .toList();
-        int available = lots.stream()
-                .mapToInt(ProductLot::getLotQuantity)
-                .sum();
+        int available = line.saleLotIds().isEmpty()
+                ? sellableStockQuery.sellable(line.product().getProductId())
+                : sellableStockQuery.sellableByLotIds(line.saleLotIds());
         if (available < line.quantity()) {
             throw new IllegalArgumentException(
                     line.product().getName()
-                            + " 상품의 재고가 부족합니다.");
+                            + " 상품의 판매 가능 재고가 부족합니다. "
+                            + "(검수 전·운송 중 재고는 판매되지 않습니다)");
         }
 
         OrderItem item = new OrderItem(
