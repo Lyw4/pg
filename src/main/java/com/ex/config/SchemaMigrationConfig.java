@@ -22,6 +22,7 @@ public class SchemaMigrationConfig {
             JdbcTemplate jdbcTemplate) {
 
         return args -> {
+            ensureOptimisticLockColumns(jdbcTemplate);
             normalizeMemberUsernames(jdbcTemplate);
             normalizeCustomerOrderFlags(jdbcTemplate);
             normalizeCustomerOrderEnumColumns(jdbcTemplate);
@@ -53,6 +54,23 @@ public class SchemaMigrationConfig {
                                     + " drop constraint "
                                     + target.constraintName()));
         };
+    }
+
+    /**
+     * 기존 파일 H2는 Hibernate 자동 갱신이 @Version 컬럼을 추가하지 못하는
+     * 경우가 있으므로 데이터 초기화가 시작되기 전에 명시적으로 보강한다.
+     * 기존 행은 version=0으로 시작하며 데이터와 기본키는 그대로 보존된다.
+     */
+    private void ensureOptimisticLockColumns(JdbcTemplate jdbcTemplate) {
+        for (String tableName : List.of(
+                "PRODUCT_LOT", "BIN_INVENTORY", "WAREHOUSE_ALLOCATION")) {
+            if (!tableExists(jdbcTemplate, tableName)) continue;
+            jdbcTemplate.execute(
+                    "alter table " + tableName
+                            + " add column if not exists version bigint default 0 not null");
+            jdbcTemplate.update(
+                    "update " + tableName + " set version = 0 where version is null");
+        }
     }
 
     /** 결제 공급자 거래번호는 한 주문에서만 사용할 수 있어야 합니다. */

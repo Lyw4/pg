@@ -37,7 +37,10 @@ import lombok.NoArgsConstructor;
 				@Index(
 				name = "idx_customer_order_provider_tx",
 				columnList = "provider_transaction_id",
-				unique = true)
+				unique = true),
+				@Index(
+				name = "idx_customer_order_status",
+				columnList = "status")
 		})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

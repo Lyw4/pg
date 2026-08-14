@@ -22,15 +22,26 @@ import com.ex.repository.WarehouseAllocationRepository;
 import com.ex.repository.WarehouseRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional(readOnly = true)
 public class WarehouseFulfillmentService {
 
     private static final double EARTH_RADIUS_KM = 6371.0088;
 
     private record ProductNeed(Product product, int quantity) {
+    }
+
+    public record ProductRequest(Product product, int quantity) {
+        public ProductRequest {
+            if (product == null || quantity <= 0) {
+                throw new IllegalArgumentException(
+                        "창고 배정 상품과 수량을 확인해 주세요.");
+            }
+        }
     }
 
     private record Candidate(
@@ -43,6 +54,23 @@ public class WarehouseFulfillmentService {
     private final WarehouseAllocationRepository allocationRepository;
     private final CustomerOrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
+    private final SellableStockQuery sellableStockQuery;
+
+    @Transactional
+    public Warehouse assignNearestForProducts(
+            CustomerOrder order,
+            List<ProductRequest> requests) {
+        if (requests == null || requests.isEmpty()) {
+            throw new IllegalArgumentException("창고를 배정할 주문 상품이 없습니다.");
+        }
+        Map<Long, ProductNeed> needs = new LinkedHashMap<>();
+        requests.forEach(request -> needs.merge(
+                request.product().getProductId(),
+                new ProductNeed(request.product(), request.quantity()),
+                (left, right) -> new ProductNeed(
+                        left.product(), left.quantity() + right.quantity())));
+        return assignNearest(order, needs);
+    }
 
     @Transactional
     public Warehouse assignNearest(
@@ -71,24 +99,27 @@ public class WarehouseFulfillmentService {
     }
 
     @Transactional
-    public void assignUnassignedOrders() {
-        orderRepository.findAllByOrderByCreatedAtDesc().stream()
+    public int assignUnassignedOrders() {
+        int failedCount = 0;
+        List<CustomerOrder> targets = orderRepository
+                .findAllByOrderByCreatedAtDesc().stream()
                 .filter(order -> order.getFulfillmentWarehouse() == null)
                 .filter(order -> order.getStatus() == OrderStatus.PAID
                         || order.getStatus() == OrderStatus.PREPARING)
-                .forEach(order -> {
-                    List<OrderItem> items =
-                            orderItemRepository.findByOrderOrderId(
-                                    order.getOrderId());
-                    if (items.isEmpty()) {
-                        return;
-                    }
-                    try {
-                        assignNearest(order, needsFromOrderItems(items));
-                    } catch (IllegalStateException ignored) {
-                        // 과거 주문은 창고 재고가 부족해도 애플리케이션 시작을 막지 않습니다.
-                    }
-                });
+                .toList();
+        for (CustomerOrder order : targets) {
+            List<OrderItem> items = orderItemRepository
+                    .findByOrderOrderId(order.getOrderId());
+            if (items.isEmpty()) continue;
+            try {
+                assignNearest(order, needsFromOrderItems(items));
+            } catch (IllegalStateException exception) {
+                failedCount++;
+                log.warn("창고 자동 배정 실패 orderId={} reason={}",
+                        order.getOrderId(), exception.getMessage());
+            }
+        }
+        return failedCount;
     }
 
     @Transactional
@@ -121,6 +152,8 @@ public class WarehouseFulfillmentService {
         }
 
         Map<String, Integer> reserved = reservedQuantities();
+        Map<String, Integer> sellable = sellableStockQuery
+                .sellableByWarehouseAndProductIds(needs.keySet());
         List<String> regionPreference = regionPreference(
                 order.getShippingAddress());
         boolean hasCustomerCoordinates =
@@ -130,7 +163,7 @@ public class WarehouseFulfillmentService {
                 .findAllByActiveTrueOrderByDisplayOrderAsc()
                 .stream()
                 .filter(warehouse -> hasEnoughStock(
-                        warehouse, needs, reserved))
+                        warehouse, needs, reserved, sellable))
                 .map(warehouse -> new Candidate(
                         warehouse,
                         hasCustomerCoordinates && warehouse.hasCoordinates()
@@ -168,40 +201,27 @@ public class WarehouseFulfillmentService {
     private boolean hasEnoughStock(
             Warehouse warehouse,
             Map<Long, ProductNeed> needs,
-            Map<String, Integer> reserved) {
-        return needs.values().stream().allMatch(need ->
-                allocationRepository
-                        .findByWarehouseWarehouseIdAndProductProductId(
-                                warehouse.getWarehouseId(),
-                                need.product().getProductId())
-                        .map(allocation -> {
-                            int reservedQuantity = reserved.getOrDefault(
-                                    stockKey(
-                                            warehouse.getWarehouseId(),
-                                            need.product().getProductId()),
-                                    0);
-                            return allocation.getCurrentStockQuantity()
-                                    - reservedQuantity >= need.quantity();
-                        })
-                        .orElse(false));
+            Map<String, Integer> reserved,
+            Map<String, Integer> sellable) {
+        return needs.values().stream().allMatch(need -> {
+            String key = stockKey(
+                    warehouse.getWarehouseId(), need.product().getProductId());
+            return sellable.getOrDefault(key, 0)
+                    - reserved.getOrDefault(key, 0) >= need.quantity();
+        });
     }
 
     private Map<String, Integer> reservedQuantities() {
         Map<String, Integer> reserved = new HashMap<>();
-        orderItemRepository.findByOrderStatusIn(
-                List.of(OrderStatus.PAID, OrderStatus.PREPARING))
-                .stream()
-                .filter(item ->
-                        item.getOrder().getFulfillmentWarehouse() != null)
-                .forEach(item -> reserved.merge(
-                        stockKey(
-                                item.getOrder().getFulfillmentWarehouse()
-                                        .getWarehouseId(),
-                                item.getProduct().getProductId()),
-                        item.getQuantity(),
-                        Integer::sum));
+        orderItemRepository.sumReservedQuantities(
+                        List.of(OrderStatus.PAID, OrderStatus.PREPARING))
+                .forEach(row -> reserved.put(
+                        stockKey(((Number) row[0]).longValue(),
+                                ((Number) row[1]).longValue()),
+                        ((Number) row[2]).intValue()));
         return reserved;
     }
+
 
     private void changeStock(
             CustomerOrder order,

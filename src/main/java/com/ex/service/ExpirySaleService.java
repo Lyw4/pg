@@ -30,6 +30,7 @@ public class ExpirySaleService {
     public static final int MINIMUM_SELLABLE_DAYS = 4;
 
     private final WarehouseAllocationRepository allocationRepository;
+    private final SellableStockQuery sellableStockQuery;
 
     public record SaleOffer(
             int discountRate,
@@ -87,9 +88,17 @@ public class ExpirySaleService {
         List<LotCandidate> selected = candidates.stream()
                 .filter(candidate -> candidate.discountRate() == selectedRate)
                 .toList();
+        Map<Long, Integer> sellableByLot = sellableStockQuery.sellablePerLot(
+                selected.stream()
+                        .map(candidate -> candidate.lot().getLotId())
+                        .toList());
         int saleStock = selected.stream()
-                .mapToInt(candidate -> candidate.lot().getLotQuantity())
+                .mapToInt(candidate -> Math.min(
+                        candidate.lot().getLotQuantity(),
+                        sellableByLot.getOrDefault(
+                                candidate.lot().getLotId(), 0)))
                 .sum();
+        if (saleStock <= 0) return Optional.empty();
         LotCandidate nearest = selected.stream()
                 .min(Comparator.comparing(candidate ->
                         candidate.lot().getExpirationDate()))

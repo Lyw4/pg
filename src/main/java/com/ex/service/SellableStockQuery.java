@@ -61,6 +61,50 @@ public class SellableStockQuery {
                 sellableFrom()));
     }
 
+    public Map<Long, Integer> sellablePerLot(Collection<Long> lotIds) {
+        return sellablePerLot(lotIds, null);
+    }
+
+    public Map<Long, Integer> sellablePerLot(
+            Collection<Long> lotIds,
+            Long warehouseId) {
+        Map<Long, Integer> quantities = new LinkedHashMap<>();
+        if (lotIds == null || lotIds.isEmpty()) return quantities;
+        lotIds.stream().filter(java.util.Objects::nonNull)
+                .forEach(lotId -> quantities.put(lotId, 0));
+        List<Object[]> rows = warehouseId == null
+                ? inventoryRepository.sumSellableQuantityPerLot(
+                        quantities.keySet(),
+                        WmsAllocationPolicy.ALLOCATABLE_PURPOSES,
+                        sellableFrom())
+                : inventoryRepository.sumSellableQuantityPerLotAtWarehouse(
+                        quantities.keySet(), warehouseId,
+                        WmsAllocationPolicy.ALLOCATABLE_PURPOSES,
+                        sellableFrom());
+        rows.forEach(row -> quantities.put(
+                ((Number) row[0]).longValue(), normalize(row[1])));
+        return quantities;
+    }
+
+    public Map<String, Integer> sellableByWarehouseAndProductIds(
+            Collection<Long> productIds) {
+        Map<String, Integer> quantities = new LinkedHashMap<>();
+        if (productIds == null || productIds.isEmpty()) return quantities;
+        inventoryRepository.sumSellableQuantityByWarehouseAndProductIds(
+                        productIds,
+                        WmsAllocationPolicy.ALLOCATABLE_PURPOSES,
+                        sellableFrom())
+                .forEach(row -> quantities.put(
+                        stockKey(((Number) row[0]).longValue(),
+                                ((Number) row[1]).longValue()),
+                        normalize(row[2])));
+        return quantities;
+    }
+
+    public String stockKey(Long warehouseId, Long productId) {
+        return warehouseId + ":" + productId;
+    }
+
     private LocalDate sellableFrom() {
         return LocalDate.now().plusDays(
                 ExpirySaleService.MINIMUM_SELLABLE_DAYS);

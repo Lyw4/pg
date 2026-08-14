@@ -1,6 +1,8 @@
 package com.ex.repository;
 
 import com.ex.entity.CustomerOrder;
+import com.ex.entity.ProductLot;
+import com.ex.entity.WarehouseAllocation;
 import jakarta.persistence.LockModeType;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.jpa.repository.Lock;
@@ -8,6 +10,7 @@ import org.springframework.data.jpa.repository.Lock;
 import java.lang.reflect.Method;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ConcurrencyConstraintTest {
 
@@ -35,9 +38,20 @@ class ConcurrencyConstraintTest {
         jakarta.persistence.Table table = CustomerOrder.class
                 .getAnnotation(jakarta.persistence.Table.class);
         assertNotNull(table);
-        assertEquals(2, table.indexes().length);
+        assertEquals(3, table.indexes().length);
         assertEquals("idx_customer_order_provider_tx", table.indexes()[1].name());
         assertEquals("provider_transaction_id", table.indexes()[1].columnList());
         assertEquals(true, table.indexes()[1].unique());
+        assertEquals("idx_customer_order_status", table.indexes()[2].name());
+    }
+
+    @Test
+    void lotAndWarehouseAllocationUseOptimisticVersions() throws Exception {
+        assertNotNull(ProductLot.class.getDeclaredField("version")
+                .getAnnotation(jakarta.persistence.Version.class));
+        assertNotNull(WarehouseAllocation.class.getDeclaredField("version")
+                .getAnnotation(jakarta.persistence.Version.class));
+        assertTrue(ProductLot.class.getDeclaredField("version")
+                .getAnnotation(jakarta.persistence.Column.class).nullable() == false);
     }
 }

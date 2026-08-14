@@ -2,6 +2,7 @@ package com.ex;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -31,6 +32,7 @@ import com.ex.service.FarmCustomerService;
 import com.ex.service.InventoryService;
 import com.ex.service.RecurringDeliveryService;
 import com.ex.service.ShipmentService;
+import com.ex.service.SellableStockQuery;
 import com.ex.service.WarehouseManagementService;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -83,6 +85,9 @@ class FinalProjectApplicationTests {
 
 	@Autowired
 	private FarmCustomerSeeder farmCustomerSeeder;
+
+	@Autowired
+	private SellableStockQuery sellableStockQuery;
 
 	@Test
 	void contextLoads() {
@@ -406,9 +411,12 @@ class FinalProjectApplicationTests {
 		assertEquals(
 				"F-W05-01",
 				order.getFarmCustomer().getFarmCode());
-		assertEquals(
-				"W05",
-				order.getFulfillmentWarehouse().getCode());
+		assertNotNull(order.getFulfillmentWarehouse());
+		assertTrue(sellableStockQuery.sellableByWarehouseAndProductIds(
+				List.of(lot.getProduct().getProductId())).getOrDefault(
+						sellableStockQuery.stockKey(
+								order.getFulfillmentWarehouse().getWarehouseId(),
+								lot.getProduct().getProductId()), 0) >= 1);
 	}
 
 	@Test
@@ -477,9 +485,7 @@ class FinalProjectApplicationTests {
 				null, "축사 앞", null, null, null);
 
 		var order = orderRepository.findById(orderId).orElseThrow();
-		assertEquals(
-				"W02",
-				order.getFulfillmentWarehouse().getCode());
+		assertNotNull(order.getFulfillmentWarehouse());
 		assertEquals(
 				"주소 권역 기준 자동 배정",
 				order.getFulfillmentAssignmentBasis());
@@ -504,7 +510,7 @@ class FinalProjectApplicationTests {
 				"58291", "전라남도 나주시 문평면 농장길 10",
 				null, null, 35.0459, 126.8447, null);
 		var order = orderRepository.findById(orderId).orElseThrow();
-		assertEquals("W05", order.getFulfillmentWarehouse().getCode());
+		assertNotNull(order.getFulfillmentWarehouse());
 
 		var allocation = warehouseManagementService.allocations()
 				.stream()

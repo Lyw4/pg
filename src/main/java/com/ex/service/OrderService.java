@@ -10,6 +10,7 @@ import com.ex.entity.OrderItem;
 import com.ex.entity.OrderLotAllocation;
 import com.ex.entity.Product;
 import com.ex.entity.ProductLot;
+import com.ex.entity.Warehouse;
 import com.ex.entity.PaymentStatus;
 import com.ex.repository.CustomerOrderRepository;
 import com.ex.repository.DeliveryRepository;
@@ -30,6 +31,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -101,10 +103,16 @@ public class OrderService {
             }
         }
 
+        Warehouse fulfillmentWarehouse = warehouseFulfillmentService
+                .assignNearestForProducts(
+                        order,
+                        lines.stream()
+                                .map(line -> new WarehouseFulfillmentService
+                                        .ProductRequest(
+                                                line.product(), line.quantity()))
+                                .toList());
         lines.forEach(line -> order.addItem(
-                commitInventory(order, line)));
-        warehouseFulfillmentService.assignNearest(
-                order, order.getItems());
+                commitInventory(order, line, fulfillmentWarehouse)));
         order.markInventoryCommitted();
 
         return toResponse(orderRepository.save(order));
@@ -228,7 +236,8 @@ public class OrderService {
 
     private OrderItem commitInventory(
             CustomerOrder order,
-            ResolvedLine line) {
+            ResolvedLine line,
+            Warehouse fulfillmentWarehouse) {
         List<ProductLot> lots = productLotRepository
                 .findByProductProductIdAndLotQuantityGreaterThanOrderByExpirationDateAsc(
                         line.product().getProductId(), 0)
@@ -239,9 +248,12 @@ public class OrderService {
                 .filter(lot -> line.saleLotIds().isEmpty()
                         || line.saleLotIds().contains(lot.getLotId()))
                 .toList();
-        int available = line.saleLotIds().isEmpty()
-                ? sellableStockQuery.sellable(line.product().getProductId())
-                : sellableStockQuery.sellableByLotIds(line.saleLotIds());
+        Map<Long, Integer> sellableByLot = sellableStockQuery.sellablePerLot(
+                lots.stream().map(ProductLot::getLotId).toList(),
+                fulfillmentWarehouse.getWarehouseId());
+        int available = sellableByLot.values().stream()
+                .mapToInt(Integer::intValue)
+                .sum();
         if (available < line.quantity()) {
             throw new IllegalArgumentException(
                     line.product().getName()
@@ -259,20 +271,30 @@ public class OrderService {
             if (remaining == 0) {
                 break;
             }
+            int binCapacity = sellableByLot.getOrDefault(lot.getLotId(), 0);
             int deduction = Math.min(
-                    lot.getLotQuantity(), remaining);
+                    Math.min(lot.getLotQuantity(), binCapacity), remaining);
+            if (deduction <= 0) continue;
             lot.decrease(deduction);
             line.product().changeStock(-deduction);
 			wmsStockCoordinator.outbound(
 					lot,
 					deduction,
-					null,
+					fulfillmentWarehouse,
 					"판매 홈페이지 주문 재고 확정",
 					"온라인 주문",
 					null);
             item.addLotAllocation(
                     new OrderLotAllocation(lot, deduction));
             remaining -= deduction;
+        }
+        if (remaining > 0) {
+            throw new IllegalStateException(
+                    line.product().getName()
+                            + " 판매 가능 재고가 부족합니다. 요청="
+                            + line.quantity() + ", 부족=" + remaining
+                            + " (배정 창고의 검수 전·운송 중 구역 재고는 "
+                            + "판매할 수 없습니다.)");
         }
         return item;
     }

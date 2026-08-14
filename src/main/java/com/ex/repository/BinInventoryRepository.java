@@ -55,10 +55,70 @@ public interface BinInventoryRepository
         "bin",
         "bin.warehouse"
     })
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<BinInventory>
             findByLotProductProductIdAndQuantityGreaterThanOrderByBinBinCodeAsc(
                     Long productId,
                     int quantity);
+
+    @Query("""
+            select inventory.lot.lotId, sum(inventory.quantity)
+            from BinInventory inventory
+            where inventory.lot.lotId in :lotIds
+              and inventory.quantity > 0
+              and inventory.bin.active = true
+              and inventory.bin.purpose in :purposes
+              and inventory.lot.expirationDate >= :sellableFrom
+            group by inventory.lot.lotId
+            """)
+    List<Object[]> sumSellableQuantityPerLot(
+            @Param("lotIds") Collection<Long> lotIds,
+            @Param("purposes") Collection<BinPurpose> purposes,
+            @Param("sellableFrom") LocalDate sellableFrom);
+
+    @Query("""
+            select inventory.lot.lotId, sum(inventory.quantity)
+            from BinInventory inventory
+            where inventory.lot.lotId in :lotIds
+              and inventory.bin.warehouse.warehouseId = :warehouseId
+              and inventory.quantity > 0
+              and inventory.bin.active = true
+              and inventory.bin.purpose in :purposes
+              and inventory.lot.expirationDate >= :sellableFrom
+            group by inventory.lot.lotId
+            """)
+    List<Object[]> sumSellableQuantityPerLotAtWarehouse(
+            @Param("lotIds") Collection<Long> lotIds,
+            @Param("warehouseId") Long warehouseId,
+            @Param("purposes") Collection<BinPurpose> purposes,
+            @Param("sellableFrom") LocalDate sellableFrom);
+
+    @Query("""
+            select inventory.bin.warehouse.warehouseId,
+                   inventory.lot.product.productId,
+                   sum(inventory.quantity)
+            from BinInventory inventory
+            where inventory.lot.product.productId in :productIds
+              and inventory.quantity > 0
+              and inventory.bin.active = true
+              and inventory.bin.purpose in :purposes
+              and inventory.lot.expirationDate >= :sellableFrom
+            group by inventory.bin.warehouse.warehouseId,
+                     inventory.lot.product.productId
+            """)
+    List<Object[]> sumSellableQuantityByWarehouseAndProductIds(
+            @Param("productIds") Collection<Long> productIds,
+            @Param("purposes") Collection<BinPurpose> purposes,
+            @Param("sellableFrom") LocalDate sellableFrom);
+
+    @Query("""
+            select inventory.bin.binId, sum(inventory.quantity)
+            from BinInventory inventory
+            where inventory.bin.binId in :binIds
+            group by inventory.bin.binId
+            """)
+    List<Object[]> sumQuantityByBinIds(
+            @Param("binIds") Collection<Long> binIds);
 
     @Query("""
             select sum(inventory.quantity)

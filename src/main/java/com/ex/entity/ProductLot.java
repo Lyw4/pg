@@ -10,6 +10,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+import jakarta.persistence.Column;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -24,6 +26,10 @@ public class ProductLot {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long lotId;
+
+	@Version
+	@Column(nullable = false)
+	private long version;
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "product_id")

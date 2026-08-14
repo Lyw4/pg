@@ -11,6 +11,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import lombok.extern.slf4j.Slf4j;
 
 import com.ex.entity.CustomerOrder;
 import com.ex.entity.Manufacturer;
@@ -33,6 +34,7 @@ import com.ex.service.WarehousePlanSeeder;
 import com.ex.service.WarehouseRecurringDeliverySeeder;
 
 @Configuration
+@Slf4j
 public class DataInitializer {
 
     /*
@@ -716,7 +718,11 @@ public class DataInitializer {
                         lot.getProduct().getPrice()));
             }
 
-            warehouseFulfillmentService.assignUnassignedOrders();
+            int failedAssignments = warehouseFulfillmentService
+                    .assignUnassignedOrders();
+            if (failedAssignments > 0) {
+                log.warn("기존 주문 창고 자동 배정 실패 {}건", failedAssignments);
+            }
         };
     }
 

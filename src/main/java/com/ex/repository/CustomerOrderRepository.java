@@ -20,6 +20,11 @@ public interface CustomerOrderRepository extends JpaRepository<CustomerOrder, Lo
 
 	Optional<CustomerOrder> findByOrderNumber(String orderNumber);
 
+	@EntityGraph(attributePaths = "member")
+	@Query("select o from CustomerOrder o where o.orderNumber = :orderNumber")
+	Optional<CustomerOrder> findPaymentOrderByOrderNumber(
+			@Param("orderNumber") String orderNumber);
+
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select o from CustomerOrder o where o.orderNumber = :orderNumber")
 	Optional<CustomerOrder> findByOrderNumberForUpdate(@Param("orderNumber") String orderNumber);

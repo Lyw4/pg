@@ -9,9 +9,6 @@ import com.ex.repository.CustomerOrderRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +20,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.util.UriUtils;
 
 @Slf4j
@@ -33,24 +31,30 @@ public class PaymentService {
     private static final String PAYMENT_URL = "https://api.iamport.kr/payments/";
     private static final String CANCEL_URL = "https://api.iamport.kr/payments/cancel";
     private static final String VIRTUAL_ACCOUNT_URL = "https://api.iamport.kr/vbanks/";
-    private static final DateTimeFormatter VBANK_DATE_FORMAT =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-                    .withZone(ZoneId.of("Asia/Seoul"));
 
     private final RestClient restClient;
     private final PaymentProperties properties;
     private final CustomerOrderRepository orderRepository;
     private final OrderService orderService;
+    private final PaymentApplyService paymentApplyService;
 
     public PaymentService(
             RestClient.Builder restClientBuilder,
             PaymentProperties properties,
             CustomerOrderRepository orderRepository,
-            OrderService orderService) {
-        this.restClient = restClientBuilder.build();
+            OrderService orderService,
+            PaymentApplyService paymentApplyService) {
+        SimpleClientHttpRequestFactory requestFactory =
+                new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(3_000);
+        requestFactory.setReadTimeout(5_000);
+        this.restClient = restClientBuilder
+                .requestFactory(requestFactory)
+                .build();
         this.properties = properties;
         this.orderRepository = orderRepository;
         this.orderService = orderService;
+        this.paymentApplyService = paymentApplyService;
     }
 
     public PaymentConfigResponse paymentConfig(Long memberId) {
@@ -88,7 +92,6 @@ public class PaymentService {
         }
     }
 
-    @Transactional
     public OrderResponse completePortOne(
             String impUid,
             String merchantUid,
@@ -96,23 +99,29 @@ public class PaymentService {
             Long memberId) {
         CustomerOrder order = requireMemberOrder(merchantUid, memberId);
         requireCallbackToken(order, paymentToken);
-        return verifyAndApply(order, impUid);
+        requireConfiguration();
+        JsonNode payment = getPayment(accessToken(), impUid, merchantUid);
+        return paymentApplyService.applyForMember(
+                merchantUid, paymentToken, memberId, impUid, payment);
     }
 
-    @Transactional
     public OrderResponse completePortOneByCallback(
             String impUid,
             String merchantUid,
             String paymentToken) {
         CustomerOrder order = requireCallbackOrder(merchantUid, paymentToken);
-        return verifyAndApply(order, impUid);
+        requireConfiguration();
+        JsonNode payment = getPayment(accessToken(), impUid, merchantUid);
+        return paymentApplyService.applyForCallback(
+                merchantUid, paymentToken, impUid, payment);
     }
 
-    @Transactional
     public OrderResponse reconcilePortOne(String orderNumber, Long memberId) {
         CustomerOrder order = requireMemberOrder(orderNumber, memberId);
         JsonNode payment = findPaymentByMerchantUid(accessToken(), orderNumber);
-        return applyVerified(order, requiredText(payment, "imp_uid", "결제번호"), payment);
+        return paymentApplyService.applyForMember(
+                orderNumber, order.getPaymentCallbackToken(), memberId,
+                requiredText(payment, "imp_uid", "결제번호"), payment);
     }
 
     @Transactional
@@ -127,19 +136,17 @@ public class PaymentService {
         failUnstarted(requireCallbackOrder(orderNumber, token));
     }
 
-    @Transactional
     public void handlePortOneWebhook(JsonNode payload) {
         String impUid = payload.path("imp_uid").asText("");
         String merchantUid = payload.path("merchant_uid").asText("");
         if (!StringUtils.hasText(impUid) || !StringUtils.hasText(merchantUid)) {
             throw new IllegalArgumentException("포트원 웹훅에 결제번호 또는 주문번호가 없습니다.");
         }
-        CustomerOrder order = orderRepository.findByOrderNumber(merchantUid)
-                .orElseThrow(() -> new IllegalArgumentException("웹훅 주문을 찾을 수 없습니다."));
-        verifyAndApply(order, impUid);
+        requireConfiguration();
+        JsonNode payment = getPayment(accessToken(), impUid, merchantUid);
+        paymentApplyService.applyForWebhook(merchantUid, impUid, payment);
     }
 
-    @Transactional
     public OrderResponse cancelOrder(String orderNumber, Long memberId) {
         CustomerOrder order = requireMemberOrder(orderNumber, memberId);
         if (order.getStatus() == CustomerOrder.OrderStatus.CANCELLED) {
@@ -163,68 +170,9 @@ public class PaymentService {
             }
         }
 
-        order.cancelPayment();
-        orderService.releasePaymentReservation(order, "회원 마이페이지 주문 취소");
-        return OrderResponse.from(order);
+        return paymentApplyService.cancelForMember(orderNumber, memberId);
     }
 
-    private OrderResponse verifyAndApply(CustomerOrder order, String impUid) {
-        requireConfiguration();
-        JsonNode payment = getPayment(accessToken(), impUid, order.getOrderNumber());
-        return applyVerified(order, impUid, payment);
-    }
-
-    private OrderResponse applyVerified(
-            CustomerOrder order,
-            String requestedImpUid,
-            JsonNode payment) {
-        String verifiedImpUid = requiredText(payment, "imp_uid", "결제번호");
-        String merchantUid = requiredText(payment, "merchant_uid", "주문번호");
-        int paidAmount = payment.path("amount").asInt(-1);
-        int expectedAmount = order.getFinalPrice().intValueExact();
-        if (!secureEquals(requestedImpUid, verifiedImpUid)
-                || !secureEquals(order.getOrderNumber(), merchantUid)) {
-            throw new IllegalArgumentException("포트원 결제 식별값이 주문과 일치하지 않습니다.");
-        }
-        if (paidAmount != expectedAmount) {
-            throw new IllegalArgumentException("포트원 결제 금액이 주문 금액과 일치하지 않습니다.");
-        }
-        CustomerOrder transactionOwner = orderRepository
-                .findByProviderTransactionId(verifiedImpUid)
-                .orElse(null);
-        if (transactionOwner != null
-                && !transactionOwner.getOrderId().equals(order.getOrderId())) {
-            throw new IllegalArgumentException("이미 다른 주문에 반영된 결제 거래번호입니다.");
-        }
-        if (order.getPaymentStatus() == PaymentStatus.DONE) {
-            if (!secureEquals(order.getProviderTransactionId(), verifiedImpUid)) {
-                throw new IllegalArgumentException("이미 다른 결제번호로 완료된 주문입니다.");
-            }
-            return OrderResponse.from(order);
-        }
-
-        switch (payment.path("status").asText("")) {
-            case "paid" -> order.completePayment(
-                    verifiedImpUid,
-                    payment.path("receipt_url").asText(null));
-            case "ready" -> order.waitForDeposit(
-                    verifiedImpUid,
-                    payment.path("vbank_name").asText(null),
-                    payment.path("vbank_num").asText(null),
-                    formatVbankDate(payment.path("vbank_date").asLong(0)));
-            case "failed" -> {
-                order.failPayment();
-                orderService.releasePaymentReservation(order, "결제 실패");
-            }
-            case "cancelled", "canceled" -> {
-                order.cancelPayment();
-                orderService.releasePaymentReservation(order, "결제 취소");
-            }
-            default -> throw new IllegalArgumentException(
-                    "아직 완료되지 않은 포트원 결제 상태입니다.");
-        }
-        return OrderResponse.from(order);
-    }
 
     private void failUnstarted(CustomerOrder order) {
         if (StringUtils.hasText(order.getProviderTransactionId())
@@ -253,7 +201,7 @@ public class PaymentService {
 
     private CustomerOrder requireOrder(String orderNumber) {
         // 결제 콜백·복구·취소가 동시에 들어와도 한 트랜잭션만 상태를 변경하도록 잠급니다.
-        return orderRepository.findByOrderNumberForUpdate(orderNumber)
+        return orderRepository.findPaymentOrderByOrderNumber(orderNumber)
                 .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
     }
 
@@ -357,7 +305,7 @@ public class PaymentService {
         body.put("reason", reason);
         JsonNode wrapper = restClient.post()
                 .uri(CANCEL_URL)
-                .header(HttpHeaders.AUTHORIZATION, accessToken())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken())
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
@@ -369,7 +317,7 @@ public class PaymentService {
         String encodedImpUid = UriUtils.encodePathSegment(impUid, StandardCharsets.UTF_8);
         JsonNode wrapper = restClient.delete()
                 .uri(VIRTUAL_ACCOUNT_URL + encodedImpUid)
-                .header(HttpHeaders.AUTHORIZATION, accessToken())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken())
                 .retrieve()
                 .body(JsonNode.class);
         responseNode(wrapper);
@@ -393,10 +341,6 @@ public class PaymentService {
             throw new IllegalArgumentException("포트원 " + label + "가 없습니다.");
         }
         return value;
-    }
-
-    private String formatVbankDate(long epochSecond) {
-        return epochSecond <= 0 ? null : VBANK_DATE_FORMAT.format(Instant.ofEpochSecond(epochSecond));
     }
 
     private void requireConfiguration() {

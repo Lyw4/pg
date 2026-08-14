@@ -1,7 +1,9 @@
 package com.ex.service;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +16,7 @@ import com.ex.entity.Warehouse;
 import com.ex.entity.WarehouseBin;
 import com.ex.entity.WarehouseStockMovement;
 import com.ex.repository.BinInventoryRepository;
+import com.ex.repository.ProductLotRepository;
 import com.ex.repository.WarehouseBinRepository;
 import com.ex.repository.WarehouseStockMovementRepository;
 
@@ -27,9 +30,15 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class WmsStockCoordinator {
 
+    private static final List<BinPurpose> INBOUND_TARGETS =
+            List.of(BinPurpose.STORAGE, BinPurpose.RECEIVING);
+    private static final List<BinPurpose> RETURN_TARGETS =
+            List.of(BinPurpose.RECEIVING, BinPurpose.INSPECTION);
+
     private final WarehouseBinRepository binRepository;
     private final BinInventoryRepository inventoryRepository;
     private final WarehouseStockMovementRepository movementRepository;
+    private final ProductLotRepository lotRepository;
 
     @Transactional
     public void inbound(
@@ -45,7 +54,8 @@ public class WmsStockCoordinator {
                 MovementType.INBOUND,
                 memo,
                 operatorName,
-                null);
+                null,
+                INBOUND_TARGETS);
     }
 
     @Transactional
@@ -63,7 +73,8 @@ public class WmsStockCoordinator {
                 MovementType.CANCEL_RESTORE,
                 memo,
                 operatorName,
-                orderId);
+                orderId,
+                RETURN_TARGETS);
     }
 
     @Transactional
@@ -81,7 +92,8 @@ public class WmsStockCoordinator {
                     MovementType.ADJUSTMENT,
                     memo,
                     operatorName,
-                    null);
+                    null,
+                    INBOUND_TARGETS);
         } else if (changedQuantity < 0) {
             subtract(
                     lot,
@@ -127,6 +139,10 @@ public class WmsStockCoordinator {
                 destinationWarehouse.getWarehouseId())) {
             throw new IllegalArgumentException("서로 다른 센터를 선택해 주세요.");
         }
+        // 잠금 순서는 ProductLot → BinInventory 순서로 고정한다.
+        lotRepository
+                .findByProductProductIdAndLotQuantityGreaterThanOrderByExpirationDateAsc(
+                        productId, 0);
         List<BinInventory> sources = inventoryRepository
                 .findByLotProductProductIdAndQuantityGreaterThanOrderByBinBinCodeAsc(
                         productId, 0).stream()
@@ -146,11 +162,11 @@ public class WmsStockCoordinator {
                 .filter(bin -> bin.getPurpose() == BinPurpose.STORAGE
                         || bin.getPurpose() == BinPurpose.RECEIVING)
                 .toList();
-        int capacity = targets.stream().mapToInt(bin -> {
-            int current = inventoryRepository.findByBinBinId(bin.getBinId())
-                    .stream().mapToInt(BinInventory::getQuantity).sum();
-            return Math.max(0, bin.getEffectiveMaxCapacity() - current);
-        }).sum();
+        Map<Long, Integer> targetQuantities = quantitiesByBin(targets);
+        int capacity = targets.stream().mapToInt(bin -> Math.max(
+                0, bin.getEffectiveMaxCapacity()
+                        - targetQuantities.getOrDefault(bin.getBinId(), 0)))
+                .sum();
         if (capacity < quantity) {
             throw new IllegalStateException(
                     destinationWarehouse.getName() + "의 입고 가능 공간이 부족합니다.");
@@ -161,12 +177,14 @@ public class WmsStockCoordinator {
             int sourceRemaining = Math.min(remaining, source.getQuantity());
             while (sourceRemaining > 0) {
                 WarehouseBin target = targets.stream()
-                        .filter(bin -> canAccept(bin, 1))
+                        .filter(bin -> canAccept(
+                                bin,
+                                targetQuantities.getOrDefault(bin.getBinId(), 0),
+                                1))
                         .findFirst()
                         .orElseThrow(() -> new IllegalStateException(
                                 "이동 중 대상 센터의 구역 용량이 부족해졌습니다."));
-                int current = inventoryRepository.findByBinBinId(target.getBinId())
-                        .stream().mapToInt(BinInventory::getQuantity).sum();
+                int current = targetQuantities.getOrDefault(target.getBinId(), 0);
                 int movable = Math.min(sourceRemaining,
                         target.getEffectiveMaxCapacity() - current);
                 source.subtract(movable);
@@ -176,6 +194,7 @@ public class WmsStockCoordinator {
                         .orElseGet(() -> inventoryRepository.save(
                                 new BinInventory(source.getLot(), target, 0)));
                 destination.add(movable);
+                targetQuantities.put(target.getBinId(), current + movable);
                 String memo = sourceWarehouse.getName() + " → "
                         + destinationWarehouse.getName() + " 자동 재고 이동";
                 movementRepository.save(new WarehouseStockMovement(
@@ -200,7 +219,8 @@ public class WmsStockCoordinator {
             MovementType type,
             String memo,
             String operatorName,
-            Long orderId) {
+            Long orderId,
+            List<BinPurpose> allowedPurposes) {
         if (quantity <= 0) {
             return;
         }
@@ -208,9 +228,10 @@ public class WmsStockCoordinator {
                 .findAllByOrderByWarehouseDisplayOrderAscBinCodeAsc()
                 .stream()
                 .filter(WarehouseBin::isActive)
-                .filter(bin -> bin.getPurpose() == BinPurpose.STORAGE
-                        || bin.getPurpose() == BinPurpose.RECEIVING)
-                .sorted(preferredFirst(preferredWarehouse))
+                .filter(bin -> allowedPurposes.contains(bin.getPurpose()))
+                .filter(bin -> preferredWarehouse == null
+                        || isPreferred(bin, preferredWarehouse))
+                .sorted(preferredFirst(preferredWarehouse, allowedPurposes))
                 .toList();
         if (bins.isEmpty()) {
             throw new IllegalStateException(
@@ -219,10 +240,18 @@ public class WmsStockCoordinator {
                             + " (활성 보관 또는 입고 대기 구역을 확보하세요.)");
         }
 
-        WarehouseBin target = existingLocation(lot, preferredWarehouse)
-                .filter(bin -> canAccept(bin, quantity))
+        Map<Long, Integer> binQuantities = quantitiesByBin(bins);
+        WarehouseBin target = existingLocation(
+                        lot, preferredWarehouse, allowedPurposes)
+                .filter(bin -> canAccept(
+                        bin,
+                        binQuantities.getOrDefault(bin.getBinId(), 0),
+                        quantity))
                 .orElseGet(() -> bins.stream()
-                        .filter(bin -> canAccept(bin, quantity))
+                        .filter(bin -> canAccept(
+                                bin,
+                                binQuantities.getOrDefault(bin.getBinId(), 0),
+                                quantity))
                         .findFirst()
                         .orElse(null));
         if (target == null) {
@@ -266,6 +295,8 @@ public class WmsStockCoordinator {
                 .stream()
                 .filter(inventory -> WmsAllocationPolicy
                         .isAllocatable(inventory.getBin()))
+                .filter(inventory -> preferredWarehouse == null
+                        || isPreferred(inventory.getBin(), preferredWarehouse))
                 .sorted(Comparator
                         .comparingInt((BinInventory inventory) ->
                                 isPreferred(inventory.getBin(), preferredWarehouse)
@@ -308,23 +339,24 @@ public class WmsStockCoordinator {
 
     private java.util.Optional<WarehouseBin> existingLocation(
             ProductLot lot,
-            Warehouse preferredWarehouse) {
+            Warehouse preferredWarehouse,
+            List<BinPurpose> allowedPurposes) {
         return inventoryRepository
                 .findByLotLotIdAndQuantityGreaterThanOrderByBinBinCodeAsc(
                         lot.getLotId(), 0)
                 .stream()
                 .filter(inventory -> inventory.getBin().isActive())
-                .filter(inventory -> inventory.getBin().getPurpose()
-                        != BinPurpose.IN_TRANSIT)
-                .filter(inventory -> inventory.getBin().getPurpose()
-                        != BinPurpose.INSPECTION)
+                .filter(inventory -> allowedPurposes.contains(
+                        inventory.getBin().getPurpose()))
+                .filter(inventory -> preferredWarehouse == null
+                        || isPreferred(inventory.getBin(), preferredWarehouse))
                 .sorted(Comparator
                         .comparingInt((BinInventory inventory) ->
                                 isPreferred(inventory.getBin(), preferredWarehouse)
                                         ? 0 : 1)
-                        .thenComparingInt(inventory ->
-                                inventory.getBin().getPurpose()
-                                        == BinPurpose.STORAGE ? 0 : 1)
+                        .thenComparingInt(inventory -> purposeRank(
+                                inventory.getBin().getPurpose(),
+                                allowedPurposes))
                         .thenComparing(inventory -> inventory.getBin()
                                 .getBinCode()))
                 .map(BinInventory::getBin)
@@ -332,12 +364,13 @@ public class WmsStockCoordinator {
     }
 
     private Comparator<WarehouseBin> preferredFirst(
-            Warehouse preferredWarehouse) {
+            Warehouse preferredWarehouse,
+            List<BinPurpose> allowedPurposes) {
         return Comparator
                 .comparingInt((WarehouseBin bin) ->
                         isPreferred(bin, preferredWarehouse) ? 0 : 1)
-                .thenComparingInt(bin ->
-                        bin.getPurpose() == BinPurpose.STORAGE ? 0 : 1)
+                .thenComparingInt(bin -> purposeRank(
+                        bin.getPurpose(), allowedPurposes))
                 .thenComparing(bin ->
                         bin.getWarehouse().getDisplayOrder())
                 .thenComparing(WarehouseBin::getBinCode);
@@ -351,11 +384,28 @@ public class WmsStockCoordinator {
                         .equals(warehouse.getWarehouseId());
     }
 
-    private boolean canAccept(WarehouseBin bin, int quantity) {
-        int current = inventoryRepository.findByBinBinId(bin.getBinId())
-                .stream()
-                .mapToInt(BinInventory::getQuantity)
-                .sum();
+    private int purposeRank(
+            BinPurpose purpose,
+            List<BinPurpose> allowedPurposes) {
+        int index = allowedPurposes.indexOf(purpose);
+        return index < 0 ? Integer.MAX_VALUE : index;
+    }
+
+    private Map<Long, Integer> quantitiesByBin(List<WarehouseBin> bins) {
+        Map<Long, Integer> quantities = new HashMap<>();
+        if (bins.isEmpty()) return quantities;
+        inventoryRepository.sumQuantityByBinIds(
+                        bins.stream().map(WarehouseBin::getBinId).toList())
+                .forEach(row -> quantities.put(
+                        ((Number) row[0]).longValue(),
+                        ((Number) row[1]).intValue()));
+        return quantities;
+    }
+
+    private boolean canAccept(
+            WarehouseBin bin,
+            int current,
+            int quantity) {
         return bin.canAccept(current, quantity);
     }
 }
