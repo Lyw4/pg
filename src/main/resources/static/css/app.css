@@ -3892,7 +3892,8 @@ button.distribution-kpi.active {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
-    padding: 0 24px 19px;
+    padding: 16px 24px 19px;
+    border-top: 1px solid #edf2ef;
 }
 
 .farm-customer-overview article {
@@ -4049,6 +4050,43 @@ button.distribution-kpi.active {
 
 .farm-customer-table-wrap {
     overflow-x: auto;
+}
+
+.farm-customer-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 18px 0 4px;
+}
+
+.farm-customer-pagination[hidden] {
+    display: none;
+}
+
+.farm-customer-pagination button {
+    min-width: 36px;
+    height: 34px;
+    padding: 0 11px;
+    border: 1px solid #d5dfd9;
+    border-radius: 7px;
+    background: #fff;
+    color: #40534a;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.farm-customer-pagination button:hover:not(:disabled),
+.farm-customer-pagination button.active {
+    border-color: #1f7a50;
+    background: #1f7a50;
+    color: #fff;
+}
+
+.farm-customer-pagination button:disabled {
+    opacity: .4;
+    cursor: not-allowed;
 }
 
 #farmCustomerTable {
@@ -4260,7 +4298,7 @@ button.distribution-kpi.active {
 
     .farm-customer-overview {
         grid-template-columns: 1fr;
-        padding: 0 14px 14px;
+        padding: 12px 14px 14px;
     }
 
     .farm-warehouse-selector {
@@ -5337,10 +5375,11 @@ button.distribution-kpi.active {
 .defect-stale-alert { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; padding:13px 16px; border:1px solid #efb3b6; border-radius:10px; background:#fff2f2; color:#8c2429; }
 .defect-stale-alert span { padding-left:8px; border-left:1px solid #efb3b6; font-size:12px; }
 .defect-stat-columns { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+.defect-stat-panel .defect-stat-columns { margin:14px 16px 16px; }
 .defect-stat-columns>div { padding:14px; border:1px solid #e2e7e4; border-radius:10px; background:#f8faf9; }
 .defect-stat-columns h3 { margin:0 0 10px; font-size:14px; }
 .defect-stat-columns p { display:flex; justify-content:space-between; gap:8px; margin:7px 0; font-size:12px; }
-.defect-filter-bar { display:grid; grid-template-columns:minmax(220px,1fr) 150px 150px auto; gap:8px; align-items:center; margin-bottom:12px; }
+.defect-filter-bar { display:grid; grid-template-columns:minmax(220px,1fr) 150px 150px auto; gap:8px; align-items:center; margin:14px 16px 12px; }
 .defect-filter-bar input,.defect-filter-bar select { min-height:38px; padding:7px 10px; border:1px solid #ccd5d0; border-radius:8px; background:#fff; }
 @media(max-width:800px){.defect-analytics-grid{grid-template-columns:repeat(2,1fr)}.defect-stat-columns{grid-template-columns:1fr}.defect-filter-bar{grid-template-columns:1fr}}
 .delivery-api-sync-box {

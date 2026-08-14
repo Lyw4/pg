@@ -10,7 +10,18 @@
 </head>
 <body class="farm-analysis-body">
 <header class="farm-analysis-header">
-    <a class="brand" href="/"><span class="brand-logo"><img th:src="@{/images/feedflow-logo.png}" alt="FEED FLOW"></span></a>
+    <a class="brand farm-analysis-brand"
+       th:href="@{/}"
+       href="/"
+       aria-label="FEED FLOW 판매 페이지로 이동"
+       title="판매 페이지로 이동">
+        <span class="brand-logo">
+            <img th:src="@{/images/feedflow-logo.png}"
+                 src="/images/feedflow-logo.png"
+                 alt="FEED FLOW">
+        </span>
+        <span class="sr-only">FEED FLOW 판매 페이지</span>
+    </a>
     <nav><a href="/">상품 둘러보기</a><a href="/mypage">마이페이지</a><a class="active" href="/mypage/farm-model">추천 상세분석</a></nav>
 </header>
 

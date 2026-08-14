@@ -1,0 +1,33 @@
+/*
+ * 기존 app.js의 유통 탭 전환 코드에 아래 항목을 합칩니다.
+ * frontend/farmCustomer.js는 검색·필터 전용이므로 이 패널 전환 처리는
+ * 원래 프로젝트의 selectDeliveryView(...) 함수가 담당합니다.
+ */
+
+// 패널 선언부
+const farmCustomerPanel = document.querySelector(
+    '[data-delivery-panel="farms"]'
+);
+
+// selectDeliveryView(view) 안
+const isFarmCustomers = view === "farms";
+
+if (farmCustomerPanel) {
+    farmCustomerPanel.hidden = !isFarmCustomers;
+}
+
+/*
+ * 배송 추적 패널처럼 다른 기본 패널을 숨기는 조건에도
+ * isFarmCustomers를 추가합니다.
+ */
+deliveryTrackingPanel.hidden =
+    isReady || isCancelledOrders || isFarmCustomers;
+
+/*
+ * URL의 ?view=farms 값을 초기 탭으로 처리하는 기존 코드가 없다면:
+ */
+const requestedDeliveryView =
+    new URLSearchParams(window.location.search).get("view");
+if (requestedDeliveryView === "farms") {
+    selectDeliveryView("farms");
+}

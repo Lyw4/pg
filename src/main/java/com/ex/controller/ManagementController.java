@@ -121,7 +121,7 @@ public class ManagementController {
          * 오늘부터 한 달 뒤 날짜
          */
         LocalDate expirationLimit =
-                today.plusMonths(1);
+                today.plusDays(30);
 
         /*
          * 전체 LOT 목록
@@ -143,8 +143,8 @@ public class ManagementController {
                     .filter(lot ->
                             lot.getLotQuantity() > 0)
                     .filter(lot ->
-                            !lot.getExpirationDate()
-                                .isAfter(expirationLimit))
+                            lot.getExpirationDate() != null
+                            && lot.getExpirationDate().isBefore(today))
                     .map(lot ->
                             new ExpiringLotView(
                                     lot,
@@ -202,8 +202,9 @@ public class ManagementController {
                 .filter(lot -> lot.getExpirationDate().isBefore(today))
                 .count();
         long expiringSoonLotCount = activeLots.stream()
+                .filter(lot -> lot.getExpirationDate() != null)
                 .filter(lot -> !lot.getExpirationDate().isBefore(today))
-                .filter(lot -> !lot.getExpirationDate().isAfter(today.plusDays(30)))
+                .filter(lot -> !lot.getExpirationDate().isAfter(expirationLimit))
                 .count();
         long unlocatedLotCount = activeLots.stream()
                 .filter(lot -> lot.getWarehouseLocation() == null

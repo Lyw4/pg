@@ -332,6 +332,105 @@ body {
     font-size: .95rem;
 }
 
+.wms-table-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .35rem;
+    padding: .9rem 1rem;
+    border-top: 1px solid #e7ece9;
+    background: #fff;
+}
+
+.wms-location-inventory-filters {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: .4rem;
+    padding: .75rem 1rem;
+    border-top: 1px solid #eef2ef;
+    border-bottom: 1px solid #e7ece9;
+    background: #f8faf9;
+}
+
+.wms-location-inventory-filters button {
+    min-height: 34px;
+    padding: .35rem .45rem;
+    overflow: hidden;
+    border: 1px solid #d4ddd8;
+    border-radius: .45rem;
+    background: #fff;
+    color: #53655c;
+    font-size: .74rem;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wms-location-inventory-filters button:hover,
+.wms-location-inventory-filters button.active {
+    border-color: #258057;
+    background: #258057;
+    color: #fff;
+}
+
+.wms-movement-search {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    margin: .9rem 1rem;
+    padding: 0 .85rem;
+    border: 1px solid #d5ded9;
+    border-radius: .55rem;
+    background: #fff;
+    color: #6c7d74;
+}
+
+.wms-movement-search input {
+    width: 100%;
+    min-height: 42px;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #233b30;
+    font-size: .86rem;
+}
+
+.wms-selectable-row { cursor: pointer; }
+.wms-selectable-row:hover { background: #f1faf5 !important; }
+
+@media (max-width: 768px) {
+    .wms-location-inventory-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.wms-table-pagination[hidden] { display: none; }
+
+.wms-table-pagination button {
+    min-width: 34px;
+    height: 32px;
+    padding: 0 .65rem;
+    border: 1px solid #d4ddd8;
+    border-radius: .4rem;
+    background: #fff;
+    color: #41564c;
+    font-size: .78rem;
+    font-weight: 700;
+}
+
+.wms-table-pagination button:hover:not(:disabled),
+.wms-table-pagination button.active {
+    border-color: #258057;
+    background: #258057;
+    color: #fff;
+}
+
+.wms-table-pagination button:disabled {
+    opacity: .42;
+    cursor: not-allowed;
+}
+
 .wms-center-tabs {
     display: flex;
     flex-wrap: wrap;

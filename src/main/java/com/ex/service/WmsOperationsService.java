@@ -28,6 +28,7 @@ import com.ex.entity.WarehouseAllocation;
 import com.ex.entity.WarehouseBin;
 import com.ex.entity.WarehouseStockMovement;
 import com.ex.repository.BinInventoryRepository;
+import com.ex.repository.CustomerOrderRepository;
 import com.ex.repository.ProductLotRepository;
 import com.ex.repository.ProductRepository;
 import com.ex.repository.StockLogRepository;
@@ -43,6 +44,8 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class WmsOperationsService {
 
+    private static final int AUTO_BIN_CAPACITY_PER_CELL = 500;
+
     public record Overview(
             int warehouseCount,
             int binCount,
@@ -50,6 +53,11 @@ public class WmsOperationsService {
             int physicalStock,
             long expiringLotCount,
             long inconsistentProductCount) {
+    }
+
+    public List<WarehouseAllocation> warehouseAllocations() {
+        return allocationRepository
+                .findAllByOrderByWarehouseDisplayOrderAscProductAnimalTypeAscProductNameAsc();
     }
 
     public record ConsistencyRow(
@@ -350,6 +358,7 @@ public class WmsOperationsService {
     private final ProductLotRepository lotRepository;
     private final WarehouseAllocationRepository allocationRepository;
     private final StockLogRepository stockLogRepository;
+    private final CustomerOrderRepository customerOrderRepository;
     private final BarcodeService barcodeService;
 
     public List<Warehouse> warehouses() {
@@ -443,6 +452,27 @@ public class WmsOperationsService {
 
     public List<WarehouseStockMovement> movements() {
         return movementRepository.findTop200ByOrderByCreatedAtDesc();
+    }
+
+    public Map<Long, String> movementBuyerNames(
+            List<WarehouseStockMovement> movements) {
+        List<Long> orderIds = movements.stream()
+                .map(WarehouseStockMovement::getOrderId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        if (orderIds.isEmpty()) {
+            return Map.of();
+        }
+        return customerOrderRepository.findAllById(orderIds).stream()
+                .collect(Collectors.toMap(
+                        order -> order.getOrderId(),
+                        order -> order.getCustomerName() == null
+                                || order.getCustomerName().isBlank()
+                                        ? "구매자 미등록"
+                                        : order.getCustomerName(),
+                        (left, right) -> left,
+                        LinkedHashMap::new));
     }
 
     public Map<Long, Integer> binQuantities() {
@@ -934,6 +964,80 @@ public class WmsOperationsService {
     }
 
     @Transactional
+    public WarehouseBin createAutomaticProductBin(
+            Long warehouseId,
+            Long productId,
+            int plannedQuantity,
+            String memo) {
+        if (plannedQuantity < 1) {
+            throw new IllegalArgumentException("보관 예정 수량은 1포 이상 입력해 주세요.");
+        }
+        Warehouse warehouse = requiredWarehouse(warehouseId);
+        WarehouseAllocation allocation = allocationRepository
+                .findByWarehouseWarehouseIdAndProductProductId(
+                        warehouseId, productId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "선택한 창고에서 취급 중인 상품만 구역에 배정할 수 있습니다."));
+        Product product = allocation.getProduct();
+        String zone = zoneCodeFor(product.getAnimalType());
+        String binCode = nextAutomaticBinCode(warehouse, zone);
+
+        int requiredCells = Math.max(1, (int) Math.ceil(
+                plannedQuantity / (double) AUTO_BIN_CAPACITY_PER_CELL));
+        int width = Math.min(26, (int) Math.ceil(Math.sqrt(requiredCells)));
+        int height = (int) Math.ceil(requiredCells / (double) width);
+        int[] layout;
+        try {
+            layout = findAvailableLayout(warehouseId, width, height);
+        } catch (IllegalStateException exception) {
+            if (width == height) {
+                throw exception;
+            }
+            layout = findAvailableLayout(warehouseId, height, width);
+            int originalWidth = width;
+            width = height;
+            height = originalWidth;
+        }
+
+        int floorCapacity = (int) Math.ceil(
+                plannedQuantity / (double) WarehouseBin.VERTICAL_STACKING_LEVELS);
+        String productMemo = "취급 상품: " + product.getName()
+                + " · 계획 수량: " + plannedQuantity + "포"
+                + (memo == null || memo.isBlank() ? "" : " · " + memo.trim());
+        return binRepository.save(new WarehouseBin(
+                warehouse,
+                binCode,
+                zone,
+                BinPurpose.STORAGE,
+                layout[0],
+                layout[1],
+                width,
+                height,
+                floorCapacity,
+                productMemo));
+    }
+
+    private String zoneCodeFor(String animalType) {
+        return switch (animalType == null ? "" : animalType.trim()) {
+            case "소" -> "CT";
+            case "돼지" -> "PG";
+            case "조류", "조류(닭/오리)" -> "PL";
+            default -> "ST";
+        };
+    }
+
+    private String nextAutomaticBinCode(Warehouse warehouse, String zone) {
+        String prefix = warehouse.getCode() + "-" + zone + "-";
+        int sequence = 1;
+        while (binRepository.findByWarehouseWarehouseIdAndBinCode(
+                warehouse.getWarehouseId(),
+                prefix + String.format("%02d", sequence)).isPresent()) {
+            sequence++;
+        }
+        return prefix + String.format("%02d", sequence);
+    }
+
+    @Transactional
     public void deleteBin(Long binId) {
         WarehouseBin bin = requiredBin(binId);
         if (bin.getPurpose().isSystemManaged()) {
@@ -1076,6 +1180,11 @@ public class WmsOperationsService {
             List<String> binCodes) {
     }
 
+    public Long recommendedDemandProductId(Long warehouseId, String animalType) {
+        return selectDemandLot(warehouseId, animalType, LocalDate.now())
+                .getProduct().getProductId();
+    }
+
     /** 수요 부족분을 기존 LOT와 여유 구역에 자동 분할 입고한다. */
     @Transactional
     public DemandInboundResult receiveDemandReplenishment(
@@ -1090,22 +1199,7 @@ public class WmsOperationsService {
         String normalizedAnimal = normalizeDemandAnimal(animalType);
         LocalDate today = LocalDate.now();
 
-        ProductLot lot = lots().stream()
-                .filter(candidate -> candidate.getExpirationDate() == null
-                        || !candidate.getExpirationDate().isBefore(today))
-                .filter(candidate -> normalizeDemandAnimal(
-                        candidate.getProduct().getAnimalType()).equals(normalizedAnimal))
-                .sorted(Comparator
-                        .comparing((ProductLot candidate) ->
-                                !lotLocatedInWarehouse(candidate.getLotId(), warehouseId))
-                        .thenComparing(candidate -> !candidate.getProduct().isLowStock())
-                        .thenComparingInt(ProductLot::getLotQuantity)
-                        .thenComparing(ProductLot::getExpirationDate,
-                                Comparator.nullsLast(Comparator.naturalOrder())))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException(
-                        normalizedAnimal + " 축종에 연결할 유효한 기존 LOT가 없습니다."));
-
+        ProductLot lot = selectDemandLot(warehouseId, normalizedAnimal, today);
         String preferredZone = switch (normalizedAnimal) {
             case "소" -> "CT";
             case "돼지" -> "PG";
@@ -1149,6 +1243,34 @@ public class WmsOperationsService {
         }
         return new DemandInboundResult(
                 warehouse.getName(), normalizedAnimal, lot.getLotNo(), quantity, usedBins);
+    }
+
+    private ProductLot selectDemandLot(
+            Long warehouseId,
+            String animalType,
+            LocalDate today) {
+        String normalizedAnimal = normalizeDemandAnimal(animalType);
+        return lots().stream()
+                .filter(candidate -> candidate.getExpirationDate() == null
+                        || !candidate.getExpirationDate().isBefore(today))
+                .filter(candidate -> normalizeDemandAnimal(
+                        candidate.getProduct().getAnimalType()).equals(normalizedAnimal))
+                .filter(candidate -> allocationRepository
+                        .findByWarehouseWarehouseIdAndProductProductId(
+                                warehouseId,
+                                candidate.getProduct().getProductId())
+                        .isPresent())
+                .sorted(Comparator
+                        .comparing((ProductLot candidate) ->
+                                !lotLocatedInWarehouse(candidate.getLotId(), warehouseId))
+                        .thenComparing(candidate -> !candidate.getProduct().isLowStock())
+                        .thenComparingInt(ProductLot::getLotQuantity)
+                        .thenComparing(ProductLot::getExpirationDate,
+                                Comparator.nullsLast(Comparator.naturalOrder())))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        normalizedAnimal
+                                + " 축종에 연결할 유효한 기존 LOT 또는 취급 상품이 없습니다."));
     }
 
     private boolean lotLocatedInWarehouse(Long lotId, Long warehouseId) {

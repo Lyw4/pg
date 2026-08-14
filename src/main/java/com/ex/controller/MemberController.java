@@ -46,6 +46,12 @@ public class MemberController {
                 !employeeUsername && memberService.isUsernameAvailable(username));
     }
 
+    @GetMapping("/check-email")
+    public Map<String, Boolean> checkEmail(
+            @RequestParam("email") String email) {
+        return Map.of("available", memberService.isEmailAvailable(email));
+    }
+
     @PostMapping("/login")
     public MemberResponse login(@Valid @RequestBody LoginRequest request, HttpSession session) {
         MemberResponse member = memberService.login(request);

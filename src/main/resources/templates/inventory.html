@@ -56,7 +56,7 @@
 
                 <h1
                     id="inventoryPageTitle"
-                    th:text="${currentView == 'shipments'} ? '출고 대기 주문' : '재고 관리'">
+                    th:text="${currentView == 'shipments'} ? '출고 대기 주문' : (${currentView == 'defects'} ? '불량 관리' : '재고 관리')">
                     재고 관리
                 </h1>
 
@@ -64,14 +64,16 @@
                     id="inventoryPageDescription"
                     th:text="${currentView == 'shipments'}
                     ? '출고 대기 주문을 피킹·검수·출고 완료 순서로 처리합니다.'
-                    : 'LOT 단위로 입고하고 유통기한이 빠른 재고부터 출고합니다.'">
+                    : (${currentView == 'defects'}
+                        ? '불량 재고를 격리하고 검사부터 최종 처리까지 추적합니다.'
+                        : 'LOT 단위로 입고하고 유통기한이 빠른 재고부터 출고합니다.')">
                     LOT 단위로 입고하고 유통기한이 빠른 재고부터 출고합니다.
                 </p>
             </div>
 
             <button
                 id="inventoryReceiveButton"
-                th:if="${currentView != 'shipments'}"
+                th:if="${currentView != 'shipments' and currentView != 'defects'}"
                 type="button"
                 class="primary"
                 data-open="receiveModal">
@@ -95,23 +97,17 @@
         </div>
 
         <section
+            th:if="${currentView == 'stock'}"
             class="inventory-alert-center"
-            th:classappend="${currentView == 'shipments'} ? ' shipment-context-alert'"
             aria-label="재고 알림">
             <div class="inventory-alert-heading">
                 <div>
                     <p class="summary-eyebrow">SMART ALERTS</p>
-                    <h2
-                        id="inventoryAlertTitle"
-                        th:text="${currentView == 'shipments'} ? '출고 참고 알림' : '재고 알림'">
+                    <h2 id="inventoryAlertTitle">
                         재고 알림
                     </h2>
                 </div>
-                <span
-                    id="inventoryAlertDescription"
-                    th:text="${currentView == 'shipments'}
-                    ? '재고 부족·유통기한 임박 상품을 출고 전에 확인하세요.'
-                    : '확인이 필요한 항목을 자동 집계합니다.'">
+                <span id="inventoryAlertDescription">
                     확인이 필요한 항목을 자동 집계합니다.
                 </span>
             </div>
@@ -128,22 +124,21 @@
                 <a
                     class="inventory-alert-card caution"
                     th:href="@{/inventory(view='expiry')}">
-                    <span>30일 이내</span>
+                    <span>30일 이내 예정</span>
                     <strong th:text="${expiringSoonLotCount}">0</strong>
-                    <small>유통기한 임박 LOT</small>
+                    <small>참고용 만료 예정 LOT</small>
                 </a>
 
                 <a
                     class="inventory-alert-card danger"
                     th:href="@{/inventory(view='expiry')}">
-                    <span>유통기한 만료</span>
+                    <span>유통기한 만료 경고</span>
                     <strong th:text="${expiredLotCount}">0</strong>
                     <small>즉시 확인할 LOT</small>
                 </a>
 
                 <a
                     class="inventory-alert-card neutral"
-                    th:classappend="${currentView == 'shipments'} ? ' shipment-alert-hide'"
                     th:href="@{/inventory(view='activeLots')}">
                     <span>위치 미지정</span>
                     <strong th:text="${unlocatedLotCount}">0</strong>
@@ -154,7 +149,7 @@
 
         <!-- 클릭 가능한 재고 요약 카드 -->
         <section
-            th:if="${currentView != 'shipments'}"
+            th:if="${currentView == 'stock'}"
             class="stats inventory-stats"
             aria-label="재고 요약 보기">
 
@@ -291,15 +286,15 @@
                 aria-selected="false">
 
                 <div class="expiry-stat-head">
-                    <span>유통기한 임박</span>
-                    <span class="expiry-stat-label">1개월 이내</span>
+                    <span>유통기한 만료</span>
+                    <span class="expiry-stat-label">기한 경과</span>
                 </div>
 
                 <strong th:text="${#lists.size(expiringLots)}">
                     0
                 </strong>
 
-                <small>임박 및 만료 LOT 보기</small>
+                <small>실제 만료 LOT 보기</small>
             </button>
 
         </section>
@@ -309,7 +304,9 @@
 
             <div
                 class="summary-view"
-                data-summary-panel="registered">
+                data-summary-panel="registered"
+                th:if="${currentView != 'shipments' and currentView != 'defects'}"
+                th:attr="hidden=${currentView == 'registered'} ? null : 'hidden'">
 
                 <div class="panel-title">
                     <div>
@@ -516,6 +513,7 @@
             <div
                 class="summary-view warehouse-inventory-view"
                 data-summary-panel="stock"
+                th:if="${currentView != 'shipments' and currentView != 'defects'}"
                 hidden>
 
                 <div class="panel-title">
@@ -818,6 +816,7 @@
             <div
                 class="summary-view"
                 data-summary-panel="lowStock"
+                th:if="${currentView != 'shipments' and currentView != 'defects'}"
                 hidden>
 
                 <div class="panel-title">
@@ -928,6 +927,7 @@
             <div
                 class="summary-view"
                 data-summary-panel="activeLots"
+                th:if="${currentView != 'shipments' and currentView != 'defects'}"
                 hidden>
 
                 <div class="panel-title">
@@ -1089,6 +1089,7 @@
             <div
                 class="summary-view warehouse-summary-view"
                 data-summary-panel="warehouses"
+                th:if="${currentView != 'shipments' and currentView != 'defects'}"
                 hidden>
 
                 <div class="panel-title">
@@ -1350,6 +1351,7 @@
             <div
                 class="summary-view recurring-warehouse-view"
                 data-summary-panel="recurring"
+                th:if="${currentView != 'shipments' and currentView != 'defects'}"
                 hidden>
 
                 <div class="panel-title">
@@ -1705,11 +1707,14 @@
             <div
                 class="summary-view defect-summary-view"
                 data-summary-panel="defects"
-                hidden>
+                th:if="${currentView == 'defects'}"
+                th:attr="hidden=${currentView == 'defects'} ? null : 'hidden'">
                 <div th:replace="~{defects :: defectContent}"></div>
             </div>
 
-            <div class="summary-view" data-summary-panel="shipments" hidden>
+            <div class="summary-view" data-summary-panel="shipments"
+                 th:if="${currentView == 'shipments'}"
+                 th:attr="hidden=${currentView == 'shipments'} ? null : 'hidden'">
                 <div th:replace="~{shipment-content :: shipmentContent}"></div>
             </div>
 
@@ -1717,6 +1722,7 @@
 
 <section
     class="panel expiry-panel"
+    th:if="${currentView != 'shipments' and currentView != 'defects'}"
     id="expiryManagement"
     data-inventory-panel="expiry"
     role="tabpanel"
@@ -1730,11 +1736,10 @@
                 EXPIRATION ALERT
             </p>
 
-            <h2>유통기한 임박 LOT 관리</h2>
+            <h2>유통기한 만료 LOT 관리</h2>
 
             <p>
-                유통기한이 지났거나 한 달 이내로 남은
-                활성 LOT를 확인합니다.
+                오늘보다 유통기한이 이전인 활성 LOT만 확인합니다.
             </p>
         </div>
 
@@ -1872,12 +1877,11 @@
         th:if="${#lists.isEmpty(expiringLots)}">
 
         <strong>
-            유통기한 임박 재고가 없습니다.
+            유통기한이 지난 재고가 없습니다.
         </strong>
 
         <p>
-            현재 모든 활성 LOT의 유통기한이
-            한 달 이상 남았습니다.
+            현재 재고가 남아 있는 모든 활성 LOT가 유통기한 내에 있습니다.
         </p>
 
     </div>

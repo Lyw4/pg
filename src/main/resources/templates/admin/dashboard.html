@@ -22,7 +22,7 @@
              class="alert alert-danger ff-alert d-flex align-items-center justify-content-between flex-wrap gap-2">
             <div>
                 <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                <strong>재고 부족 경고</strong> · 안전재고 미달 품목이
+                <strong>재고 부족 경고</strong> · 목표재고 미달 창고·상품이
                 <span class="badge bg-danger"
                       th:text="${todayTask.safetyStockAlertCount} + '건'">0건</span>
                 있습니다. 발주가 필요합니다.
@@ -38,15 +38,10 @@
              th:classappend="${todayTask.expiredLotCount > 0} ? 'alert-dark' : 'alert-warning'">
             <div>
                 <i class="bi bi-calendar-x-fill me-1"></i>
-                <strong>유통기한 경고</strong> · 30일 이내 만료 예정 LOT가
+                <strong>유통기한 만료 경고</strong> · 유통기한이 지난 LOT가
                 <span class="badge bg-warning text-dark"
                       th:text="${todayTask.expiringLotCount} + '건'">0건</span>
-                있습니다.
-                <span th:if="${todayTask.expiredLotCount > 0}" class="ms-1">
-                    이 중 <span class="badge bg-dark"
-                               th:text="${todayTask.expiredLotCount} + '건'">0건</span>은
-                    이미 만료돼 출고할 수 없습니다.
-                </span>
+                있어 출고할 수 없습니다.
             </div>
             <div class="d-flex gap-2">
                 <a th:href="@{/inventory(view='expiry')}"
@@ -104,7 +99,7 @@
                     <div class="card ff-card ff-stat-card h-100">
                         <div class="card-body d-flex justify-content-between align-items-center">
                             <div>
-                                <div class="text-muted small">안전재고 미달</div>
+                                <div class="text-muted small">목표재고 미달</div>
                                 <div class="ff-stat-value text-danger"
                                      th:text="${todayTask.safetyStockAlertCount} + '건'">0건</div>
                             </div>
@@ -120,13 +115,13 @@
                     <div class="card ff-card ff-stat-card h-100">
                         <div class="card-body d-flex justify-content-between align-items-center">
                             <div>
-                                <div class="text-muted small">유통기한 경고</div>
+                                <div class="text-muted small">유통기한 만료</div>
                                 <div class="ff-stat-value text-dark"
                                      th:text="${todayTask.expiringLotCount} + '건'">0건</div>
                                 <div class="small text-danger fw-semibold"
                                      th:if="${todayTask.expiredLotCount > 0}"
-                                     th:text="${'만료 ' + todayTask.expiredLotCount + '건 포함'}">
-                                    만료 포함
+                                     th:text="${'만료 ' + todayTask.expiredLotCount + '건'}">
+                                    만료
                                 </div>
                             </div>
                             <div class="ff-stat-icon bg-secondary-subtle text-secondary">
@@ -366,8 +361,22 @@
                 </div><div class="ff-admin-sales-bars mt-3"><div th:each="day : ${adminMetrics.dailySales}" class="ff-admin-sales-bar"><span th:style="|height:${day.percent}%;|" th:title="|${day.date}: ${day.revenue}원|"></span><small th:text="${#temporals.format(day.date, 'M/d')}">8/10</small></div></div></div>
             </div></div>
             <div class="col-12 col-xl-5"><div class="card ff-card h-100">
-                <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between"><strong><i class="bi bi-clock-history me-1 text-success"></i>최근 관리자 활동</strong><a th:href="@{/api/admin/activities}" class="small text-decoration-none">API 보기</a></div>
-                <div class="card-body pt-2"><div th:if="${#lists.isEmpty(activityLogs)}" class="ff-empty py-4">기록된 활동이 없습니다.</div><ul th:unless="${#lists.isEmpty(activityLogs)}" class="ff-admin-activity-list"><li th:each="activity : ${activityLogs}"><div><span class="badge bg-light text-dark" th:text="${activity.actionType}">ACTION</span><strong th:text="${activity.description}">활동 내용</strong></div><small th:text="|${activity.adminUsername} · ${#temporals.format(activity.createdAt, 'yyyy-MM-dd HH:mm')}|">admin</small></li></ul></div>
+                <div class="card-header bg-white border-0 pt-3">
+                    <strong><i class="bi bi-clock-history me-1 text-success"></i>최근 관리자 활동</strong>
+                    <small class="text-muted ms-2">최근 3건</small>
+                </div>
+                <div class="card-body pt-2">
+                    <div th:if="${#lists.isEmpty(activityLogs)}" class="ff-empty py-4">기록된 활동이 없습니다.</div>
+                    <ul th:unless="${#lists.isEmpty(activityLogs)}" class="ff-admin-activity-list">
+                        <li th:each="activity, activityStat : ${activityLogs}" th:if="${activityStat.index < 3}">
+                            <div>
+                                <span class="badge bg-light text-dark" th:text="${activity.actionType}">ACTION</span>
+                                <strong th:text="${activity.description}">활동 내용</strong>
+                            </div>
+                            <small th:text="|${activity.adminUsername} · ${#temporals.format(activity.createdAt, 'yyyy-MM-dd HH:mm')}|">admin</small>
+                        </li>
+                    </ul>
+                </div>
             </div></div>
         </section>
 
@@ -375,62 +384,43 @@
             <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
                 <div>
                     <strong><i class="bi bi-boxes me-1"></i>WMS 현장 운영</strong>
-                    <small class="text-muted ms-1">조원 모듈 통합 기능</small>
+                    <small class="text-muted ms-1">창고 운영 상세 기능</small>
                 </div>
                 <a th:href="@{/admin/wms}" class="btn btn-sm btn-success">WMS 열기</a>
             </div>
-            <div class="card-body pt-2">
-                <div class="row g-3">
-                    <div class="col-6 col-lg-3">
-                        <a th:href="@{/admin/warehouse-map}" class="wms-dashboard-link">
-                            <i class="bi bi-grid-3x3-gap text-primary"></i>
-                            <span>창고 2D 도면</span>
-                            <strong th:text="|${wmsOverview.occupiedBinCount}/${wmsOverview.binCount} 구역|">0/0 구역</strong>
-                        </a>
+            <div th:if="${wmsOverview.inconsistentProductCount > 0}" class="card-body pt-2">
+                <div class="alert alert-danger mb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <i class="bi bi-shield-exclamation me-1"></i>
+                        <strong>재고 정합성 오류</strong>
+                        <span th:text="|${wmsOverview.inconsistentProductCount}건을 확인해야 합니다.|">0건을 확인해야 합니다.</span>
                     </div>
-                    <div class="col-6 col-lg-3">
-                        <a th:href="@{/admin/wms(view='inbound')}" class="wms-dashboard-link">
-                            <i class="bi bi-box-arrow-in-down text-success"></i>
-                            <span>입고·구역 이동</span>
-                            <strong th:text="${#numbers.formatInteger(wmsOverview.physicalStock, 1, 'COMMA')} + '포대'">0포대</strong>
-                        </a>
-                    </div>
-                    <div class="col-6 col-lg-3">
-                        <a th:href="@{/admin/wms(view='traceability')}" class="wms-dashboard-link">
-                            <i class="bi bi-upc-scan text-info"></i>
-                            <span>바코드·LOT 추적</span>
-                            <strong>즉시 조회</strong>
-                        </a>
-                    </div>
-                    <div class="col-6 col-lg-3">
-                        <a th:href="@{/admin/wms(view='sync')}" class="wms-dashboard-link">
-                            <i class="bi bi-shield-check"
-                               th:classappend="${wmsOverview.inconsistentProductCount > 0} ? 'text-danger' : 'text-success'"></i>
-                            <span>3단계 재고 정합성</span>
-                            <strong th:classappend="${wmsOverview.inconsistentProductCount > 0} ? 'text-danger' : 'text-success'"
-                                    th:text="${wmsOverview.inconsistentProductCount} + '건 오류'">0건 오류</strong>
-                        </a>
-                    </div>
+                    <a th:href="@{/admin/wms(view='sync')}" class="btn btn-sm btn-outline-danger">점검하기</a>
                 </div>
             </div>
         </section>
 
-        <div class="row g-3">
-            <div class="col-12 col-xl-6">
+        <div th:if="${#lists.isEmpty(safetyStockAlerts) and #lists.isEmpty(expiringLots) and wmsOverview.inconsistentProductCount == 0}"
+             class="alert alert-success ff-alert mb-4">
+            <i class="bi bi-check-circle-fill me-1"></i>
+            <strong>WMS 정상 운영 중</strong> · 현재 재고 부족, 유통기한 만료 및 재고 정합성 오류가 없습니다.
+        </div>
+
+        <div th:if="${!#lists.isEmpty(safetyStockAlerts) or !#lists.isEmpty(expiringLots)}" class="row g-3">
+            <div th:if="${!#lists.isEmpty(safetyStockAlerts)}"
+                 class="col-12" th:classappend="${!#lists.isEmpty(expiringLots)} ? ' col-xl-6' : ''">
                 <div class="card ff-card h-100">
                     <div class="card-header bg-white border-0 pt-3">
                         <strong class="text-danger">
-                            <i class="bi bi-exclamation-triangle-fill me-1"></i>안전재고 알림
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>창고 목표재고 알림
                         </strong>
                     </div>
-                    <div th:if="${#lists.isEmpty(safetyStockAlerts)}" class="ff-empty">
-                        안전재고 미달 상품이 없습니다.
-                    </div>
-                    <div th:unless="${#lists.isEmpty(safetyStockAlerts)}" class="table-responsive">
+                    <div class="table-responsive">
                         <table class="table ff-dashboard-table align-middle">
-                            <thead><tr><th>상품명</th><th>축종</th><th class="text-end">현재고</th><th class="text-end">안전재고</th><th class="text-end">부족</th></tr></thead>
+                            <thead><tr><th>창고</th><th>상품명</th><th>축종</th><th class="text-end">현재고</th><th class="text-end">목표재고</th><th class="text-end">부족</th></tr></thead>
                             <tbody>
                             <tr th:each="item : ${safetyStockAlerts}">
+                                <td th:text="${item.warehouseName}">창고명</td>
                                 <td th:text="${item.name}">상품명</td>
                                 <td><span class="badge bg-light text-dark" th:text="${item.animalType}">축종</span></td>
                                 <td class="text-end text-danger fw-semibold" th:text="${item.totalStock}">0</td>
@@ -443,18 +433,16 @@
                 </div>
             </div>
 
-            <div class="col-12 col-xl-6">
+            <div th:if="${!#lists.isEmpty(expiringLots)}"
+                 class="col-12" th:classappend="${!#lists.isEmpty(safetyStockAlerts)} ? ' col-xl-6' : ''">
                 <div class="card ff-card h-100">
                     <div class="card-header bg-white border-0 pt-3">
                         <strong class="text-warning-emphasis">
-                            <i class="bi bi-calendar-x-fill me-1"></i>유통기한 경고
+                            <i class="bi bi-calendar-x-fill me-1"></i>유통기한 만료 경고
                         </strong>
-                        <small class="text-muted ms-1">30일 이내 + 이미 만료</small>
+                        <small class="text-muted ms-1">오늘보다 이전 날짜의 LOT만 표시</small>
                     </div>
-                    <div th:if="${#lists.isEmpty(expiringLots)}" class="ff-empty">
-                        30일 이내 만료 예정 LOT가 없습니다.
-                    </div>
-                    <div th:unless="${#lists.isEmpty(expiringLots)}" class="table-responsive">
+                    <div class="table-responsive">
                         <table class="table ff-dashboard-table align-middle">
                             <thead><tr><th>LOT</th><th>상품명</th><th>유통기한</th><th class="text-end">수량</th><th class="text-center">잔여</th></tr></thead>
                             <tbody>

@@ -4,6 +4,7 @@ import com.ex.entity.CustomerOrder;
 import com.ex.entity.Product;
 import com.ex.entity.ProductLot;
 import com.ex.entity.StockLog;
+import com.ex.entity.WarehouseAllocation;
 import com.ex.repository.CustomerOrderRepository;
 import com.ex.repository.ProductLotRepository;
 import com.ex.repository.ProductRepository;
@@ -50,21 +51,22 @@ public class AdminDashboardService {
         List<ProductLot> activeLots = productLotRepository
                 .findAllByOrderByExpirationDateAsc()
                 .stream()
+                .filter(lot -> lot.getProduct().isActive())
                 .filter(lot -> lot.getLotQuantity() > 0)
+                .filter(lot -> lot.getExpirationDate() != null)
                 .toList();
         List<CustomerOrder> orders = orderRepository
                 .findAllByOrderByCreatedAtDesc();
 
-        List<LowStockAlert> lowStockAlerts = products.stream()
-                .filter(Product::isLowStock)
+        List<LowStockAlert> lowStockAlerts = warehouseManagementService
+                .lowStockAllocations().stream()
                 .map(LowStockAlert::from)
                 .sorted(Comparator.comparingInt(LowStockAlert::shortage)
                         .reversed())
                 .toList();
 
         List<ExpiringLotAlert> expiringLots = activeLots.stream()
-                .filter(lot -> !lot.getExpirationDate()
-                        .isAfter(today.plusDays(EXPIRING_DAYS)))
+                .filter(lot -> lot.getExpirationDate().isBefore(today))
                 .map(lot -> ExpiringLotAlert.from(lot, today))
                 .toList();
 
@@ -117,9 +119,14 @@ public class AdminDashboardService {
         long revenue = orders.stream().filter(o -> o.getStatus() != CustomerOrder.OrderStatus.CANCELLED)
                 .map(CustomerOrder::getFinalPrice).filter(java.util.Objects::nonNull)
                 .mapToLong(java.math.BigDecimal::longValue).sum();
-        long lowStockLots = lots.stream().filter(l -> l.getLotQuantity() <= 10).count();
-        long expiringLots = lots.stream().filter(l -> l.getExpirationDate() != null
-                && !l.getExpirationDate().isAfter(today.plusDays(EXPIRING_DAYS))).count();
+        long lowStockLots = warehouseManagementService
+                .lowStockAllocationCount();
+        long expiringLots = lots.stream()
+                .filter(l -> l.getProduct().isActive())
+                .filter(l -> l.getLotQuantity() > 0)
+                .filter(l -> l.getExpirationDate() != null
+                        && l.getExpirationDate().isBefore(today))
+                .count();
         long soldOutProducts = products.stream().filter(p -> p.getTotalStock() <= 0).count();
         Map<LocalDate, Long> daily = new LinkedHashMap<>();
         for (int i = ACTIVITY_DAYS - 1; i >= 0; i--) daily.put(today.minusDays(i), 0L);
@@ -304,6 +311,7 @@ public class AdminDashboardService {
     }
 
     public record LowStockAlert(
+            String warehouseName,
             Long productId,
             String name,
             String animalType,
@@ -312,21 +320,23 @@ public class AdminDashboardService {
             int shortage,
             int stockRate) {
 
-        private static LowStockAlert from(Product product) {
+        private static LowStockAlert from(WarehouseAllocation allocation) {
+            Product product = allocation.getProduct();
             int shortage = Math.max(
-                    product.getSafetyStock()
-                            - product.getTotalStock(),
+                    allocation.getTargetStockQuantity()
+                            - allocation.getCurrentStockQuantity(),
                     0);
             return new LowStockAlert(
+                    allocation.getWarehouse().getName(),
                     product.getProductId(),
                     product.getName(),
                     product.getAnimalType(),
-                    product.getTotalStock(),
-                    product.getSafetyStock(),
+                    allocation.getCurrentStockQuantity(),
+                    allocation.getTargetStockQuantity(),
                     shortage,
                     Math.min(percentage(
-                            product.getTotalStock(),
-                            product.getSafetyStock()), 100));
+                            allocation.getCurrentStockQuantity(),
+                            allocation.getTargetStockQuantity()), 100));
         }
     }
 

@@ -553,6 +553,20 @@ footer { padding: 45px max(30px, calc((100vw - 1180px) / 2)); background: #0d281
 .cart-summary { margin: 20px 0; padding: 15px; background: #edede4; }
 .summary-line { margin: 7px 0; display: flex; justify-content: space-between; }
 .summary-line.total { padding-top: 10px; border-top: 1px solid #cccac0; font-weight: 800; }
+.monthly-quantity-modal { width: min(650px, 100%); }
+.monthly-quantity-description { margin: -5px 0 20px; color: var(--muted); font-size: 13px; line-height: 1.75; }
+.monthly-quantity-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.monthly-quantity-summary article { padding: 16px; border: 1px solid #d8e5dc; background: #f5faf7; }
+.monthly-quantity-summary span { display: block; margin-bottom: 7px; color: var(--muted); font-size: 11px; }
+.monthly-quantity-summary strong { color: var(--forest); font-size: 19px; }
+.monthly-quantity-note { margin: 14px 0 0; padding: 12px 14px; background: #fff7e8; color: #75531c; font-size: 12px; line-height: 1.6; }
+.monthly-quantity-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 22px; }
+.monthly-quantity-actions button { min-height: 43px; padding: 0 18px; }
+@media (max-width: 620px) {
+    .monthly-quantity-summary { grid-template-columns: 1fr; }
+    .monthly-quantity-actions { flex-direction: column-reverse; }
+    .monthly-quantity-actions button { width: 100%; }
+}
 .checkout-modal {
     width: min(1180px, 100%);
     background: #f7f6f0;
@@ -2316,29 +2330,44 @@ footer { padding: 45px max(30px, calc((100vw - 1180px) / 2)); background: #0d281
         border-bottom: 0;
     }
 }
-.address-same-check {
-    display: flex;
+.form-grid .address-same-check {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    flex-direction: initial;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 7px;
-    margin: -4px 0 2px;
+    column-gap: 8px;
+    row-gap: 4px;
+    margin: 0 0 16px;
     color: var(--forest);
     font-size: 13px;
     font-weight: 750;
     cursor: pointer;
 }
 
-.address-same-check input {
+.form-grid .address-same-check input {
     width: 16px;
+    min-height: 0;
     height: 16px;
+    padding: 0;
+    margin: 0;
+    grid-column: 1;
+    grid-row: 1;
     accent-color: var(--forest);
 }
 
-.address-same-check small {
-    flex-basis: 100%;
-    margin-left: 23px;
+.form-grid .address-same-check span {
+    grid-column: 2;
+    grid-row: 1;
+    line-height: 1.35;
+}
+
+.form-grid .address-same-check small {
+    grid-column: 2;
+    grid-row: 2;
+    margin-left: 0;
     color: var(--muted);
     font-size: 11px;
+    line-height: 1.45;
     font-weight: 500;
 }
 

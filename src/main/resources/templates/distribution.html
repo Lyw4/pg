@@ -26,12 +26,13 @@
     <div th:replace="~{fragments/admin-layout :: sidebar}"></div>
 
     <div class="ff-content">
-        <div th:replace="~{fragments/admin-layout :: topbar('유통 관리', '유통 관리')}"></div>
+        <div th:unless="${currentView == 'farms'}"
+             th:replace="~{fragments/admin-layout :: topbar('유통 관리', '유통 관리')}"></div>
 
         <main class="ff-main ff-management-main">
             <div class="container distribution-page">
 
-        <section class="page-head distribution-page-head">
+        <section th:unless="${currentView == 'farms'}" class="page-head distribution-page-head">
             <div>
                 <p class="eyebrow">DISTRIBUTION CONTROL</p>
                 <h1>유통 관리</h1>
@@ -59,10 +60,19 @@
             </div>
         </section>
 
+        <section th:if="${currentView == 'farms'}" class="page-head distribution-page-head">
+            <div>
+                <p class="eyebrow">FARM CUSTOMER MANAGEMENT</p>
+                <h1>농장 고객사 관리</h1>
+                <p>농장 정보와 담당 창고, 축종별 예상 수요 및 거래 상태를 관리합니다.</p>
+            </div>
+        </section>
+
         <div class="alert success" th:if="${message}" th:text="${message}"></div>
         <div class="alert error" th:if="${error}" th:text="${error}"></div>
 
-        <section class="distribution-workspace-nav" aria-label="유통 관리 업무 선택">
+        <section th:unless="${currentView == 'farms'}"
+                 class="distribution-workspace-nav" aria-label="유통 관리 업무 선택">
             <div class="distribution-workflow-group order-flow-group">
                 <div class="distribution-workflow-heading">
                     <span class="distribution-workflow-icon"><i class="bi bi-truck"></i></span>
@@ -202,7 +212,7 @@
         <section
             class="panel distribution-panel farm-customer-panel"
             data-delivery-panel="farms"
-            hidden>
+            th:attr="hidden=${currentView == 'farms'} ? null : 'hidden'">
             <div class="panel-title">
                 <div>
                     <p class="summary-eyebrow">FARM CUSTOMER NETWORK</p>
@@ -212,11 +222,6 @@
                 <span class="summary-count">
                     <strong th:text="${#lists.size(farmCustomers)}">20</strong>곳
                 </span>
-            </div>
-
-            <div class="farm-demo-notice">
-                <span>DEMO</span>
-                실제 업체 정보가 아닌 파이널 프로젝트 시연용 가상 농장 데이터입니다.
             </div>
 
             <div class="farm-customer-overview">
@@ -346,9 +351,6 @@
                                     · ${farm.phone}|">
                                     고객사 정보
                                 </small>
-                                <span class="farm-demo-badge" th:if="${farm.demoData}">
-                                    DEMO
-                                </span>
                             </td>
                             <td>
                                 <span class="farm-warehouse-code"
@@ -463,11 +465,15 @@
                     </tbody>
                 </table>
             </div>
+            <nav id="farmCustomerPagination"
+                 class="farm-customer-pagination"
+                 aria-label="농장 고객사 목록 페이지"></nav>
         </section>
 
         <section
             class="panel distribution-panel"
             data-delivery-panel="ready"
+            th:if="${currentView != 'farms'}"
             hidden>
             <div class="panel-title">
                 <div>
@@ -658,6 +664,7 @@
         <section
             class="panel distribution-panel cancelled-order-panel"
             data-delivery-panel="cancelled_orders"
+            th:if="${currentView != 'farms'}"
             hidden>
             <div class="panel-title cancelled-order-title">
                 <div>
@@ -801,7 +808,8 @@
 
         <section
             class="panel distribution-panel"
-            data-delivery-panel="tracking">
+            data-delivery-panel="tracking"
+            th:if="${currentView != 'farms'}">
             <div class="panel-title">
                 <div>
                     <p class="summary-eyebrow">DELIVERY TRACKING</p>

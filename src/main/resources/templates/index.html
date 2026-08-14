@@ -56,6 +56,7 @@
             id="utility-login"
             type="button"
             data-open-account="login"
+            hidden
             sec:authorize="!hasAnyRole('ADMIN','STAFF')"
         >
             로그인
@@ -65,6 +66,7 @@
             id="utility-signup"
             type="button"
             data-open-account="signup"
+            hidden
             sec:authorize="!hasAnyRole('ADMIN','STAFF')"
         >
             회원가입
@@ -159,6 +161,7 @@
                 type="button"
                 data-open-account="login"
                 aria-label="로그인"
+                hidden
                 sec:authorize="!hasAnyRole('ADMIN','STAFF')"
             >
                 <span>♙</span>
@@ -1308,6 +1311,25 @@
         >
             주문하기
         </button>
+    </section>
+
+    <!-- 농장 월 예상 최소 사료량 안내 -->
+    <section id="monthly-quantity-modal" class="modal monthly-quantity-modal"
+             role="dialog" aria-modal="true"
+             aria-labelledby="monthly-quantity-title" hidden>
+        <p class="eyebrow dark"><span></span> MONTHLY FEED GUIDE</p>
+        <h2 id="monthly-quantity-title">이번 달 사료량을 확인해 주세요</h2>
+        <p id="monthly-quantity-description" class="monthly-quantity-description"></p>
+        <div class="monthly-quantity-summary">
+            <article><span>현재 주문</span><strong id="monthly-current-quantity">0포대</strong></article>
+            <article><span>월 예상 최소량</span><strong id="monthly-required-quantity">0포대</strong></article>
+            <article><span>추천 적용 후</span><strong id="monthly-suggested-quantity">0포대</strong></article>
+        </div>
+        <p id="monthly-quantity-note" class="monthly-quantity-note"></p>
+        <div class="monthly-quantity-actions">
+            <button type="button" class="secondary-button" data-monthly-quantity-keep>현재 수량 유지</button>
+            <button type="button" class="primary-button" data-monthly-quantity-apply>추천 수량 적용</button>
+        </div>
     </section>
 
     <!-- 주문·결제 모달 -->

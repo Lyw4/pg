@@ -1,6 +1,72 @@
 (function () {
     "use strict";
 
+    const autoBinForm = document.getElementById("wmsAutoBinForm");
+    if (autoBinForm) {
+        const warehouseSelect = autoBinForm.querySelector("[name='warehouseId']");
+        const productSelect = autoBinForm.querySelector("[name='productId']");
+        const quantityInput = autoBinForm.querySelector("[name='plannedQuantity']");
+        const productHint = autoBinForm.querySelector("[data-auto-bin-product-hint]");
+        const preview = autoBinForm.querySelector("[data-auto-bin-preview]");
+        const productOptions = Array.from(productSelect.options)
+            .filter(function (option) { return option.value; });
+
+        const refreshAutoBinForm = function () {
+            const warehouseId = warehouseSelect.value;
+            let availableCount = 0;
+            productOptions.forEach(function (option) {
+                const visible = option.dataset.warehouseId === warehouseId;
+                option.hidden = !visible;
+                option.disabled = !visible;
+                if (visible) availableCount++;
+            });
+            const selectedOption = productSelect.selectedOptions[0];
+            if (selectedOption && selectedOption.value
+                    && selectedOption.dataset.warehouseId !== warehouseId) {
+                productSelect.value = "";
+            }
+            productHint.textContent = availableCount > 0
+                ? "이 창고에서 취급 중인 상품 " + availableCount + "개 중 선택하세요."
+                : "이 창고에 등록된 취급 상품이 없습니다.";
+
+            const quantity = Math.max(0, Number(quantityInput.value || 0));
+            const cells = Math.max(1, Math.ceil(quantity / 500));
+            const width = Math.ceil(Math.sqrt(cells));
+            const height = Math.ceil(cells / width);
+            preview.innerHTML = "<i class='bi bi-magic me-1 text-success'></i>"
+                + quantity.toLocaleString("ko-KR") + "포 기준 약 "
+                + width + "×" + height
+                + " 크기로 계산하며, 실제 좌표는 등록 시 빈 자리에서 자동 배정합니다.";
+        };
+
+        warehouseSelect.addEventListener("change", refreshAutoBinForm);
+        productSelect.addEventListener("change", refreshAutoBinForm);
+        quantityInput.addEventListener("input", refreshAutoBinForm);
+
+        const autoBinParams = new URLSearchParams(window.location.search);
+        const requestedWarehouse = autoBinParams.get("binWarehouseId");
+        const requestedProduct = autoBinParams.get("autoProductId");
+        const requestedQuantity = autoBinParams.get("autoQuantity");
+        if (requestedWarehouse
+                && Array.from(warehouseSelect.options).some(function (option) {
+                    return option.value === requestedWarehouse;
+                })) {
+            warehouseSelect.value = requestedWarehouse;
+        }
+        refreshAutoBinForm();
+        if (requestedProduct) {
+            const matchingProduct = productOptions.find(function (option) {
+                return !option.disabled
+                    && option.value === requestedProduct;
+            });
+            if (matchingProduct) productSelect.value = matchingProduct.value;
+        }
+        if (requestedQuantity && Number(requestedQuantity) > 0) {
+            quantityInput.value = requestedQuantity;
+        }
+        refreshAutoBinForm();
+    }
+
     const inboundForm = document.getElementById("wmsInboundForm");
     if (inboundForm) {
         const existingPanel = inboundForm.querySelector("[data-inbound-existing]");
@@ -61,12 +127,216 @@
         refreshInboundMode();
     }
 
+    const locationInventoryRows = Array.from(
+        document.querySelectorAll("[data-location-inventory-row]")
+    );
+    const locationInventoryPagination = document.getElementById(
+        "wmsLocationInventoryPagination"
+    );
+    const locationInventoryFilters = Array.from(
+        document.querySelectorAll("[data-location-warehouse]")
+    );
+    const locationInventoryCount = document.getElementById(
+        "wmsLocationInventoryCount"
+    );
+    const locationInventoryEmpty = document.getElementById(
+        "wmsLocationInventoryEmpty"
+    );
+    if (locationInventoryRows.length && locationInventoryPagination) {
+        const pageSize = 10;
+        let currentPage = 1;
+        let activeWarehouse = "all";
+        const renderLocationInventoryPage = function () {
+            const filteredRows = locationInventoryRows.filter(function (row) {
+                return activeWarehouse === "all"
+                    || row.dataset.locationWarehouseId === activeWarehouse;
+            });
+            const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+            currentPage = Math.min(currentPage, pageCount);
+            const start = (currentPage - 1) * pageSize;
+            const visibleRows = new Set(filteredRows.slice(start, start + pageSize));
+            locationInventoryRows.forEach(function (row) {
+                row.hidden = !visibleRows.has(row);
+            });
+            if (locationInventoryCount) {
+                locationInventoryCount.textContent = filteredRows.length + "건";
+            }
+            if (locationInventoryEmpty) {
+                locationInventoryEmpty.hidden = filteredRows.length !== 0;
+            }
+            locationInventoryPagination.replaceChildren();
+            locationInventoryPagination.hidden = filteredRows.length <= pageSize;
+            if (pageCount <= 1) return;
+
+            const addButton = function (label, page, disabled, active) {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.textContent = label;
+                button.disabled = disabled;
+                if (active) {
+                    button.classList.add("active");
+                    button.setAttribute("aria-current", "page");
+                }
+                button.addEventListener("click", function () {
+                    currentPage = page;
+                    renderLocationInventoryPage();
+                    document.getElementById("wmsLocationInventoryTable")
+                        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                });
+                locationInventoryPagination.appendChild(button);
+            };
+            addButton("이전", currentPage - 1, currentPage === 1, false);
+            for (let page = 1; page <= pageCount; page++) {
+                addButton(String(page), page, false, page === currentPage);
+            }
+            addButton("다음", currentPage + 1,
+                currentPage === pageCount, false);
+        };
+        locationInventoryFilters.forEach(function (filter) {
+            filter.addEventListener("click", function () {
+                activeWarehouse = filter.dataset.locationWarehouse || "all";
+                currentPage = 1;
+                locationInventoryFilters.forEach(function (item) {
+                    const selected = item === filter;
+                    item.classList.toggle("active", selected);
+                    item.setAttribute("aria-selected", String(selected));
+                });
+                renderLocationInventoryPage();
+            });
+        });
+        renderLocationInventoryPage();
+    }
+
+    const movementRows = Array.from(
+        document.querySelectorAll("[data-wms-movement-row]")
+    );
+    const movementSearch = document.getElementById("wmsMovementSearch");
+    const movementCount = document.getElementById("wmsMovementCount");
+    const movementEmpty = document.getElementById("wmsMovementEmpty");
+    const movementPagination = document.getElementById("wmsMovementPagination");
+    if (movementPagination && movementRows.length) {
+        const pageSize = 10;
+        let currentPage = 1;
+        const renderMovements = function () {
+            const keyword = (movementSearch?.value || "").trim().toLowerCase();
+            const filteredRows = movementRows.filter(function (row) {
+                return !keyword
+                    || (row.dataset.search || "").toLowerCase().includes(keyword);
+            });
+            const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+            currentPage = Math.min(currentPage, pageCount);
+            const start = (currentPage - 1) * pageSize;
+            const visibleRows = new Set(filteredRows.slice(start, start + pageSize));
+            movementRows.forEach(function (row) {
+                row.hidden = !visibleRows.has(row);
+            });
+            if (movementCount) movementCount.textContent = filteredRows.length + "건";
+            if (movementEmpty) movementEmpty.hidden = filteredRows.length !== 0;
+            movementPagination.replaceChildren();
+            movementPagination.hidden = filteredRows.length <= pageSize;
+            if (filteredRows.length <= pageSize) return;
+
+            const addButton = function (label, page, disabled, active) {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.textContent = label;
+                button.disabled = disabled;
+                if (active) {
+                    button.classList.add("active");
+                    button.setAttribute("aria-current", "page");
+                }
+                button.addEventListener("click", function () {
+                    currentPage = page;
+                    renderMovements();
+                    document.getElementById("wmsMovementTable")
+                        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                });
+                movementPagination.appendChild(button);
+            };
+            addButton("이전", currentPage - 1, currentPage === 1, false);
+            for (let page = 1; page <= pageCount; page++) {
+                addButton(String(page), page, false, page === currentPage);
+            }
+            addButton("다음", currentPage + 1, currentPage === pageCount, false);
+        };
+        movementSearch?.addEventListener("input", function () {
+            currentPage = 1;
+            renderMovements();
+        });
+        renderMovements();
+    }
+
+    const directOutboundRows = Array.from(
+        document.querySelectorAll("[data-direct-outbound-row]")
+    );
+    const directOutboundSearch = document.getElementById("wmsDirectOutboundSearch");
+    const directOutboundCount = document.getElementById("wmsDirectOutboundCount");
+    const directOutboundEmpty = document.getElementById("wmsDirectOutboundEmpty");
+    const directOutboundPagination = document.getElementById("wmsDirectOutboundPagination");
+    const directOutboundProduct = document.getElementById("directOutboundProduct");
+    if (directOutboundPagination && directOutboundRows.length) {
+        const pageSize = 10;
+        let currentPage = 1;
+        const renderDirectOutbound = function () {
+            const keyword = (directOutboundSearch?.value || "").trim().toLowerCase();
+            const filteredRows = directOutboundRows.filter(function (row) {
+                return !keyword
+                    || (row.dataset.search || "").toLowerCase().includes(keyword);
+            });
+            const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+            currentPage = Math.min(currentPage, pageCount);
+            const start = (currentPage - 1) * pageSize;
+            const visibleRows = new Set(filteredRows.slice(start, start + pageSize));
+            directOutboundRows.forEach(function (row) {
+                row.hidden = !visibleRows.has(row);
+            });
+            if (directOutboundCount) directOutboundCount.textContent = filteredRows.length + "건";
+            if (directOutboundEmpty) directOutboundEmpty.hidden = filteredRows.length !== 0;
+            directOutboundPagination.replaceChildren();
+            directOutboundPagination.hidden = filteredRows.length <= pageSize;
+            if (filteredRows.length <= pageSize) return;
+
+            const addButton = function (label, page, disabled, active) {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.textContent = label;
+                button.disabled = disabled;
+                if (active) button.classList.add("active");
+                button.addEventListener("click", function () {
+                    currentPage = page;
+                    renderDirectOutbound();
+                });
+                directOutboundPagination.appendChild(button);
+            };
+            addButton("이전", currentPage - 1, currentPage === 1, false);
+            for (let page = 1; page <= pageCount; page++) {
+                addButton(String(page), page, false, page === currentPage);
+            }
+            addButton("다음", currentPage + 1, currentPage === pageCount, false);
+        };
+        directOutboundSearch?.addEventListener("input", function () {
+            currentPage = 1;
+            renderDirectOutbound();
+        });
+        directOutboundRows.forEach(function (row) {
+            row.classList.add("wms-selectable-row");
+            row.addEventListener("click", function () {
+                if (!directOutboundProduct) return;
+                directOutboundProduct.value = row.dataset.productId || "";
+                directOutboundProduct.scrollIntoView({ behavior: "smooth", block: "center" });
+                directOutboundProduct.focus();
+            });
+        });
+        renderDirectOutbound();
+    }
+
     const bulkInboundForm = document.getElementById("wmsBulkInboundForm");
-    if (bulkInboundForm) {
-        const selectAll = bulkInboundForm.querySelector("[data-bulk-select-all]");
-        const targets = Array.from(bulkInboundForm.querySelectorAll("[data-bulk-target]"));
-        const submit = bulkInboundForm.querySelector("[data-bulk-submit]");
-        const count = bulkInboundForm.querySelector("[data-bulk-selected-count]");
+    const demandActionCard = document.getElementById("wmsDemandActionCard");
+    if (bulkInboundForm && demandActionCard) {
+        const selectAll = demandActionCard.querySelector("[data-bulk-select-all]");
+        const targets = Array.from(demandActionCard.querySelectorAll("[data-bulk-target]"));
+        const submit = demandActionCard.querySelector("[data-bulk-submit]");
+        const count = demandActionCard.querySelector("[data-bulk-selected-count]");
         const refreshBulkSelection = function () {
             const selected = targets.filter(function (target) { return target.checked; }).length;
             count.textContent = selected + "건 선택";
@@ -78,6 +348,17 @@
             targets.forEach(function (target) { target.checked = selectAll.checked; });
             refreshBulkSelection();
         });
+        demandActionCard.querySelectorAll("[data-demand-bin-link]")
+            .forEach(function (link) {
+                link.addEventListener("click", function () {
+                    const quantity = link.closest("tr")
+                        ?.querySelector("input[name='quantity']")?.value;
+                    if (!quantity || Number(quantity) < 1) return;
+                    const url = new URL(link.href, window.location.origin);
+                    url.searchParams.set("autoQuantity", quantity);
+                    link.href = url.pathname + url.search;
+                });
+            });
         targets.forEach(function (target) {
             target.addEventListener("change", refreshBulkSelection);
         });

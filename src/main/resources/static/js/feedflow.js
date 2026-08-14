@@ -1,6 +1,15 @@
 (() => {
     "use strict";
 
+    // 로그인 전 화면이 브라우저의 뒤로가기 캐시에 남아 있으면
+    // 관리자 로그인 후에도 잠깐 비로그인 헤더가 보일 수 있습니다.
+    // 캐시에서 복원된 경우 서버에서 현재 인증 상태로 다시 렌더링합니다.
+    window.addEventListener("pageshow", (event) => {
+        if (event.persisted) {
+            window.location.reload();
+        }
+    });
+
     const state = {
         products: [],
         category: "ALL",
@@ -13,6 +22,9 @@
         pendingCheckout: false,
         pendingFavoriteId: null,
         usernameAvailable: false,
+        emailAvailable: false,
+        monthlyQuantityPromptSignature: null,
+        monthlyQuantitySuggestion: null,
         paymentConfig: null
     };
 
@@ -33,6 +45,8 @@
     let resetCodeExpiresAt = 0;
     let resetCodeResendAt = 0;
     let resetCodeTimer = null;
+    let emailAvailabilityTimer = null;
+    let emailAvailabilityRequest = 0;
 
     function resetCodeIdentity() {
         return {
@@ -488,6 +502,8 @@
         const message = $("#signup-email-message");
         const valid = EMAIL_PATTERN.test(input.value.trim());
 
+        state.emailAvailable = false;
+
         setValidationState(
             input,
             message,
@@ -497,6 +513,47 @@
                 : "올바른 이메일 주소를 입력해주세요."
         );
         return valid;
+    }
+
+    async function checkEmailAvailability(focusOnError = false) {
+        const input = $("#signup-email");
+        const message = $("#signup-email-message");
+        if (!input || !message || !validateEmail()) {
+            if (focusOnError) input?.focus();
+            return false;
+        }
+
+        const email = input.value.trim();
+        const requestId = ++emailAvailabilityRequest;
+        message.classList.remove("success", "error");
+        message.textContent = "이메일 중복 여부를 확인하고 있습니다.";
+
+        try {
+            const result = await api(
+                `/api/members/check-email?email=${encodeURIComponent(email)}`
+            );
+            if (requestId !== emailAvailabilityRequest
+                || input.value.trim() !== email) {
+                return false;
+            }
+            state.emailAvailable = Boolean(result.available);
+            setValidationState(
+                input,
+                message,
+                state.emailAvailable,
+                state.emailAvailable
+                    ? "사용 가능한 이메일입니다."
+                    : "이미 사용 중인 이메일입니다."
+            );
+            if (!state.emailAvailable && focusOnError) input.focus();
+            return state.emailAvailable;
+        } catch (error) {
+            if (requestId !== emailAvailabilityRequest) return false;
+            state.emailAvailable = false;
+            setValidationState(input, message, false, error.message);
+            if (focusOnError) input.focus();
+            return false;
+        }
     }
 
     async function checkUsernameAvailability() {
@@ -806,6 +863,7 @@
 
             renderProducts();
             renderCartCount();
+            openRequestedCartOrCheckout();
         } catch (error) {
             showToast(
                 error.message || "상품 정보를 불러오지 못했습니다."
@@ -1331,6 +1389,57 @@
         }
     }
 
+    function openRequestedCartOrCheckout() {
+        const query = new URLSearchParams(window.location.search);
+        const requestedProductId = Number(query.get("buy"));
+
+        if (Number.isInteger(requestedProductId) && requestedProductId > 0) {
+            query.delete("buy");
+            const nextQuery = query.toString();
+            window.history.replaceState(
+                {},
+                document.title,
+                `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`
+            );
+
+            const product = productById(requestedProductId);
+            if (!product) {
+                showToast("주문할 상품을 찾을 수 없습니다.");
+                return;
+            }
+            if (purchasableStock(product) < 1) {
+                showToast("현재 주문 가능한 재고가 없는 상품입니다.");
+                return;
+            }
+
+            state.cart.clear();
+            addToCart(requestedProductId, 1);
+            beginCheckout();
+            return;
+        }
+
+        if (query.get("checkout") !== "favorites") return;
+
+        query.delete("checkout");
+        const nextQuery = query.toString();
+        window.history.replaceState(
+            {},
+            document.title,
+            `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`
+        );
+
+        if (!state.member) {
+            showAccount("login");
+            showToast("한 번에 구매하려면 다시 로그인해주세요.");
+            return;
+        }
+        if (!cartRows().length) {
+            showToast("구매 가능한 관심상품이 없습니다.");
+            return;
+        }
+        beginCheckout();
+    }
+
     async function toggleFavorite(id, forceAdd = false) {
         if (!state.member) {
             state.pendingFavoriteId = id;
@@ -1446,6 +1555,10 @@
         const headerAccountButton = $(
             ".header-actions [data-open-account='login']"
         );
+
+        if (headerAccountButton) {
+            headerAccountButton.hidden = false;
+        }
 
         if (myFarmLabel) {
             myFarmLabel.textContent = loggedIn
@@ -1596,15 +1709,122 @@
         }
 
         if (state.member) {
-            fillCheckoutFromMember();
-            openModal("checkout-modal");
-            renderCheckoutSummary();
+            const suggestion = monthlyQuantitySuggestion();
+            if (suggestion
+                && suggestion.signature !== state.monthlyQuantityPromptSignature) {
+                state.monthlyQuantitySuggestion = suggestion;
+                renderMonthlyQuantitySuggestion(suggestion);
+                openModal("monthly-quantity-modal");
+                return;
+            }
+            openCheckoutModal();
             return;
         }
 
         state.pendingCheckout = true;
         showAccount("login");
         showToast("상품 주문은 로그인한 회원만 이용할 수 있습니다.");
+    }
+
+    function openCheckoutModal() {
+        if (!state.member || !cartRows().length) return;
+        fillCheckoutFromMember();
+        openModal("checkout-modal");
+        renderCheckoutSummary();
+    }
+
+    function monthlyMinimumQuantity() {
+        const model = state.member?.farmModel;
+        if (!model) return 0;
+        const livestockCount = Number(model.livestockCount || 0);
+        const bagsPerHead = Number(model.monthlyBagsPerHead || 0);
+        if (livestockCount > 0 && bagsPerHead > 0) {
+            return Math.max(1, Math.ceil(livestockCount * bagsPerHead));
+        }
+        return Math.max(0, Number(model.monthlyFeedQuantity || 0));
+    }
+
+    function monthlyQuantitySuggestion() {
+        const rows = cartRows();
+        const required = monthlyMinimumQuantity();
+        const current = rows.reduce((sum, row) => sum + row.quantity, 0);
+        if (!required || current >= required) return null;
+
+        let shortage = required - current;
+        const additions = new Map();
+        rows.forEach(({ product, quantity }) => {
+            if (shortage <= 0) return;
+            const available = Math.max(0, purchasableStock(product) - quantity);
+            const addition = Math.min(available, shortage);
+            if (addition > 0) {
+                additions.set(product.id, addition);
+                shortage -= addition;
+            }
+        });
+
+        const suggested = required - shortage;
+        const signature = `${required}:` + rows
+            .map(({ product, quantity }) => `${product.id}-${quantity}`)
+            .sort()
+            .join("|");
+        return { required, current, suggested, shortage, additions, signature };
+    }
+
+    function renderMonthlyQuantitySuggestion(suggestion) {
+        const model = state.member?.farmModel;
+        const animalLabels = {
+            CATTLE: "소",
+            DAIRY_CATTLE: "젖소",
+            PIG: "돼지",
+            CHICKEN: "닭",
+            DUCK: "오리",
+            POULTRY: "조류"
+        };
+        const animal = animalLabels[model?.animalType]
+            || model?.animalType
+            || "등록 축종";
+        $("#monthly-quantity-description").textContent =
+            `${animal} ${Number(model?.livestockCount || 0).toLocaleString("ko-KR")}두/수의 `
+            + `사육 정보를 기준으로 이번 달 최소 필요량은 약 `
+            + `${suggestion.required.toLocaleString("ko-KR")}포대로 예상됩니다. `
+            + "추천 수량을 적용하거나 현재 주문 수량을 그대로 유지할 수 있습니다.";
+        $("#monthly-current-quantity").textContent =
+            `${suggestion.current.toLocaleString("ko-KR")}포대`;
+        $("#monthly-required-quantity").textContent =
+            `${suggestion.required.toLocaleString("ko-KR")}포대`;
+        $("#monthly-suggested-quantity").textContent =
+            `${suggestion.suggested.toLocaleString("ko-KR")}포대`;
+        $("#monthly-quantity-note").textContent = suggestion.shortage > 0
+            ? `선택 상품의 판매 가능 재고가 부족하여 최소량보다 ${suggestion.shortage.toLocaleString("ko-KR")}포대 적게 제안됩니다.`
+            : `현재 주문보다 ${(suggestion.required - suggestion.current).toLocaleString("ko-KR")}포대를 추가하면 월 예상 최소량에 맞출 수 있습니다.`;
+        const applyButton = $("[data-monthly-quantity-apply]");
+        if (applyButton) applyButton.disabled = suggestion.additions.size === 0;
+    }
+
+    function applyMonthlyQuantitySuggestion() {
+        const suggestion = state.monthlyQuantitySuggestion;
+        if (!suggestion) return;
+        suggestion.additions.forEach((addition, productId) => {
+            state.cart.set(
+                Number(productId),
+                (state.cart.get(Number(productId)) || 0) + addition
+            );
+        });
+        saveCart();
+        renderCartCount();
+        state.monthlyQuantityPromptSignature = null;
+        state.monthlyQuantitySuggestion = null;
+        showToast("월 예상 최소량에 맞춰 주문 수량을 조정했습니다.");
+        openCheckoutModal();
+    }
+
+    function keepCurrentMonthlyQuantity() {
+        const suggestion = state.monthlyQuantitySuggestion;
+        if (suggestion) {
+            state.monthlyQuantityPromptSignature = suggestion.signature;
+        }
+        state.monthlyQuantitySuggestion = null;
+        openCheckoutModal();
     }
 
     function statusLabel(status) {
@@ -1817,6 +2037,14 @@
             );
 
             beginCheckout();
+        }
+
+        if (button.hasAttribute("data-monthly-quantity-apply")) {
+            applyMonthlyQuantitySuggestion();
+        }
+
+        if (button.hasAttribute("data-monthly-quantity-keep")) {
+            keepCurrentMonthlyQuantity();
         }
 
         if (button.dataset.detail) {
@@ -2122,10 +2350,25 @@
         }
     );
 
-    $("#signup-email")?.addEventListener(
-        "input",
-        validateEmail
-    );
+    $("#signup-email")?.addEventListener("input", () => {
+        window.clearTimeout(emailAvailabilityTimer);
+        emailAvailabilityRequest += 1;
+        if (!validateEmail()) return;
+        const message = $("#signup-email-message");
+        if (message) {
+            message.classList.remove("success", "error");
+            message.textContent = "이메일 중복 여부를 확인하고 있습니다.";
+        }
+        emailAvailabilityTimer = window.setTimeout(
+            () => checkEmailAvailability(),
+            350
+        );
+    });
+
+    $("#signup-email")?.addEventListener("blur", () => {
+        window.clearTimeout(emailAvailabilityTimer);
+        checkEmailAvailability();
+    });
 
     $("#login-form")?.addEventListener(
         "submit",
@@ -2133,6 +2376,9 @@
             event.preventDefault();
 
             try {
+                const pendingCart = state.pendingCheckout
+                    ? new Map(state.cart)
+                    : null;
                 const login = await api(
                     "/api/auth/login",
                     {
@@ -2162,6 +2408,19 @@
                 state.member = member;
 
                 loadCartForCurrentIdentity();
+                if (pendingCart) {
+                    pendingCart.forEach((quantity, productId) => {
+                        const product = productById(productId);
+                        const stock = purchasableStock(product);
+                        if (product && stock > 0) {
+                            state.cart.set(
+                                Number(productId),
+                                Math.min(stock, Math.max(1, Number(quantity)))
+                            );
+                        }
+                    });
+                    saveCart();
+                }
                 renderCartCount();
 
                 window.sessionStorage.setItem(
@@ -2186,8 +2445,7 @@
 
                 if (state.pendingCheckout) {
                     state.pendingCheckout = false;
-                    openModal("checkout-modal");
-                    renderCheckoutSummary();
+                    beginCheckout();
                 } else {
                     // 일반 회원 로그인은 판매 메인 화면으로 이동합니다.
                     // 마이페이지는 헤더의 마이페이지 메뉴를 눌렀을 때 엽니다.
@@ -2337,9 +2595,8 @@
                 return;
             }
 
-            if (!validateEmail()) {
-                showToast("이메일 형식을 확인해주세요.");
-                $("#signup-email").focus();
+            if (!await checkEmailAvailability(true)) {
+                showToast("이메일 중복 여부를 확인해주세요.");
                 return;
             }
 

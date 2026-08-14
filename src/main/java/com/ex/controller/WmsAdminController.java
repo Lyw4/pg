@@ -129,8 +129,17 @@ public class WmsAdminController {
                                 : null));
         model.addAttribute("products", wmsOperationsService.products());
         model.addAttribute(
+                "warehouseAllocations",
+                wmsOperationsService.warehouseAllocations());
+        model.addAttribute(
                 "directOutboundProducts",
                 wmsOperationsService.directOutboundProducts());
+        model.addAttribute(
+                "productCodes",
+                wmsOperationsService.products().stream().collect(
+                        java.util.stream.Collectors.toMap(
+                                product -> product.getProductId(),
+                                wmsOperationsService::productCode)));
         model.addAttribute("lots", lots);
         model.addAttribute("lowStockLots", lowStockLots);
         model.addAttribute("regularLots", regularLots);
@@ -138,7 +147,11 @@ public class WmsAdminController {
         wmsOperationsService.inventories(null).forEach(inventory ->
                 lotPreferredBins.putIfAbsent(inventory.getLot().getLotId(), inventory.getBin().getBinId()));
         model.addAttribute("lotPreferredBins", lotPreferredBins);
-        model.addAttribute("movements", wmsOperationsService.movements());
+        var movements = wmsOperationsService.movements();
+        model.addAttribute("movements", movements);
+        model.addAttribute(
+                "movementBuyerNames",
+                wmsOperationsService.movementBuyerNames(movements));
         model.addAttribute("overview", wmsOperationsService.overview());
         model.addAttribute(
                 "binQuantities",
@@ -154,7 +167,25 @@ public class WmsAdminController {
         model.addAttribute("selectedLotId", selectedLotId);
         model.addAttribute("today", LocalDate.now());
         if ("inbound".equals(selectedView)) {
-            model.addAttribute("demandPlan", demandPlanService.plan(LocalDate.now()));
+            var demandPlan = demandPlanService.plan(LocalDate.now());
+            model.addAttribute("demandPlan", demandPlan);
+            Map<String, Long> demandProductIds = new LinkedHashMap<>();
+            demandPlan.warehouses().forEach(warehousePlan ->
+                    warehousePlan.rows().stream()
+                            .filter(DemandPlanService.CoverageRow::needsAction)
+                            .forEach(row -> {
+                                try {
+                                    demandProductIds.put(
+                                            warehousePlan.warehouse().getWarehouseId()
+                                                    + "|" + row.animalType(),
+                                            wmsOperationsService.recommendedDemandProductId(
+                                                    warehousePlan.warehouse().getWarehouseId(),
+                                                    row.animalType()));
+                                } catch (RuntimeException ignored) {
+                                    // 유효 LOT/취급 상품이 없으면 기존 오류 안내 흐름을 사용한다.
+                                }
+                            }));
+            model.addAttribute("demandProductIds", demandProductIds);
         }
         if ("map".equals(selectedView)
                 && selectedWarehouseId != null) {
@@ -262,29 +293,18 @@ public class WmsAdminController {
     @PostMapping("/admin/wms/bins")
     public String createBin(
             @RequestParam(name = "warehouseId") Long warehouseId,
-            @RequestParam(name = "binCode") String binCode,
-            @RequestParam(name = "zone") String zone,
-            @RequestParam(name = "purpose") BinPurpose purpose,
-            @RequestParam(name = "maxCapacity") int maxCapacity,
-            @RequestParam(name = "posX") int posX,
-            @RequestParam(name = "posY") int posY,
-            @RequestParam(name = "posWidth", defaultValue = "3") int posWidth,
-            @RequestParam(name = "posHeight", defaultValue = "3") int posHeight,
+            @RequestParam(name = "productId") Long productId,
+            @RequestParam(name = "plannedQuantity") int plannedQuantity,
             @RequestParam(name = "memo", required = false) String memo,
             RedirectAttributes redirectAttributes) {
         try {
-            wmsOperationsService.createBin(
+            var createdBin = wmsOperationsService.createAutomaticProductBin(
                     warehouseId,
-                    binCode,
-                    zone,
-                    purpose,
-                    maxCapacity,
-                    posX,
-                    posY,
-                    posWidth,
-                    posHeight,
+                    productId,
+                    plannedQuantity,
                     memo);
-            success(redirectAttributes, "창고 구역을 등록했습니다.");
+            success(redirectAttributes, "창고 구역 " + createdBin.getBinCode()
+                    + "을(를) 빈 도면 위치에 자동 등록했습니다.");
         } catch (RuntimeException exception) {
             error(redirectAttributes, exception);
         }
@@ -418,6 +438,27 @@ public class WmsAdminController {
         }
         redirectAttributes.addFlashAttribute("bulkInboundResults", successes);
         redirectAttributes.addFlashAttribute("bulkInboundErrors", failures);
+        return "redirect:/admin/wms?view=inbound";
+    }
+
+    @PostMapping("/admin/wms/inbound/adjust")
+    public String adjustedDemandInbound(
+            @RequestParam(name = "warehouseId") Long warehouseId,
+            @RequestParam(name = "animalType") String animalType,
+            @RequestParam(name = "quantity") int quantity,
+            Authentication authentication,
+            RedirectAttributes redirectAttributes) {
+        try {
+            var result = wmsOperationsService.receiveDemandReplenishment(
+                    warehouseId, animalType, quantity, operator(authentication));
+            success(redirectAttributes,
+                    result.warehouseName() + " · " + result.animalType()
+                            + " " + result.quantity() + "포를 입고했습니다. LOT "
+                            + result.lotNo() + " → "
+                            + String.join(", ", result.binCodes()));
+        } catch (RuntimeException exception) {
+            error(redirectAttributes, exception);
+        }
         return "redirect:/admin/wms?view=inbound";
     }
 

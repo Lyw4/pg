@@ -370,6 +370,10 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("farmCustomerVisibleCount");
     const farmCustomerFilterEmpty =
         document.getElementById("farmCustomerFilterEmpty");
+    const farmCustomerPagination =
+        document.getElementById("farmCustomerPagination");
+    const farmCustomerPageSize = 10;
+    let farmCustomerPage = 1;
     let activeFarmWarehouse = "all";
     let activeFarmAnimal = "all";
     let activeFarmStatus = "all";
@@ -377,7 +381,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function filterFarmCustomers() {
         const keyword =
             farmCustomerSearch?.value.trim().toLowerCase() ?? "";
-        let visible = 0;
+        const matchedRows = [];
 
         farmCustomerRows.forEach(row => {
             const matchesWarehouse =
@@ -399,25 +403,72 @@ document.addEventListener("DOMContentLoaded", () => {
                 && matchesStatus
                 && matchesKeyword;
 
-            row.hidden = !show;
             if (show) {
-                visible++;
+                matchedRows.push(row);
             }
         });
 
+        const totalPages = Math.max(
+            1,
+            Math.ceil(matchedRows.length / farmCustomerPageSize)
+        );
+        farmCustomerPage = Math.min(farmCustomerPage, totalPages);
+        const pageStart = (farmCustomerPage - 1) * farmCustomerPageSize;
+        const pageRows = new Set(
+            matchedRows.slice(pageStart, pageStart + farmCustomerPageSize)
+        );
+        farmCustomerRows.forEach(row => {
+            row.hidden = !pageRows.has(row);
+        });
+
         if (farmCustomerVisibleCount) {
-            farmCustomerVisibleCount.textContent = String(visible);
+            farmCustomerVisibleCount.textContent = String(matchedRows.length);
         }
         if (farmCustomerFilterEmpty) {
-            farmCustomerFilterEmpty.hidden = visible !== 0;
+            farmCustomerFilterEmpty.hidden = matchedRows.length !== 0;
+        }
+        if (farmCustomerPagination) {
+            farmCustomerPagination.replaceChildren();
+            farmCustomerPagination.hidden = matchedRows.length <= farmCustomerPageSize;
+
+            if (!farmCustomerPagination.hidden) {
+                const addPageButton = (label, page, disabled, active = false) => {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.textContent = label;
+                    button.disabled = disabled;
+                    button.className = active ? "active" : "";
+                    if (active) {
+                        button.setAttribute("aria-current", "page");
+                    }
+                    button.addEventListener("click", () => {
+                        farmCustomerPage = page;
+                        filterFarmCustomers();
+                        document.getElementById("farmCustomerTable")
+                            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    });
+                    farmCustomerPagination.appendChild(button);
+                };
+
+                addPageButton("이전", farmCustomerPage - 1, farmCustomerPage === 1);
+                for (let page = 1; page <= totalPages; page++) {
+                    addPageButton(String(page), page, false, page === farmCustomerPage);
+                }
+                addPageButton("다음", farmCustomerPage + 1,
+                    farmCustomerPage === totalPages);
+            }
         }
     }
 
-    farmCustomerSearch?.addEventListener("input", filterFarmCustomers);
+    farmCustomerSearch?.addEventListener("input", () => {
+        farmCustomerPage = 1;
+        filterFarmCustomers();
+    });
 
     farmWarehouseCards.forEach(card => {
         card.addEventListener("click", () => {
             activeFarmWarehouse = card.dataset.farmWarehouse ?? "all";
+            farmCustomerPage = 1;
             farmWarehouseCards.forEach(item => {
                 const selected = item === card;
                 item.classList.toggle("active", selected);
@@ -430,6 +481,7 @@ document.addEventListener("DOMContentLoaded", () => {
     farmAnimalTabs.forEach(tab => {
         tab.addEventListener("click", () => {
             activeFarmAnimal = tab.dataset.farmAnimal ?? "all";
+            farmCustomerPage = 1;
             farmAnimalTabs.forEach(item => {
                 const selected = item === tab;
                 item.classList.toggle("active", selected);
@@ -442,6 +494,7 @@ document.addEventListener("DOMContentLoaded", () => {
     farmStatusTabs.forEach(tab => {
         tab.addEventListener("click", () => {
             activeFarmStatus = tab.dataset.farmStatus ?? "all";
+            farmCustomerPage = 1;
             farmStatusTabs.forEach(item => {
                 const selected = item === tab;
                 item.classList.toggle("active", selected);
@@ -450,6 +503,10 @@ document.addEventListener("DOMContentLoaded", () => {
             filterFarmCustomers();
         });
     });
+
+    if (farmCustomerRows.length > 0) {
+        filterFarmCustomers();
+    }
 
     all("[data-farm-status-form]").forEach(form => {
         form.addEventListener("submit", () => {
@@ -1791,32 +1848,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const isExpiry = view === "expiry";
         const isShipments = view === "shipments";
+        const isDefects = view === "defects";
+        const isStockOverview = view === "stock";
 
         if (inventoryStats) {
-            inventoryStats.hidden = isShipments;
+            inventoryStats.hidden = !isStockOverview;
         }
 
         if (inventoryPageTitle) {
             inventoryPageTitle.textContent = isShipments
                 ? "출고 대기 주문"
-                : "재고 관리";
+                : isDefects ? "불량 관리" : "재고 관리";
         }
 
         if (inventoryPageDescription) {
             inventoryPageDescription.textContent = isShipments
                 ? "출고 대기 주문을 피킹·검수·출고 완료 순서로 처리합니다."
-                : "LOT 단위로 입고하고 유통기한이 빠른 재고부터 출고합니다.";
+                : isDefects
+                    ? "불량 재고를 격리하고 검사부터 최종 처리까지 추적합니다."
+                    : "LOT 단위로 입고하고 유통기한이 빠른 재고부터 출고합니다.";
         }
 
         if (inventoryReceiveButton) {
-            inventoryReceiveButton.hidden = isShipments;
+            inventoryReceiveButton.hidden = isShipments || isDefects;
         }
 
         if (inventoryAlertCenter) {
-            inventoryAlertCenter.classList.toggle(
-                "shipment-context-alert",
-                isShipments
-            );
+            inventoryAlertCenter.hidden = !isStockOverview;
         }
 
         if (inventoryAlertTitle) {

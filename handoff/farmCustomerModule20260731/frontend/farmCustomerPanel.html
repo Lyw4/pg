@@ -1,0 +1,258 @@
+        <section
+            class="panel distribution-panel farmCustomerPanel"
+            data-delivery-panel="farms"
+            hidden>
+            <div class="panel-title">
+                <div>
+                    <p class="summary-eyebrow">FARM CUSTOMER NETWORK</p>
+                    <h2>거점별 농장 고객사 관리</h2>
+                    <p>5개 창고 권역의 주요 농장을 축종·수요·정기 배송일 기준으로 관리합니다.</p>
+                </div>
+                <span class="summary-count">
+                    <strong th:text="${#lists.size(farmCustomers)}">20</strong>곳
+                </span>
+            </div>
+
+            <div class="farmDemoNotice">
+                <span>DEMO</span>
+                실제 업체 정보가 아닌 파이널 프로젝트 시연용 가상 농장 데이터입니다.
+            </div>
+
+            <div class="farmCustomerOverview">
+                <article>
+                    <span>거래 중 농장</span>
+                    <strong th:text="|${activeFarmCustomerCount}곳|">18곳</strong>
+                    <small th:text="|전체 ${#lists.size(farmCustomers)}곳 중 활성|">
+                        전체 농장 중 활성
+                    </small>
+                </article>
+                <article>
+                    <span>월 예상 사료량</span>
+                    <strong th:text="|${#numbers.formatInteger(
+                        farmMonthlyFeedTotal, 0, 'COMMA')}포|">
+                        0포
+                    </strong>
+                    <small>거래 중 고객사 기준</small>
+                </article>
+                <article>
+                    <span>담당 거점 창고</span>
+                    <strong th:text="|${#lists.size(farmWarehouses)}곳|">5곳</strong>
+                    <small>거리 기반 권역 배정</small>
+                </article>
+            </div>
+
+            <div class="farmWarehouseSelector" role="tablist" aria-label="농장 담당 창고">
+                <button
+                    type="button"
+                    class="farmWarehouseCard active"
+                    data-farm-warehouse="all"
+                    aria-selected="true">
+                    <span>ALL</span>
+                    <strong>전체 고객사</strong>
+                    <small th:text="|${#lists.size(farmCustomers)}개 농장|">
+                        20개 농장
+                    </small>
+                </button>
+                <button
+                    type="button"
+                    class="farmWarehouseCard"
+                    th:each="warehouse : ${farmWarehouses}"
+                    th:data-farm-warehouse="${warehouse.code}"
+                    aria-selected="false">
+                    <span th:text="${warehouse.code}">W01</span>
+                    <strong th:text="${warehouse.name}">거점 창고</strong>
+                    <small th:text="|${farmWarehouseSummaries[
+                        warehouse.code].customerCount}개 농장
+                        · 월 ${#numbers.formatInteger(
+                            farmWarehouseSummaries[
+                                warehouse.code].monthlyFeedQuantity,
+                            0, 'COMMA')}포|">
+                        농장 요약
+                    </small>
+                </button>
+            </div>
+
+            <div class="farmCustomerTools">
+                <input
+                    type="search"
+                    id="farmCustomerSearch"
+                    placeholder="농장명, 지역, 담당자 또는 선호 사료 검색"
+                    aria-label="농장 고객사 검색">
+                <div class="farmFilterGroups">
+                    <div class="farmFilterGroup">
+                        <span>축종</span>
+                        <div class="category-tabs farmAnimalTabs" role="tablist"
+                            aria-label="농장 축종">
+                            <button type="button" class="category-tab active"
+                                data-farm-animal="all"
+                                aria-selected="true">전체</button>
+                            <button type="button" class="category-tab"
+                                data-farm-animal="소"
+                                aria-selected="false">소</button>
+                            <button type="button" class="category-tab"
+                                data-farm-animal="돼지"
+                                aria-selected="false">돼지</button>
+                            <button type="button" class="category-tab"
+                                data-farm-animal="조류(닭/오리)"
+                                aria-selected="false">조류</button>
+                        </div>
+                    </div>
+                    <div class="farmFilterGroup">
+                        <span>거래 상태</span>
+                        <div class="category-tabs farmStatusTabs" role="tablist"
+                            aria-label="농장 거래 상태">
+                            <button type="button" class="category-tab active"
+                                data-farm-status="all"
+                                aria-selected="true">전체</button>
+                            <button type="button" class="category-tab"
+                                data-farm-status="ACTIVE"
+                                aria-selected="false">거래 중</button>
+                            <button type="button" class="category-tab"
+                                data-farm-status="PAUSED"
+                                aria-selected="false">거래 보류</button>
+                        </div>
+                    </div>
+                </div>
+                <span>
+                    조회 <strong id="farmCustomerVisibleCount"
+                        th:text="${#lists.size(farmCustomers)}">20</strong>곳
+                </span>
+            </div>
+
+            <div class="table-wrap farmCustomerTableWrap">
+                <table id="farmCustomerTable" data-no-auto-pager>
+                    <thead>
+                        <tr>
+                            <th>농장 고객사</th>
+                            <th>담당 창고</th>
+                            <th>주요 축종</th>
+                            <th>농장 위치</th>
+                            <th>월 예상 수요</th>
+                            <th>선호 사료·정기일</th>
+                            <th>거래 관리</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            th:each="farm : ${farmCustomers}"
+                            data-farm-row
+                            th:data-warehouse="${farm.assignedWarehouse.code}"
+                            th:data-animal="${farm.animalType}"
+                            th:data-status="${farm.status.name()}">
+                            <td>
+                                <strong th:text="${farm.farmName}">농장명</strong>
+                                <small th:text="|${farm.farmCode} · ${farm.representativeName}
+                                    · ${farm.phone}|">
+                                    고객사 정보
+                                </small>
+                                <span class="farmDemoBadge" th:if="${farm.demoData}">
+                                    DEMO
+                                </span>
+                            </td>
+                            <td>
+                                <span class="farmWarehouseCode"
+                                    th:text="${farm.assignedWarehouse.code}">
+                                    W01
+                                </span>
+                                <strong th:text="${farm.assignedWarehouse.name}">
+                                    담당 창고
+                                </strong>
+                            </td>
+                            <td>
+                                <span class="farmAnimalBadge"
+                                    th:classappend="${farm.animalType == '소'
+                                        ? ' cattle'
+                                        : farm.animalType == '돼지'
+                                            ? ' pig'
+                                            : ' poultry'}"
+                                    th:text="${farm.animalType}">
+                                    축종
+                                </span>
+                                <small th:text="|사육 ${#numbers.formatInteger(
+                                    farm.livestockCount, 0, 'COMMA')}두/수|">
+                                    사육 규모
+                                </small>
+                            </td>
+                            <td>
+                                <span class="farmAddress" th:text="${farm.address}">
+                                    농장 주소
+                                </span>
+                                <small th:text="|창고에서 ${farm.distanceLabel}|">
+                                    거리
+                                </small>
+                            </td>
+                            <td>
+                                <strong class="farmMonthlyDemand"
+                                    th:text="|${#numbers.formatInteger(
+                                        farm.monthlyFeedQuantity, 0, 'COMMA')}포|">
+                                    0포
+                                </strong>
+                                <small>월 예상 사용량</small>
+                            </td>
+                            <td>
+                                <strong th:text="${farm.preferredFeed}">
+                                    선호 사료
+                                </strong>
+                                <small th:text="|매월 ${farm.recurringDeliveryDay}일
+                                    · ${farm.notes}|">
+                                    정기 배송
+                                </small>
+                            </td>
+                            <td>
+                                <div class="farmCustomerActions">
+                                    <span
+                                        class="farmStatus"
+                                        th:classappend="${farm.status.name().toLowerCase()}"
+                                        th:text="${farm.status.label}">
+                                        거래 중
+                                    </span>
+                                    <form
+                                        method="post"
+                                        data-farm-status-form
+                                        th:action="@{/distribution/farm-customers/{farmCustomerId}/status(farmCustomerId=${farm.farmCustomerId})}">
+                                        <input
+                                            type="hidden"
+                                            name="status"
+                                            th:value="${farm.status.name() == 'ACTIVE'
+                                                ? 'PAUSED'
+                                                : 'ACTIVE'}">
+                                        <button
+                                            type="submit"
+                                            class="farmStatusChange"
+                                            th:classappend="${farm.status.name() == 'ACTIVE'
+                                                ? ' pause'
+                                                : ' resume'}"
+                                            th:text="${farm.status.name() == 'ACTIVE'
+                                                ? '거래 보류로 변경'
+                                                : '거래 재개'}">
+                                            거래 상태 변경
+                                        </button>
+                                    </form>
+                                    <button
+                                        type="button"
+                                        class="ghost farmOrderButton"
+                                        data-open="demoOrderModal"
+                                        th:if="${farm.status.name() == 'ACTIVE'}"
+                                        th:data-farm-id="${farm.farmCustomerId}"
+                                        th:data-farm-name="${farm.farmName}"
+                                        th:data-representative="${farm.representativeName}"
+                                        th:data-phone="${farm.phone}"
+                                        th:data-postal-code="${farm.postalCode}"
+                                        th:data-address="${farm.address}"
+                                        th:data-preferred-feed="${farm.preferredFeed}"
+                                        th:data-latitude="${farm.latitude}"
+                                        th:data-longitude="${farm.longitude}">
+                                        이 농장으로 주문
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr id="farmCustomerFilterEmpty" hidden>
+                            <td colspan="7" class="empty">
+                                선택한 조건의 농장 고객사가 없습니다.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>

@@ -21,6 +21,7 @@ public interface BinInventoryRepository
     @EntityGraph(attributePaths = {
         "lot",
         "lot.product",
+        "lot.product.manufacturer",
         "bin",
         "bin.warehouse"
     })

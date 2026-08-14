@@ -1,0 +1,17 @@
+            <button
+                type="button"
+                class="distribution-kpi farmCustomers"
+                data-delivery-view="farms"
+                aria-selected="false">
+                <span>고객 농장</span>
+                <strong th:text="|${activeFarmCustomerCount} / ${#lists.size(farmCustomers)}|">
+                    0 / 0
+                </strong>
+                <small th:text="|월 ${#numbers.formatInteger(
+                    farmMonthlyFeedTotal, 0, 'COMMA')}포 예상|">
+                    월 0포 예상
+                </small>
+                <i class="kpi-progress"><b th:style="|width: ${#lists.isEmpty(farmCustomers)
+                    ? 0
+                    : activeFarmCustomerCount * 100.0 / #lists.size(farmCustomers)}%|"></b></i>
+            </button>

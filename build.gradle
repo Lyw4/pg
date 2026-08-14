@@ -56,6 +56,11 @@ dependencies {
     implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
 }
 
+tasks.withType(JavaCompile).configureEach {
+	// STS와 Gradle 어느 쪽에서 실행해도 Spring이 메서드 파라미터 이름을
+	// 동일하게 인식하도록 컴파일 결과에 이름 정보를 보존합니다.
+	options.compilerArgs += '-parameters'
+}
 
 tasks.named('test') {
 	useJUnitPlatform()

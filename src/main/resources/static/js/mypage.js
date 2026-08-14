@@ -51,18 +51,83 @@
             const savedIds = new Set(favoriteProductIds.map(Number));
             const favorites = products.filter((product) => savedIds.has(product.id));
             container.innerHTML = favorites.length
-                ? favorites.map((product) => `
-                    <article>
+                ? `
+                    <div class="favorite-purchase-toolbar">
+                        <label>
+                            <input type="checkbox" data-select-all-favorites>
+                            <span>구매 가능한 상품 전체 선택</span>
+                        </label>
+                        <div>
+                            <span data-favorite-purchase-summary>선택 상품이 없습니다.</span>
+                            <button type="button" data-buy-selected-favorites disabled>선택 상품 한 번에 구매</button>
+                        </div>
+                    </div>
+                    ${favorites.map((product) => `
+                    <article data-favorite-product="${Number(product.id)}">
+                        <label class="favorite-product-check">
+                            <input type="checkbox"
+                                   data-select-favorite="${Number(product.id)}"
+                                   data-product-price="${Number(product.price || 0)}"
+                                   ${Number(product.stock || 0) < 1 ? "disabled" : ""}
+                                   aria-label="${escapeHtml(product.name)} 구매 선택">
+                        </label>
                         <div class="mypage-product-mark"><img src="${escapeHtml(product.imageUrl || "/images/feed-bag-warehouse.png")}" alt="${escapeHtml(product.name)}"></div>
-                        <div><span>${escapeHtml(product.animal)} · ${escapeHtml(product.stage)}</span><h3>${escapeHtml(product.name)}</h3><p>${escapeHtml(product.weight)}kg / 포 · ${product.stock > 0 ? `구매 가능 ${product.stock}포` : "품절"}</p></div>
+                        <div class="favorite-product-copy"><span>${escapeHtml(product.animal)} · ${escapeHtml(product.stage)}</span><h3>${escapeHtml(product.name)}</h3><p>${escapeHtml(product.weight)}kg / 포 · ${product.stock > 0 ? `구매 가능 ${product.stock}포` : "품절"}</p></div>
                         <strong>${won(product.price)}</strong>
-                        <a href="/#products" aria-label="${escapeHtml(product.name)} 상품 보러가기">구매</a>
+                        <button class="favorite-buy-button" type="button" data-buy-favorite="${Number(product.id)}" ${Number(product.stock || 0) < 1 ? "disabled" : ""}>${Number(product.stock || 0) < 1 ? "품절" : "구매"}</button>
                         <button type="button" data-remove-favorite="${product.id}" aria-label="${escapeHtml(product.name)} 관심상품 삭제">×</button>
-                    </article>`).join("")
+                    </article>`).join("")}`
                 : `<p class="mypage-empty">관심상품이 없습니다. 구매 화면에서 ♡ 버튼을 눌러 등록해보세요.</p>`;
+            updateFavoritePurchaseSelection();
         } catch (error) {
             container.innerHTML = `<p class="mypage-empty">${escapeHtml(error.message)}</p>`;
         }
+    }
+
+    function selectedFavoriteProductIds() {
+        return $$('[data-select-favorite]:checked')
+            .map((checkbox) => Number(checkbox.dataset.selectFavorite))
+            .filter(Number.isFinite);
+    }
+
+    function updateFavoritePurchaseSelection() {
+        const available = $$('[data-select-favorite]:not(:disabled)');
+        const selected = available.filter((checkbox) => checkbox.checked);
+        const selectAll = $('[data-select-all-favorites]');
+        const purchaseButton = $('[data-buy-selected-favorites]');
+        const summary = $('[data-favorite-purchase-summary]');
+        const total = selected.reduce(
+            (sum, checkbox) => sum + Number(checkbox.dataset.productPrice || 0),
+            0
+        );
+
+        if (selectAll) {
+            selectAll.disabled = available.length === 0;
+            selectAll.checked = available.length > 0 && selected.length === available.length;
+            selectAll.indeterminate = selected.length > 0 && selected.length < available.length;
+        }
+        if (purchaseButton) purchaseButton.disabled = selected.length === 0;
+        if (summary) {
+            summary.textContent = selected.length
+                ? `${selected.length}개 상품 · 1포대씩 ${won(total)}`
+                : "선택 상품이 없습니다.";
+        }
+    }
+
+    async function purchaseFavoriteProducts(productIds) {
+        const ids = [...new Set(productIds.map(Number).filter(Number.isFinite))];
+        if (!ids.length) {
+            showToast("구매할 관심상품을 선택해주세요.", true);
+            return;
+        }
+
+        if (!member) member = await api("/api/members/me");
+        const cartKey = `feedflow-cart-member-${Number(member.id)}`;
+        window.localStorage.setItem(
+            cartKey,
+            JSON.stringify(ids.map((productId) => [productId, 1]))
+        );
+        window.location.href = "/?checkout=favorites";
     }
 
     function orderCard(order) {
@@ -218,6 +283,36 @@
         const tab = event.target.closest("[data-mypage-tab]");
         if (tab) switchPanel(tab.dataset.mypageTab);
 
+        const selectAllFavorites = event.target.closest("[data-select-all-favorites]");
+        if (selectAllFavorites) {
+            $$('[data-select-favorite]:not(:disabled)').forEach((checkbox) => {
+                checkbox.checked = selectAllFavorites.checked;
+            });
+            updateFavoritePurchaseSelection();
+        }
+
+        const buyFavorite = event.target.closest("[data-buy-favorite]");
+        if (buyFavorite) {
+            buyFavorite.disabled = true;
+            try {
+                await purchaseFavoriteProducts([buyFavorite.dataset.buyFavorite]);
+            } catch (error) {
+                buyFavorite.disabled = false;
+                showToast(error.message, true);
+            }
+        }
+
+        const buySelectedFavorites = event.target.closest("[data-buy-selected-favorites]");
+        if (buySelectedFavorites) {
+            buySelectedFavorites.disabled = true;
+            try {
+                await purchaseFavoriteProducts(selectedFavoriteProductIds());
+            } catch (error) {
+                buySelectedFavorites.disabled = false;
+                showToast(error.message, true);
+            }
+        }
+
         const feedbackButton = event.target.closest("[data-feedback-product] [data-suitable]");
         if (feedbackButton) {
             const feedback = feedbackButton.closest("[data-feedback-product]");
@@ -257,8 +352,8 @@
 
         const cancel = event.target.closest("[data-cancel-member-order]");
         const cancelMessage = cancel?.dataset.cancelBeforeDeposit
-            ? "입금 전 가상계좌를 말소하고 주문을 취소하시겠습니까?"
-            : "이 주문을 취소하고 LOT 재고를 복원하시겠습니까?";
+            ? "입금 전 주문을 취소하시겠습니까?\n취소하면 발급된 가상계좌는 더 이상 사용할 수 없습니다."
+            : "주문을 취소하시겠습니까?\n취소가 완료된 주문은 다시 되돌릴 수 없습니다.";
         if (cancel && member && window.confirm(cancelMessage)) {
             try {
                 await api(`/api/orders/mine/${encodeURIComponent(cancel.dataset.cancelMemberOrder)}/cancel`, {
@@ -267,11 +362,15 @@
                 await loadOrders();
                 showToast(
                     cancel.dataset.cancelBeforeDeposit
-                        ? "가상계좌가 말소되고 주문이 취소되었습니다."
-                        : "주문이 취소되고 LOT 재고가 복원되었습니다."
+                        ? "주문 취소가 완료되었습니다. 발급된 가상계좌도 함께 해지되었습니다."
+                        : "주문 취소가 완료되었습니다. 자세한 내용은 주문 내역에서 확인해 주세요."
                 );
             } catch (error) {
-                showToast(error.message, true);
+                console.error("주문 취소 처리 실패", error);
+                showToast(
+                    "주문을 취소하지 못했습니다. 이미 상품 준비가 시작되었거나 취소할 수 없는 상태일 수 있습니다. 고객센터로 문의해 주세요.",
+                    true
+                );
             }
         }
 
@@ -296,6 +395,12 @@
                 reconcile.disabled = false;
                 showToast(error.message, true);
             }
+        }
+    });
+
+    document.addEventListener("change", (event) => {
+        if (event.target.matches("[data-select-favorite]")) {
+            updateFavoritePurchaseSelection();
         }
     });
 

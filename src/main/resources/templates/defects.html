@@ -58,16 +58,16 @@
     <section class="panel"><div class="panel-title"><div><p class="eyebrow">DEFECT HISTORY</p>
         <h2>불량 처리 현황</h2><p>격리된 수량과 판정 결과를 확인할 수 있습니다.</p></div></div>
         <div class="defect-filter-bar">
-            <input type="search" data-defect-keyword placeholder="불량번호·상품·LOT·내용 검색">
+            <input type="search" data-defect-keyword placeholder="불량번호·상품명·제조사·LOT·내용·등록자 검색">
             <select data-defect-status><option value="ALL">전체 상태</option><option value="QUARANTINED">격리</option><option value="INSPECTING">검사 중</option><option value="RESOLVED">처리 완료</option></select>
             <select data-defect-type><option value="ALL">전체 유형</option><option th:each="type : ${defectTypes}" th:value="${type.name()}" th:text="${type.label}">유형</option></select>
             <span>조회 <strong data-defect-visible th:text="${#lists.size(records)}">0</strong>건</span>
         </div>
-        <div class="table-wrap"><table class="defect-table"><thead><tr><th>불량 번호</th><th>상품 / LOT</th>
+        <div class="table-wrap"><table class="defect-table" data-no-auto-pager><thead><tr><th>불량 번호</th><th>상품 / LOT</th>
             <th>수량</th><th>유형 / 단계</th><th>내용</th><th>상태</th><th>처리</th></tr></thead><tbody>
         <tr th:each="record : ${records}" data-defect-row
             th:data-status="${record.status.name()}" th:data-type="${record.defectType.name()}"
-            th:data-search="|${record.defectNo} ${record.lot.product.name} ${record.lot.lotNo} ${record.description} ${record.reporter}|">
+            th:data-search="|${record.defectNo} ${record.lot.product.name} ${record.lot.product.manufacturer.companyName} ${record.lot.lotNo} ${record.description} ${record.reporter}|">
             <td><strong th:text="${record.defectNo}">DF-0000</strong><small
                 th:text="${#temporals.format(record.occurredAt, 'yyyy-MM-dd HH:mm')}"></small></td>
             <td><strong th:text="${record.lot.product.name}">상품</strong><small th:text="${record.lot.lotNo}">LOT</small></td>

@@ -105,6 +105,15 @@ public class MemberService {
     }
 
     @Transactional(readOnly = true)
+    public boolean isEmailAvailable(String email) {
+        String normalized = normalizeEmail(email);
+        if (!normalized.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
+            throw new IllegalArgumentException("올바른 이메일 주소를 입력해주세요.");
+        }
+        return !memberRepository.existsByEmail(normalized);
+    }
+
+    @Transactional(readOnly = true)
     public MemberResponse findById(Long memberId) {
         return memberResponse(
                 requireActiveMember(memberId),

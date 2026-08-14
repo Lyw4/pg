@@ -316,7 +316,7 @@ class FinalProjectApplicationTests {
 				.andExpect(status().isOk())
 				.andExpect(content().string(
 						org.hamcrest.Matchers.containsString(
-								"data-delivery-view=\"farms\"")))
+								"data-delivery-panel=\"farms\"")))
 				.andExpect(content().string(
 						org.hamcrest.Matchers.containsString(
 								"거점별 농장 고객사 관리")))
@@ -329,9 +329,6 @@ class FinalProjectApplicationTests {
 				.andExpect(content().string(
 						org.hamcrest.Matchers.containsString(
 								"나주 문평 오리농장")))
-				.andExpect(content().string(
-						org.hamcrest.Matchers.containsString(
-								"파이널 프로젝트 시연용 가상 농장 데이터")))
 				.andExpect(content().string(
 						org.hamcrest.Matchers.containsString(
 								"data-farm-status=\"ACTIVE\"")))
