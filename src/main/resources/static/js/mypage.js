@@ -259,8 +259,11 @@
         $("#profile-phone").value = data.phone || "";
         $("#profile-business").value = data.businessNumber || "";
         $("#profile-home-address").value = home?.baseAddress || "";
+        $("#profile-home-postal").value = home?.postalCode || "";
         $("#profile-home-detail").value = home?.detailAddress || "";
         $("#profile-farm-address").value = farm?.baseAddress || "";
+        $("#profile-farm-postal").value = farm?.postalCode || "";
+        $("#profile-farm-detail").value = farm?.detailAddress || "";
         $("#profile-unloading").value = farm?.unloadingLocation || "";
     }
 
@@ -439,9 +442,12 @@
                     phone: $("#profile-phone").value.trim(),
                     businessNumber: $("#profile-business").value.trim() || null,
                     regularDeliveryDay: member?.regularDeliveryDay || null,
+                    homePostalCode: $("#profile-home-postal").value.trim(),
                     homeAddress: $("#profile-home-address").value.trim(),
                     homeDetailAddress: $("#profile-home-detail").value.trim(),
+                    farmPostalCode: $("#profile-farm-postal").value.trim(),
                     farmAddress: $("#profile-farm-address").value.trim(),
+                    farmDetailAddress: $("#profile-farm-detail").value.trim(),
                     unloadingLocation: $("#profile-unloading").value.trim()
                 })
             });

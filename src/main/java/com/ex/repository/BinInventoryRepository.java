@@ -135,6 +135,22 @@ public interface BinInventoryRepository
             @Param("sellableFrom") LocalDate sellableFrom);
 
     @Query("""
+            select sum(inventory.quantity)
+            from BinInventory inventory
+            where inventory.lot.product.productId = :productId
+              and inventory.bin.warehouse.warehouseId = :warehouseId
+              and inventory.quantity > 0
+              and inventory.bin.active = true
+              and inventory.bin.purpose in :purposes
+              and inventory.lot.expirationDate >= :sellableFrom
+            """)
+    Integer sumSellableQuantityByWarehouseAndProductId(
+            @Param("warehouseId") Long warehouseId,
+            @Param("productId") Long productId,
+            @Param("purposes") Collection<BinPurpose> purposes,
+            @Param("sellableFrom") LocalDate sellableFrom);
+
+    @Query("""
             select inventory.lot.product.productId, sum(inventory.quantity)
             from BinInventory inventory
             where inventory.lot.product.productId in :productIds

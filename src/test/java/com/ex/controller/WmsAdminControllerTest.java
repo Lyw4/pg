@@ -2,9 +2,11 @@ package com.ex.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
@@ -22,7 +24,9 @@ import com.ex.entity.BinPurpose;
 import com.ex.repository.BinInventoryRepository;
 import com.ex.repository.ProductLotRepository;
 import com.ex.repository.WarehouseBinRepository;
+import com.ex.repository.WarehouseAllocationRepository;
 import com.ex.service.WmsOperationsService;
+import com.ex.service.SellableStockQuery;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -44,6 +48,12 @@ class WmsAdminControllerTest {
 
     @Autowired
     private ProductLotRepository lotRepository;
+
+    @Autowired
+    private WarehouseAllocationRepository allocationRepository;
+
+    @Autowired
+    private SellableStockQuery sellableStockQuery;
 
     @Test
     void allWmsViewsRenderInsideAdminDashboard() throws Exception {
@@ -68,6 +78,55 @@ class WmsAdminControllerTest {
                             org.hamcrest.Matchers.containsString(
                                     "현장 작업")));
         }
+    }
+
+    @Test
+    void allWarehouseBinsArePagedButSingleWarehouseShowsAllBins()
+            throws Exception {
+        int totalBins = wmsOperationsService.bins().size();
+        int expectedPageCount = (totalBins + 9) / 10;
+
+        mockMvc.perform(get("/admin/wms")
+                        .queryParam("view", "bins"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("binTotalCount", totalBins))
+                .andExpect(model().attribute("binPage", 0))
+                .andExpect(model().attribute("binPageCount", expectedPageCount))
+                .andExpect(model().attribute(
+                        "displayBins",
+                        org.hamcrest.Matchers.hasSize(Math.min(10, totalBins))))
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.containsString(
+                                "전체 창고 구역 페이지 이동")));
+
+        mockMvc.perform(get("/admin/wms")
+                        .queryParam("view", "bins")
+                        .queryParam("binPage", "1"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("binPage", 1))
+                .andExpect(model().attribute(
+                        "displayBins",
+                        org.hamcrest.Matchers.hasSize(
+                                Math.min(10, Math.max(0, totalBins - 10)))));
+
+        var warehouse = wmsOperationsService.warehouses().getFirst();
+        int warehouseBinCount = wmsOperationsService
+                .bins(warehouse.getWarehouseId()).size();
+        mockMvc.perform(get("/admin/wms")
+                        .queryParam("view", "bins")
+                        .queryParam("binWarehouseId",
+                                warehouse.getWarehouseId().toString())
+                        .queryParam("binPage", "99"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("binPage", 0))
+                .andExpect(model().attribute("binPageCount", 1))
+                .andExpect(model().attribute(
+                        "displayBins",
+                        org.hamcrest.Matchers.hasSize(warehouseBinCount)))
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.not(
+                                org.hamcrest.Matchers.containsString(
+                                        "전체 창고 구역 페이지 이동"))));
     }
 
     @Test
@@ -159,11 +218,11 @@ class WmsAdminControllerTest {
 
     @Test
     void initializerCreatesTeammateFloorPlanAndLocatesAllLotStock() {
-        assertEquals(51, wmsOperationsService.bins().size());
+        assertEquals(57, wmsOperationsService.bins().size());
         var firstWarehouse = wmsOperationsService.warehouses().getFirst();
         var firstCenterBins = wmsOperationsService.bins(
                 firstWarehouse.getWarehouseId());
-        assertEquals(12, firstCenterBins.size());
+        assertEquals(13, firstCenterBins.size());
         assertTrue(firstCenterBins.stream().anyMatch(bin ->
                 "YS-PL-01".equals(bin.getBinCode())
                         && "01".equals(bin.getRack())
@@ -188,6 +247,75 @@ class WmsAdminControllerTest {
         assertEquals(lotStock, locatedStock);
         assertTrue(wmsOperationsService.consistencyRows().stream()
                 .allMatch(WmsOperationsService.ConsistencyRow::consistent));
+    }
+
+    @Test
+    void warehouseZonesCoverDemandAndColdKeepsGenerousSupplementCapacity() {
+        wmsOperationsService.warehouses().forEach(warehouse -> {
+            var allocations = allocationRepository
+                    .findByWarehouseWarehouseId(warehouse.getWarehouseId());
+            for (String zone : List.of("CT", "PG", "PL", "COLD")) {
+                int monthlyDemand = allocations.stream()
+                        .filter(item -> zone.equals(zoneFor(
+                                item.getProduct().getAnimalType())))
+                        .mapToInt(item -> item.getMonthlyPlannedQuantity())
+                        .sum();
+                int recommendedStock = allocations.stream()
+                        .filter(item -> zone.equals(zoneFor(
+                                item.getProduct().getAnimalType())))
+                        .mapToInt(item -> item.getTargetStockQuantity())
+                        .sum();
+                if (monthlyDemand <= 0) continue;
+                int capacity = wmsOperationsService
+                        .bins(warehouse.getWarehouseId())
+                        .stream()
+                        .filter(bin -> bin.isActive())
+                        .filter(bin -> bin.getPurpose() == BinPurpose.STORAGE)
+                        .filter(bin -> zone.equalsIgnoreCase(bin.getZone()))
+                        .mapToInt(bin -> bin.getEffectiveMaxCapacity())
+                        .sum();
+                int currentQuantity = wmsOperationsService
+                        .bins(warehouse.getWarehouseId())
+                        .stream()
+                        .filter(bin -> bin.getPurpose() == BinPurpose.STORAGE)
+                        .filter(bin -> zone.equalsIgnoreCase(bin.getZone()))
+                        .flatMap(bin -> binInventoryRepository
+                                .findByBinBinId(bin.getBinId()).stream())
+                        .mapToInt(item -> item.getQuantity())
+                        .sum();
+                int shortage = allocations.stream()
+                        .filter(item -> zone.equals(zoneFor(
+                                item.getProduct().getAnimalType())))
+                        .mapToInt(item -> Math.max(0,
+                                item.getTargetStockQuantity()
+                                        - sellableStockQuery.sellableAtWarehouse(
+                                                warehouse.getWarehouseId(),
+                                                item.getProduct().getProductId())))
+                        .sum();
+                int demandPercent = "COLD".equals(zone) ? 300 : 130;
+                int stockPercent = "COLD".equals(zone) ? 200 : 130;
+                int required = Math.max(
+                        (monthlyDemand * demandPercent + 99) / 100,
+                        (recommendedStock * stockPercent + 99) / 100);
+                if ("COLD".equals(zone)) {
+                    required = Math.max(required,
+                            ((currentQuantity + shortage) * 150 + 99) / 100);
+                }
+                assertTrue(capacity >= required,
+                        warehouse.getName() + " " + zone
+                                + " 계획 용량 부족: " + capacity
+                                + " / " + required);
+            }
+        });
+    }
+
+    private String zoneFor(String animalType) {
+        return switch (animalType == null ? "" : animalType.trim()) {
+            case "소" -> "CT";
+            case "돼지" -> "PG";
+            case "조류", "조류(닭/오리)" -> "PL";
+            default -> "COLD";
+        };
     }
 
     @Test
@@ -218,6 +346,15 @@ class WmsAdminControllerTest {
                 .findAllByOrderByBinBinCodeAsc()
                 .stream()
                 .filter(inventory -> inventory.getQuantity() > 0)
+                .filter(inventory -> binRepository
+                        .findByWarehouseWarehouseIdAndActiveTrueOrderByBinCodeAsc(
+                                inventory.getBin().getWarehouse().getWarehouseId())
+                        .stream()
+                        .anyMatch(bin -> bin.getPurpose() == BinPurpose.STORAGE
+                                && !bin.getBinId().equals(
+                                        inventory.getBin().getBinId())
+                                && java.util.Objects.equals(
+                                        bin.getZone(), inventory.getBin().getZone())))
                 .findFirst()
                 .orElseThrow();
         var source = sourceInventory.getBin();
@@ -227,6 +364,8 @@ class WmsAdminControllerTest {
                 .stream()
                 .filter(bin -> bin.getPurpose() == BinPurpose.STORAGE)
                 .filter(bin -> !bin.getBinId().equals(source.getBinId()))
+                .filter(bin -> java.util.Objects.equals(
+                        bin.getZone(), source.getZone()))
                 .findFirst()
                 .orElseThrow();
         int lotQuantity = sourceInventory.getLot().getLotQuantity();
@@ -279,6 +418,61 @@ class WmsAdminControllerTest {
                 .filter(row -> row.product().getProductId()
                         .equals(lot.getProduct().getProductId()))
                 .allMatch(WmsOperationsService.ConsistencyRow::consistent));
+    }
+
+    @Test
+    @Transactional
+    void cattleFeedCannotBeStoredInColdZone() {
+        var cattleLot = lotRepository.findAllByOrderByExpirationDateAsc()
+                .stream()
+                .filter(lot -> "소".equals(lot.getProduct().getAnimalType()))
+                .findFirst()
+                .orElseThrow();
+        var coldBin = wmsOperationsService.bins().stream()
+                .filter(bin -> bin.getPurpose() == BinPurpose.STORAGE)
+                .filter(bin -> "COLD".equals(bin.getZone()))
+                .findFirst()
+                .orElseThrow();
+
+        assertThrows(IllegalArgumentException.class, () ->
+                wmsOperationsService.receive(
+                        cattleLot.getLotId(), null, null, null, null,
+                        1, coldBin.getBinId(), "축종 구역 검증", "테스트 관리자"));
+    }
+
+    @Test
+    @Transactional
+    void selectedLowStockAllocationIsFilledToRecommendedStock() {
+        var allocation = allocationRepository
+                .findAllByOrderByWarehouseDisplayOrderAscProductAnimalTypeAscProductNameAsc()
+                .stream()
+                .filter(item -> lotRepository
+                        .findByProductProductIdOrderByExpirationDateAsc(
+                                item.getProduct().getProductId())
+                        .stream()
+                        .anyMatch(lot -> lot.getExpirationDate() == null
+                                || !lot.getExpirationDate().isBefore(
+                                        java.time.LocalDate.now().plusDays(
+                                                SellableStockQuery.MINIMUM_SELLABLE_DAYS))))
+                .findFirst()
+                .orElseThrow();
+        int current = sellableStockQuery.sellableAtWarehouse(
+                allocation.getWarehouse().getWarehouseId(),
+                allocation.getProduct().getProductId());
+        int replenishment = 3;
+        allocation.changePlan(
+                allocation.getMonthlyPlannedQuantity(),
+                current + replenishment);
+
+        var result = wmsOperationsService.receiveAllocationReplenishment(
+                allocation.getAllocationId(), "테스트 관리자");
+
+        assertEquals(replenishment, result.quantity());
+        assertEquals(current + replenishment,
+                sellableStockQuery.sellableAtWarehouse(
+                allocation.getWarehouse().getWarehouseId(),
+                allocation.getProduct().getProductId()));
+        assertTrue(!result.binCodes().isEmpty());
     }
 
     @Test

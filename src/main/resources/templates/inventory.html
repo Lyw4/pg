@@ -43,11 +43,11 @@
     <div class="ff-content">
         <div th:replace="~{fragments/admin-layout :: topbar('재고 관리', '재고 관리')}"></div>
 
-        <main class="ff-main ff-management-main">
-            <div class="container inventory-page">
+        <main class="ff-main ff-management-main ff-page-layout">
+            <div class="container inventory-page ff-page-inner">
 
         <!-- 페이지 제목 -->
-        <section class="page-head">
+        <section class="page-head ff-page-heading">
 
             <div>
                 <p class="eyebrow">
@@ -645,7 +645,7 @@
                             data-category="all"
                             role="tab"
                             aria-selected="true">
-                            전체 <span>30</span>
+                            전체 <span>0</span>
                         </button>
                         <button
                             type="button"
@@ -653,7 +653,7 @@
                             data-category="소"
                             role="tab"
                             aria-selected="false">
-                            소 <span>10</span>
+                            소 <span>0</span>
                         </button>
                         <button
                             type="button"
@@ -661,7 +661,7 @@
                             data-category="돼지"
                             role="tab"
                             aria-selected="false">
-                            돼지 <span>10</span>
+                            돼지 <span>0</span>
                         </button>
                         <button
                             type="button"
@@ -669,7 +669,16 @@
                             data-category="조류(닭/오리)"
                             role="tab"
                             aria-selected="false">
-                            조류 <span>10</span>
+                            조류 <span>0</span>
+                        </button>
+                        <button
+                            id="warehouseStockSupplementTab"
+                            type="button"
+                            class="category-tab"
+                            data-category="영양제"
+                            role="tab"
+                            aria-selected="false">
+                            영양제 <span>0</span>
                         </button>
                     </div>
                 </div>
@@ -823,11 +832,46 @@
                     <div>
                         <p class="summary-eyebrow danger-text">LOW STOCK</p>
                         <h2>창고별 부족 재고</h2>
-                        <p>5개 거점에서 현재고가 권장 보유량보다 적은 품목입니다.</p>
+                        <p>부족 제품을 선택하면 기존 LOT와 입고 가능 구역을 자동 배정해 권장 보유량까지 입고합니다.</p>
                     </div>
-                    <span class="summary-count danger-count">
-                        <strong th:text="${warehouseLowStockCount}">0</strong>개
-                    </span>
+                    <div class="low-stock-panel-actions">
+                        <span class="summary-count danger-count">
+                            <strong th:text="${warehouseLowStockCount}">0</strong>개
+                        </span>
+                        <button
+                            type="submit"
+                            form="lowStockReplenishForm"
+                            class="primary low-stock-replenish-button"
+                            data-low-stock-submit
+                            disabled
+                            onclick="return confirm('선택한 부족 제품을 권장 보유량까지 일괄 입고할까요?')">
+                            선택 제품 권장재고 보충
+                        </button>
+                    </div>
+                </div>
+
+                <form
+                    id="lowStockReplenishForm"
+                    method="post"
+                    th:action="@{/inventory/warehouses/stock/replenish}">
+                </form>
+
+                <div class="alert success stock-replenish-result"
+                     th:if="${stockReplenishResults != null and !#lists.isEmpty(stockReplenishResults)}">
+                    <strong>일괄 보충 완료</strong>
+                    <ul>
+                        <li th:each="result : ${stockReplenishResults}"
+                            th:text="${result}">처리 결과</li>
+                    </ul>
+                </div>
+
+                <div class="alert error stock-replenish-result"
+                     th:if="${stockReplenishErrors != null and !#lists.isEmpty(stockReplenishErrors)}">
+                    <strong>처리하지 못한 항목</strong>
+                    <ul>
+                        <li th:each="failure : ${stockReplenishErrors}"
+                            th:text="${failure}">실패 사유</li>
+                    </ul>
                 </div>
 
                 <div
@@ -836,6 +880,12 @@
                     <table>
                         <thead>
                             <tr>
+                                <th class="low-stock-check-cell">
+                                    <input
+                                        type="checkbox"
+                                        data-low-stock-select-all
+                                        aria-label="부족 재고 전체 선택">
+                                </th>
                                 <th>창고</th>
                                 <th>축종</th>
                                 <th>배합사료</th>
@@ -849,6 +899,15 @@
                             <tr
                                 th:each="allocation : ${warehouseLowStockAllocations}"
                                 th:data-category="${allocation.product.animalType}">
+                                <td class="low-stock-check-cell">
+                                    <input
+                                        type="checkbox"
+                                        name="allocationIds"
+                                        th:value="${allocation.allocationId}"
+                                        form="lowStockReplenishForm"
+                                        data-low-stock-item
+                                        th:aria-label="|${allocation.warehouse.name} ${allocation.product.name} 선택|">
+                                </td>
                                 <td>
                                     <span
                                         class="warehouse-row-code"
@@ -1211,7 +1270,7 @@
                             data-category="all"
                             role="tab"
                             aria-selected="true">
-                            전체 <span>30</span>
+                            전체 <span>0</span>
                         </button>
                         <button
                             type="button"
@@ -1219,7 +1278,7 @@
                             data-category="소"
                             role="tab"
                             aria-selected="false">
-                            소 <span>10</span>
+                            소 <span>0</span>
                         </button>
                         <button
                             type="button"
@@ -1227,7 +1286,7 @@
                             data-category="돼지"
                             role="tab"
                             aria-selected="false">
-                            돼지 <span>10</span>
+                            돼지 <span>0</span>
                         </button>
                         <button
                             type="button"
@@ -1235,7 +1294,16 @@
                             data-category="조류(닭/오리)"
                             role="tab"
                             aria-selected="false">
-                            조류 <span>10</span>
+                            조류 <span>0</span>
+                        </button>
+                        <button
+                            id="warehousePlanSupplementTab"
+                            type="button"
+                            class="category-tab"
+                            data-category="영양제"
+                            role="tab"
+                            aria-selected="false">
+                            영양제 <span>0</span>
                         </button>
                     </div>
                 </div>
@@ -1453,7 +1521,7 @@
                             data-category="all"
                             role="tab"
                             aria-selected="true">
-                            전체 <span>60</span>
+                            전체 <span>0</span>
                         </button>
                         <button
                             type="button"
@@ -1461,7 +1529,7 @@
                             data-category="소"
                             role="tab"
                             aria-selected="false">
-                            소 <span>20</span>
+                            소 <span>0</span>
                         </button>
                         <button
                             type="button"
@@ -1469,7 +1537,7 @@
                             data-category="돼지"
                             role="tab"
                             aria-selected="false">
-                            돼지 <span>20</span>
+                            돼지 <span>0</span>
                         </button>
                         <button
                             type="button"
@@ -1477,7 +1545,16 @@
                             data-category="조류(닭/오리)"
                             role="tab"
                             aria-selected="false">
-                            조류 <span>20</span>
+                            조류 <span>0</span>
+                        </button>
+                        <button
+                            id="recurringSupplementTab"
+                            type="button"
+                            class="category-tab"
+                            data-category="영양제"
+                            role="tab"
+                            aria-selected="false">
+                            영양제 <span>0</span>
                         </button>
                     </div>
                 </div>
@@ -2630,8 +2707,8 @@
 
                     <option
                         th:each="p : ${products}"
-                        th:if="${p.animalType != '영양제'}"
                         th:value="${p.productId}"
+                        th:data-recurring-product-category="${p.animalType}"
                         th:text="|[${p.manufacturer.companyName}] ${p.name}|">
                         [협력사] 상품명
                     </option>

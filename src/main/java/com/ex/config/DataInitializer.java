@@ -619,7 +619,13 @@ public class DataInitializer {
 
             warehousePlanSeeder.seed();
 
+            // 정기 입고 일정을 만들기 전에 영양제를 포함한 전체 활성 상품을
+            // 각 창고 배치 계획에 연결한다.
+            warehousePlanSeeder.ensureAllocationsForAllProducts();
+
             farmCustomerSeeder.seed();
+
+            warehousePlanSeeder.fillMissingRecommendationsFromFarmDemand();
 
             warehouseRecurringDeliverySeeder.seed();
 

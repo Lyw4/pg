@@ -1,7 +1,6 @@
 package com.ex.controller;
 
 import com.ex.dto.CreateOrderRequest;
-import com.ex.dto.CancelOrderRequest;
 import com.ex.dto.OrderResponse;
 import com.ex.dto.OrderDetailResponse;
 import com.ex.service.OrderService;
@@ -11,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -27,7 +27,7 @@ public class OrderController {
     public OrderResponse createOrder(
             @Valid @RequestBody CreateOrderRequest request,
             HttpSession session) {
-        return orderService.createOrder(request, memberIdOrNull(session));
+        return orderService.createOrder(request, memberId(session));
     }
 
     @GetMapping("/{orderNumber}")
@@ -41,9 +41,9 @@ public class OrderController {
     @PatchMapping("/{orderNumber}/cancel")
     public OrderResponse cancelOrder(
             @PathVariable(name = "orderNumber") String orderNumber,
-            @Valid @RequestBody CancelOrderRequest request
+            HttpSession session
     ) {
-        return orderService.cancelOrder(orderNumber, request.phone());
+        return paymentService.cancelOrder(orderNumber, memberId(session));
     }
 
     @GetMapping("/mine")
@@ -69,7 +69,10 @@ public class OrderController {
 
     private Long memberId(HttpSession session) {
         Long memberId = memberIdOrNull(session);
-        if (memberId == null) throw new IllegalArgumentException("로그인이 필요합니다.");
+        if (memberId == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+        }
         return memberId;
     }
 

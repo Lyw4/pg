@@ -16,6 +16,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -70,6 +71,9 @@ public class Delivery {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long deliveryId;
+
+	@Version
+	private Long version;
 
 	@OneToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "order_id", unique = true)

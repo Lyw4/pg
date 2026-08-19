@@ -4,12 +4,43 @@
  */
 :root {
     --ff-sidebar-width: 240px;
+    --ff-page-padding-x: 1.5rem;
+    --ff-page-padding-top: 1.25rem;
+    --ff-page-padding-bottom: 3rem;
     --ff-navy: #16324f;
     --ff-navy-dark: #102338;
     --ff-green: #2f855a;
     --ff-bg: #f4f6f9;
     --ff-border: #e3e6ea;
     --ff-text: #212529;
+}
+
+/* 모든 관리자 화면의 헤더와 본문이 같은 기준선에서 시작하도록 고정한다. */
+.ff-content > .ff-main.ff-page-layout {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: var(--ff-page-padding-top) var(--ff-page-padding-x)
+        var(--ff-page-padding-bottom);
+}
+
+.ff-content > .ff-main.ff-page-layout > .ff-page-inner {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+}
+
+.ff-content > .ff-page-layout > .ff-page-heading,
+.ff-content > .ff-page-layout > .ff-page-inner > .ff-page-heading {
+    min-height: 150px;
+    margin: 0 0 1rem;
+    padding: 1.5rem 1.75rem;
+    align-items: center;
+}
+
+html {
+    scrollbar-gutter: stable;
 }
 
 * {
@@ -102,10 +133,94 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-height: 61px;
-    padding: .9rem 1.5rem;
+    height: 54px;
+    min-height: 54px;
+    padding: .65rem 1.5rem;
     background: #fff;
     border-bottom: 1px solid var(--ff-border);
+}
+
+.ff-page-heading {
+    min-height: 150px;
+    margin: 0 0 1rem;
+    padding: 1.5rem 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    color: #fff;
+    border: 0;
+    border-radius: .75rem;
+    background: linear-gradient(125deg, var(--ff-navy), #245a72 62%, var(--ff-green));
+    box-shadow: 0 .35rem 1rem rgba(16, 35, 56, .12);
+}
+
+.ff-content .ff-page-heading .ff-page-eyebrow,
+.ff-content .ff-page-heading .eyebrow {
+    margin: 0 0 .3rem;
+    color: #9ed8bd;
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .16em;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+.ff-content .ff-page-heading h1 {
+    margin: 0 0 .45rem;
+    color: #fff;
+    font-size: 1.75rem;
+    font-weight: 800;
+    letter-spacing: -.025em;
+    line-height: 1.2;
+}
+
+.ff-content .ff-page-heading > div:first-child > p:last-child,
+.ff-content .ff-page-heading > div:first-child > span:last-child {
+    margin: 0;
+    color: rgba(255, 255, 255, .78);
+    font-size: .86rem;
+}
+
+.ff-content .ff-page-heading .primary,
+.ff-content .ff-page-heading .btn-light {
+    flex: 0 0 auto;
+    color: var(--ff-navy);
+    border: 1px solid rgba(255, 255, 255, .85);
+    background: #fff;
+    box-shadow: 0 .2rem .55rem rgba(10, 29, 48, .12);
+}
+
+.ff-content .ff-page-heading .primary:hover,
+.ff-content .ff-page-heading .btn-light:hover {
+    color: var(--ff-green);
+    background: #f4fbf7;
+}
+
+@media (max-width: 768px) {
+    :root {
+        --ff-page-padding-x: .85rem;
+        --ff-page-padding-top: 1rem;
+        --ff-page-padding-bottom: 2.5rem;
+    }
+
+    .ff-page-heading {
+        min-height: 0;
+        padding: 1.25rem;
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .ff-content .ff-page-heading h1 {
+        font-size: 1.55rem;
+    }
+
+    .ff-content > .ff-page-layout > .ff-page-heading,
+    .ff-content > .ff-page-layout > .ff-page-inner > .ff-page-heading {
+        min-height: 0;
+        padding: 1.25rem;
+        align-items: flex-start;
+    }
 }
 
 .ff-topbar-title {
@@ -572,6 +687,10 @@ body {
     color: #aeb9c3;
     background: #f4f6f8;
     pointer-events: none;
+}
+
+.wms-bin-pagination {
+    margin: 1rem;
 }
 
 .wms-traceability-page {

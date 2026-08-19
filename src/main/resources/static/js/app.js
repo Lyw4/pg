@@ -1433,6 +1433,25 @@ document.addEventListener("DOMContentLoaded", () => {
         };
     }
 
+    function updateWarehouseCategoryCounts(tabs, table, warehouseCode) {
+        const rows = table?.tBodies?.[0]
+            ? all("tr", table.tBodies[0]).filter(row =>
+                !row.querySelector("td[colspan]")
+            )
+            : [];
+
+        tabs.forEach(tab => {
+            const category = tab.dataset.category ?? "all";
+            const count = rows.filter(row =>
+                row.dataset.warehouse === warehouseCode
+                && (category === "all"
+                    || row.dataset.category === category)
+            ).length;
+            const label = tab.querySelector("span");
+            if (label) label.textContent = String(count);
+        });
+    }
+
     /*
      * 등록 상품, 부족 재고, 활성 LOT, 정기 배송, 유통기한 임박
      */
@@ -1596,6 +1615,11 @@ document.addEventListener("DOMContentLoaded", () => {
             return matchesWarehouse && matchesCategory;
         }
     });
+    updateWarehouseCategoryCounts(
+        warehouseCategoryTabs,
+        warehouseTable,
+        activeWarehouse
+    );
 
     function selectWarehouse(card) {
         activeWarehouse = card.dataset.warehouse ?? "W01";
@@ -1617,6 +1641,12 @@ document.addEventListener("DOMContentLoaded", () => {
             selectedWarehouseName.textContent =
                 card.dataset.warehouseName ?? activeWarehouse;
         }
+
+        updateWarehouseCategoryCounts(
+            warehouseCategoryTabs,
+            warehouseTable,
+            activeWarehouse
+        );
 
         warehousePager?.refresh(true);
     }
@@ -1678,6 +1708,11 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
     );
+    updateWarehouseCategoryCounts(
+        recurringWarehouseCategoryTabs,
+        recurringWarehouseTable,
+        activeRecurringWarehouse
+    );
 
     function selectRecurringWarehouse(card) {
         activeRecurringWarehouse =
@@ -1701,6 +1736,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 card.dataset.warehouseName
                 ?? activeRecurringWarehouse;
         }
+
+        updateWarehouseCategoryCounts(
+            recurringWarehouseCategoryTabs,
+            recurringWarehouseTable,
+            activeRecurringWarehouse
+        );
 
         recurringWarehousePager?.refresh(true);
     }
@@ -1762,6 +1803,11 @@ document.addEventListener("DOMContentLoaded", () => {
             return matchesWarehouse && matchesCategory;
         }
     });
+    updateWarehouseCategoryCounts(
+        warehouseStockCategoryTabs,
+        warehouseStockTable,
+        activeStockWarehouse
+    );
 
     function selectStockWarehouse(card) {
         activeStockWarehouse = card.dataset.warehouse ?? "W01";
@@ -1783,6 +1829,12 @@ document.addEventListener("DOMContentLoaded", () => {
             selectedStockWarehouseName.textContent =
                 card.dataset.warehouseName ?? activeStockWarehouse;
         }
+
+        updateWarehouseCategoryCounts(
+            warehouseStockCategoryTabs,
+            warehouseStockTable,
+            activeStockWarehouse
+        );
 
         warehouseStockPager?.refresh(true);
     }
@@ -1955,6 +2007,41 @@ document.addEventListener("DOMContentLoaded", () => {
 
         selectSummaryView(initialView, false);
     }
+
+    const lowStockSelectAll = document.querySelector(
+        "[data-low-stock-select-all]"
+    );
+    const lowStockItems = all("[data-low-stock-item]");
+    const lowStockSubmit = document.querySelector(
+        "[data-low-stock-submit]"
+    );
+
+    function refreshLowStockSelection() {
+        const checked = lowStockItems.filter(item => item.checked).length;
+        if (lowStockSubmit) {
+            lowStockSubmit.disabled = checked === 0;
+            lowStockSubmit.textContent = checked === 0
+                ? "선택 제품 권장재고 보충"
+                : `${checked}개 제품 권장재고 보충`;
+        }
+        if (lowStockSelectAll) {
+            lowStockSelectAll.checked = lowStockItems.length > 0
+                && checked === lowStockItems.length;
+            lowStockSelectAll.indeterminate = checked > 0
+                && checked < lowStockItems.length;
+        }
+    }
+
+    lowStockSelectAll?.addEventListener("change", () => {
+        lowStockItems.forEach(item => {
+            item.checked = lowStockSelectAll.checked;
+        });
+        refreshLowStockSelection();
+    });
+    lowStockItems.forEach(item => item.addEventListener(
+        "change", refreshLowStockSelection
+    ));
+    refreshLowStockSelection();
 
     const defectRows = all("[data-defect-row]");
     const defectKeyword = document.querySelector("[data-defect-keyword]");

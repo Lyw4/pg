@@ -25,7 +25,7 @@ public class EmployeeAccountInitializer implements ApplicationRunner {
     @Value("${feedflow.admin.username:admin}")
     private String adminUsername;
 
-    @Value("${feedflow.admin.password:1234}")
+    @Value("${feedflow.admin.password:}")
     private String adminPassword;
 
     @Value("${feedflow.admin.name:김책임}")
@@ -34,7 +34,7 @@ public class EmployeeAccountInitializer implements ApplicationRunner {
     @Value("${feedflow.staff.username:staff@feedflow.co.kr}")
     private String staffUsername;
 
-    @Value("${feedflow.staff.password:staff123}")
+    @Value("${feedflow.staff.password:}")
     private String staffPassword;
 
     @Value("${feedflow.staff.name:김사원}")

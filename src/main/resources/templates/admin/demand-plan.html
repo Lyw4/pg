@@ -4,16 +4,136 @@
       xmlns:sec="http://www.thymeleaf.org/extras-springsecurity6">
 <head th:replace="~{fragments/admin-layout :: head('수요 계획')}"></head>
 <body>
-<div class="ff-admin-shell">
-    <div th:replace="~{fragments/admin-layout :: sidebar}"></div>
-    <div class="ff-main-wrap">
-        <div th:replace="~{fragments/admin-layout :: topbar('재고 관리', '수요 계획')}"></div>
+<div th:replace="~{fragments/admin-layout :: sidebar}"></div>
+<div class="ff-content">
+    <div th:replace="~{fragments/admin-layout :: topbar('재고 관리', '수요 계획')}"></div>
 
-        <main class="ff-content">
+        <main class="ff-main ff-page-layout">
+            <header class="ff-page-heading">
+                <div>
+                    <p class="ff-page-eyebrow">DEMAND PLANNING</p>
+                    <h1>수요 계획</h1>
+                    <p>담당 농장의 예상 수요와 창고별 출고 가능 재고를 비교합니다.</p>
+                </div>
+            </header>
+
+            <div th:if="${deliveryAutomationMessage}" class="alert alert-success"
+                 th:text="${deliveryAutomationMessage}"></div>
+            <div th:if="${deliveryAutomationError}" class="alert alert-warning"
+                 th:text="${deliveryAutomationError}"></div>
+
+            <section class="card ff-card mb-3">
+                <div class="card-header bg-white border-0 pt-3 d-flex flex-wrap justify-content-between align-items-start gap-2">
+                    <div>
+                        <strong><i class="bi bi-lightning-charge-fill me-1 text-success"></i>농장 정기 납품 자동화</strong>
+                        <div class="small text-muted mt-1">매일 00:05에 당일 대상 농장의 주문·재고 예약·출고 지시를 자동 생성합니다.</div>
+                    </div>
+                    <span class="badge bg-success">실제 스케줄러 사용 중</span>
+                </div>
+                <div class="card-body pt-2">
+                    <div class="alert alert-light border small">
+                        발표에서는 아래 기준일을 선택해 미리 본 뒤 정기 납품 생성을 사전 실행할 수 있습니다.
+                        사전 실행도 자동 스케줄러와 같은 로직을 사용하며, 같은 농장·기준일은 다시 처리되지 않습니다.
+                        실제 재고 차감은 기존과 같이 피킹·검수 후 <strong>출고 완료</strong>할 때 반영됩니다.
+                    </div>
+                    <form method="get" th:action="@{/admin/demand-plan}"
+                          class="row g-2 align-items-end mb-3">
+                        <div class="col-12 col-md-4 col-xl-3">
+                            <label class="form-label small fw-semibold">발표/검증 기준일</label>
+                            <input type="date" name="referenceDate" class="form-control"
+                                   th:value="${referenceDate}" required>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-outline-dark" type="submit">
+                                <i class="bi bi-search me-1"></i>대상 미리보기
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-4"><div class="border rounded p-2 text-center">
+                            <div class="small text-muted">처리 가능</div>
+                            <strong class="text-success" th:text="|${deliveryPreview.readyCount}건|">0건</strong>
+                        </div></div>
+                        <div class="col-4"><div class="border rounded p-2 text-center">
+                            <div class="small text-muted">처리 완료</div>
+                            <strong th:text="|${deliveryPreview.completedCount}건|">0건</strong>
+                        </div></div>
+                        <div class="col-4"><div class="border rounded p-2 text-center">
+                            <div class="small text-muted">확인 필요</div>
+                            <strong class="text-danger" th:text="|${deliveryPreview.blockedCount}건|">0건</strong>
+                        </div></div>
+                    </div>
+
+                    <div class="table-responsive border rounded">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <caption class="caption-top px-2 py-1 small text-muted mb-0">
+                                부족분 조치가 필요한 항목만 표시됩니다. 즉시 입고가 완료되면 이 목록에서 자동으로 사라집니다.
+                            </caption>
+                            <thead class="table-light"><tr>
+                                <th>농장</th><th>담당 창고</th><th>제품</th>
+                                <th class="text-end">납품량</th><th class="text-end">가용 재고</th><th>상태</th><th>안내</th><th class="text-center">부족분 조치</th>
+                            </tr></thead>
+                            <tbody>
+                            <tr th:each="row : ${deliveryPreview.actionRows}">
+                                <td class="fw-semibold" th:text="${row.farmName}">농장</td>
+                                <td th:text="${row.warehouseName}">창고</td>
+                                <td th:text="${row.productName}">제품</td>
+                                <td class="text-end" th:text="|${#numbers.formatInteger(row.quantity, 0, 'COMMA')}포|">0포</td>
+                                <td class="text-end" th:text="|${#numbers.formatInteger(row.availableQuantity, 0, 'COMMA')}포|">0포</td>
+                                <td><span class="badge" th:classappend="|bg-${row.status.badgeClass}|"
+                                          th:text="${row.status.label}">상태</span></td>
+                                <td class="small" th:text="${row.message}">안내</td>
+                                <td class="text-center" style="min-width:210px">
+                                    <div th:if="${row.canReplenish()}" class="d-inline-flex gap-1">
+                                        <form method="post" th:action="@{/admin/demand-plan/farm-deliveries/inbound-request}">
+                                            <input type="hidden" name="farmCustomerId" th:value="${row.farmCustomerId}">
+                                            <input type="hidden" name="referenceDate" th:value="${referenceDate}">
+                                            <button type="submit" class="btn btn-sm btn-outline-primary"
+                                                    th:title="|부족분 ${row.shortageQuantity()}포의 정기입고 요청 생성|"
+                                                    onclick="return confirm('이 부족분을 정기입고 요청으로 생성할까요?');">입고 요청</button>
+                                        </form>
+                                        <form method="post" th:action="@{/admin/demand-plan/farm-deliveries/immediate-inbound}">
+                                            <input type="hidden" name="farmCustomerId" th:value="${row.farmCustomerId}">
+                                            <input type="hidden" name="referenceDate" th:value="${referenceDate}">
+                                            <button type="submit" class="btn btn-sm btn-danger"
+                                                    th:title="|부족분 ${row.shortageQuantity()}포를 LOT·입고 이력과 함께 즉시 반영|"
+                                                    onclick="return confirm('부족분을 실제 재고에 즉시 입고할까요? LOT와 입고 이력이 생성됩니다.');">즉시 입고</button>
+                                        </form>
+                                    </div>
+                                    <span th:unless="${row.canReplenish()}" class="text-muted small">-</span>
+                                </td>
+                            </tr>
+                            <tr th:if="${#lists.isEmpty(deliveryPreview.actionRows)}">
+                                <td colspan="8" class="ff-empty">
+                                    <span th:if="${#lists.isEmpty(deliveryPreview.rows)}">선택한 날짜에 정기 납품 예정인 농장이 없습니다.</span>
+                                    <span th:unless="${#lists.isEmpty(deliveryPreview.rows)}">부족분 조치가 필요한 농장이 없습니다.</span>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <form method="post" th:action="@{/admin/demand-plan/farm-deliveries/execute}"
+                          class="d-flex justify-content-end mt-3"
+                          onsubmit="return confirm('미리보기의 처리 가능 건에 실제 주문과 출고 지시를 생성할까요?');">
+                        <input type="hidden" name="referenceDate" th:value="${referenceDate}">
+                        <button class="btn btn-success" type="submit"
+                                th:disabled="${deliveryPreview.readyCount == 0}">
+                            <i class="bi bi-play-fill me-1"></i>선택 날짜 정기 납품 생성
+                        </button>
+                    </form>
+                    <p class="small text-muted text-end mb-0 mt-2">
+                        처리 가능 농장의 주문·재고 예약·출고 지시를 지금 생성합니다. 피킹과 실제 출고 완료는 별도 단계입니다.
+                    </p>
+                </div>
+            </section>
+
             <div class="alert alert-light border small mb-3">
                 <i class="bi bi-info-circle me-1"></i>
                 거래 중 농장의 <strong>월 예상 사료량</strong>과 각 창고의
                 <strong>유효기간이 남은 보관·출고 구역 재고</strong>를 축종별로 비교합니다.
+                영양제는 담당 농장 월 사료 사용량의 <strong>5%</strong>를 예상 수요로 반영합니다.
             </div>
 
             <section class="row g-3 mb-3">
@@ -60,6 +180,24 @@
             <div th:unless="${plan.hasAction()}" class="alert alert-success">
                 <i class="bi bi-check-circle-fill me-1"></i>현재 모든 창고가 이번 달 담당 농장 수요를 충족합니다.
             </div>
+
+            <section class="card ff-card mb-3">
+                <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+                    <div>
+                        <strong><i class="bi bi-sliders me-1"></i>과잉 재고 자동 제어</strong>
+                        <div class="small text-muted mt-1">
+                            과잉 제품은 권장 보유량을 월 수요 120%로 맞추고 추가 정기입고를 중지합니다.
+                            실제 보유 재고는 삭제하지 않고 농장 주문 출고로 정상 소진합니다.
+                        </div>
+                    </div>
+                    <form method="post" th:action="@{/admin/demand-plan/surplus-control}"
+                          onsubmit="return confirm('과잉 제품의 추가 정기입고를 중지하고 권장 보유량을 조정할까요?');">
+                        <button class="btn btn-outline-info" type="submit">
+                            <i class="bi bi-shield-check me-1"></i>과잉 재고 제어 적용
+                        </button>
+                    </form>
+                </div>
+            </section>
 
             <section class="card ff-card mb-3">
                 <div class="card-body py-2 small d-flex flex-wrap gap-3 align-items-center">
@@ -144,7 +282,6 @@
                 </table></div>
             </section>
         </main>
-    </div>
 </div>
 <div th:replace="~{fragments/admin-layout :: scripts}"></div>
 </body>

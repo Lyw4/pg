@@ -39,7 +39,8 @@ public class SchemaMigrationConfig {
                       and table_name in (
                           'CUSTOMER_ORDER',
                           'DELIVERY',
-                          'DELIVERY_STATUS_HISTORY'
+                          'DELIVERY_STATUS_HISTORY',
+                          'STOCK_LOG'
                       )
                     """,
                     (resultSet, rowNumber) -> new ConstraintTarget(
@@ -63,7 +64,9 @@ public class SchemaMigrationConfig {
      */
     private void ensureOptimisticLockColumns(JdbcTemplate jdbcTemplate) {
         for (String tableName : List.of(
-                "PRODUCT_LOT", "BIN_INVENTORY", "WAREHOUSE_ALLOCATION")) {
+                "PRODUCT", "PRODUCT_LOT", "BIN_INVENTORY",
+                "WAREHOUSE_BIN", "WAREHOUSE_ALLOCATION",
+                "CUSTOMER_ORDER", "SHIPMENT", "DELIVERY")) {
             if (!tableExists(jdbcTemplate, tableName)) continue;
             jdbcTemplate.execute(
                     "alter table " + tableName

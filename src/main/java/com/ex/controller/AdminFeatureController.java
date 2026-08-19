@@ -12,6 +12,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import com.ex.entity.EmployeeRole;
 import com.ex.service.EmployeeManagementService;
 import com.ex.service.DemandPlanService;
+import com.ex.service.FarmDeliveryAutomationService;
+import com.ex.service.SurplusInventoryControlService;
 
 import java.time.LocalDate;
 
@@ -26,6 +28,8 @@ public class AdminFeatureController {
 
     private final EmployeeManagementService employeeManagementService;
     private final DemandPlanService demandPlanService;
+    private final FarmDeliveryAutomationService farmDeliveryAutomationService;
+    private final SurplusInventoryControlService surplusInventoryControlService;
 
     @GetMapping("/admin/employees")
     public String employees(Authentication authentication, Model model) {
@@ -78,11 +82,67 @@ public class AdminFeatureController {
     }
 
     @GetMapping("/admin/demand-plan")
-    public String demandPlan(Model model) {
+    public String demandPlan(
+            @RequestParam(name = "referenceDate", required = false) LocalDate referenceDate,
+            Model model) {
+        LocalDate selectedDate = referenceDate == null ? LocalDate.now() : referenceDate;
         model.addAttribute("plan", demandPlanService.plan(LocalDate.now()));
+        model.addAttribute("deliveryPreview", farmDeliveryAutomationService.preview(selectedDate));
+        model.addAttribute("referenceDate", selectedDate);
         model.addAttribute("menu", "demandPlan");
         model.addAttribute("pageTitle", "수요 계획");
         return "admin/demand-plan";
+    }
+
+    @PostMapping("/admin/demand-plan/farm-deliveries/execute")
+    public String executeFarmDeliveries(
+            @RequestParam(name = "referenceDate") LocalDate referenceDate,
+            RedirectAttributes redirectAttributes) {
+        var result = farmDeliveryAutomationService.execute(referenceDate, "MANUAL");
+        redirectAttributes.addFlashAttribute(
+                result.failedCount() == 0 ? "deliveryAutomationMessage" : "deliveryAutomationError",
+                "기준일 " + referenceDate + " · 생성 " + result.createdCount()
+                        + "건, 중복 제외 " + result.skippedCount()
+                        + "건, 실패 " + result.failedCount() + "건");
+        return "redirect:/admin/demand-plan?referenceDate=" + referenceDate;
+    }
+
+    @PostMapping("/admin/demand-plan/farm-deliveries/inbound-request")
+    public String createFarmInboundRequest(
+            @RequestParam(name = "farmCustomerId") Long farmCustomerId,
+            @RequestParam(name = "referenceDate") LocalDate referenceDate,
+            RedirectAttributes redirectAttributes) {
+        try {
+            redirectAttributes.addFlashAttribute("deliveryAutomationMessage",
+                    farmDeliveryAutomationService.createInboundRequest(
+                            farmCustomerId, referenceDate));
+        } catch (RuntimeException exception) {
+            redirectAttributes.addFlashAttribute("deliveryAutomationError", exception.getMessage());
+        }
+        return "redirect:/admin/demand-plan?referenceDate=" + referenceDate;
+    }
+
+    @PostMapping("/admin/demand-plan/farm-deliveries/immediate-inbound")
+    public String receiveFarmInboundImmediately(
+            @RequestParam(name = "farmCustomerId") Long farmCustomerId,
+            @RequestParam(name = "referenceDate") LocalDate referenceDate,
+            RedirectAttributes redirectAttributes) {
+        try {
+            redirectAttributes.addFlashAttribute("deliveryAutomationMessage",
+                    farmDeliveryAutomationService.receiveInboundImmediately(
+                            farmCustomerId, referenceDate));
+        } catch (RuntimeException exception) {
+            redirectAttributes.addFlashAttribute("deliveryAutomationError", exception.getMessage());
+        }
+        return "redirect:/admin/demand-plan?referenceDate=" + referenceDate;
+    }
+
+    @PostMapping("/admin/demand-plan/surplus-control")
+    public String controlSurplusInventory(RedirectAttributes redirectAttributes) {
+        surplusInventoryControlService.controlSurplusInbound();
+        redirectAttributes.addFlashAttribute("deliveryAutomationMessage",
+                "과잉 제품의 권장 보유량을 월 수요 120%로 조정하고 추가 정기입고를 중지했습니다. 현재 재고는 기존 주문 출고로 정상 소진됩니다.");
+        return "redirect:/admin/demand-plan";
     }
 
     @GetMapping("/admin/inventory/inbound")

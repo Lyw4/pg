@@ -890,6 +890,46 @@ body .inventory-page {
     white-space: nowrap;
 }
 
+.inventory-page .low-stock-panel-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.inventory-page .low-stock-replenish-button {
+    min-height: 40px;
+    padding: 0 16px;
+    white-space: nowrap;
+}
+
+.inventory-page .low-stock-replenish-button:disabled {
+    cursor: not-allowed;
+    opacity: .5;
+}
+
+.inventory-page .low-stock-check-cell {
+    width: 48px;
+    padding-right: 8px !important;
+    text-align: center;
+}
+
+.inventory-page .low-stock-check-cell input {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--green);
+    cursor: pointer;
+}
+
+.inventory-page .stock-replenish-result {
+    margin: 14px 24px 0;
+}
+
+.inventory-page .stock-replenish-result ul {
+    margin: 8px 0 0;
+    padding-left: 19px;
+}
+
 .inventory-page .table-wrap {
     max-height: 505px;
     overflow: auto;
@@ -2712,6 +2752,16 @@ label select {
         align-items: flex-start;
         flex-direction: column;
         gap: 12px;
+    }
+
+    .inventory-page .low-stock-panel-actions {
+        width: 100%;
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .inventory-page .low-stock-replenish-button {
+        width: 100%;
     }
 
     .search {

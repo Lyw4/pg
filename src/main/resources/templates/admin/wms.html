@@ -11,7 +11,15 @@
 <div class="ff-content">
     <div th:replace="~{fragments/admin-layout :: topbar(${sectionTitle}, ${pageTitle})}"></div>
 
-    <main class="ff-main wms-page">
+    <main class="ff-main wms-page ff-page-layout">
+        <header class="ff-page-heading">
+            <div>
+                <p class="ff-page-eyebrow">WAREHOUSE MANAGEMENT</p>
+                <h1 th:text="${pageTitle}">창고 관리</h1>
+                <p>창고별 재고와 구역, 입출고 작업을 통합 관리합니다.</p>
+            </div>
+        </header>
+
         <div th:if="${wmsMessage}"
              class="alert alert-success alert-dismissible fade show">
             <i class="bi bi-check-circle-fill me-1"></i>
@@ -270,7 +278,7 @@
                             <a th:each="warehouse : ${warehouses}" class="btn btn-sm" th:classappend="${selectedBinWarehouseId == warehouse.warehouseId} ? 'btn-primary' : 'btn-outline-secondary'" th:href="@{/admin/wms(view='bins',binWarehouseId=${warehouse.warehouseId})}" th:text="${warehouse.name}">창고</a>
                         </div>
                         <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                            <strong>5개 센터 구역 목록</strong><span class="badge text-bg-secondary" th:text="${#lists.size(displayBins)} + '개'">0개</span>
+                            <strong>5개 센터 구역 목록</strong><span class="badge text-bg-secondary" th:text="${binTotalCount} + '개'">0개</span>
                         </div>
                         <div class="table-responsive"><table class="table table-hover align-middle mb-0 wms-bin-table"><thead><tr><th>센터</th><th>코드</th><th>용도</th><th>도면 위치</th><th class="text-end">현재 / 한도</th><th class="text-center">상태</th><th class="text-center">관리</th></tr></thead><tbody>
                             <tr th:each="bin : ${displayBins}">
@@ -283,6 +291,24 @@
                                 <td class="text-center wms-bin-actions"><form th:if="${bin.purpose.selectableByUser}" th:action="@{/admin/wms/bins/{binId}/delete(binId=${bin.binId})}" method="post" class="d-inline" onsubmit="return confirm('이 구역을 삭제할까요? 재고가 있으면 삭제할 수 없습니다.')"><input type="hidden" name="warehouseId" th:value="${bin.warehouse.warehouseId}"><button class="btn btn-sm btn-outline-danger" type="submit">삭제</button></form><span th:unless="${bin.purpose.selectableByUser}" class="text-muted small">-</span></td>
                             </tr>
                         </tbody></table></div>
+                        <nav th:if="${selectedBinWarehouseId == null and binPageCount > 1}"
+                             class="wms-trace-pagination wms-bin-pagination"
+                             aria-label="전체 창고 구역 페이지 이동">
+                            <a class="page-link"
+                               th:href="@{/admin/wms(view='bins',binPage=${binPage - 1})}"
+                               th:classappend="${binPage == 0} ? 'disabled'"
+                               aria-label="이전 페이지">&laquo;</a>
+                            <a class="page-link"
+                               th:each="pageNumber : ${#numbers.sequence(0, binPageCount - 1)}"
+                               th:href="@{/admin/wms(view='bins',binPage=${pageNumber})}"
+                               th:classappend="${pageNumber == binPage} ? 'active'"
+                               th:aria-current="${pageNumber == binPage} ? 'page'"
+                               th:text="${pageNumber + 1}">1</a>
+                            <a class="page-link"
+                               th:href="@{/admin/wms(view='bins',binPage=${binPage + 1})}"
+                               th:classappend="${binPage == binPageCount - 1} ? 'disabled'"
+                               aria-label="다음 페이지">&raquo;</a>
+                        </nav>
                     </div>
                 </div>
             </div>

@@ -44,6 +44,7 @@ public class RecurringDeliveryService {
 	private final WarehouseRepository warehouseRepository;
 	private final WarehouseAllocationRepository allocationRepository;
 	private final InventoryService inventoryService;
+	private final SellableStockQuery sellableStockQuery;
 
 	public List<RecurringDelivery> deliveries() {
 		return recurringDeliveryRepository
@@ -175,12 +176,15 @@ public class RecurringDeliveryService {
 					"중지된 정기 배송 일정입니다.");
 		}
 
+		int warehouseSellable = sellableStockQuery.sellableAtWarehouse(
+				delivery.getWarehouse().getWarehouseId(),
+				delivery.getProduct().getProductId());
 		int receiptQuantity =
 				delivery.isSafetyStockBased()
 					? Math.max(
 							0,
 							delivery.getProduct().getSafetyStock()
-								- delivery.getProduct().getTotalStock())
+								- warehouseSellable)
 					: delivery.getQuantity();
 
 		if (receiptQuantity <= 0) {
@@ -210,9 +214,9 @@ public class RecurringDeliveryService {
 						+ delivery.getManufacturer().getCompanyName(),
 				delivery.getWarehouse());
 
-		allocation.adjustCurrentStock(
-				allocation.getCurrentStockQuantity()
-						+ receiptQuantity);
+		allocation.adjustCurrentStock(sellableStockQuery.sellableAtWarehouse(
+				delivery.getWarehouse().getWarehouseId(),
+				delivery.getProduct().getProductId()));
 		delivery.recordReceipt(LocalDate.now());
 	}
 
@@ -227,7 +231,9 @@ public class RecurringDeliveryService {
 					"안전재고 점검 일정이 아닙니다.");
 		}
 
-		if (delivery.getProduct().getTotalStock()
+		if (sellableStockQuery.sellableAtWarehouse(
+				delivery.getWarehouse().getWarehouseId(),
+				delivery.getProduct().getProductId())
 				<= delivery.getProduct().getSafetyStock()) {
 			throw new IllegalStateException(
 					"안전재고 이하이므로 부족분 입고가 필요합니다.");

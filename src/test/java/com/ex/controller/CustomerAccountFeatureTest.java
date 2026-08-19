@@ -1,7 +1,9 @@
 package com.ex.controller;
 
 import com.ex.dto.SignupRequest;
+import com.ex.dto.MemberUpdateRequest;
 import com.ex.entity.AddressType;
+import com.ex.repository.FarmCustomerRepository;
 import com.ex.repository.ProductRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ex.service.MemberService;
@@ -34,6 +36,7 @@ class CustomerAccountFeatureTest {
     @Autowired MemberService memberService;
     @Autowired ProductRepository productRepository;
     @Autowired ObjectMapper objectMapper;
+    @Autowired FarmCustomerRepository farmCustomerRepository;
 
     @Test
     void customerSessionRecoveryProfileAndWishlistWorkTogether() throws Exception {
@@ -158,6 +161,36 @@ class CustomerAccountFeatureTest {
                 signedUp.farmModel().monthlyQuantityEstimated());
         org.junit.jupiter.api.Assertions.assertFalse(
                 signedUp.farmModel().recommendedFeeds().isEmpty());
+    }
+
+    @Test
+    void unchangedFarmAddressKeepsDetailAndPreciseCoordinates() {
+        String email = "address-" + UUID.randomUUID() + "@feedflow.test";
+        SignupRequest.AddressRequest farmAddress = new SignupRequest.AddressRequest(
+                AddressType.FARM, "주소회원", "010-7777-8888", "12345",
+                "충남 예산군 고덕면 농장로 2", "제1축사", "창고 앞", false);
+        var signedUp = memberService.signup(new SignupRequest(
+                email, "Farm!234", "주소회원", "주소농장", "010-7777-8888",
+                null, null,
+                address(AddressType.HOME, "서울시 농장로 1"),
+                farmAddress,
+                new SignupRequest.FarmProfileRequest(
+                        "소", 100, null, null, 36.123456, 126.654321)));
+        var before = farmCustomerRepository.findByMemberId(signedUp.id())
+                .orElseThrow();
+        double latitude = before.getLatitude();
+        double longitude = before.getLongitude();
+
+        memberService.update(signedUp.id(), new MemberUpdateRequest(
+                "주소회원", "주소농장", "010-7777-8888", null, null,
+                "12345", "서울시 농장로 1", "1층",
+                "12345", "충남 예산군 고덕면 농장로 2", "제1축사", "창고 앞"));
+
+        var after = farmCustomerRepository.findByMemberId(signedUp.id())
+                .orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(latitude, after.getLatitude());
+        org.junit.jupiter.api.Assertions.assertEquals(longitude, after.getLongitude());
+        org.junit.jupiter.api.Assertions.assertTrue(after.getAddress().endsWith("제1축사"));
     }
 
     private SignupRequest.AddressRequest address(AddressType type, String address) {

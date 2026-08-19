@@ -73,6 +73,7 @@ public class StorefrontDataInitializer implements ApplicationRunner {
                 .ifPresent(this::retireLot);
 
         warehousePlanSeeder.ensureAllocationsForAllProducts();
+        warehousePlanSeeder.fillMissingRecommendationsFromFarmDemand();
     }
 
     private void retireProductLots(Product product) {

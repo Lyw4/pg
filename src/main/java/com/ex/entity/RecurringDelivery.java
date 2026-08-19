@@ -166,6 +166,10 @@ public class RecurringDelivery {
 		this.active = !this.active;
 	}
 
+	public void pause() {
+		this.active = false;
+	}
+
 	@PrePersist
 	void onCreate() {
 		this.createdAt = LocalDateTime.now();

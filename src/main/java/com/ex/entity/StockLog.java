@@ -34,7 +34,9 @@ public class StockLog {
 		DEFECT("불량 격리"),
 		DEFECT_RECOVERY("불량 복귀"),
 		INVENTORY_AUDIT("재고 실사"),
-		INBOUND_CANCEL("입고 취소");
+		INBOUND_CANCEL("입고 취소"),
+		DISPOSAL("재고 폐기");
+
 
 		private final String label;
 

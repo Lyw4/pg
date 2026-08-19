@@ -31,6 +31,7 @@ public class WarehouseManagementService {
 
     private final WarehouseRepository warehouseRepository;
     private final WarehouseAllocationRepository allocationRepository;
+    private final WarehouseCapacityPlanningService capacityPlanningService;
 
     public List<Warehouse> warehouses() {
         return warehouseRepository
@@ -120,6 +121,8 @@ public class WarehouseManagementService {
         allocation.changePlan(
                 monthlyPlannedQuantity,
                 targetStockQuantity);
+        capacityPlanningService.resizeForWarehouse(
+                allocation.getWarehouse().getWarehouseId());
     }
 
     @Transactional

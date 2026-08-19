@@ -13,6 +13,9 @@ import com.ex.service.MemberService;
 import com.ex.service.PasswordRecoveryService;
 import com.ex.repository.EmployeeAccountRepository;
 import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -53,8 +56,15 @@ public class MemberController {
     }
 
     @PostMapping("/login")
-    public MemberResponse login(@Valid @RequestBody LoginRequest request, HttpSession session) {
+    public MemberResponse login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest servletRequest) {
         MemberResponse member = memberService.login(request);
+        HttpSession session = servletRequest.getSession(true);
+        SecurityContextHolder.clearContext();
+        session.removeAttribute(HttpSessionSecurityContextRepository
+                .SPRING_SECURITY_CONTEXT_KEY);
+        servletRequest.changeSessionId();
         session.setAttribute("memberId", member.id());
         return member;
     }

@@ -41,7 +41,7 @@ class OrderControllerTest {
     private ObjectMapper objectMapper;
 
     @Test
-    void 비회원주문후전화번호로취소한다() throws Exception {
+    void 비회원은주문을생성할수없다() throws Exception {
         Product product = productRepository.findAllByActiveTrueOrderByIdAsc().getFirst();
         int initialStock = product.getLots().stream().mapToInt(lot -> lot.getQuantity()).sum();
 
@@ -59,46 +59,22 @@ class OrderControllerTest {
                 }
                 """.formatted(product.getId());
 
-        String response = mockMvc.perform(post("/api/orders")
+        mockMvc.perform(post("/api/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(orderBody))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("PAID"))
-                .andExpect(jsonPath("$.orderNumber").exists())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        assertEquals(
-                initialStock - 2,
-                product.getLots().stream().mapToInt(lot -> lot.getQuantity()).sum()
-        );
-
-        JsonNode json = objectMapper.readTree(response);
-        String orderNumber = json.get("orderNumber").asText();
-        CustomerOrder integratedOrder = customerOrderRepository
-                .findByOrderNumber(orderNumber)
-                .orElseThrow();
-
-        assertEquals(
-                CustomerOrder.OrderChannel.SHOP,
-                integratedOrder.getOrderChannel());
-        assertNotNull(integratedOrder.getFulfillmentWarehouse());
-        assertFalse(integratedOrder.getItems().isEmpty());
-        assertFalse(
-                integratedOrder.getItems().getFirst()
-                        .getLotAllocations().isEmpty());
-
-        mockMvc.perform(patch("/api/orders/{orderNumber}/cancel", orderNumber)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"phone\":\"010-4270-5271\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("CANCELLED"));
+                .andExpect(status().isUnauthorized());
 
         assertEquals(
                 initialStock,
                 product.getLots().stream().mapToInt(lot -> lot.getQuantity()).sum()
         );
-        assertFalse(integratedOrder.isInventoryCommitted());
+    }
+
+    @Test
+    void 비회원은전화번호만으로주문을취소할수없다() throws Exception {
+        mockMvc.perform(patch("/api/orders/FF-TEST-ORDER/cancel")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"phone\":\"010-1111-2222\"}"))
+                .andExpect(status().isUnauthorized());
     }
 }

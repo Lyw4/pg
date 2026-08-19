@@ -4,19 +4,26 @@
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security6">
 <head th:replace="~{fragments/admin-layout :: head('사원 관리')}"></head>
 <body>
-<div class="ff-admin-shell">
-    <div th:replace="~{fragments/admin-layout :: sidebar}"></div>
-    <div class="ff-main-wrap">
-        <div th:replace="~{fragments/admin-layout :: topbar('시스템 관리', '사원 관리')}"></div>
+<div th:replace="~{fragments/admin-layout :: sidebar}"></div>
+<div class="ff-content">
+    <div th:replace="~{fragments/admin-layout :: topbar('시스템 관리', '사원 관리')}"></div>
 
-        <main class="ff-content">
+        <main class="ff-main ff-page-layout">
+            <header class="ff-page-heading">
+                <div>
+                    <p class="ff-page-eyebrow">EMPLOYEE &amp; ACCESS CONTROL</p>
+                    <h1>사원 관리</h1>
+                    <p>관리자 계정과 담당 권한을 안전하게 관리합니다.</p>
+                </div>
+            </header>
+
             <div th:if="${employeeMessage}" class="alert alert-success" th:text="${employeeMessage}"></div>
             <div th:if="${employeeError}" class="alert alert-danger" th:text="${employeeError}"></div>
 
             <section class="card ff-card">
                 <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
                     <div>
-                        <h1 class="h5 fw-bold mb-1"><i class="bi bi-people-fill me-2 text-primary"></i>사원 계정 및 권한</h1>
+                        <h2 class="h5 fw-bold mb-1"><i class="bi bi-people-fill me-2 text-primary"></i>사원 계정 및 권한</h2>
                         <p class="small text-muted mb-0">책임자는 사원을 책임자로 승격하거나 다시 사원 권한으로 변경할 수 있습니다.</p>
                     </div>
                     <span class="badge text-bg-light border" th:text="|총 ${#lists.size(employees)}명|">총 0명</span>
@@ -69,7 +76,6 @@
                 </div>
             </section>
         </main>
-    </div>
 </div>
 <div th:replace="~{fragments/admin-layout :: scripts}"></div>
 </body>

@@ -61,6 +61,10 @@ public class UnifiedAuthController {
             MemberResponse member = memberService.login(
                     new LoginRequest(identifier, request.password()));
             HttpSession session = servletRequest.getSession(true);
+            SecurityContextHolder.clearContext();
+            session.removeAttribute(HttpSessionSecurityContextRepository
+                    .SPRING_SECURITY_CONTEXT_KEY);
+            servletRequest.changeSessionId();
             session.setAttribute("memberId", member.id());
             return UnifiedLoginResponse.customer(member);
         } catch (IllegalArgumentException exception) {
@@ -95,7 +99,9 @@ public class UnifiedAuthController {
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);
-        request.getSession(true).setAttribute(
+        request.getSession(true);
+        request.changeSessionId();
+        request.getSession().setAttribute(
                 HttpSessionSecurityContextRepository
                         .SPRING_SECURITY_CONTEXT_KEY,
                 context);

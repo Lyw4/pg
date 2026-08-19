@@ -1,5 +1,6 @@
 package com.ex.service;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +12,7 @@ import com.ex.entity.CustomerOrder;
 import com.ex.entity.CustomerOrder.OrderStatus;
 import com.ex.entity.OrderItem;
 import com.ex.entity.ProductLot;
+import com.ex.entity.PaymentStatus;
 import com.ex.entity.Shipment;
 import com.ex.entity.Shipment.ShipmentStatus;
 import com.ex.entity.ShipmentItem;
@@ -85,6 +87,9 @@ public class ShipmentService {
                 && order.getStatus() != OrderStatus.PREPARING) {
             throw new IllegalStateException("결제 완료 또는 준비 중 주문만 출고할 수 있습니다.");
         }
+        if (order.getPaymentStatus() != PaymentStatus.DONE) {
+            throw new IllegalStateException("결제 완료 주문만 출고 지시를 생성할 수 있습니다.");
+        }
         List<OrderItem> orderItems = orderItemRepository.findByOrderOrderId(orderId);
         if (orderItems.isEmpty()) {
             throw new IllegalStateException("출고할 주문 상품이 없습니다.");
@@ -109,13 +114,16 @@ public class ShipmentService {
     @Transactional
     public void startPicking(Long shipmentId, String worker) {
         requireText(worker, "피킹 담당자를 입력해 주세요.");
-        find(shipmentId).startPicking(worker.trim());
+        Shipment shipment = find(shipmentId);
+        requireShippableOrder(shipment);
+        shipment.startPicking(worker.trim());
     }
 
     @Transactional
     public void inspect(Long shipmentId, String worker) {
         requireText(worker, "검수 담당자를 입력해 주세요.");
         Shipment shipment = find(shipmentId);
+        requireShippableOrder(shipment);
         List<ShipmentItem> items =
                 shipmentItemRepository.findByShipmentShipmentId(shipmentId);
         items.forEach(ShipmentItem::completePicking);
@@ -126,6 +134,7 @@ public class ShipmentService {
     public Long complete(Long shipmentId, String worker) {
         requireText(worker, "출고 담당자를 입력해 주세요.");
         Shipment shipment = find(shipmentId);
+        requireShippableOrder(shipment);
         List<ShipmentItem> items =
                 shipmentItemRepository.findByShipmentShipmentId(shipmentId);
         boolean inventoryCommitted =
@@ -141,10 +150,15 @@ public class ShipmentService {
                 throw new IllegalStateException(
                         "출고할 LOT 재고가 부족합니다: " + item.getLot().getLotNo());
             }
+            if (item.getLot().getExpirationDate().isBefore(
+                    LocalDate.now().plusDays(
+                            SellableStockQuery.MINIMUM_SELLABLE_DAYS))) {
+                throw new IllegalStateException(
+                        "유통기한이 " + SellableStockQuery.MINIMUM_SELLABLE_DAYS
+                                + "일 미만 남은 LOT는 출고할 수 없습니다: "
+                                + item.getLot().getLotNo());
+            }
         });
-
-        warehouseFulfillmentService.deductStock(
-                shipment.getOrder(), items);
 
         if (!inventoryCommitted) {
             items.forEach(item -> {
@@ -165,6 +179,8 @@ public class ShipmentService {
             });
             shipment.getOrder().markInventoryCommitted();
         }
+        warehouseFulfillmentService.deductStock(
+                shipment.getOrder(), items);
         shipment.complete(worker.trim());
         shipment.getOrder().changeStatus(OrderStatus.SHIPPING);
         return shipment.getOrder().getOrderId();
@@ -210,15 +226,28 @@ public class ShipmentService {
             });
             shipment.getOrder().releaseInventoryCommit();
         }
-        warehouseFulfillmentService.restoreStock(
-                shipment.getOrder(), items);
         shipment.cancelCompleted(note.trim());
         shipment.getOrder().changeStatus(OrderStatus.PAID);
+        warehouseFulfillmentService.restoreStock(
+                shipment.getOrder(), items);
     }
 
     private Shipment find(Long id) {
         return shipmentRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("출고 지시를 찾을 수 없습니다."));
+    }
+
+    private void requireShippableOrder(Shipment shipment) {
+        CustomerOrder order = shipment.getOrder();
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new IllegalStateException("취소된 주문은 출고할 수 없습니다.");
+        }
+        if (order.getStatus() != OrderStatus.PREPARING) {
+            throw new IllegalStateException("출고 준비 중인 주문만 처리할 수 있습니다.");
+        }
+        if (order.getPaymentStatus() != PaymentStatus.DONE) {
+            throw new IllegalStateException("결제 완료 주문만 출고할 수 있습니다.");
+        }
     }
 
     private void requireText(String value, String message) {

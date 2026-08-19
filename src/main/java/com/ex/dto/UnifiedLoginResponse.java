@@ -10,7 +10,7 @@ public record UnifiedLoginResponse(
     }
 
     public static UnifiedLoginResponse operator(String accountType) {
-        return new UnifiedLoginResponse(accountType, "/admin/dashboard", null);
+        return new UnifiedLoginResponse(accountType, "/", null);
     }
 
     public static UnifiedLoginResponse customer(MemberResponse member) {

@@ -2,11 +2,18 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/admin-layout :: head('추천·분석 모델')}"></head>
 <body>
-<div class="ff-admin-shell">
-    <div th:replace="~{fragments/admin-layout :: sidebar}"></div>
-    <div class="ff-main-wrap">
-        <div th:replace="~{fragments/admin-layout :: topbar('판매·시스템', '추천·분석 모델')}"></div>
-        <main class="ff-content ff-feed-model-page">
+<div th:replace="~{fragments/admin-layout :: sidebar}"></div>
+<div class="ff-content">
+    <div th:replace="~{fragments/admin-layout :: topbar('판매·시스템', '추천·분석 모델')}"></div>
+        <main class="ff-main ff-page-layout ff-feed-model-page">
+            <header class="ff-page-heading">
+                <div>
+                    <p class="ff-page-eyebrow">RECOMMENDATION MODEL</p>
+                    <h1>추천·분석 모델</h1>
+                    <p>축종별 추천 정책과 창고 재고 분석 결과를 관리합니다.</p>
+                </div>
+            </header>
+
             <div th:if="${modelMessage}" class="alert alert-success" th:text="${modelMessage}"></div>
             <div th:if="${modelError}" class="alert alert-danger" th:text="${modelError}"></div>
 
@@ -115,7 +122,6 @@
                 </tbody></table></div>
             </section>
         </main>
-    </div>
 </div>
 <div th:replace="~{fragments/admin-layout :: scripts}"></div>
 <script th:src="@{/js/feed-model-map.js}"></script>

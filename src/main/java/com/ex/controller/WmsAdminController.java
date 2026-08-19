@@ -28,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class WmsAdminController {
 
+    private static final int BIN_PAGE_SIZE = 10;
     private static final int TRACE_PAGE_SIZE = 10;
 
     private static final Set<String> VIEWS = Set.of(
@@ -64,6 +65,7 @@ public class WmsAdminController {
             @RequestParam(name = "view", defaultValue = "map") String view,
             @RequestParam(name = "warehouseId", required = false) Long warehouseId,
             @RequestParam(name = "binWarehouseId", required = false) Long binWarehouseId,
+            @RequestParam(name = "binPage", defaultValue = "0") int binPage,
             @RequestParam(name = "lotId", required = false) Long lotId,
             @RequestParam(name = "traceWarehouseId", required = false) Long traceWarehouseId,
             @RequestParam(name = "tracePage", defaultValue = "0") int tracePage,
@@ -115,9 +117,33 @@ public class WmsAdminController {
                 ? traceWarehouseId : null;
         model.addAttribute("selectedBinWarehouseId", selectedBinWarehouseId);
         model.addAttribute("selectedTraceWarehouseId", selectedTraceWarehouseId);
-        model.addAttribute("displayBins", selectedBinWarehouseId == null
+        var filteredBins = selectedBinWarehouseId == null
                 ? wmsOperationsService.bins()
-                : wmsOperationsService.bins(selectedBinWarehouseId));
+                : wmsOperationsService.bins(selectedBinWarehouseId);
+        int binTotalCount = filteredBins.size();
+        int binPageCount = selectedBinWarehouseId == null
+                ? (binTotalCount + BIN_PAGE_SIZE - 1) / BIN_PAGE_SIZE
+                : 1;
+        int selectedBinPage = selectedBinWarehouseId == null
+                ? Math.max(0, binPage)
+                : 0;
+        if (binPageCount > 0) {
+            selectedBinPage = Math.min(selectedBinPage, binPageCount - 1);
+        } else {
+            selectedBinPage = 0;
+        }
+        int binFromIndex = selectedBinWarehouseId == null
+                ? Math.min(selectedBinPage * BIN_PAGE_SIZE, binTotalCount)
+                : 0;
+        int binToIndex = selectedBinWarehouseId == null
+                ? Math.min(binFromIndex + BIN_PAGE_SIZE, binTotalCount)
+                : binTotalCount;
+        model.addAttribute(
+                "displayBins",
+                filteredBins.subList(binFromIndex, binToIndex));
+        model.addAttribute("binTotalCount", binTotalCount);
+        model.addAttribute("binPage", selectedBinPage);
+        model.addAttribute("binPageCount", binPageCount);
         model.addAttribute(
                 "selectableBins",
                 wmsOperationsService.selectableBins());
@@ -269,12 +295,12 @@ public class WmsAdminController {
     public String scanPage(
             @RequestParam(name = "scanValue", required = false) String scanValue,
             Model model) {
-        return page("scan", null, null, null, null, 0, scanValue, model);
+        return page("scan", null, null, 0, null, null, 0, scanValue, model);
     }
 
     @GetMapping("/admin/scan/labels")
     public String labelPage(Model model) {
-        return page("labels", null, null, null, null, 0, null, model);
+        return page("labels", null, null, 0, null, null, 0, null, model);
     }
 
     @GetMapping("/admin/warehouse-map")
@@ -282,12 +308,12 @@ public class WmsAdminController {
             @RequestParam(name = "centerId", required = false)
             Long warehouseId,
             Model model) {
-        return page("map", warehouseId, null, null, null, 0, null, model);
+        return page("map", warehouseId, null, 0, null, null, 0, null, model);
     }
 
     @GetMapping("/admin/outbound/direct")
     public String directOutboundPage(Model model) {
-        return page("directOutbound", null, null, null, null, 0, null, model);
+        return page("directOutbound", null, null, 0, null, null, 0, null, model);
     }
 
     @PostMapping("/admin/wms/bins")

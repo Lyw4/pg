@@ -23,6 +23,12 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class PaymentApplyService {
 
+    public record CancellationContext(
+            String providerTransactionId,
+            PaymentStatus paymentStatus,
+            int amount) {
+    }
+
     private static final DateTimeFormatter VBANK_DATE_FORMAT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
                     .withZone(ZoneId.of("Asia/Seoul"));
@@ -47,6 +53,23 @@ public class PaymentApplyService {
         return applyVerified(order, impUid, payment);
     }
 
+    /**
+     * Member-authenticated recovery has no browser callback token. Ownership is
+     * checked under the row lock, while provider identifiers and amount are still
+     * checked by applyVerified.
+     */
+    @Transactional
+    public OrderResponse applyForReconcile(
+            String orderNumber,
+            Long memberId,
+            String impUid,
+            JsonNode payment) {
+        if (memberId == null) throw new IllegalArgumentException("로그인이 필요합니다.");
+        CustomerOrder order = locked(orderNumber);
+        requireOwner(order, memberId);
+        return applyVerified(order, impUid, payment);
+    }
+
     @Transactional
     public OrderResponse applyForCallback(
             String orderNumber,
@@ -67,23 +90,95 @@ public class PaymentApplyService {
     }
 
     @Transactional
-    public OrderResponse cancelForMember(String orderNumber, Long memberId) {
+    public CancellationContext beginCancellation(
+            String orderNumber,
+            Long memberId) {
         if (memberId == null) throw new IllegalArgumentException("로그인이 필요합니다.");
         CustomerOrder order = locked(orderNumber);
-        if (order.getMember() == null
-                || !memberId.equals(order.getMember().getId())) {
-            throw new IllegalArgumentException("본인 주문만 취소할 수 있습니다.");
-        }
-        if (order.getStatus() == CustomerOrder.OrderStatus.CANCELLED) {
+        requireOwner(order, memberId);
+        if (order.getStatus() == CustomerOrder.OrderStatus.CANCELLED
+                && order.getPaymentStatus() != PaymentStatus.CANCEL_REQUESTED) {
             throw new IllegalStateException("이미 취소된 주문입니다.");
         }
-        if (order.getStatus() == CustomerOrder.OrderStatus.SHIPPING
-                || order.getStatus() == CustomerOrder.OrderStatus.DELIVERED) {
-            throw new IllegalStateException("배송이 시작된 주문은 고객이 직접 취소할 수 없습니다.");
+        PaymentStatus previousPayment = order.getPaymentStatus();
+        order.beginPaymentCancellation("회원 마이페이지");
+        return new CancellationContext(
+                order.getProviderTransactionId(),
+                previousPayment,
+                order.getFinalPrice().intValueExact());
+    }
+
+    @Transactional
+    public CancellationContext beginCancellationForAdmin(
+            Long orderId,
+            String manager) {
+        if (orderId == null) throw new IllegalArgumentException("주문을 선택해 주세요.");
+        CustomerOrder order = locked(orderId);
+        PaymentStatus previousPayment = order.getPaymentStatus()
+                == PaymentStatus.CANCEL_REQUESTED
+                && order.getCancellationPreviousPaymentStatus() != null
+                ? order.getCancellationPreviousPaymentStatus()
+                : order.getPaymentStatus();
+        order.beginPaymentCancellation(manager);
+        return new CancellationContext(
+                order.getProviderTransactionId(),
+                previousPayment,
+                order.getFinalPrice().intValueExact());
+    }
+
+    @Transactional
+    public OrderResponse completeCancellation(
+            String orderNumber,
+            Long memberId) {
+        CustomerOrder order = locked(orderNumber);
+        requireOwner(order, memberId);
+        if (order.getPaymentStatus() != PaymentStatus.CANCEL_REQUESTED) {
+            throw new IllegalStateException("결제 취소 요청 상태가 아닙니다.");
         }
         order.cancelPayment();
         orderService.releasePaymentReservation(order, "회원 마이페이지 주문 취소");
         return OrderResponse.from(order);
+    }
+
+    @Transactional
+    public void abortCancellation(String orderNumber, Long memberId) {
+        CustomerOrder order = locked(orderNumber);
+        requireOwner(order, memberId);
+        order.abortPaymentCancellation();
+    }
+
+    @Transactional
+    public void abortCancellationForAdmin(Long orderId) {
+        locked(orderId).abortPaymentCancellation();
+    }
+
+    @Transactional
+    public void failUnstartedForMember(
+            String orderNumber,
+            String token,
+            Long memberId) {
+        if (memberId == null) throw new IllegalArgumentException("로그인이 필요합니다.");
+        CustomerOrder order = locked(orderNumber);
+        requireOwner(order, memberId);
+        requireToken(order, token);
+        failUnstarted(order);
+    }
+
+    @Transactional
+    public void failUnstartedForCallback(String orderNumber, String token) {
+        CustomerOrder order = locked(orderNumber);
+        requireToken(order, token);
+        failUnstarted(order);
+    }
+
+    @Transactional
+    public void expirePending(String orderNumber) {
+        CustomerOrder order = locked(orderNumber);
+        if (order.getStatus() != CustomerOrder.OrderStatus.PAYMENT_PENDING
+                || order.getPaymentStatus() != PaymentStatus.READY) {
+            return;
+        }
+        failUnstarted(order);
     }
 
     private OrderResponse applyVerified(
@@ -106,14 +201,26 @@ public class PaymentApplyService {
         if (owner != null && !owner.getOrderId().equals(order.getOrderId())) {
             throw new IllegalArgumentException("이미 다른 주문에 반영된 결제 거래번호입니다.");
         }
-        if (order.getPaymentStatus() == PaymentStatus.DONE) {
+        String providerStatus = payment.path("status").asText("");
+        boolean locallyTerminated = order.getStatus() == CustomerOrder.OrderStatus.CANCELLED
+                || order.getPaymentStatus() == PaymentStatus.FAILED
+                || order.getPaymentStatus() == PaymentStatus.CANCELLED
+                || order.getPaymentStatus() == PaymentStatus.CANCEL_REQUESTED;
+        if (locallyTerminated
+                && !"cancelled".equals(providerStatus)
+                && !"canceled".equals(providerStatus)) {
+            throw new IllegalStateException(
+                    "종료되었거나 취소 처리 중인 주문에는 결제 상태를 다시 적용할 수 없습니다.");
+        }
+        if (order.getPaymentStatus() == PaymentStatus.DONE
+                && "paid".equals(providerStatus)) {
             if (!secureEquals(order.getProviderTransactionId(), verifiedImpUid)) {
                 throw new IllegalArgumentException("이미 다른 결제번호로 완료된 주문입니다.");
             }
             return OrderResponse.from(order);
         }
 
-        switch (payment.path("status").asText("")) {
+        switch (providerStatus) {
             case "paid" -> order.completePayment(
                     verifiedImpUid, payment.path("receipt_url").asText(null));
             case "ready" -> order.waitForDeposit(
@@ -126,6 +233,11 @@ public class PaymentApplyService {
                 orderService.releasePaymentReservation(order, "결제 실패");
             }
             case "cancelled", "canceled" -> {
+                if (order.getStatus() == CustomerOrder.OrderStatus.SHIPPING
+                        || order.getStatus() == CustomerOrder.OrderStatus.DELIVERED) {
+                    throw new IllegalStateException(
+                            "출고 이후 결제 취소는 관리자 회수 절차로 처리해야 합니다.");
+                }
                 order.cancelPayment();
                 orderService.releasePaymentReservation(order, "결제 취소");
             }
@@ -138,6 +250,30 @@ public class PaymentApplyService {
     private CustomerOrder locked(String orderNumber) {
         return orderRepository.findByOrderNumberForUpdate(orderNumber)
                 .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
+    }
+
+    private CustomerOrder locked(Long orderId) {
+        return orderRepository.findByOrderIdForUpdate(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
+    }
+
+    private void requireOwner(CustomerOrder order, Long memberId) {
+        if (order.getMember() == null
+                || !memberId.equals(order.getMember().getId())) {
+            throw new IllegalArgumentException("본인 주문만 결제 처리할 수 있습니다.");
+        }
+    }
+
+    private void failUnstarted(CustomerOrder order) {
+        if (StringUtils.hasText(order.getProviderTransactionId())
+                || order.getPaymentStatus() == PaymentStatus.DONE
+                || order.getPaymentStatus() == PaymentStatus.WAITING_FOR_DEPOSIT) {
+            throw new IllegalStateException(
+                    "외부 거래가 시작된 주문은 자동 실패 처리할 수 없습니다.");
+        }
+        order.failPayment();
+        orderService.releasePaymentReservation(
+                order, "결제창 취소 또는 결제 실패");
     }
 
     private void requireToken(CustomerOrder order, String token) {

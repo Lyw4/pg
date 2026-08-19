@@ -5,6 +5,10 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 
 import com.ex.entity.Product;
 
@@ -19,6 +23,11 @@ public interface ProductRepository
     boolean existsByName(String name);
 
     Optional<Product> findByName(String name);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from Product p where p.productId = :productId")
+    Optional<Product> findByProductIdForUpdate(
+            @Param("productId") Long productId);
 
     // 상품 상세 화면용: 제조사까지 함께 조회
     @EntityGraph(attributePaths = "manufacturer")

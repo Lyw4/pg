@@ -5,6 +5,7 @@ import com.ex.dto.OrderResponse;
 import com.ex.dto.OrderDetailResponse;
 import com.ex.config.PaymentProperties;
 import com.ex.entity.CustomerOrder;
+import com.ex.entity.FarmCustomer;
 import com.ex.entity.Member;
 import com.ex.entity.OrderItem;
 import com.ex.entity.OrderLotAllocation;
@@ -12,6 +13,7 @@ import com.ex.entity.Product;
 import com.ex.entity.ProductLot;
 import com.ex.entity.Warehouse;
 import com.ex.entity.PaymentStatus;
+import com.ex.entity.Shipment.ShipmentStatus;
 import com.ex.repository.CustomerOrderRepository;
 import com.ex.repository.DeliveryRepository;
 import com.ex.repository.DeliveryStatusHistoryRepository;
@@ -57,6 +59,7 @@ public class OrderService {
     private final WmsStockCoordinator wmsStockCoordinator;
     private final ExpirySaleService expirySaleService;
     private final SellableStockQuery sellableStockQuery;
+    private final FarmCustomerRegistrationService farmRegistrationService;
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request) {
@@ -93,29 +96,52 @@ public class OrderService {
                 deliveryFee,
                 discountAmount);
 
+        FarmCustomer farmCustomer = null;
         if (memberId != null) {
             Member member = memberRepository.findById(memberId)
                     .filter(Member::isActive)
-                    .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "회원 정보를 찾을 수 없습니다."));
+            farmCustomer = farmRegistrationService
+                    .findByMemberId(memberId)
+                    .filter(customer -> customer.getStatus()
+                            == FarmCustomer.CustomerStatus.ACTIVE)
+                    .orElseThrow(() -> new IllegalStateException(
+                            "거래 중인 농장 회원만 주문할 수 있습니다."));
             order.assignMember(member);
+            order.linkFarmCustomer(farmCustomer);
+            String postalCode = StringUtils.hasText(request.postalCode())
+                    ? request.postalCode()
+                    : farmCustomer.getPostalCode();
+            if (StringUtils.hasText(postalCode)) {
+                order.configureShippingAddress(
+                        postalCode, request.address(), null,
+                        request.detailAddress(), farmCustomer.getLatitude(),
+                        farmCustomer.getLongitude());
+            }
             if (paymentProperties.isPortOneEnabled()) {
                 order.prepareExternalPayment();
             }
         }
 
         Warehouse fulfillmentWarehouse = warehouseFulfillmentService
-                .assignNearestForProducts(
+                .assignPreferredOrNearestForProducts(
                         order,
                         lines.stream()
                                 .map(line -> new WarehouseFulfillmentService
                                         .ProductRequest(
-                                                line.product(), line.quantity()))
-                                .toList());
+                                                line.product(), line.quantity(),
+                                                line.saleLotIds()))
+                                .toList(),
+                        farmCustomer == null
+                                ? null
+                                : farmCustomer.getAssignedWarehouse());
+        orderRepository.saveAndFlush(order);
         lines.forEach(line -> order.addItem(
                 commitInventory(order, line, fulfillmentWarehouse)));
-        order.markInventoryCommitted();
-
-        return toResponse(orderRepository.save(order));
+        orderRepository.saveAndFlush(order);
+        warehouseFulfillmentService.syncStock(order, order.getItems());
+        return toResponse(order);
     }
 
     @Transactional
@@ -129,6 +155,7 @@ public class OrderService {
             throw new IllegalStateException(
                     "전자결제가 시작된 회원 주문은 로그인 후 마이페이지에서 취소해 주세요.");
         }
+        cancelPendingShipment(order, "고객 주문 취소");
         order.cancelByCustomer(phone);
         restoreCommittedInventory(order);
         return toResponse(order);
@@ -193,6 +220,7 @@ public class OrderService {
         if (order.getMember() == null || !memberId.equals(order.getMember().getId())) {
             throw new IllegalArgumentException("본인 주문만 취소할 수 있습니다.");
         }
+        cancelPendingShipment(order, "회원 마이페이지 주문 취소");
         order.cancel("회원 마이페이지 요청", order.getCustomerName());
         if (order.getPaymentStatus() != null) order.cancelPayment();
         restoreCommittedInventory(order);
@@ -202,18 +230,20 @@ public class OrderService {
     private List<ResolvedLine> resolveLines(
             CreateOrderRequest request) {
         List<ResolvedLine> lines = new ArrayList<>();
-        for (CreateOrderRequest.OrderLineRequest line :
-                request.items()) {
-            Product product = productRepository.findById(
-                            line.productId())
+        Map<Long, Integer> requestedQuantities = new java.util.TreeMap<>();
+        request.items().forEach(line -> requestedQuantities.merge(
+                line.productId(), line.quantity(), Math::addExact));
+        for (Map.Entry<Long, Integer> requested : requestedQuantities.entrySet()) {
+            Product product = productRepository.findByProductIdForUpdate(
+                            requested.getKey())
                     .filter(Product::isActive)
                     .orElseThrow(() ->
                             new IllegalArgumentException(
                                     "주문할 수 없는 상품입니다: "
-                                            + line.productId()));
+                                            + requested.getKey()));
             var saleOffer = expirySaleService.offerFor(product);
             if (saleOffer.isPresent()
-                    && line.quantity() > saleOffer.get().saleStock()) {
+                    && requested.getValue() > saleOffer.get().saleStock()) {
                 throw new IllegalArgumentException(
                         product.getName() + " 유통기한 특가 재고는 "
                                 + saleOffer.get().saleStock()
@@ -224,10 +254,10 @@ public class OrderService {
                     .orElse(product.getPrice());
             lines.add(new ResolvedLine(
                     product,
-                    line.quantity(),
+                    requested.getValue(),
                     unitPrice,
                     unitPrice.multiply(
-                            BigDecimal.valueOf(line.quantity())),
+                            BigDecimal.valueOf(requested.getValue())),
                     saleOffer.map(ExpirySaleService.SaleOffer::lotIds)
                             .orElse(List.of())));
         }
@@ -275,15 +305,6 @@ public class OrderService {
             int deduction = Math.min(
                     Math.min(lot.getLotQuantity(), binCapacity), remaining);
             if (deduction <= 0) continue;
-            lot.decrease(deduction);
-            line.product().changeStock(-deduction);
-			wmsStockCoordinator.outbound(
-					lot,
-					deduction,
-					fulfillmentWarehouse,
-					"판매 홈페이지 주문 재고 확정",
-					"온라인 주문",
-					null);
             item.addLotAllocation(
                     new OrderLotAllocation(lot, deduction));
             remaining -= deduction;
@@ -301,6 +322,7 @@ public class OrderService {
 
     private void restoreCommittedInventory(CustomerOrder order) {
         if (!order.isInventoryCommitted()) {
+            warehouseFulfillmentService.syncStock(order, order.getItems());
             return;
         }
         order.getItems().stream()
@@ -320,6 +342,7 @@ public class OrderService {
 							order.getOrderId());
                 });
         order.releaseInventoryCommit();
+        warehouseFulfillmentService.syncStock(order, order.getItems());
     }
 
     private CustomerOrder findByOrderNumber(
@@ -345,11 +368,18 @@ public class OrderService {
     }
 
     void releasePaymentReservation(CustomerOrder order, String reason) {
-        if (order.getStatus() == CustomerOrder.OrderStatus.CANCELLED) {
-            return;
+        cancelPendingShipment(order, reason);
+        if (order.getStatus() != CustomerOrder.OrderStatus.CANCELLED) {
+            order.cancel(reason, "결제 시스템");
         }
-        order.cancel(reason, "결제 시스템");
         restoreCommittedInventory(order);
+    }
+
+    private void cancelPendingShipment(CustomerOrder order, String reason) {
+        shipmentRepository.findByOrderOrderId(order.getOrderId())
+                .filter(shipment -> shipment.getStatus() != ShipmentStatus.SHIPPED)
+                .filter(shipment -> shipment.getStatus() != ShipmentStatus.CANCELLED)
+                .ifPresent(shipment -> shipment.cancel(reason));
     }
 
     private record ResolvedLine(

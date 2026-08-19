@@ -26,6 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class DemandPlanService {
 
+    /** 농장 월 사료 사용량 대비 영양제 예상 사용 비율. */
+    public static final int SUPPLEMENT_DEMAND_PERCENT = 5;
+
     public enum CoverageStatus {
         SHORTAGE("부족", "bg-danger"),
         TIGHT("빠듯", "bg-warning text-dark"),
@@ -130,6 +133,7 @@ public class DemandPlanService {
     private final WarehouseRepository warehouseRepository;
     private final FarmCustomerRepository farmCustomerRepository;
     private final BinInventoryRepository binInventoryRepository;
+    private final SellableStockQuery sellableStockQuery;
 
     public DemandPlan plan(LocalDate today) {
         List<Warehouse> warehouses = warehouseRepository
@@ -141,26 +145,49 @@ public class DemandPlanService {
         Map<CoverageKey, Integer> demand = new LinkedHashMap<>();
         farms.stream()
                 .filter(farm -> farm.getStatus() == CustomerStatus.ACTIVE)
-                .forEach(farm -> demand.merge(
-                        new CoverageKey(
-                                farm.getAssignedWarehouse().getWarehouseId(),
-                                normalizeAnimal(farm.getAnimalType())),
-                        farm.getMonthlyFeedQuantity(),
-                        Integer::sum));
+                .forEach(farm -> {
+                    Long warehouseId = farm.getAssignedWarehouse().getWarehouseId();
+                    demand.merge(
+                            new CoverageKey(warehouseId,
+                                    normalizeAnimal(farm.getAnimalType())),
+                            farm.getMonthlyFeedQuantity(),
+                            Integer::sum);
+                    demand.merge(
+                            new CoverageKey(warehouseId, "영양제"),
+                            supplementDemand(farm.getMonthlyFeedQuantity()),
+                            Integer::sum);
+                });
 
         Map<CoverageKey, Integer> supply = new LinkedHashMap<>();
+        Map<String, Integer> availableByWarehouseProduct = sellableStockQuery
+                .sellableByWarehouseAndProductIds(inventories.stream()
+                        .map(inventory -> inventory.getLot().getProduct().getProductId())
+                        .distinct().toList());
         inventories.stream()
                 .filter(inventory -> inventory.getQuantity() > 0)
                 .filter(inventory -> inventory.getBin().isActive())
                 .filter(inventory -> inventory.getBin().getPurpose() == BinPurpose.STORAGE
                         || inventory.getBin().getPurpose() == BinPurpose.SHIPPING)
                 .filter(inventory -> inventory.getLot().getExpirationDate() == null
-                        || !inventory.getLot().getExpirationDate().isBefore(today))
+                        || !inventory.getLot().getExpirationDate().isBefore(
+                                today.plusDays(SellableStockQuery.MINIMUM_SELLABLE_DAYS)))
+                .collect(java.util.stream.Collectors.toMap(
+                        inventory -> sellableStockQuery.stockKey(
+                                inventory.getBin().getWarehouse().getWarehouseId(),
+                                inventory.getLot().getProduct().getProductId()),
+                        inventory -> inventory,
+                        (left, right) -> left,
+                        LinkedHashMap::new))
+                .values().stream()
                 .forEach(inventory -> supply.merge(
                         new CoverageKey(
                                 inventory.getBin().getWarehouse().getWarehouseId(),
                                 normalizeAnimal(inventory.getLot().getProduct().getAnimalType())),
-                        inventory.getQuantity(),
+                        availableByWarehouseProduct.getOrDefault(
+                                sellableStockQuery.stockKey(
+                                        inventory.getBin().getWarehouse().getWarehouseId(),
+                                        inventory.getLot().getProduct().getProductId()),
+                                0),
                         Integer::sum));
 
         List<WarehousePlan> warehousePlans = new ArrayList<>();
@@ -229,7 +256,13 @@ public class DemandPlanService {
             case "소" -> 1;
             case "돼지" -> 2;
             case "조류(닭/오리)" -> 3;
+            case "영양제" -> 4;
             default -> 9;
         };
+    }
+
+    public static int supplementDemand(int monthlyFeedQuantity) {
+        if (monthlyFeedQuantity <= 0) return 0;
+        return Math.max(1, (monthlyFeedQuantity * SUPPLEMENT_DEMAND_PERCENT + 99) / 100);
     }
 }

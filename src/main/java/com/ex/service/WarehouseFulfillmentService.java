@@ -32,15 +32,28 @@ public class WarehouseFulfillmentService {
 
     private static final double EARTH_RADIUS_KM = 6371.0088;
 
-    private record ProductNeed(Product product, int quantity) {
+    private record ProductNeed(
+            Product product,
+            int quantity,
+            List<Long> restrictedLotIds) {
     }
 
-    public record ProductRequest(Product product, int quantity) {
+    public record ProductRequest(
+            Product product,
+            int quantity,
+            List<Long> restrictedLotIds) {
+        public ProductRequest(Product product, int quantity) {
+            this(product, quantity, List.of());
+        }
+
         public ProductRequest {
             if (product == null || quantity <= 0) {
                 throw new IllegalArgumentException(
                         "창고 배정 상품과 수량을 확인해 주세요.");
             }
+            restrictedLotIds = restrictedLotIds == null
+                    ? List.of()
+                    : List.copyOf(restrictedLotIds);
         }
     }
 
@@ -60,15 +73,28 @@ public class WarehouseFulfillmentService {
     public Warehouse assignNearestForProducts(
             CustomerOrder order,
             List<ProductRequest> requests) {
-        if (requests == null || requests.isEmpty()) {
-            throw new IllegalArgumentException("창고를 배정할 주문 상품이 없습니다.");
+        return assignNearest(order, productNeeds(requests));
+    }
+
+    @Transactional
+    public Warehouse assignPreferredOrNearestForProducts(
+            CustomerOrder order,
+            List<ProductRequest> requests,
+            Warehouse preferredWarehouse) {
+        Map<Long, ProductNeed> needs = productNeeds(requests);
+        if (preferredWarehouse != null && preferredWarehouse.isActive()) {
+            Map<String, Integer> sellable = sellableStockQuery
+                    .sellableByWarehouseAndProductIds(needs.keySet());
+            if (hasEnoughStock(preferredWarehouse, needs, sellable)) {
+                order.assignFulfillmentWarehouse(
+                        preferredWarehouse,
+                        order.getFarmCustomer() == null
+                                ? null
+                                : order.getFarmCustomer().getDistanceKm(),
+                        "회원가입 시 지정된 담당 창고");
+                return preferredWarehouse;
+            }
         }
-        Map<Long, ProductNeed> needs = new LinkedHashMap<>();
-        requests.forEach(request -> needs.merge(
-                request.product().getProductId(),
-                new ProductNeed(request.product(), request.quantity()),
-                (left, right) -> new ProductNeed(
-                        left.product(), left.quantity() + right.quantity())));
         return assignNearest(order, needs);
     }
 
@@ -83,7 +109,7 @@ public class WarehouseFulfillmentService {
         }
         Map<Long, ProductNeed> needs = Map.of(
                 product.getProductId(),
-                new ProductNeed(product, quantity));
+                new ProductNeed(product, quantity, List.of()));
         return assignNearest(order, needs);
     }
 
@@ -151,7 +177,6 @@ public class WarehouseFulfillmentService {
                     "창고를 배정할 주문 상품이 없습니다.");
         }
 
-        Map<String, Integer> reserved = reservedQuantities();
         Map<String, Integer> sellable = sellableStockQuery
                 .sellableByWarehouseAndProductIds(needs.keySet());
         List<String> regionPreference = regionPreference(
@@ -163,7 +188,7 @@ public class WarehouseFulfillmentService {
                 .findAllByActiveTrueOrderByDisplayOrderAsc()
                 .stream()
                 .filter(warehouse -> hasEnoughStock(
-                        warehouse, needs, reserved, sellable))
+                        warehouse, needs, sellable))
                 .map(warehouse -> new Candidate(
                         warehouse,
                         hasCustomerCoordinates && warehouse.hasCoordinates()
@@ -201,25 +226,22 @@ public class WarehouseFulfillmentService {
     private boolean hasEnoughStock(
             Warehouse warehouse,
             Map<Long, ProductNeed> needs,
-            Map<String, Integer> reserved,
             Map<String, Integer> sellable) {
         return needs.values().stream().allMatch(need -> {
+            if (!need.restrictedLotIds().isEmpty()) {
+                int restrictedSellable = sellableStockQuery
+                        .sellablePerLot(
+                                need.restrictedLotIds(),
+                                warehouse.getWarehouseId())
+                        .values().stream()
+                        .mapToInt(Integer::intValue)
+                        .sum();
+                return restrictedSellable >= need.quantity();
+            }
             String key = stockKey(
                     warehouse.getWarehouseId(), need.product().getProductId());
-            return sellable.getOrDefault(key, 0)
-                    - reserved.getOrDefault(key, 0) >= need.quantity();
+            return sellable.getOrDefault(key, 0) >= need.quantity();
         });
-    }
-
-    private Map<String, Integer> reservedQuantities() {
-        Map<String, Integer> reserved = new HashMap<>();
-        orderItemRepository.sumReservedQuantities(
-                        List.of(OrderStatus.PAID, OrderStatus.PREPARING))
-                .forEach(row -> reserved.put(
-                        stockKey(((Number) row[0]).longValue(),
-                                ((Number) row[1]).longValue()),
-                        ((Number) row[2]).intValue()));
-        return reserved;
     }
 
 
@@ -229,34 +251,34 @@ public class WarehouseFulfillmentService {
             boolean restore) {
         Warehouse warehouse = order.getFulfillmentWarehouse();
         Map<Long, WarehouseAllocation> allocations = new HashMap<>();
+        Map<String, Integer> sellable = sellableStockQuery
+                .sellableByWarehouseAndProductIds(needs.keySet());
 
         needs.values().forEach(need -> {
             WarehouseAllocation allocation = allocationRepository
                     .findByWarehouseWarehouseIdAndProductProductId(
                             warehouse.getWarehouseId(),
                             need.product().getProductId())
-                    .orElseThrow(() -> new IllegalStateException(
-                            warehouse.getName()
-                                    + "에 해당 상품 재고 배치가 없습니다: "
-                                    + need.product().getName()));
-            if (!restore
-                    && allocation.getCurrentStockQuantity()
-                            < need.quantity()) {
-                throw new IllegalStateException(
-                        warehouse.getName() + "의 "
-                                + need.product().getName()
-                                + " 현재고가 부족합니다.");
-            }
+                    .orElseGet(() -> allocationRepository.save(
+                            new WarehouseAllocation(
+                                    warehouse, need.product(), 0, 0)));
             allocations.put(need.product().getProductId(), allocation);
         });
 
         needs.forEach((productId, need) -> {
             WarehouseAllocation allocation = allocations.get(productId);
-            int changedQuantity = restore
-                    ? allocation.getCurrentStockQuantity() + need.quantity()
-                    : allocation.getCurrentStockQuantity() - need.quantity();
-            allocation.adjustCurrentStock(changedQuantity);
+            allocation.adjustCurrentStock(sellable.getOrDefault(
+                    stockKey(warehouse.getWarehouseId(), productId), 0));
         });
+    }
+
+    @Transactional
+    public void syncStock(CustomerOrder order, List<OrderItem> items) {
+        if (order.getFulfillmentWarehouse() == null
+                || items == null || items.isEmpty()) {
+            return;
+        }
+        changeStock(order, needsFromOrderItems(items), false);
     }
 
     private Map<Long, ProductNeed> needsFromOrderItems(
@@ -264,10 +286,14 @@ public class WarehouseFulfillmentService {
         Map<Long, ProductNeed> needs = new LinkedHashMap<>();
         items.forEach(item -> needs.merge(
                 item.getProduct().getProductId(),
-                new ProductNeed(item.getProduct(), item.getQuantity()),
+                new ProductNeed(
+                        item.getProduct(), item.getQuantity(), List.of()),
                 (left, right) -> new ProductNeed(
                         left.product(),
-                        left.quantity() + right.quantity())));
+                        left.quantity() + right.quantity(),
+                        mergeLotRestrictions(
+                                left.restrictedLotIds(),
+                                right.restrictedLotIds()))));
         return needs;
     }
 
@@ -278,11 +304,43 @@ public class WarehouseFulfillmentService {
                 item.getProduct().getProductId(),
                 new ProductNeed(
                         item.getProduct(),
-                        item.getPickedQuantity()),
+                        item.getPickedQuantity(),
+                        List.of()),
                 (left, right) -> new ProductNeed(
                         left.product(),
-                        left.quantity() + right.quantity())));
+                        left.quantity() + right.quantity(),
+                        mergeLotRestrictions(
+                                left.restrictedLotIds(),
+                                right.restrictedLotIds()))));
         return needs;
+    }
+
+    private Map<Long, ProductNeed> productNeeds(List<ProductRequest> requests) {
+        if (requests == null || requests.isEmpty()) {
+            throw new IllegalArgumentException("창고를 배정할 주문 상품이 없습니다.");
+        }
+        Map<Long, ProductNeed> needs = new LinkedHashMap<>();
+        requests.forEach(request -> needs.merge(
+                request.product().getProductId(),
+                new ProductNeed(
+                        request.product(), request.quantity(),
+                        request.restrictedLotIds()),
+                (left, right) -> new ProductNeed(
+                        left.product(), left.quantity() + right.quantity(),
+                        mergeLotRestrictions(
+                                left.restrictedLotIds(),
+                                right.restrictedLotIds()))));
+        return needs;
+    }
+
+    private List<Long> mergeLotRestrictions(
+            List<Long> left,
+            List<Long> right) {
+        if (left.isEmpty()) return right;
+        if (right.isEmpty()) return left;
+        return java.util.stream.Stream.concat(left.stream(), right.stream())
+                .distinct()
+                .toList();
     }
 
     private List<String> regionPreference(String address) {

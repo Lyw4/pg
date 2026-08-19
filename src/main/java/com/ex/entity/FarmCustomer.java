@@ -223,7 +223,6 @@ public class FarmCustomer {
         this.distanceKm = distanceKm;
         this.status = status;
         this.notes = notes;
-        this.demoData = true;
     }
 
     public String getDistanceLabel() {

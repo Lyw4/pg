@@ -73,6 +73,7 @@ public class AdminFeedModelService {
     private final FarmCustomerRepository farmCustomerRepository;
     private final CustomerOrderRepository orderRepository;
     private final WmsStockCoordinator wmsStockCoordinator;
+    private final SellableStockQuery sellableStockQuery;
 
     @Transactional
     public List<FeedModelPolicy> policies() {
@@ -152,9 +153,10 @@ public class AdminFeedModelService {
         wmsStockCoordinator.transferProduct(
                 productId, source.getWarehouse(), destination.getWarehouse(),
                 quantity, operatorName == null ? "관리자" : operatorName);
-        source.adjustCurrentStock(source.getCurrentStockQuantity() - quantity);
-        destination.adjustCurrentStock(
-                destination.getCurrentStockQuantity() + quantity);
+        source.adjustCurrentStock(sellableStockQuery.sellableAtWarehouse(
+                sourceWarehouseId, productId));
+        destination.adjustCurrentStock(sellableStockQuery.sellableAtWarehouse(
+                destinationWarehouseId, productId));
     }
 
     @Transactional(readOnly = true)

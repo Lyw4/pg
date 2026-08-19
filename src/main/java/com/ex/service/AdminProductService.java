@@ -7,6 +7,9 @@ import com.ex.entity.Product;
 import com.ex.entity.ProductLot;
 import com.ex.repository.ManufacturerRepository;
 import com.ex.repository.ProductLotRepository;
+import com.ex.repository.WarehouseAllocationRepository;
+import com.ex.repository.WarehouseRepository;
+import com.ex.entity.WarehouseAllocation;
 import com.ex.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,6 +26,9 @@ public class AdminProductService {
     private final ManufacturerRepository manufacturerRepository;
     private final ProductLotRepository productLotRepository;
 	private final WmsStockCoordinator wmsStockCoordinator;
+	private final WarehouseRepository warehouseRepository;
+	private final WarehouseAllocationRepository allocationRepository;
+	private final InventoryService inventoryService;
 
     @Transactional
     public ProductResponse create(AdminProductRequest request) {
@@ -38,6 +44,7 @@ public class AdminProductService {
                 request.description());
         applyProduct(product, manufacturer, request);
         productRepository.save(product);
+		ensureWarehouseAllocations(product);
 
         ProductLot lot = createLot(product, request);
         productLotRepository.save(lot);
@@ -49,6 +56,7 @@ public class AdminProductService {
 				null,
 				"관리자 상품 등록 초기 LOT",
 				"관리자");
+		inventoryService.synchronizeWarehouseStock(product);
         return ProductResponse.from(product);
     }
 
@@ -91,7 +99,9 @@ public class AdminProductService {
 					null,
 					"관리자 상품 LOT 수량 수정",
 					"관리자");
-        }
+		}
+		ensureWarehouseAllocations(product);
+		inventoryService.synchronizeWarehouseStock(product);
         return ProductResponse.from(product);
     }
 
@@ -101,6 +111,15 @@ public class AdminProductService {
                 .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다."));
         product.deactivate();
     }
+
+	private void ensureWarehouseAllocations(Product product) {
+		warehouseRepository.findAllByActiveTrueOrderByDisplayOrderAsc()
+				.forEach(warehouse -> allocationRepository
+						.findByWarehouseWarehouseIdAndProductProductId(
+								warehouse.getWarehouseId(), product.getProductId())
+						.orElseGet(() -> allocationRepository.save(
+								new WarehouseAllocation(warehouse, product, 0, 0))));
+	}
 
     private Manufacturer findOrCreateManufacturer(String name) {
         return manufacturerRepository.findByCompanyName(name)

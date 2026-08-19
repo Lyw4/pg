@@ -20,6 +20,7 @@
         member: null,
         selectedProduct: null,
         pendingCheckout: false,
+        checkoutSubmitting: false,
         pendingFavoriteId: null,
         usernameAvailable: false,
         emailAvailable: false,
@@ -2396,7 +2397,7 @@
 
                 if (login.accountType === "ADMIN"
                     || login.accountType === "STAFF") {
-                    window.location.href = login.redirectUrl || "/admin/dashboard";
+                    window.location.href = login.redirectUrl || "/";
                     return;
                 }
 
@@ -2708,8 +2709,17 @@
         async (event) => {
             event.preventDefault();
 
-            if (!cartRows().length) {
+            if (!cartRows().length || state.checkoutSubmitting) {
                 return;
+            }
+
+            state.checkoutSubmitting = true;
+            const submitButton = event.currentTarget.querySelector(
+                'button[type="submit"]'
+            );
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = "주문을 처리하고 있습니다...";
             }
 
             const phone = $("#order-phone").value.trim();
@@ -2743,6 +2753,9 @@
                                 $("#order-request").value,
                             paymentMethod:
                                 paymentMethod,
+                            regularDelivery: Boolean(
+                                state.member?.regularDeliveryDay
+                            ),
                             items: cartRows().map(
                                 ({ product, quantity }) => ({
                                     productId: product.id,
@@ -2779,6 +2792,12 @@
                     }
                 }
                 showToast(error.message);
+            } finally {
+                state.checkoutSubmitting = false;
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = "결제하기";
+                }
             }
         }
     );

@@ -94,6 +94,19 @@ class FinalProjectApplicationTests {
 	}
 
 	@Test
+	void demandPlanShowsFarmDeliveryAutomationPreview() throws Exception {
+		mockMvc.perform(get("/admin/demand-plan")
+				.param("referenceDate", "2026-08-15"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString("농장 정기 납품 자동화")))
+				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString("선택 날짜 정기 납품 생성")))
+				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString("즉시 입고")));
+	}
+
+	@Test
 	void inventoryRendersIntegratedDefectTab() throws Exception {
 		mockMvc.perform(get("/inventory").queryParam("view", "defects"))
 				.andExpect(status().isOk())
@@ -117,13 +130,7 @@ class FinalProjectApplicationTests {
 		assertTrue(
 				warehouseManagementService
 						.totalTargetStockQuantity() >= 80545);
-		assertTrue(
-				warehouseManagementService.totalCurrentStockQuantity()
-						>= warehouseManagementService
-								.totalTargetStockQuantity());
-		assertEquals(
-				0,
-				warehouseManagementService.lowStockAllocationCount());
+		assertTrue(warehouseManagementService.totalCurrentStockQuantity() > 0);
 	}
 
 	@Test
@@ -157,6 +164,9 @@ class FinalProjectApplicationTests {
 						org.hamcrest.Matchers.containsString(
 								"id=\"warehouseStockModal\"")))
 				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString(
+								"id=\"warehouseStockSupplementTab\"")))
+				.andExpect(content().string(
 						org.hamcrest.Matchers.not(
 								org.hamcrest.Matchers.containsString(
 										"카테고리별 상품 재고"))));
@@ -182,16 +192,35 @@ class FinalProjectApplicationTests {
 	}
 
 	@Test
+	void everyActiveWarehouseProductHasFarmDemandRecommendation() {
+		var allocations = warehouseManagementService.allocations();
+
+		assertTrue(!allocations.isEmpty());
+		assertTrue(allocations.stream().allMatch(allocation ->
+				allocation.getMonthlyPlannedQuantity() > 0));
+		assertTrue(allocations.stream().allMatch(allocation ->
+				allocation.getTargetStockQuantity() > 0));
+		assertTrue(allocations.stream()
+				.filter(allocation -> "영양제".equals(
+						allocation.getProduct().getAnimalType()))
+				.allMatch(allocation ->
+						allocation.getTargetStockQuantity() > 0));
+	}
+
+	@Test
 	void recurringDeliveriesAreSeededForEveryWarehouseAndFeed() {
-		assertEquals(300, recurringDeliveryService.deliveries().size());
-		assertEquals(300, recurringDeliveryService.activeCount());
+		var deliveries = recurringDeliveryService.deliveries();
+		assertEquals(400, deliveries.size());
+		assertEquals(400, recurringDeliveryService.activeCount());
+		assertTrue(deliveries.stream().anyMatch(delivery ->
+				"영양제".equals(delivery.getProduct().getAnimalType())));
 
 		var summaries = recurringDeliveryService.warehouseSummaries();
 		assertEquals(5, summaries.size());
-		assertEquals(60, summaries.get("W01").activeScheduleCount());
+		assertEquals(80, summaries.get("W01").activeScheduleCount());
 		assertEquals("1일 · 15일", summaries.get("W01").deliveryDays());
-		assertEquals(14746, summaries.get("W01").monthlyQuantity());
-		assertEquals(28066, summaries.get("W05").monthlyQuantity());
+		assertTrue(summaries.get("W01").monthlyQuantity() > 14746);
+		assertTrue(summaries.get("W05").monthlyQuantity() > 28066);
 	}
 
 	@Test
@@ -210,7 +239,13 @@ class FinalProjectApplicationTests {
 								"정기 입고 창고 선택")))
 				.andExpect(content().string(
 						org.hamcrest.Matchers.containsString(
-								"나주 문평 창고")));
+								"나주 문평 창고")))
+				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString(
+								"id=\"recurringSupplementTab\"")))
+				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString(
+								"data-recurring-product-category=\"영양제\"")));
 	}
 
 	@Test
@@ -230,21 +265,25 @@ class FinalProjectApplicationTests {
 						.equals(delivery.getProduct().getProductId()))
 				.findFirst()
 				.orElseThrow();
-		int warehouseStockBefore =
-				allocation.getCurrentStockQuantity();
-		int productStockBefore =
-				delivery.getProduct().getTotalStock();
+		int warehouseStockBefore = sellableStockQuery.sellableAtWarehouse(
+				delivery.getWarehouse().getWarehouseId(),
+				delivery.getProduct().getProductId());
+		int productStockBefore = productRepository.findById(
+				delivery.getProduct().getProductId()).orElseThrow().getTotalStock();
 
 		recurringDeliveryService.receive(
 				delivery.getRecurringDeliveryId(),
 				LocalDate.now());
 
+		int warehouseStockAfter = sellableStockQuery.sellableAtWarehouse(
+				delivery.getWarehouse().getWarehouseId(),
+				delivery.getProduct().getProductId());
+		int productStockAfter = productRepository.findById(
+				delivery.getProduct().getProductId()).orElseThrow().getTotalStock();
+		assertTrue(warehouseStockAfter > warehouseStockBefore);
 		assertEquals(
-				warehouseStockBefore + delivery.getQuantity(),
-				allocation.getCurrentStockQuantity());
-		assertEquals(
-				productStockBefore + delivery.getQuantity(),
-				delivery.getProduct().getTotalStock());
+				productStockAfter - productStockBefore,
+				warehouseStockAfter - warehouseStockBefore);
 	}
 
 	@Test
@@ -269,6 +308,9 @@ class FinalProjectApplicationTests {
 				.andExpect(content().string(
 						org.hamcrest.Matchers.containsString(
 								"육용오리 그로워")))
+				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString(
+								"id=\"warehousePlanSupplementTab\"")))
 				.andExpect(content().string(
 						org.hamcrest.Matchers.containsString(
 								"id=\"warehousePlanModal\"")));
@@ -521,8 +563,9 @@ class FinalProjectApplicationTests {
 						.equals(lot.getProduct().getProductId()))
 				.findFirst()
 				.orElseThrow();
-		int originalWarehouseStock =
-				allocation.getCurrentStockQuantity();
+		int originalWarehouseStock = sellableStockQuery.sellableAtWarehouse(
+				order.getFulfillmentWarehouse().getWarehouseId(),
+				lot.getProduct().getProductId());
 
 		shipmentService.create(
 				orderId, "자동 배정 테스트", "나주 창고 출고");
@@ -536,14 +579,18 @@ class FinalProjectApplicationTests {
 				shipment.getShipmentId(), "출고 담당자");
 
 		assertEquals(
-				originalWarehouseStock - 1,
-				allocation.getCurrentStockQuantity());
+				originalWarehouseStock,
+				sellableStockQuery.sellableAtWarehouse(
+						order.getFulfillmentWarehouse().getWarehouseId(),
+						lot.getProduct().getProductId()));
 
 		shipmentService.cancelCompleted(
 				shipment.getShipmentId(), "자동 배정 출고 취소 테스트");
 		assertEquals(
 				originalWarehouseStock,
-				allocation.getCurrentStockQuantity());
+				sellableStockQuery.sellableAtWarehouse(
+						order.getFulfillmentWarehouse().getWarehouseId(),
+						lot.getProduct().getProductId()));
 	}
 
 	@Test

@@ -3,6 +3,7 @@ package com.ex.config;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -20,6 +21,7 @@ import com.ex.repository.WarehouseBinRepository;
 import com.ex.repository.WarehouseRepository;
 import com.ex.repository.WarehouseStockMovementRepository;
 import com.ex.service.WmsOperationsService;
+import com.ex.service.WarehouseCapacityPlanningService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -65,6 +67,7 @@ public class WmsDataInitializer implements ApplicationRunner {
     private final BinInventoryRepository binInventoryRepository;
     private final WarehouseStockMovementRepository movementRepository;
     private final WmsOperationsService wmsOperationsService;
+    private final WarehouseCapacityPlanningService capacityPlanningService;
 
     @Override
     @Transactional
@@ -79,6 +82,8 @@ public class WmsDataInitializer implements ApplicationRunner {
             migrateLegacyBins(warehouse, plan);
             plan.forEach(seed -> upsertBin(warehouse, seed));
             ensureTransitBin(warehouse);
+            capacityPlanningService.resizeForWarehouse(
+                    warehouse.getWarehouseId());
             rebalanceOverCapacity(warehouse);
         }
         wmsOperationsService.synchronizeAll("WMS 도면 기준 위치 배치");
@@ -249,6 +254,8 @@ public class WmsDataInitializer implements ApplicationRunner {
                     WarehouseBin destination = storageBins.stream()
                             .filter(bin -> !bin.getBinId()
                                     .equals(source.getBinId()))
+                            .filter(bin -> Objects.equals(
+                                    bin.getZone(), source.getZone()))
                             .filter(bin -> quantityInBin(bin)
                                     < bin.getEffectiveMaxCapacity())
                             .findFirst()
@@ -298,6 +305,7 @@ public class WmsDataInitializer implements ApplicationRunner {
                 storage("YS-PG-02", "PG", "03", 2, 250, 18, 6, 4, 5, true),
                 storage("YS-PG-03", "PG", "04", 1, 250, 23, 1, 4, 5, true),
                 storage("YS-PG-04", "PG", "04", 2, 250, 23, 6, 4, 5, true),
+                storage("YS-CT-01", "CT", "06", 1, 200, 12, 11, 5, 3, true),
                 storage("YS-COLD-01", "COLD", "05", 1, 200, 6, 11, 5, 3, true),
                 waiting("YS-R-01", "R", BinPurpose.RECEIVING, 300, 1, 3, 4, 3),
                 waiting("YS-S-01", "S", BinPurpose.SHIPPING, 400, 1, 6, 4, 3)));
@@ -308,6 +316,7 @@ public class WmsDataInitializer implements ApplicationRunner {
                 storage("GJ-PL-04", "PL", "02", 2, 200, 12, 6, 5, 5, true),
                 storage("GJ-PG-01", "PG", "03", 1, 250, 18, 1, 4, 5, true),
                 storage("GJ-PG-02", "PG", "03", 2, 250, 18, 6, 4, 5, true),
+                storage("GJ-CT-01", "CT", "06", 1, 250, 12, 11, 5, 3, true),
                 storage("GJ-COLD-01", "COLD", "05", 1, 250, 6, 11, 5, 3, true),
                 waiting("GJ-R-01", "R", BinPurpose.RECEIVING, 300, 1, 3, 4, 3),
                 waiting("GJ-S-01", "S", BinPurpose.SHIPPING, 400, 1, 6, 4, 3)));
@@ -330,6 +339,7 @@ public class WmsDataInitializer implements ApplicationRunner {
                 storage("AS-PG-02", "PG", "03", 2, 250, 18, 6, 4, 5, true),
                 storage("AS-PG-03", "PG", "04", 1, 250, 23, 1, 4, 5, true),
                 storage("AS-PG-04", "PG", "04", 2, 250, 23, 6, 4, 5, true),
+                storage("AS-PL-01", "PL", "06", 1, 250, 12, 11, 5, 3, true),
                 storage("AS-COLD-01", "COLD", "05", 1, 500, 6, 11, 5, 3, true),
                 waiting("AS-R-01", "R", BinPurpose.RECEIVING, 300, 1, 3, 4, 3),
                 waiting("AS-S-01", "S", BinPurpose.SHIPPING, 400, 1, 6, 4, 3)));
@@ -338,6 +348,9 @@ public class WmsDataInitializer implements ApplicationRunner {
                 storage("NJ-PL-02", "PL", "01", 2, 250, 6, 6, 5, 5, true),
                 storage("NJ-PL-03", "PL", "02", 1, 250, 12, 1, 5, 5, true),
                 storage("NJ-PL-04", "PL", "02", 2, 250, 12, 6, 5, 5, true),
+                storage("NJ-CT-01", "CT", "03", 1, 250, 18, 1, 4, 5, true),
+                storage("NJ-PG-01", "PG", "04", 1, 250, 23, 1, 4, 5, true),
+                storage("NJ-COLD-01", "COLD", "05", 1, 250, 18, 6, 4, 5, true),
                 waiting("NJ-R-01", "R", BinPurpose.RECEIVING, 300, 1, 3, 4, 3),
                 waiting("NJ-S-01", "S", BinPurpose.SHIPPING, 400, 1, 6, 4, 3)));
         return Map.copyOf(plans);

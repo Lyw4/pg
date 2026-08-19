@@ -238,7 +238,7 @@ class PageControllerTest {
     void authenticatedAdminCannotReturnToLoginForm() throws Exception {
         mockMvc.perform(get("/admin/login"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/admin/dashboard"));
+                .andExpect(redirectedUrl("/"));
     }
 
     @Test
@@ -250,7 +250,7 @@ class PageControllerTest {
                                 .param("username", "admin")
                                 .param("password", "1234"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/admin/dashboard"))
+                .andExpect(redirectedUrl("/"))
                 .andExpect(cookie().doesNotExist(
                         "FEEDFLOW_ADMIN_SESSION_REMEMBER"))
                 .andExpect(cookie().doesNotExist(

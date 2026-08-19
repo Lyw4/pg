@@ -26,13 +26,12 @@
     <div th:replace="~{fragments/admin-layout :: sidebar}"></div>
 
     <div class="ff-content">
-        <div th:unless="${currentView == 'farms'}"
-             th:replace="~{fragments/admin-layout :: topbar('유통 관리', '유통 관리')}"></div>
+        <div th:replace="~{fragments/admin-layout :: topbar('유통 관리', '유통 관리')}"></div>
 
-        <main class="ff-main ff-management-main">
-            <div class="container distribution-page">
+        <main class="ff-main ff-management-main ff-page-layout">
+            <div class="container distribution-page ff-page-inner">
 
-        <section th:unless="${currentView == 'farms'}" class="page-head distribution-page-head">
+        <section th:unless="${currentView == 'farms'}" class="page-head distribution-page-head ff-page-heading">
             <div>
                 <p class="eyebrow">DISTRIBUTION CONTROL</p>
                 <h1>유통 관리</h1>
@@ -60,7 +59,7 @@
             </div>
         </section>
 
-        <section th:if="${currentView == 'farms'}" class="page-head distribution-page-head">
+        <section th:if="${currentView == 'farms'}" class="page-head distribution-page-head ff-page-heading">
             <div>
                 <p class="eyebrow">FARM CUSTOMER MANAGEMENT</p>
                 <h1>농장 고객사 관리</h1>

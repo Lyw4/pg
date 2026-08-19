@@ -38,11 +38,13 @@ class ConcurrencyConstraintTest {
         jakarta.persistence.Table table = CustomerOrder.class
                 .getAnnotation(jakarta.persistence.Table.class);
         assertNotNull(table);
-        assertEquals(3, table.indexes().length);
+        assertEquals(4, table.indexes().length);
         assertEquals("idx_customer_order_provider_tx", table.indexes()[1].name());
         assertEquals("provider_transaction_id", table.indexes()[1].columnList());
         assertEquals(true, table.indexes()[1].unique());
         assertEquals("idx_customer_order_status", table.indexes()[2].name());
+        assertEquals("idx_customer_order_farm_schedule", table.indexes()[3].name());
+        assertEquals(true, table.indexes()[3].unique());
     }
 
     @Test

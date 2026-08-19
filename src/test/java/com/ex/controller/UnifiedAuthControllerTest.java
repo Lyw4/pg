@@ -53,7 +53,7 @@ class UnifiedAuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accountType").value("ADMIN"))
                 .andExpect(jsonPath("$.redirectUrl")
-                        .value("/admin/dashboard"))
+                        .value("/"))
                 .andExpect(jsonPath("$.member").doesNotExist())
                 .andExpect(cookie().doesNotExist("FEEDFLOW_ADMIN_SESSION_REMEMBER"))
                 .andExpect(cookie().doesNotExist("FEEDFLOW_ADMIN_REMEMBER"))
@@ -106,13 +106,13 @@ class UnifiedAuthControllerTest {
                         .content("""
                                 {
                                   "identifier": "staff@feedflow.co.kr",
-                                  "password": "staff123"
+                                  "password": "test-staff-password"
                                 }
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accountType").value("STAFF"))
                 .andExpect(jsonPath("$.redirectUrl")
-                        .value("/admin/dashboard"))
+                        .value("/"))
                 .andReturn();
 
         MockHttpSession session = (MockHttpSession) result.getRequest()

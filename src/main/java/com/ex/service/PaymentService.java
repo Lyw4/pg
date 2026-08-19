@@ -15,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -35,15 +34,15 @@ public class PaymentService {
     private final RestClient restClient;
     private final PaymentProperties properties;
     private final CustomerOrderRepository orderRepository;
-    private final OrderService orderService;
     private final PaymentApplyService paymentApplyService;
+    private final DistributionService distributionService;
 
     public PaymentService(
             RestClient.Builder restClientBuilder,
             PaymentProperties properties,
             CustomerOrderRepository orderRepository,
-            OrderService orderService,
-            PaymentApplyService paymentApplyService) {
+            PaymentApplyService paymentApplyService,
+            DistributionService distributionService) {
         SimpleClientHttpRequestFactory requestFactory =
                 new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(3_000);
@@ -53,8 +52,8 @@ public class PaymentService {
                 .build();
         this.properties = properties;
         this.orderRepository = orderRepository;
-        this.orderService = orderService;
         this.paymentApplyService = paymentApplyService;
+        this.distributionService = distributionService;
     }
 
     public PaymentConfigResponse paymentConfig(Long memberId) {
@@ -117,23 +116,20 @@ public class PaymentService {
     }
 
     public OrderResponse reconcilePortOne(String orderNumber, Long memberId) {
-        CustomerOrder order = requireMemberOrder(orderNumber, memberId);
+        requireMemberOrder(orderNumber, memberId);
         JsonNode payment = findPaymentByMerchantUid(accessToken(), orderNumber);
-        return paymentApplyService.applyForMember(
-                orderNumber, order.getPaymentCallbackToken(), memberId,
+        return paymentApplyService.applyForReconcile(
+                orderNumber, memberId,
                 requiredText(payment, "imp_uid", "결제번호"), payment);
     }
 
-    @Transactional
     public void failPendingPayment(String orderNumber, String token, Long memberId) {
-        CustomerOrder order = requireMemberOrder(orderNumber, memberId);
-        requireCallbackToken(order, token);
-        failUnstarted(order);
+        paymentApplyService.failUnstartedForMember(
+                orderNumber, token, memberId);
     }
 
-    @Transactional
     public void failPendingPaymentByCallback(String orderNumber, String token) {
-        failUnstarted(requireCallbackOrder(orderNumber, token));
+        paymentApplyService.failUnstartedForCallback(orderNumber, token);
     }
 
     public void handlePortOneWebhook(JsonNode payload) {
@@ -144,45 +140,81 @@ public class PaymentService {
         }
         requireConfiguration();
         JsonNode payment = getPayment(accessToken(), impUid, merchantUid);
+        CustomerOrder localOrder = requireOrder(merchantUid);
+        if ("paid".equals(payment.path("status").asText(""))
+                && (localOrder.getStatus() == CustomerOrder.OrderStatus.CANCELLED
+                || localOrder.getPaymentStatus() == PaymentStatus.FAILED
+                || localOrder.getPaymentStatus() == PaymentStatus.CANCELLED
+                || localOrder.getPaymentStatus() == PaymentStatus.CANCEL_REQUESTED)) {
+            cancelTransaction(
+                    impUid,
+                    merchantUid,
+                    payment.path("amount").asInt(
+                            localOrder.getFinalPrice().intValueExact()),
+                    "종료된 주문의 지연 결제 승인 자동 환불");
+            return;
+        }
         paymentApplyService.applyForWebhook(merchantUid, impUid, payment);
     }
 
     public OrderResponse cancelOrder(String orderNumber, Long memberId) {
-        CustomerOrder order = requireMemberOrder(orderNumber, memberId);
-        if (order.getStatus() == CustomerOrder.OrderStatus.CANCELLED) {
-            throw new IllegalStateException("이미 취소된 주문입니다.");
-        }
-        if (order.getStatus() == CustomerOrder.OrderStatus.SHIPPING
-                || order.getStatus() == CustomerOrder.OrderStatus.DELIVERED) {
-            throw new IllegalStateException("배송이 시작된 주문은 고객이 직접 취소할 수 없습니다.");
-        }
-
-        if (StringUtils.hasText(order.getProviderTransactionId())) {
-            requireConfiguration();
-            if (order.getPaymentStatus() == PaymentStatus.WAITING_FOR_DEPOSIT) {
-                cancelVirtualAccount(order.getProviderTransactionId());
-            } else if (order.getPaymentStatus() == PaymentStatus.DONE) {
-                cancelTransaction(
-                        order.getProviderTransactionId(),
-                        order.getOrderNumber(),
-                        order.getFinalPrice().intValueExact(),
-                        "회원 마이페이지 주문 취소");
+        PaymentApplyService.CancellationContext context =
+                paymentApplyService.beginCancellation(orderNumber, memberId);
+        try {
+            if (StringUtils.hasText(context.providerTransactionId())) {
+                requireConfiguration();
+                if (context.paymentStatus() == PaymentStatus.WAITING_FOR_DEPOSIT) {
+                    cancelVirtualAccount(context.providerTransactionId());
+                } else if (context.paymentStatus() == PaymentStatus.DONE) {
+                    cancelTransaction(
+                            context.providerTransactionId(),
+                            orderNumber,
+                            context.amount(),
+                            "회원 마이페이지 주문 취소");
+                }
             }
+        } catch (RuntimeException exception) {
+            paymentApplyService.abortCancellation(orderNumber, memberId);
+            throw exception;
         }
-
-        return paymentApplyService.cancelForMember(orderNumber, memberId);
+        // 외부 환불 성공 후 내부 재고 복원이 실패하면
+        // CANCEL_REQUESTED를 유지해 출고를 차단하고 재시도할 수 있게 한다.
+        return paymentApplyService.completeCancellation(orderNumber, memberId);
     }
 
-
-    private void failUnstarted(CustomerOrder order) {
-        if (StringUtils.hasText(order.getProviderTransactionId())
-                || order.getPaymentStatus() == PaymentStatus.DONE
-                || order.getPaymentStatus() == PaymentStatus.WAITING_FOR_DEPOSIT) {
-            throw new IllegalStateException("외부 거래가 시작된 주문은 자동 실패 처리할 수 없습니다.");
+    public void cancelOrderByAdmin(
+            Long orderId,
+            String reason,
+            String manager) {
+        if (!StringUtils.hasText(reason) || !StringUtils.hasText(manager)) {
+            throw new IllegalArgumentException("취소 사유와 담당자를 입력해 주세요.");
         }
-        order.failPayment();
-        orderService.releasePaymentReservation(order, "결제창 취소 또는 결제 실패");
+        PaymentApplyService.CancellationContext context =
+                paymentApplyService.beginCancellationForAdmin(orderId, manager);
+        try {
+            if (StringUtils.hasText(context.providerTransactionId())) {
+                requireConfiguration();
+                if (context.paymentStatus() == PaymentStatus.WAITING_FOR_DEPOSIT) {
+                    cancelVirtualAccount(context.providerTransactionId());
+                } else if (context.paymentStatus() == PaymentStatus.DONE) {
+                    CustomerOrder order = orderRepository.findById(orderId)
+                            .orElseThrow(() -> new IllegalArgumentException(
+                                    "주문을 찾을 수 없습니다."));
+                    cancelTransaction(
+                            context.providerTransactionId(),
+                            order.getOrderNumber(),
+                            context.amount(),
+                            "관리자 주문 취소: " + reason);
+                }
+            }
+        } catch (RuntimeException exception) {
+            paymentApplyService.abortCancellationForAdmin(orderId);
+            throw exception;
+        }
+        distributionService.completeAdminPaymentCancellation(
+                orderId, reason, manager);
     }
+
 
     private CustomerOrder requireMemberOrder(String orderNumber, Long memberId) {
         requireMemberId(memberId);

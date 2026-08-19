@@ -1,5 +1,6 @@
 package com.ex.service;
 
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -33,7 +34,7 @@ public class WmsStockCoordinator {
     private static final List<BinPurpose> INBOUND_TARGETS =
             List.of(BinPurpose.STORAGE, BinPurpose.RECEIVING);
     private static final List<BinPurpose> RETURN_TARGETS =
-            List.of(BinPurpose.RECEIVING, BinPurpose.INSPECTION);
+            List.of(BinPurpose.STORAGE, BinPurpose.SHIPPING);
 
     private final WarehouseBinRepository binRepository;
     private final BinInventoryRepository inventoryRepository;
@@ -66,15 +67,77 @@ public class WmsStockCoordinator {
             String memo,
             String operatorName,
             Long orderId) {
-        add(
-                lot,
-                quantity,
-                preferredWarehouse,
-                MovementType.CANCEL_RESTORE,
-                memo,
-                operatorName,
-                orderId,
-                RETURN_TARGETS);
+        int remaining = restoreToOriginalBins(
+                lot, quantity, memo, operatorName, orderId);
+        if (remaining > 0) {
+            add(
+                    lot,
+                    remaining,
+                    preferredWarehouse,
+                    MovementType.CANCEL_RESTORE,
+                    memo,
+                    operatorName,
+                    orderId,
+                    RETURN_TARGETS);
+        }
+    }
+
+    private int restoreToOriginalBins(
+            ProductLot lot,
+            int quantity,
+            String memo,
+            String operatorName,
+            Long orderId) {
+        if (quantity <= 0 || orderId == null) return Math.max(0, quantity);
+        List<WarehouseStockMovement> outboundMovements = movementRepository
+                .findByOrderIdAndMovementTypeAndLotLotIdOrderByCreatedAtAsc(
+                        orderId, MovementType.OUTBOUND, lot.getLotId())
+                .stream()
+                .filter(movement -> movement.getSourceBin() != null)
+                .toList();
+        if (outboundMovements.isEmpty()) return quantity;
+
+        List<WarehouseBin> lockedBins = binRepository.findAllByBinIdInForUpdate(
+                outboundMovements.stream()
+                        .map(movement -> movement.getSourceBin().getBinId())
+                        .distinct().toList());
+        Map<Long, WarehouseBin> binsById = lockedBins.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        WarehouseBin::getBinId, bin -> bin));
+        Map<Long, Integer> binQuantities = quantitiesByBin(lockedBins);
+        int remaining = quantity;
+        for (WarehouseStockMovement outbound : outboundMovements) {
+            if (remaining == 0) break;
+            WarehouseBin target = binsById.get(
+                    outbound.getSourceBin().getBinId());
+            if (target == null || !WmsAllocationPolicy.isAllocatable(target)
+                    || !matchesAnimalZone(target, lot)) {
+                continue;
+            }
+            int current = binQuantities.getOrDefault(target.getBinId(), 0);
+            int accepted = Math.min(
+                    Math.min(remaining, outbound.getQuantity()),
+                    Math.max(0, target.getEffectiveMaxCapacity() - current));
+            if (accepted == 0) continue;
+            BinInventory inventory = inventoryRepository
+                    .findByLotLotIdAndBinBinId(lot.getLotId(), target.getBinId())
+                    .orElseGet(() -> inventoryRepository.save(
+                            new BinInventory(lot, target, 0)));
+            inventory.add(accepted);
+            binQuantities.put(target.getBinId(), current + accepted);
+            movementRepository.save(new WarehouseStockMovement(
+                    MovementType.CANCEL_RESTORE,
+                    lot,
+                    null,
+                    target,
+                    accepted,
+                    null,
+                    memo,
+                    operatorName,
+                    orderId));
+            remaining -= accepted;
+        }
+        return remaining;
     }
 
     @Transactional
@@ -148,6 +211,11 @@ public class WmsStockCoordinator {
                         productId, 0).stream()
                 .filter(inventory -> inventory.getBin().getWarehouse()
                         .getWarehouseId().equals(sourceWarehouse.getWarehouseId()))
+                .filter(inventory -> WmsAllocationPolicy.isAllocatable(
+                        inventory.getBin()))
+                .filter(inventory -> !inventory.getLot().getExpirationDate()
+                        .isBefore(LocalDate.now().plusDays(
+                                SellableStockQuery.MINIMUM_SELLABLE_DAYS)))
                 .sorted(Comparator.comparing(inventory ->
                         inventory.getLot().getExpirationDate()))
                 .toList();
@@ -159,8 +227,14 @@ public class WmsStockCoordinator {
         List<WarehouseBin> targets = binRepository
                 .findByWarehouseWarehouseIdAndActiveTrueOrderByBinCodeAsc(
                         destinationWarehouse.getWarehouseId()).stream()
-                .filter(bin -> bin.getPurpose() == BinPurpose.STORAGE
-                        || bin.getPurpose() == BinPurpose.RECEIVING)
+                .filter(bin -> bin.getPurpose() == BinPurpose.STORAGE)
+                .filter(bin -> sources.stream().anyMatch(source ->
+                        matchesAnimalZone(bin, source.getLot())))
+                .toList();
+        targets = binRepository.findAllByBinIdInForUpdate(
+                        targets.stream().map(WarehouseBin::getBinId).toList())
+                .stream()
+                .sorted(Comparator.comparing(WarehouseBin::getBinCode))
                 .toList();
         Map<Long, Integer> targetQuantities = quantitiesByBin(targets);
         int capacity = targets.stream().mapToInt(bin -> Math.max(
@@ -231,6 +305,7 @@ public class WmsStockCoordinator {
                 .filter(bin -> allowedPurposes.contains(bin.getPurpose()))
                 .filter(bin -> preferredWarehouse == null
                         || isPreferred(bin, preferredWarehouse))
+                .filter(bin -> matchesAnimalZone(bin, lot))
                 .sorted(preferredFirst(preferredWarehouse, allowedPurposes))
                 .toList();
         if (bins.isEmpty()) {
@@ -240,42 +315,42 @@ public class WmsStockCoordinator {
                             + " (활성 보관 또는 입고 대기 구역을 확보하세요.)");
         }
 
-        Map<Long, Integer> binQuantities = quantitiesByBin(bins);
-        WarehouseBin target = existingLocation(
-                        lot, preferredWarehouse, allowedPurposes)
-                .filter(bin -> canAccept(
-                        bin,
-                        binQuantities.getOrDefault(bin.getBinId(), 0),
-                        quantity))
-                .orElseGet(() -> bins.stream()
-                        .filter(bin -> canAccept(
-                                bin,
-                                binQuantities.getOrDefault(bin.getBinId(), 0),
-                                quantity))
-                        .findFirst()
-                        .orElse(null));
-        if (target == null) {
+        List<WarehouseBin> lockedBins = binRepository
+                .findAllByBinIdInForUpdate(
+                        bins.stream().map(WarehouseBin::getBinId).toList())
+                .stream()
+                .sorted(preferredFirst(preferredWarehouse, allowedPurposes))
+                .toList();
+        Map<Long, Integer> binQuantities = quantitiesByBin(lockedBins);
+        int totalCapacity = lockedBins.stream()
+                .mapToInt(bin -> Math.max(0,
+                        bin.getEffectiveMaxCapacity()
+                                - binQuantities.getOrDefault(bin.getBinId(), 0)))
+                .sum();
+        if (totalCapacity < quantity) {
             throw new IllegalStateException(
                     "입고 구역 용량이 부족합니다. LOT=" + lot.getLotNo()
                             + ", 수량=" + quantity
                             + " (적재 공간을 확보한 뒤 다시 시도하세요.)");
         }
-        BinInventory inventory = inventoryRepository
-                .findByLotLotIdAndBinBinId(
-                        lot.getLotId(), target.getBinId())
-                .orElseGet(() -> inventoryRepository.save(
-                        new BinInventory(lot, target, 0)));
-        inventory.add(quantity);
-        movementRepository.save(new WarehouseStockMovement(
-                type,
-                lot,
-                null,
-                target,
-                quantity,
-                null,
-                memo,
-                operatorName,
-                orderId));
+        int remaining = quantity;
+        for (WarehouseBin target : lockedBins) {
+            int current = binQuantities.getOrDefault(target.getBinId(), 0);
+            int accepted = Math.min(remaining,
+                    Math.max(0, target.getEffectiveMaxCapacity() - current));
+            if (accepted <= 0) continue;
+            BinInventory inventory = inventoryRepository
+                    .findByLotLotIdAndBinBinId(
+                            lot.getLotId(), target.getBinId())
+                    .orElseGet(() -> inventoryRepository.save(
+                            new BinInventory(lot, target, 0)));
+            inventory.add(accepted);
+            movementRepository.save(new WarehouseStockMovement(
+                    type, lot, null, target, accepted, null,
+                    memo, operatorName, orderId));
+            remaining -= accepted;
+            if (remaining == 0) return;
+        }
     }
 
     private void subtract(
@@ -288,6 +363,14 @@ public class WmsStockCoordinator {
             Long orderId) {
         if (quantity <= 0) {
             return;
+        }
+        if (type == MovementType.OUTBOUND
+                && lot.getExpirationDate().isBefore(
+                        java.time.LocalDate.now().plusDays(
+                                ExpirySaleService.MINIMUM_SELLABLE_DAYS))) {
+            throw new IllegalStateException(
+                    "유통기한이 임박하거나 만료된 LOT는 출고할 수 없습니다: "
+                            + lot.getLotNo());
         }
         List<BinInventory> locations = inventoryRepository
                 .findByLotLotIdAndQuantityGreaterThanOrderByBinBinCodeAsc(
@@ -407,5 +490,9 @@ public class WmsStockCoordinator {
             int current,
             int quantity) {
         return bin.canAccept(current, quantity);
+    }
+
+    private boolean matchesAnimalZone(WarehouseBin bin, ProductLot lot) {
+        return WmsZonePolicy.matches(bin, lot);
     }
 }

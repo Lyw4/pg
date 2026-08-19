@@ -239,7 +239,7 @@ public class PageController {
                 && authentication.isAuthenticated()
                 && !(authentication
                         instanceof AnonymousAuthenticationToken)) {
-            return "redirect:/admin/dashboard";
+            return "redirect:/";
         }
         return "redirect:/?account=login";
     }

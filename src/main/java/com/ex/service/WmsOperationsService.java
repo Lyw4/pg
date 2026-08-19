@@ -360,6 +360,9 @@ public class WmsOperationsService {
     private final StockLogRepository stockLogRepository;
     private final CustomerOrderRepository customerOrderRepository;
     private final BarcodeService barcodeService;
+    private final InventoryService inventoryService;
+    private final SellableStockQuery sellableStockQuery;
+    private final WarehouseCapacityPlanningService capacityPlanningService;
 
     public List<Warehouse> warehouses() {
         return warehouseRepository
@@ -419,16 +422,19 @@ public class WmsOperationsService {
     }
 
     public List<DirectOutboundProduct> directOutboundProducts() {
-        LocalDate today = LocalDate.now();
+        LocalDate sellableFrom = LocalDate.now()
+                .plusDays(SellableStockQuery.MINIMUM_SELLABLE_DAYS);
+        Map<Long, Integer> reservedByLot = inventoryService.reservedStockByLot();
         Map<Product, List<BinInventory>> byProduct =
                 binInventoryRepository.findAllByOrderByBinBinCodeAsc()
                         .stream()
                         .filter(inventory -> inventory.getQuantity() > 0)
-                        .filter(inventory -> inventory.getBin().isActive())
+                        .filter(inventory -> WmsAllocationPolicy.isAllocatable(
+                                inventory.getBin()))
                         .filter(inventory -> inventory.getLot().getProduct()
                                 .isActive())
                         .filter(inventory -> !inventory.getLot()
-                                .getExpirationDate().isBefore(today))
+                                .getExpirationDate().isBefore(sellableFrom))
                         .collect(Collectors.groupingBy(
                                 inventory -> inventory.getLot().getProduct(),
                                 LinkedHashMap::new,
@@ -436,9 +442,7 @@ public class WmsOperationsService {
         return byProduct.entrySet().stream()
                 .map(entry -> new DirectOutboundProduct(
                         entry.getKey(),
-                        entry.getValue().stream()
-                                .mapToInt(BinInventory::getQuantity)
-                                .sum(),
+                        directAvailableQuantity(entry.getValue(), reservedByLot),
                         entry.getValue().size(),
                         entry.getValue().stream()
                                 .map(inventory -> inventory.getLot()
@@ -448,6 +452,25 @@ public class WmsOperationsService {
                 .sorted(Comparator.comparing(item ->
                         item.product().getName()))
                 .toList();
+    }
+
+    private int directAvailableQuantity(
+            List<BinInventory> inventories,
+            Map<Long, Integer> reservedByLot) {
+        return inventories.stream()
+                .collect(Collectors.groupingBy(
+                        inventory -> inventory.getLot().getLotId()))
+                .values().stream()
+                .mapToInt(locations -> {
+                    ProductLot lot = locations.get(0).getLot();
+                    int located = locations.stream()
+                            .mapToInt(BinInventory::getQuantity).sum();
+                    return Math.min(
+                            located,
+                            Math.max(0, lot.getLotQuantity()
+                                    - reservedByLot.getOrDefault(lot.getLotId(), 0)));
+                })
+                .sum();
     }
 
     public List<WarehouseStockMovement> movements() {
@@ -1018,12 +1041,7 @@ public class WmsOperationsService {
     }
 
     private String zoneCodeFor(String animalType) {
-        return switch (animalType == null ? "" : animalType.trim()) {
-            case "소" -> "CT";
-            case "돼지" -> "PG";
-            case "조류", "조류(닭/오리)" -> "PL";
-            default -> "ST";
-        };
+        return WmsZonePolicy.zoneFor(animalType);
     }
 
     private String nextAutomaticBinCode(Warehouse warehouse, String zone) {
@@ -1046,8 +1064,9 @@ public class WmsOperationsService {
         if (quantityInBin(binId) > 0) {
             throw new IllegalStateException("재고가 남아 있는 구역은 삭제할 수 없습니다. 먼저 재고를 이동하거나 출고하세요.");
         }
-        binInventoryRepository.deleteAll(binInventoryRepository.findByBinBinId(binId));
-        binRepository.delete(bin);
+        // 이동 이력이 참조하는 구역은 물리 삭제하면 FK가 훼손된다.
+        // 재고가 0인 구역은 비활성화해 도면/입출고 후보에서만 제외한다.
+        bin.changeActive(false);
     }
 
     private int[] findAvailableLayout(Long warehouseId, int width, int height) {
@@ -1119,7 +1138,7 @@ public class WmsOperationsService {
             throw new IllegalArgumentException(
                     "입고 수량은 1포대 이상이어야 합니다.");
         }
-        WarehouseBin bin = requiredOperationalBin(binId);
+        WarehouseBin bin = requiredOperationalBinForUpdate(binId);
         ensureCapacity(bin, quantity);
 
         ProductLot lot;
@@ -1147,6 +1166,7 @@ public class WmsOperationsService {
             product.addLot(lot);
             lot.changeQuantity(quantity);
         }
+        ensureAnimalZone(bin, lot.getProduct());
         lot.getProduct().changeStock(quantity);
         lot.changeWarehouseLocation(
                 bin.getWarehouse().getCode() + "-" + bin.getBinCode());
@@ -1178,6 +1198,121 @@ public class WmsOperationsService {
             String lotNo,
             int quantity,
             List<String> binCodes) {
+    }
+
+    public record AllocationInboundResult(
+            String warehouseName,
+            String productName,
+            String lotNo,
+            int quantity,
+            List<String> binCodes) {
+    }
+
+    /** 선택한 창고·상품의 판매 가능 재고를 권장 보유량까지 자동 입고한다. */
+    @Transactional
+    public AllocationInboundResult receiveAllocationReplenishment(
+            Long allocationId,
+            String operatorName) {
+        WarehouseAllocation allocation = allocationRepository
+                .findByIdForUpdate(allocationId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "부족 재고 항목을 찾을 수 없습니다."));
+        Warehouse warehouse = allocation.getWarehouse();
+        Product product = allocation.getProduct();
+        if (!warehouse.isActive() || !product.isActive()) {
+            throw new IllegalStateException(
+                    "운영 중인 창고와 판매 중인 상품만 보충할 수 있습니다.");
+        }
+
+        int current = sellableStockQuery.sellableAtWarehouse(
+                warehouse.getWarehouseId(), product.getProductId());
+        allocation.adjustCurrentStock(current);
+        int quantity = allocation.getTargetStockQuantity() - current;
+        if (quantity <= 0) {
+            throw new IllegalStateException("이미 권장 재고를 충족한 상품입니다.");
+        }
+
+        // 월 수요·권장재고를 기준으로 고정 설계 용량을 먼저 반영한다.
+        capacityPlanningService.resizeForWarehouse(warehouse.getWarehouseId());
+
+        LocalDate sellableFrom = LocalDate.now().plusDays(
+                SellableStockQuery.MINIMUM_SELLABLE_DAYS);
+        ProductLot lot = lotRepository
+                .findByProductProductIdOrderByExpirationDateAsc(
+                        product.getProductId())
+                .stream()
+                .filter(candidate -> candidate.getExpirationDate() == null
+                        || !candidate.getExpirationDate().isBefore(sellableFrom))
+                .sorted(Comparator
+                        .comparing((ProductLot candidate) ->
+                                !lotLocatedInWarehouse(
+                                        candidate.getLotId(),
+                                        warehouse.getWarehouseId()))
+                        .thenComparing(ProductLot::getExpirationDate,
+                                Comparator.nullsLast(
+                                        Comparator.naturalOrder())))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        product.getName()
+                                + "에 입고 가능한 기존 LOT가 없습니다. 먼저 LOT를 등록해 주세요."));
+
+        String preferredZone = WmsZonePolicy.zoneFor(product.getAnimalType());
+        List<WarehouseBin> candidateSnapshot = binRepository
+                .findByWarehouseWarehouseIdAndActiveTrueOrderByBinCodeAsc(
+                        warehouse.getWarehouseId())
+                .stream()
+                .filter(bin -> bin.getPurpose() == BinPurpose.STORAGE)
+                .filter(bin -> WmsZonePolicy.matches(bin, product))
+                .sorted(Comparator
+                        .comparing((WarehouseBin bin) ->
+                                !binContainsLot(bin.getBinId(), lot.getLotId()))
+                        .thenComparing(bin ->
+                                !bin.getZone().equalsIgnoreCase(preferredZone))
+                        .thenComparing(WarehouseBin::getBinCode))
+                .toList();
+
+        List<WarehouseBin> candidates = binRepository
+                .findAllByBinIdInForUpdate(candidateSnapshot.stream()
+                        .map(WarehouseBin::getBinId)
+                        .toList())
+                .stream()
+                .sorted(Comparator
+                        .comparing((WarehouseBin bin) ->
+                                !binContainsLot(bin.getBinId(), lot.getLotId()))
+                        .thenComparing(bin ->
+                                !bin.getZone().equalsIgnoreCase(preferredZone))
+                        .thenComparing(WarehouseBin::getBinCode))
+                .toList();
+
+        int available = candidates.stream()
+                .mapToInt(bin -> Math.max(0,
+                        bin.getEffectiveMaxCapacity()
+                                - quantityInBin(bin.getBinId())))
+                .sum();
+        if (available < quantity) {
+            throw new IllegalStateException(
+                    warehouse.getName() + "의 " + product.getName()
+                            + " 입고 가능 공간이 " + available
+                            + "포뿐입니다. 계획 창고 용량을 초과하여 창고 확장이 필요합니다.");
+        }
+
+        int remaining = quantity;
+        List<String> usedBins = new ArrayList<>();
+        for (WarehouseBin bin : candidates) {
+            if (remaining <= 0) break;
+            int room = Math.max(0, bin.getEffectiveMaxCapacity()
+                    - quantityInBin(bin.getBinId()));
+            int inbound = Math.min(remaining, room);
+            if (inbound <= 0) continue;
+            receive(lot.getLotId(), null, null, null, null, inbound,
+                    bin.getBinId(), "부족 재고 권장량 일괄 보충", operatorName);
+            usedBins.add(bin.getBinCode() + " " + inbound + "포");
+            remaining -= inbound;
+        }
+
+        return new AllocationInboundResult(
+                warehouse.getName(), product.getName(), lot.getLotNo(),
+                quantity, usedBins);
     }
 
     public Long recommendedDemandProductId(Long warehouseId, String animalType) {
@@ -1250,9 +1385,11 @@ public class WmsOperationsService {
             String animalType,
             LocalDate today) {
         String normalizedAnimal = normalizeDemandAnimal(animalType);
+        LocalDate sellableFrom = today.plusDays(
+                SellableStockQuery.MINIMUM_SELLABLE_DAYS);
         return lots().stream()
                 .filter(candidate -> candidate.getExpirationDate() == null
-                        || !candidate.getExpirationDate().isBefore(today))
+                        || !candidate.getExpirationDate().isBefore(sellableFrom))
                 .filter(candidate -> normalizeDemandAnimal(
                         candidate.getProduct().getAnimalType()).equals(normalizedAnimal))
                 .filter(candidate -> allocationRepository
@@ -1347,9 +1484,23 @@ public class WmsOperationsService {
         ProductLot lot = requiredLot(lotId);
         WarehouseBin bin = requiredOperationalBin(binId);
         BinInventory inventory = requiredInventory(lotId, binId);
-        if (quantity <= 0 || inventory.getQuantity() < quantity) {
+        if (!WmsAllocationPolicy.isAllocatable(bin)) {
+            throw new IllegalArgumentException("보관·출고 대기 구역에 있는 재고만 출고할 수 있습니다.");
+        }
+        if (lot.getExpirationDate().isBefore(
+                LocalDate.now().plusDays(SellableStockQuery.MINIMUM_SELLABLE_DAYS))) {
             throw new IllegalArgumentException(
-                    "출고 가능한 구역 재고가 부족합니다.");
+                    "유통기한이 " + SellableStockQuery.MINIMUM_SELLABLE_DAYS
+                            + "일 미만 남은 LOT는 출고할 수 없습니다.");
+        }
+        int reserved = inventoryService.reservedStockByLot()
+                .getOrDefault(lotId, 0);
+        int unreservedLotQuantity = Math.max(0, lot.getLotQuantity() - reserved);
+        int available = Math.min(inventory.getQuantity(), unreservedLotQuantity);
+        if (quantity <= 0 || available < quantity) {
+            throw new IllegalArgumentException(
+                    "주문 예약분을 제외한 출고 가능 재고가 부족합니다. "
+                            + "요청 " + quantity + "포대 / 가능 " + available + "포대");
         }
         inventory.subtract(quantity);
         lot.changeQuantity(-quantity);
@@ -1386,15 +1537,19 @@ public class WmsOperationsService {
                     "출고 수량은 1포대 이상이어야 합니다.");
         }
         Product product = requiredProduct(productId);
-        LocalDate today = LocalDate.now();
+        LocalDate sellableFrom = LocalDate.now()
+                .plusDays(SellableStockQuery.MINIMUM_SELLABLE_DAYS);
+        Map<Long, Integer> reservedByLot = inventoryService.reservedStockByLot();
         List<BinInventory> candidates = binInventoryRepository
                 .findByLotProductProductIdAndQuantityGreaterThanOrderByBinBinCodeAsc(
                         productId,
                         0)
                 .stream()
                 .filter(inventory -> inventory.getBin().isActive())
+                .filter(inventory -> WmsAllocationPolicy.isAllocatable(
+                        inventory.getBin()))
                 .filter(inventory -> !inventory.getLot()
-                        .getExpirationDate().isBefore(today))
+                        .getExpirationDate().isBefore(sellableFrom))
                 .sorted(Comparator
                         .comparing((BinInventory inventory) -> inventory
                                 .getLot().getExpirationDate())
@@ -1403,9 +1558,20 @@ public class WmsOperationsService {
                         .thenComparing(inventory -> inventory.getBin()
                                 .getBinCode()))
                 .toList();
-        int availableQuantity = candidates.stream()
-                .mapToInt(BinInventory::getQuantity)
-                .sum();
+        Map<Long, Integer> unreservedByLot = new LinkedHashMap<>();
+        Map<BinInventory, Integer> availableByInventory = new LinkedHashMap<>();
+        for (BinInventory inventory : candidates) {
+            Long lotId = inventory.getLot().getLotId();
+            int lotRemaining = unreservedByLot.computeIfAbsent(
+                    lotId,
+                    ignored -> Math.max(0, inventory.getLot().getLotQuantity()
+                            - reservedByLot.getOrDefault(lotId, 0)));
+            int available = Math.min(inventory.getQuantity(), lotRemaining);
+            availableByInventory.put(inventory, available);
+            unreservedByLot.put(lotId, lotRemaining - available);
+        }
+        int availableQuantity = availableByInventory.values().stream()
+                .mapToInt(Integer::intValue).sum();
         if (availableQuantity < quantity) {
             throw new IllegalArgumentException(
                     product.getName() + "의 출고 가능 재고가 부족합니다. "
@@ -1419,7 +1585,12 @@ public class WmsOperationsService {
             if (remaining == 0) {
                 break;
             }
-            int allocated = Math.min(remaining, inventory.getQuantity());
+            int allocated = Math.min(
+                    remaining,
+                    availableByInventory.getOrDefault(inventory, 0));
+            if (allocated == 0) {
+                continue;
+            }
             allocations.add(new OutboundAllocation(
                     inventory.getLot().getLotNo(),
                     inventory.getBin().getWarehouse().getName(),
@@ -1459,11 +1630,17 @@ public class WmsOperationsService {
         }
         ProductLot lot = requiredLot(lotId);
         WarehouseBin source = requiredOperationalBin(sourceBinId);
-        WarehouseBin destination = requiredOperationalBin(destinationBinId);
+        WarehouseBin destination = requiredOperationalBinForUpdate(destinationBinId);
         BinInventory sourceInventory = requiredInventory(lotId, sourceBinId);
-        if (quantity <= 0 || sourceInventory.getQuantity() < quantity) {
+        ensureAnimalZone(destination, lot.getProduct());
+        int reserved = inventoryService.reservedStockByLot()
+                .getOrDefault(lotId, 0);
+        int available = Math.min(
+                sourceInventory.getQuantity(),
+                Math.max(0, lot.getLotQuantity() - reserved));
+        if (quantity <= 0 || available < quantity) {
             throw new IllegalArgumentException(
-                    "이동 가능한 구역 재고가 부족합니다.");
+                    "주문 예약분을 제외한 이동 가능 재고가 부족합니다.");
         }
         ensureCapacity(destination, quantity);
         sourceInventory.subtract(quantity);
@@ -1533,9 +1710,15 @@ public class WmsOperationsService {
         ProductLot lot = requiredLot(lotId);
         WarehouseBin bin = requiredOperationalBin(binId);
         BinInventory inventory = requiredInventory(lotId, binId);
-        if (quantity <= 0 || inventory.getQuantity() < quantity) {
+        int reserved = inventoryService.reservedStockByLot()
+                .getOrDefault(lotId, 0);
+        int available = Math.min(
+                inventory.getQuantity(),
+                Math.max(0, lot.getLotQuantity() - reserved));
+        if (quantity <= 0 || available < quantity) {
             throw new IllegalArgumentException(
-                    "폐기 가능한 구역 재고가 부족합니다.");
+                    "주문 예약분을 제외한 폐기 가능 재고가 부족합니다. "
+                            + "요청 " + quantity + "포대 / 가능 " + available + "포대");
         }
         if (reason == null) {
             throw new IllegalArgumentException("폐기 사유를 선택해 주세요.");
@@ -1556,7 +1739,7 @@ public class WmsOperationsService {
         stockLogRepository.save(new StockLog(
                 lot,
                 1L,
-                ChangeType.DEFECT,
+                ChangeType.DISPOSAL,
                 -quantity,
                 "WMS 폐기: " + reason.getLabel()));
         adjustAllocation(
@@ -1622,6 +1805,12 @@ public class WmsOperationsService {
                 product.changeStock(difference);
             }
         }
+
+        // 계획 장부의 현재고는 실제 판매 가능한 구역 재고에서 파생한다.
+        allocationRepository
+                .findAllByOrderByWarehouseDisplayOrderAscProductAnimalTypeAscProductNameAsc()
+                .forEach(allocation -> adjustAllocation(
+                        allocation.getWarehouse(), allocation.getProduct(), 0));
     }
 
     private Product requiredProduct(Long productId) {
@@ -1666,6 +1855,16 @@ public class WmsOperationsService {
         if (!bin.isActive() || bin.getPurpose().isSystemManaged()) {
             throw new IllegalStateException(
                     "현재 작업에 사용할 수 없는 구역입니다.");
+        }
+        return bin;
+    }
+
+    private WarehouseBin requiredOperationalBinForUpdate(Long binId) {
+        WarehouseBin bin = binRepository.findByBinIdForUpdate(binId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "창고 구역을 찾을 수 없습니다."));
+        if (!bin.isActive() || bin.getPurpose().isSystemManaged()) {
+            throw new IllegalStateException("현재 작업에 사용할 수 없는 구역입니다.");
         }
         return bin;
     }
@@ -1723,6 +1922,7 @@ public class WmsOperationsService {
                 .map(BinInventory::getBin)
                 .filter(WarehouseBin::isActive)
                 .filter(bin -> bin.getPurpose() == BinPurpose.STORAGE)
+                .filter(bin -> isProductZone(bin, lot.getProduct()))
                 .forEach(bin -> candidates.put(bin.getBinId(), bin));
 
         int firstWarehouse = Math.floorMod(
@@ -1736,6 +1936,7 @@ public class WmsOperationsService {
                             warehouse.getWarehouseId())
                     .stream()
                     .filter(bin -> bin.getPurpose() == BinPurpose.STORAGE)
+                    .filter(bin -> isProductZone(bin, lot.getProduct()))
                     .forEach(bin -> candidates.putIfAbsent(
                             bin.getBinId(), bin));
         }
@@ -1773,15 +1974,23 @@ public class WmsOperationsService {
             Warehouse warehouse,
             Product product,
             int quantity) {
-        Optional<WarehouseAllocation> allocation = allocationRepository
+        WarehouseAllocation allocation = allocationRepository
                 .findByWarehouseWarehouseIdAndProductProductId(
                         warehouse.getWarehouseId(),
-                        product.getProductId());
-        if (allocation.isEmpty()) {
-            return;
-        }
-        int changed = allocation.get().getCurrentStockQuantity() + quantity;
-        allocation.get().adjustCurrentStock(Math.max(0, changed));
+                        product.getProductId())
+                .orElseGet(() -> allocationRepository.save(
+                        new WarehouseAllocation(warehouse, product, 0, 0)));
+        int sellable = sellableStockQuery.sellableAtWarehouse(
+                warehouse.getWarehouseId(), product.getProductId());
+        allocation.adjustCurrentStock(sellable);
+    }
+
+    private void ensureAnimalZone(WarehouseBin bin, Product product) {
+        WmsZonePolicy.requireMatch(bin, product);
+    }
+
+    private boolean isProductZone(WarehouseBin bin, Product product) {
+        return WmsZonePolicy.matches(bin, product);
     }
 
     private String normalizedOperator(String value) {

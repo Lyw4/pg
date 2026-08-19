@@ -22,6 +22,8 @@ public interface RecurringDeliveryRepository
 			Long productId,
 			int deliveryDay);
 
+	boolean existsByNotes(String notes);
+
 	long deleteByWarehouseIsNull();
 
 	long countByActiveTrue();

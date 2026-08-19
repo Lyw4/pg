@@ -54,10 +54,17 @@ public class ExpirySaleService {
                 .map(allocation -> allocation.getProduct().getProductId())
                 .collect(Collectors.toSet());
 
+        Map<Long, Integer> sellableByLot = sellableStockQuery.sellablePerLot(
+                products.stream()
+                        .flatMap(product -> product.getLots().stream())
+                        .filter(lot -> lot.getLotQuantity() > 0)
+                        .map(ProductLot::getLotId)
+                        .toList());
         Map<Long, SaleOffer> offers = new LinkedHashMap<>();
         products.forEach(product -> evaluate(
                 product,
-                overstockProductIds.contains(product.getProductId()))
+                overstockProductIds.contains(product.getProductId()),
+                sellableByLot)
                 .ifPresent(offer -> offers.put(product.getProductId(), offer)));
         return offers;
     }
@@ -67,10 +74,13 @@ public class ExpirySaleService {
                 .findByProductProductId(product.getProductId())
                 .stream()
                 .anyMatch(this::isOverstock);
-        return evaluate(product, overstock);
+        return evaluate(product, overstock, null);
     }
 
-    private Optional<SaleOffer> evaluate(Product product, boolean overstock) {
+    private Optional<SaleOffer> evaluate(
+            Product product,
+            boolean overstock,
+            Map<Long, Integer> prefetchedSellableByLot) {
         LocalDate today = LocalDate.now();
         List<LotCandidate> candidates = product.getLots().stream()
                 .filter(lot -> lot.getLotQuantity() > 0)
@@ -88,10 +98,12 @@ public class ExpirySaleService {
         List<LotCandidate> selected = candidates.stream()
                 .filter(candidate -> candidate.discountRate() == selectedRate)
                 .toList();
-        Map<Long, Integer> sellableByLot = sellableStockQuery.sellablePerLot(
-                selected.stream()
-                        .map(candidate -> candidate.lot().getLotId())
-                        .toList());
+        Map<Long, Integer> sellableByLot = prefetchedSellableByLot != null
+                ? prefetchedSellableByLot
+                : sellableStockQuery.sellablePerLot(
+                        selected.stream()
+                                .map(candidate -> candidate.lot().getLotId())
+                                .toList());
         int saleStock = selected.stream()
                 .mapToInt(candidate -> Math.min(
                         candidate.lot().getLotQuantity(),

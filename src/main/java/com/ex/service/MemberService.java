@@ -10,6 +10,7 @@ import com.ex.entity.DeliveryAddress;
 import com.ex.entity.Member;
 import com.ex.entity.MemberRole;
 import com.ex.repository.MemberRepository;
+import com.ex.repository.EmployeeAccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class MemberService {
     private final PasswordEncoder passwordEncoder;
     private final FarmCustomerRegistrationService farmRegistrationService;
     private final FarmFeedModelService farmFeedModelService;
+    private final EmployeeAccountRepository employeeAccountRepository;
 
     @Transactional
     public MemberResponse signup(SignupRequest request) {
@@ -34,7 +36,9 @@ public class MemberService {
             throw new IllegalArgumentException(
                     "아이디는 영문으로 시작하는 5~20자의 영문, 숫자, 밑줄만 사용할 수 있습니다.");
         }
-        if (memberRepository.existsByUsernameIgnoreCase(username)) {
+        if (memberRepository.existsByUsernameIgnoreCase(username)
+                || employeeAccountRepository.findByUsernameIgnoreCase(username)
+                        .isPresent()) {
             throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
         }
         if (memberRepository.existsByEmail(email)) {
@@ -74,10 +78,14 @@ public class MemberService {
         if (!passwordEncoder.matches(request.password(), member.getPassword())) {
             throw new IllegalArgumentException("아이디 또는 비밀번호가 일치하지 않습니다.");
         }
+        var farmCustomer = farmRegistrationService.findByMemberId(member.getId())
+                .filter(customer -> customer.getStatus()
+                        == com.ex.entity.FarmCustomer.CustomerStatus.ACTIVE)
+                .orElseThrow(() -> new IllegalStateException(
+                        "거래 보류 또는 삭제된 농장 계정은 로그인할 수 없습니다."));
         return memberResponse(
                 member,
-                farmRegistrationService.findByMemberId(member.getId())
-                        .orElse(null));
+                farmCustomer);
     }
 
     @Transactional(readOnly = true)
@@ -101,7 +109,9 @@ public class MemberService {
             throw new IllegalArgumentException(
                     "아이디는 영문으로 시작하는 5~20자의 영문, 숫자, 밑줄만 사용할 수 있습니다.");
         }
-        return !memberRepository.existsByUsernameIgnoreCase(normalized);
+        return !memberRepository.existsByUsernameIgnoreCase(normalized)
+                && employeeAccountRepository.findByUsernameIgnoreCase(normalized)
+                        .isEmpty();
     }
 
     @Transactional(readOnly = true)
@@ -130,12 +140,16 @@ public class MemberService {
         member.setRegularDeliveryDay(request.regularDeliveryDay());
 
         updateAddress(member, com.ex.entity.AddressType.HOME,
-                request.homeAddress(), request.homeDetailAddress(), "");
+                request.homePostalCode(), request.homeAddress(),
+                request.homeDetailAddress(), "");
         updateAddress(member, com.ex.entity.AddressType.FARM,
-                request.farmAddress(), "", request.unloadingLocation());
+                request.farmPostalCode(), request.farmAddress(),
+                request.farmDetailAddress(),
+                request.unloadingLocation());
+        var farmCustomer = farmRegistrationService.synchronizeMember(member);
         return memberResponse(
                 member,
-                farmRegistrationService.findByMemberId(memberId).orElse(null));
+                farmCustomer);
     }
 
     private MemberResponse memberResponse(
@@ -161,6 +175,7 @@ public class MemberService {
     private void updateAddress(
             Member member,
             com.ex.entity.AddressType addressType,
+            String postalCode,
             String baseAddress,
             String detailAddress,
             String unloadingLocation) {
@@ -181,6 +196,7 @@ public class MemberService {
                 });
         address.setRecipientName(member.getName());
         address.setPhone(member.getPhone());
+        address.setPostalCode(blankToNull(postalCode));
         address.setBaseAddress(baseAddress.trim());
         address.setDetailAddress(blankToNull(detailAddress));
         address.setUnloadingLocation(blankToNull(unloadingLocation));
@@ -209,7 +225,9 @@ public class MemberService {
         base = base.substring(0, Math.min(base.length(), 16));
         String candidate = base;
         int suffix = 1;
-        while (memberRepository.existsByUsernameIgnoreCase(candidate)) {
+        while (memberRepository.existsByUsernameIgnoreCase(candidate)
+                || employeeAccountRepository.findByUsernameIgnoreCase(candidate)
+                        .isPresent()) {
             String number = String.valueOf(suffix++);
             candidate = base.substring(0, Math.min(base.length(), 20 - number.length())) + number;
         }

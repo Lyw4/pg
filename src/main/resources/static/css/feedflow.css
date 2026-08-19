@@ -362,6 +362,33 @@ button { cursor: pointer; }
 .consulting-contact p { color: rgba(255,255,255,.65); font-size: 8px; }
 .consulting-contact button { height: 43px; margin-left: 16px; padding: 0 20px; border: 1px solid white; background: transparent; color: white; font-weight: 700; }
 
+/* 판매 페이지의 회사 정보와 상담 CTA를 한 칸에 배치합니다. */
+.storefront-footer {
+    padding: 0;
+    background: #0d281f;
+    color: rgba(255,255,255,.75);
+}
+.storefront-footer-inner {
+    width: min(1180px, calc(100% - 60px));
+    margin: 0 auto;
+    padding: 52px 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(420px, .9fr);
+    align-items: center;
+    gap: 80px;
+}
+.storefront-footer-company { min-width: 0; }
+.storefront-footer-consulting { min-width: 0; }
+.storefront-footer-consulting h2 {
+    margin: 14px 0 24px;
+    color: white;
+    font-family: Georgia, "Malgun Gothic", serif;
+    font-size: 27px;
+    line-height: 1.45;
+}
+.storefront-footer .consulting-contact { justify-content: flex-start; }
+.footer-company-info { margin: 0; font-size: 9px; line-height: 1.8; }
+
 footer { padding: 45px max(30px, calc((100vw - 1180px) / 2)); background: #0d281f; color: rgba(255,255,255,.75); }
 .footer-brand { display: flex; align-items: center; gap: 14px; }
 .footer-brand > span { width: 38px; height: 43px; font-size: 22px; background: #eae8dd; color: var(--forest); }
@@ -923,6 +950,13 @@ footer { padding: 45px max(30px, calc((100vw - 1180px) / 2)); background: #0d281
     .consulting { padding: 50px 25px; align-items: flex-start; flex-direction: column; }
     .consulting-contact { flex-wrap: wrap; }
     footer { padding: 40px 25px; }
+    .storefront-footer { padding: 0; }
+    .storefront-footer-inner {
+        width: calc(100% - 50px);
+        padding: 42px 0;
+        grid-template-columns: 1fr;
+        gap: 38px;
+    }
     .modal-backdrop { padding: 10px; align-items: start; }
     .modal { max-height: calc(100vh - 20px); padding: 38px 22px 25px; }
     .detail-layout, .checkout-layout, .form-grid { grid-template-columns: 1fr; }

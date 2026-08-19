@@ -11,7 +11,15 @@
 <div class="ff-content">
     <div th:replace="~{fragments/admin-layout :: topbar(null, '대시보드')}"></div>
 
-    <main class="ff-main ff-dashboard-main">
+    <main class="ff-main ff-dashboard-main ff-page-layout">
+        <header class="ff-page-heading">
+            <div>
+                <p class="ff-page-eyebrow">MANAGEMENT OVERVIEW</p>
+                <h1>관리자 대시보드</h1>
+                <p>주요 운영 현황과 오늘 확인해야 할 업무를 한눈에 살펴봅니다.</p>
+            </div>
+        </header>
+
         <p class="ff-dashboard-date">
             <i class="bi bi-calendar3 me-1"></i>
             <span th:text="${#temporals.format(today, 'yyyy년 M월 d일')}">2026년 8월 3일</span>

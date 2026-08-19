@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 
 import com.ex.entity.FarmCustomer;
 
@@ -24,4 +26,10 @@ public interface FarmCustomerRepository
     @Query("select f from FarmCustomer f where f.status <> com.ex.entity.FarmCustomer$CustomerStatus.DELETED order by f.assignedWarehouse.displayOrder asc, f.farmName asc")
     List<FarmCustomer>
             findAllByOrderByAssignedWarehouseDisplayOrderAscFarmNameAsc();
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @EntityGraph(attributePaths = "assignedWarehouse")
+    @Query("select f from FarmCustomer f where f.farmCustomerId = :farmCustomerId")
+    Optional<FarmCustomer> findByIdForUpdate(
+            @Param("farmCustomerId") Long farmCustomerId);
 }

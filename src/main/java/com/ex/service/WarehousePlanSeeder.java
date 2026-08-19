@@ -8,8 +8,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ex.entity.Product;
+import com.ex.entity.FarmCustomer.CustomerStatus;
 import com.ex.entity.Warehouse;
 import com.ex.entity.WarehouseAllocation;
+import com.ex.repository.FarmCustomerRepository;
 import com.ex.repository.ProductRepository;
 import com.ex.repository.WarehouseAllocationRepository;
 import com.ex.repository.WarehouseRepository;
@@ -84,6 +86,7 @@ public class WarehousePlanSeeder {
     private final WarehouseRepository warehouseRepository;
     private final WarehouseAllocationRepository allocationRepository;
     private final ProductRepository productRepository;
+    private final FarmCustomerRepository farmCustomerRepository;
 
     @Transactional
     public void seed() {
@@ -142,6 +145,84 @@ public class WarehousePlanSeeder {
                         ensureProductAllocations(product, warehouses));
     }
 
+    /**
+     * 거래 중 농장의 월 예상 사용량을 기준으로 0인 월 계획량과 권장량을
+     * 보완한다. 기존에 수립된 0이 아닌 계획은 운영자가 정한 값으로 보고
+     * 그대로 유지한다.
+     */
+    @Transactional
+    public void fillMissingRecommendationsFromFarmDemand() {
+        List<WarehouseAllocation> allocations = allocationRepository
+                .findAllByOrderByWarehouseDisplayOrderAscProductAnimalTypeAscProductNameAsc()
+                .stream()
+                .filter(allocation -> allocation.getWarehouse().isActive())
+                .filter(allocation -> allocation.getProduct().isActive())
+                .toList();
+
+        Map<String, Integer> farmDemandByWarehouseAnimal =
+                new LinkedHashMap<>();
+        Map<Long, Integer> totalFarmDemandByWarehouse =
+                new LinkedHashMap<>();
+        farmCustomerRepository
+                .findAllByOrderByAssignedWarehouseDisplayOrderAscFarmNameAsc()
+                .stream()
+                .filter(farm -> farm.getStatus() == CustomerStatus.ACTIVE)
+                .forEach(farm -> {
+                    Long warehouseId = farm.getAssignedWarehouse()
+                            .getWarehouseId();
+                    farmDemandByWarehouseAnimal.merge(
+                            demandKey(warehouseId, farm.getAnimalType()),
+                            farm.getMonthlyFeedQuantity(),
+                            Integer::sum);
+                    totalFarmDemandByWarehouse.merge(
+                            warehouseId,
+                            farm.getMonthlyFeedQuantity(),
+                            Integer::sum);
+                });
+
+        Map<String, Long> productCountByWarehouseAnimal = allocations.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        allocation -> demandKey(
+                                allocation.getWarehouse().getWarehouseId(),
+                                allocation.getProduct().getAnimalType()),
+                        LinkedHashMap::new,
+                        java.util.stream.Collectors.counting()));
+
+        allocations.stream()
+                .filter(allocation -> allocation.getMonthlyPlannedQuantity() == 0
+                        || allocation.getTargetStockQuantity() == 0)
+                .forEach(allocation -> {
+                    Long warehouseId = allocation.getWarehouse()
+                            .getWarehouseId();
+                    String animalType = normalizeAnimalType(
+                            allocation.getProduct().getAnimalType());
+                    int categoryDemand = "영양제".equals(animalType)
+                            ? ceilPercent(
+                                    totalFarmDemandByWarehouse.getOrDefault(
+                                            warehouseId, 0),
+                                    5)
+                            : farmDemandByWarehouseAnimal.getOrDefault(
+                                    demandKey(warehouseId, animalType), 0);
+                    long productCount = productCountByWarehouseAnimal
+                            .getOrDefault(
+                                    demandKey(warehouseId, animalType), 1L);
+                    int calculatedMonthly = Math.max(
+                            1,
+                            ceilDivide(categoryDemand, productCount));
+                    int monthlyQuantity = allocation
+                            .getMonthlyPlannedQuantity() > 0
+                                    ? allocation.getMonthlyPlannedQuantity()
+                                    : calculatedMonthly;
+                    int targetQuantity = allocation
+                            .getTargetStockQuantity() > 0
+                                    ? allocation.getTargetStockQuantity()
+                                    : Math.max(1, ceilDivide(
+                                            (long) monthlyQuantity * 22,
+                                            30));
+                    allocation.changePlan(monthlyQuantity, targetQuantity);
+                });
+    }
+
     private void ensureProductAllocations(
             Product product,
             List<Warehouse> warehouses) {
@@ -172,6 +253,38 @@ public class WarehousePlanSeeder {
                             monthlyPlannedQuantity,
                             targetStockQuantity));
         }
+    }
+
+    private String demandKey(Long warehouseId, String animalType) {
+        return warehouseId + "|" + normalizeAnimalType(animalType);
+    }
+
+    private String normalizeAnimalType(String value) {
+        String animalType = value == null ? "기타" : value.trim();
+        if (animalType.contains("소") || animalType.contains("한우")) {
+            return "소";
+        }
+        if (animalType.contains("돼지") || animalType.contains("양돈")) {
+            return "돼지";
+        }
+        if (animalType.contains("조류") || animalType.contains("닭")
+                || animalType.contains("오리") || animalType.contains("육계")
+                || animalType.contains("산란")) {
+            return "조류(닭/오리)";
+        }
+        return animalType;
+    }
+
+    private int ceilPercent(int quantity, int percent) {
+        return ceilDivide((long) quantity * percent, 100);
+    }
+
+    private int ceilDivide(long value, long divisor) {
+        long result = (value + divisor - 1) / divisor;
+        if (result > Integer.MAX_VALUE) {
+            throw new IllegalStateException("창고 권장량이 허용 범위를 초과했습니다.");
+        }
+        return (int) result;
     }
 
     private Warehouse findOrCreateWarehouse(WarehouseSeed seed) {

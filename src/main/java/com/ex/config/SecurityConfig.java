@@ -72,7 +72,7 @@ public class SecurityConfig {
         http.formLogin(form -> form
                 .loginPage("/admin/login")
                 .loginProcessingUrl("/admin/login")
-                .defaultSuccessUrl("/admin/dashboard", true)
+                .defaultSuccessUrl("/", true)
                 .failureUrl("/admin/login?error")
                 .permitAll());
         http.rememberMe(remember -> remember

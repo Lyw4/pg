@@ -114,6 +114,7 @@ public class DefectService {
 				null,
 				"불량 격리: " + description.trim(),
 				reporter.trim());
+		inventoryService.synchronizeWarehouseStock(lot.getProduct());
         DefectRecord record = defectRepository.save(new DefectRecord(
                 lot, quantity, defectType, occurrenceStage,
                 description.trim(), reporter.trim(), occurredAt));
@@ -166,6 +167,7 @@ public class DefectService {
 					null,
 					"불량 처리 복원: " + resolutionType.getLabel(),
 					processor.trim());
+			inventoryService.synchronizeWarehouseStock(lot.getProduct());
             stockLogRepository.save(new StockLog(
                     lot, 1L, ChangeType.DEFECT_RECOVERY, record.getQuantity(),
                     "불량 처리 " + record.getDefectNo() + ": " + resolutionType.getLabel()));

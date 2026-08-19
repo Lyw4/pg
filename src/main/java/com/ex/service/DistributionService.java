@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.ex.entity.CustomerOrder;
 import com.ex.entity.CustomerOrder.OrderStatus;
+import com.ex.entity.PaymentStatus;
 import com.ex.entity.Delivery;
 import com.ex.entity.Delivery.DeliveryStatus;
 import com.ex.entity.DefectRecord.DefectType;
@@ -16,6 +17,7 @@ import com.ex.entity.DeliveryStatusHistory;
 import com.ex.entity.FarmCustomer.CustomerStatus;
 import com.ex.entity.OrderItem;
 import com.ex.entity.ProductLot;
+import com.ex.entity.FarmCustomer;
 import com.ex.entity.Shipment;
 import com.ex.entity.ShipmentItem;
 import com.ex.entity.Shipment.ShipmentStatus;
@@ -255,6 +257,13 @@ public class DistributionService {
 		if (!lot.getProduct().isActive()) {
 			throw new IllegalStateException("운영 중인 상품만 주문할 수 있습니다.");
 		}
+		if (lot.getExpirationDate().isBefore(
+				java.time.LocalDate.now().plusDays(
+						SellableStockQuery.MINIMUM_SELLABLE_DAYS))) {
+			throw new IllegalStateException(
+					"유통기한이 " + SellableStockQuery.MINIMUM_SELLABLE_DAYS
+							+ "일 미만 남은 LOT는 주문할 수 없습니다.");
+		}
 		int reserved = orderItemRepository.findByOrderStatusIn(
 				List.of(OrderStatus.PAID, OrderStatus.PREPARING))
 				.stream()
@@ -295,8 +304,9 @@ public class DistributionService {
 		order.configureShippingAddress(
 				postalCode, roadAddress, jibunAddress,
 				detailAddress, latitude, longitude);
+		FarmCustomer farmCustomer = null;
 		if (farmCustomerId != null) {
-			var farmCustomer = farmCustomerRepository
+			farmCustomer = farmCustomerRepository
 					.findById(farmCustomerId)
 					.orElseThrow(() -> new IllegalArgumentException(
 							"농장 고객사를 찾을 수 없습니다."));
@@ -306,8 +316,11 @@ public class DistributionService {
 			}
 			order.linkFarmCustomer(farmCustomer);
 		}
-		warehouseFulfillmentService.assignNearest(
-				order, lot.getProduct(), quantity);
+		warehouseFulfillmentService.assignPreferredOrNearestForProducts(
+				order,
+				List.of(new WarehouseFulfillmentService.ProductRequest(
+						lot.getProduct(), quantity, List.of(lotId))),
+				farmCustomer == null ? null : farmCustomer.getAssignedWarehouse());
 		orderItemRepository.save(new OrderItem(
 				order, lot.getProduct(), lot, quantity,
 				lot.getProduct().getPrice()));
@@ -421,6 +434,45 @@ public class DistributionService {
 
 		restoreCommittedOrderStock(order, reason);
 		order.cancel(reason, manager);
+	}
+
+	/** PortOne 환불이 성공해 CANCEL_REQUESTED가 된 관리자 주문 취소를 마무리합니다. */
+	@Transactional
+	public void completeAdminPaymentCancellation(
+			Long orderId, String reason, String manager) {
+		requireText(reason, "주문 취소 사유를 입력해 주세요.");
+		requireText(manager, "취소 담당자를 입력해 주세요.");
+		CustomerOrder order = orderRepository.findByOrderIdForUpdate(orderId)
+				.orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
+		if (order.getStatus() != OrderStatus.CANCELLED
+				|| order.getPaymentStatus() != PaymentStatus.CANCEL_REQUESTED) {
+			throw new IllegalStateException("관리자 결제 취소 요청 상태가 아닙니다.");
+		}
+		deliveryRepository.findByOrderOrderId(orderId).ifPresent(delivery -> {
+			if (delivery.getStatus() == DeliveryStatus.DELIVERED) {
+				throw new IllegalStateException(
+						"배송 완료 주문은 취소할 수 없습니다. 반품으로 처리해 주세요.");
+			}
+			if (delivery.getStatus() != DeliveryStatus.CANCELLED) {
+				DeliveryStatus previousStatus = delivery.getStatus();
+				delivery.cancel(reason, manager);
+				deliveryHistoryRepository.save(new DeliveryStatusHistory(
+						delivery, previousStatus, DeliveryStatus.CANCELLED,
+						"주문 환불에 따른 배송 종료 · "
+								+ manager.trim() + ": " + reason.trim()));
+			}
+		});
+		shipmentRepository.findByOrderOrderId(orderId).ifPresent(shipment -> {
+			if (shipment.getStatus() == ShipmentStatus.SHIPPED) {
+				throw new IllegalStateException(
+						"출고 완료 주문은 주문 취소 대신 배송 취소·회수로 처리해 주세요.");
+			}
+			if (shipment.getStatus() != ShipmentStatus.CANCELLED) {
+				shipment.cancel("결제 환불에 따른 주문 취소: " + reason.trim());
+			}
+		});
+		restoreCommittedOrderStock(order, reason);
+		order.finalizeStagedCancellation(reason, manager);
 	}
 
 	@Transactional
@@ -604,8 +656,9 @@ public class DistributionService {
 		if (!order.isInventoryCommitted()) {
 			return;
 		}
-		orderItemRepository.findByOrderOrderId(
-				order.getOrderId()).stream()
+		List<OrderItem> orderItems = orderItemRepository.findByOrderOrderId(
+				order.getOrderId());
+		orderItems.stream()
 				.flatMap(item ->
 						item.getLotAllocations().stream())
 				.forEach(allocation -> {
@@ -629,6 +682,7 @@ public class DistributionService {
 									+ reason.trim()));
 				});
 		order.releaseInventoryCommit();
+		warehouseFulfillmentService.syncStock(order, orderItems);
 	}
 
 	private void requireText(String value, String message) {

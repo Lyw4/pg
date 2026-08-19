@@ -6,11 +6,16 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.ex.entity.WarehouseStockMovement;
+import com.ex.entity.MovementType;
 
 public interface WarehouseStockMovementRepository
         extends JpaRepository<WarehouseStockMovement, Long> {
 
     boolean existsByMemo(String memo);
+
+    boolean existsBySourceBinBinIdOrDestinationBinBinId(
+            Long sourceBinId,
+            Long destinationBinId);
 
     @EntityGraph(attributePaths = {
         "lot",
@@ -33,4 +38,11 @@ public interface WarehouseStockMovementRepository
     })
     List<WarehouseStockMovement>
             findByLotLotIdOrderByCreatedAtDesc(Long lotId);
+
+    @EntityGraph(attributePaths = {"sourceBin", "sourceBin.warehouse", "lot"})
+    List<WarehouseStockMovement>
+            findByOrderIdAndMovementTypeAndLotLotIdOrderByCreatedAtAsc(
+                    Long orderId,
+                    MovementType movementType,
+                    Long lotId);
 }

@@ -29,10 +29,22 @@ public interface CustomerOrderRepository extends JpaRepository<CustomerOrder, Lo
 	@Query("select o from CustomerOrder o where o.orderNumber = :orderNumber")
 	Optional<CustomerOrder> findByOrderNumberForUpdate(@Param("orderNumber") String orderNumber);
 
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("select o from CustomerOrder o where o.orderId = :orderId")
+	Optional<CustomerOrder> findByOrderIdForUpdate(@Param("orderId") Long orderId);
+
 	Optional<CustomerOrder> findByProviderTransactionId(String providerTransactionId);
 
 	@EntityGraph(attributePaths = {"fulfillmentWarehouse", "farmCustomer"})
 	List<CustomerOrder> findByMember_IdAndCreatedAtAfterOrderByCreatedAtDesc(
 			Long memberId,
 			LocalDateTime createdAfter);
+
+	List<CustomerOrder> findByStatusAndCreatedAtBefore(
+			CustomerOrder.OrderStatus status,
+			LocalDateTime createdBefore);
+
+	Optional<CustomerOrder> findByFarmCustomerFarmCustomerIdAndScheduledDeliveryDate(
+			Long farmCustomerId,
+			java.time.LocalDate scheduledDeliveryDate);
 }

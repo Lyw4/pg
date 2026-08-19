@@ -2,6 +2,7 @@ package com.ex.entity;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -22,6 +23,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -40,7 +42,11 @@ import lombok.NoArgsConstructor;
 				unique = true),
 				@Index(
 				name = "idx_customer_order_status",
-				columnList = "status")
+				columnList = "status"),
+				@Index(
+				name = "idx_customer_order_farm_schedule",
+				columnList = "farm_customer_id,scheduled_delivery_date",
+				unique = true)
 		})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -52,6 +58,9 @@ public class CustomerOrder {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long orderId;
+
+	@Version
+	private Long version;
 
 	@Column(name = "order_number", unique = true, length = 40)
 	private String orderNumber;
@@ -125,6 +134,12 @@ public class CustomerOrder {
 	@JoinColumn(name = "farm_customer_id")
 	private FarmCustomer farmCustomer;
 
+	@Column(name = "scheduled_delivery_date")
+	private LocalDate scheduledDeliveryDate;
+
+	@Column(name = "automation_trigger", length = 20)
+	private String automationTrigger;
+
 	private Double fulfillmentDistanceKm;
 	private String fulfillmentAssignmentBasis;
 
@@ -139,6 +154,12 @@ public class CustomerOrder {
 	private LocalDateTime cancelledAt;
 	private String cancellationReason;
 	private String cancellationManager;
+	@Enumerated(EnumType.STRING)
+	@Column(name = "cancellation_previous_status", length = 30)
+	private OrderStatus cancellationPreviousStatus;
+	@Enumerated(EnumType.STRING)
+	@Column(name = "cancellation_previous_payment_status", length = 30)
+	private PaymentStatus cancellationPreviousPaymentStatus;
 
 	public CustomerOrder(Long userId, BigDecimal totalPrice, BigDecimal discountPrice, String shippingAddress) {
 		this.userId = userId;
@@ -231,6 +252,52 @@ public class CustomerOrder {
 
 	public void cancelPayment() {
 		paymentStatus = PaymentStatus.CANCELLED;
+		cancellationPreviousStatus = null;
+		cancellationPreviousPaymentStatus = null;
+	}
+
+	public void beginPaymentCancellation(String manager) {
+		if (status == OrderStatus.SHIPPING || status == OrderStatus.DELIVERED) {
+			throw new IllegalStateException("배송이 시작된 주문은 취소할 수 없습니다.");
+		}
+		if (paymentStatus == PaymentStatus.CANCEL_REQUESTED) {
+			return;
+		}
+		cancellationPreviousStatus = status;
+		cancellationPreviousPaymentStatus = paymentStatus;
+		status = OrderStatus.CANCELLED;
+		paymentStatus = PaymentStatus.CANCEL_REQUESTED;
+		cancellationReason = "결제 취소 처리 중";
+		cancellationManager = manager;
+		cancelledAt = LocalDateTime.now();
+	}
+
+	public void abortPaymentCancellation() {
+		if (paymentStatus != PaymentStatus.CANCEL_REQUESTED) return;
+		status = cancellationPreviousStatus == null
+				? OrderStatus.PAID : cancellationPreviousStatus;
+		paymentStatus = cancellationPreviousPaymentStatus == null
+				? PaymentStatus.DONE : cancellationPreviousPaymentStatus;
+		cancellationPreviousStatus = null;
+		cancellationPreviousPaymentStatus = null;
+		cancellationReason = null;
+		cancellationManager = null;
+		cancelledAt = null;
+	}
+
+	public void finalizeStagedCancellation(String reason, String manager) {
+		if (status != OrderStatus.CANCELLED
+				|| paymentStatus != PaymentStatus.CANCEL_REQUESTED) {
+			throw new IllegalStateException("결제 취소 요청 상태가 아닙니다.");
+		}
+		if (reason == null || reason.isBlank()
+				|| manager == null || manager.isBlank()) {
+			throw new IllegalArgumentException("취소 사유와 담당자를 입력해 주세요.");
+		}
+		cancelPayment();
+		cancellationReason = reason.trim();
+		cancellationManager = manager.trim();
+		cancelledAt = LocalDateTime.now();
 	}
 
 	public void addItem(OrderItem item) {
@@ -364,6 +431,17 @@ public class CustomerOrder {
 					"거래 중인 농장 고객사만 주문에 연결할 수 있습니다.");
 		}
 		this.farmCustomer = farmCustomer;
+	}
+
+	public void markScheduledDelivery(
+			LocalDate scheduledDeliveryDate,
+			String automationTrigger) {
+		if (farmCustomer == null || scheduledDeliveryDate == null) {
+			throw new IllegalStateException("농장과 정기 납품 기준일이 필요합니다.");
+		}
+		this.scheduledDeliveryDate = scheduledDeliveryDate;
+		this.automationTrigger = automationTrigger;
+		this.regularDelivery = true;
 	}
 
 	public String getFulfillmentDistanceLabel() {

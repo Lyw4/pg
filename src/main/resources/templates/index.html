@@ -591,15 +591,48 @@
         </div>
     </section>
 
-    <!-- ==================================================
-         사료 상담
-         ================================================== -->
-    <section
-        id="consulting"
-        class="consulting"
-    >
+</main>
 
-        <div>
+<!-- 상담과 회사 정보를 한 칸에 표시하는 통합 푸터 -->
+<footer class="storefront-footer">
+    <div class="storefront-footer-inner">
+        <div class="storefront-footer-company">
+            <div class="footer-brand">
+                <span class="footer-logo">
+                    <img
+                        th:src="@{/images/feedflow-logo.png}"
+                        src="/images/feedflow-logo.png"
+                        alt="FEED FLOW"
+                    >
+                </span>
+
+                <p>
+                    농장에서 식탁까지,<br>
+                    바른 사료의 흐름을 만듭니다.
+                </p>
+            </div>
+
+            <div class="footer-links">
+                <a href="/admin">판매자센터</a>
+                <button
+                    type="button"
+                    data-footer-message="이용약관을 준비 중입니다."
+                >이용약관</button>
+                <button
+                    type="button"
+                    data-footer-message="개인정보처리방침을 준비 중입니다."
+                >개인정보처리방침</button>
+            </div>
+
+            <p class="footer-company-info">
+                상호명 피드플로우 주식회사 · 대표 김농부 ·
+                사업자등록번호 123-45-67890<br>
+                충청남도 천안시 서북구 성환읍 농장로 24 ·
+                help@feedflow.kr · © 2026 FEED FLOW
+            </p>
+        </div>
+
+        <section id="consulting" class="storefront-footer-consulting">
             <p class="eyebrow">
                 <span></span>
                 FARM CONSULTING
@@ -609,74 +642,20 @@
                 우리 농장에 꼭 맞는 사료,<br>
                 전문가와 함께 찾아보세요.
             </h2>
-        </div>
 
-        <div class="consulting-contact">
-            <span>☎</span>
+            <div class="consulting-contact">
+                <span>☎</span>
 
-            <div>
-                <small>사료 전문 상담</small>
-                <strong>1588-0427</strong>
-                <p>평일 08:30 – 17:30</p>
+                <div>
+                    <small>사료 전문 상담</small>
+                    <strong>1588-0427</strong>
+                    <p>평일 08:30 – 17:30</p>
+                </div>
+
+                <button type="button" data-consult>상담 신청</button>
             </div>
-
-            <button
-                type="button"
-                data-consult
-            >
-                상담 신청
-            </button>
-        </div>
-    </section>
-</main>
-
-<!-- ======================================================
-     푸터
-     ====================================================== -->
-<footer>
-
-    <div class="footer-brand">
-
-        <span class="footer-logo">
-            <img
-                th:src="@{/images/feedflow-logo.png}"
-                src="/images/feedflow-logo.png"
-                alt="FEED FLOW"
-            >
-        </span>
-
-        <p>
-            농장에서 식탁까지, 바른 사료의 흐름을 만듭니다.
-        </p>
+        </section>
     </div>
-
-    <div class="footer-links">
-
-        <a href="/admin">
-            판매자센터
-        </a>
-
-        <button
-            type="button"
-            data-footer-message="이용약관을 준비 중입니다."
-        >
-            이용약관
-        </button>
-
-        <button
-            type="button"
-            data-footer-message="개인정보처리방침을 준비 중입니다."
-        >
-            개인정보처리방침
-        </button>
-    </div>
-
-    <p>
-        상호명 피드플로우 주식회사 · 대표 김농부 ·
-        사업자등록번호 123-45-67890<br>
-        충청남도 천안시 서북구 성환읍 농장로 24 ·
-        help@feedflow.kr · © 2026 FEED FLOW
-    </p>
 </footer>
 
 <!-- ======================================================

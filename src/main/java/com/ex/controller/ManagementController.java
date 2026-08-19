@@ -4,12 +4,14 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,7 +37,9 @@ import com.ex.service.InventoryService;
 import com.ex.service.RecurringDeliveryService;
 import com.ex.service.ShipmentService;
 import com.ex.service.WarehouseManagementService;
+import com.ex.service.WmsOperationsService;
 import com.ex.service.AdminActivityService;
+import com.ex.service.PaymentService;
 
 @Controller
 public class ManagementController {
@@ -49,6 +53,8 @@ public class ManagementController {
     private final WarehouseManagementService warehouseManagementService;
     private final FarmCustomerService farmCustomerService;
     private final AdminActivityService adminActivityService;
+    private final WmsOperationsService wmsOperationsService;
+    private final PaymentService paymentService;
 
     public ManagementController(
             InventoryService inventoryService,
@@ -59,7 +65,9 @@ public class ManagementController {
             BarcodeService barcodeService,
             WarehouseManagementService warehouseManagementService,
             FarmCustomerService farmCustomerService,
-            AdminActivityService adminActivityService) {
+            AdminActivityService adminActivityService,
+            WmsOperationsService wmsOperationsService,
+            PaymentService paymentService) {
         this.inventoryService = inventoryService;
         this.distributionService = distributionService;
         this.recurringDeliveryService = recurringDeliveryService;
@@ -69,6 +77,8 @@ public class ManagementController {
         this.warehouseManagementService = warehouseManagementService;
         this.farmCustomerService = farmCustomerService;
         this.adminActivityService = adminActivityService;
+        this.wmsOperationsService = wmsOperationsService;
+        this.paymentService = paymentService;
     }
 
     @Value("${kakao.maps.javascript-key:}")
@@ -315,6 +325,42 @@ public class ManagementController {
                 "/inventory?view=stock",
                 "창고 현재고가 수정되었습니다.",
                 redirectAttributes);
+    }
+
+    @PostMapping("/inventory/warehouses/stock/replenish")
+    public String replenishLowStock(
+            @RequestParam(name = "allocationIds", required = false)
+            List<Long> allocationIds,
+            Authentication authentication,
+            RedirectAttributes redirectAttributes) {
+        List<String> successes = new ArrayList<>();
+        List<String> failures = new ArrayList<>();
+        if (allocationIds == null || allocationIds.isEmpty()) {
+            failures.add("권장 재고까지 보충할 제품을 선택해 주세요.");
+        } else {
+            allocationIds.stream().distinct().forEach(allocationId -> {
+                try {
+                    var result = wmsOperationsService
+                            .receiveAllocationReplenishment(
+                                    allocationId,
+                                    authentication == null
+                                            ? "관리자"
+                                            : authentication.getName());
+                    successes.add(result.warehouseName() + " · "
+                            + result.productName() + " " + result.quantity()
+                            + "포 · LOT " + result.lotNo() + " → "
+                            + String.join(", ", result.binCodes()));
+                } catch (RuntimeException exception) {
+                    failures.add("항목 " + allocationId + " · "
+                            + exception.getMessage());
+                }
+            });
+        }
+        redirectAttributes.addFlashAttribute(
+                "stockReplenishResults", successes);
+        redirectAttributes.addFlashAttribute(
+                "stockReplenishErrors", failures);
+        return "redirect:/inventory?view=lowStock";
     }
 
     private void addShipmentAttributes(Model model) {
@@ -1132,7 +1178,7 @@ public class ManagementController {
                 String.valueOf(orderId), "관리자 주문 취소 요청: " + reason, null);
 
         return execute(
-                () -> distributionService.cancelOrder(
+                () -> paymentService.cancelOrderByAdmin(
                         orderId, reason, manager),
                 "/distribution?view=cancelled_orders",
                 "주문이 취소되고 예약 또는 출고 재고가 자동 반영되었습니다.",

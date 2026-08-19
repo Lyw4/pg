@@ -20,6 +20,7 @@ import com.ex.repository.ProductLotRepository;
 import com.ex.repository.ProductRepository;
 import com.ex.repository.OrderItemRepository;
 import com.ex.repository.StockLogRepository;
+import com.ex.repository.WarehouseAllocationRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -33,9 +34,14 @@ public class InventoryService {
 	private final StockLogRepository stockLogRepository;
 	private final OrderItemRepository orderItemRepository;
 	private final WmsStockCoordinator wmsStockCoordinator;
+	private final WarehouseAllocationRepository allocationRepository;
+	private final SellableStockQuery sellableStockQuery;
 
 	private static final EnumSet<OrderStatus> RESERVING_STATUSES =
-			EnumSet.of(OrderStatus.PAID, OrderStatus.PREPARING);
+			EnumSet.of(
+					OrderStatus.PAYMENT_PENDING,
+					OrderStatus.PAID,
+					OrderStatus.PREPARING);
 
 	public List<Product> products() {
 		return productRepository.findAllByOrderByNameAsc()
@@ -93,6 +99,7 @@ public class InventoryService {
 		stockLogRepository.save(new StockLog(
 				log.getLot(), 1L, ChangeType.ADJUSTMENT, restored,
 				"출고 취소 #" + log.getLogId() + ": " + cancelReason.trim()));
+		synchronizeWarehouseStock(log.getLot().getProduct());
 	}
 
 	public Map<Long, Integer> reservedStockByProduct() {
@@ -203,6 +210,7 @@ public class InventoryService {
 		stockLogRepository.save(new StockLog(lot, 1L, ChangeType.INBOUND, quantity, reason));
 		wmsStockCoordinator.inbound(
 				lot, quantity, preferredWarehouse, reason, "관리자");
+		synchronizeWarehouseStock(product);
 	}
 
 	@Transactional
@@ -214,6 +222,7 @@ public class InventoryService {
 		stockLogRepository.save(new StockLog(lot, 1L, ChangeType.ADJUSTMENT, changedQty, reason));
 		wmsStockCoordinator.adjust(
 				lot, changedQty, null, reason, "관리자");
+		synchronizeWarehouseStock(lot.getProduct());
 	}
 
 	@Transactional
@@ -247,6 +256,7 @@ public class InventoryService {
 		wmsStockCoordinator.adjust(
 				lot, difference, null,
 				"재고 실사: " + auditReason, "관리자");
+		synchronizeWarehouseStock(lot.getProduct());
 	}
 
 	@Transactional
@@ -281,6 +291,7 @@ public class InventoryService {
 		stockLogRepository.save(new StockLog(
 				lot, 1L, ChangeType.INBOUND_CANCEL, -received,
 				"입고 #" + logId + " 취소: " + cancelReason.trim()));
+		synchronizeWarehouseStock(lot.getProduct());
 	}
 
 	@Transactional
@@ -297,8 +308,11 @@ public class InventoryService {
 		if (product.getTotalStock() < quantity) throw new IllegalStateException("출고 가능한 재고가 부족합니다.");
 
 		int remaining = quantity;
+		LocalDate sellableFrom = LocalDate.now()
+				.plusDays(SellableStockQuery.MINIMUM_SELLABLE_DAYS);
 		for (ProductLot lot : lotRepository
 				.findByProductProductIdAndLotQuantityGreaterThanOrderByExpirationDateAsc(productId, 0)) {
+			if (lot.getExpirationDate().isBefore(sellableFrom)) continue;
 			int lotAvailable = lot.getLotQuantity()
 					- reservedLots.getOrDefault(lot.getLotId(), 0);
 			int released = Math.min(remaining, Math.max(lotAvailable, 0));
@@ -309,7 +323,10 @@ public class InventoryService {
 					lot, released, null, reason, "관리자", null);
 			stockLogRepository.save(new StockLog(lot, 1L, ChangeType.OUTBOUND, -released, reason));
 			remaining -= released;
-			if (remaining == 0) return;
+			if (remaining == 0) {
+				synchronizeWarehouseStock(product);
+				return;
+			}
 		}
 		throw new IllegalStateException("LOT별 출고 가능한 재고가 부족합니다.");
 	}
@@ -349,6 +366,18 @@ public class InventoryService {
 			stockLogRepository.save(new StockLog(
 					lot, 1L, ChangeType.OUTBOUND, -quantity, "주문 예약 재고 출고"));
 		});
+		quantitiesByLot.keySet().stream()
+				.map(ProductLot::getProduct)
+				.distinct()
+				.forEach(this::synchronizeWarehouseStock);
+	}
+
+	void synchronizeWarehouseStock(Product product) {
+		allocationRepository.findByProductProductId(product.getProductId())
+				.forEach(allocation -> allocation.adjustCurrentStock(
+						sellableStockQuery.sellableAtWarehouse(
+								allocation.getWarehouse().getWarehouseId(),
+								product.getProductId())));
 	}
 
 	private List<OrderItem> activeReservations() {
