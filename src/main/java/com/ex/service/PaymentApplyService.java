@@ -12,6 +12,7 @@ import org.springframework.util.StringUtils;
 
 import com.ex.dto.OrderResponse;
 import com.ex.entity.CustomerOrder;
+import com.ex.entity.PaymentMethod;
 import com.ex.entity.PaymentStatus;
 import com.ex.repository.CustomerOrderRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -196,6 +197,7 @@ public class PaymentApplyService {
         if (paidAmount != expectedAmount) {
             throw new IllegalArgumentException("포트원 결제 금액이 주문 금액과 일치하지 않습니다.");
         }
+        validatePaymentMethod(order, payment);
         CustomerOrder owner = orderRepository
                 .findByProviderTransactionId(verifiedImpUid).orElse(null);
         if (owner != null && !owner.getOrderId().equals(order.getOrderId())) {
@@ -223,11 +225,18 @@ public class PaymentApplyService {
         switch (providerStatus) {
             case "paid" -> order.completePayment(
                     verifiedImpUid, payment.path("receipt_url").asText(null));
-            case "ready" -> order.waitForDeposit(
-                    verifiedImpUid,
-                    payment.path("vbank_name").asText(null),
-                    payment.path("vbank_num").asText(null),
-                    formatVbankDate(payment.path("vbank_date").asLong(0)));
+            case "ready" -> {
+                if (order.getPaymentMethod() != PaymentMethod.BANK_TRANSFER) {
+                    throw new IllegalStateException(
+                            "카드·간편결제는 결제 승인이 완료된 뒤에만 주문에 반영됩니다. "
+                                    + "결제창에서 승인을 마친 후 결제상태를 다시 확인해 주세요.");
+                }
+                order.waitForDeposit(
+                        verifiedImpUid,
+                        payment.path("vbank_name").asText(null),
+                        payment.path("vbank_num").asText(null),
+                        formatVbankDate(payment.path("vbank_date").asLong(0)));
+            }
             case "failed" -> {
                 order.failPayment();
                 orderService.releasePaymentReservation(order, "결제 실패");
@@ -245,6 +254,20 @@ public class PaymentApplyService {
                     "아직 완료되지 않은 포트원 결제 상태입니다.");
         }
         return OrderResponse.from(order);
+    }
+
+    private void validatePaymentMethod(
+            CustomerOrder order,
+            JsonNode payment) {
+        String providerMethod = requiredText(
+                payment, "pay_method", "결제수단");
+        boolean providerVirtualAccount = "vbank".equals(providerMethod);
+        boolean orderVirtualAccount = order.getPaymentMethod()
+                == PaymentMethod.BANK_TRANSFER;
+        if (providerVirtualAccount != orderVirtualAccount) {
+            throw new IllegalArgumentException(
+                    "선택한 결제수단과 포트원 승인 결제수단이 일치하지 않습니다.");
+        }
     }
 
     private CustomerOrder locked(String orderNumber) {

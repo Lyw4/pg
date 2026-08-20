@@ -21,6 +21,7 @@ import com.ex.entity.BinPurpose;
 import com.ex.entity.DisposalReason;
 import com.ex.service.WmsOperationsService;
 import com.ex.service.DemandPlanService;
+import com.ex.service.WarehouseCapacityPlanningService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -59,6 +60,7 @@ public class WmsAdminController {
 
     private final WmsOperationsService wmsOperationsService;
     private final DemandPlanService demandPlanService;
+    private final WarehouseCapacityPlanningService capacityPlanningService;
 
     @GetMapping("/admin/wms")
     public String page(
@@ -120,6 +122,9 @@ public class WmsAdminController {
         var filteredBins = selectedBinWarehouseId == null
                 ? wmsOperationsService.bins()
                 : wmsOperationsService.bins(selectedBinWarehouseId);
+        filteredBins = filteredBins.stream()
+                .filter(bin -> bin.isActive())
+                .toList();
         int binTotalCount = filteredBins.size();
         int binPageCount = selectedBinWarehouseId == null
                 ? (binTotalCount + BIN_PAGE_SIZE - 1) / BIN_PAGE_SIZE
@@ -157,6 +162,14 @@ public class WmsAdminController {
         model.addAttribute(
                 "warehouseAllocations",
                 wmsOperationsService.warehouseAllocations());
+        if ("bins".equals(selectedView)) {
+            model.addAttribute(
+                    "binPlacementMaps",
+                    warehouses.stream()
+                            .map(warehouse -> wmsOperationsService.warehouseMap(
+                                    warehouse.getWarehouseId()))
+                            .toList());
+        }
         model.addAttribute(
                 "directOutboundProducts",
                 wmsOperationsService.directOutboundProducts());
@@ -321,6 +334,10 @@ public class WmsAdminController {
             @RequestParam(name = "warehouseId") Long warehouseId,
             @RequestParam(name = "productId") Long productId,
             @RequestParam(name = "plannedQuantity") int plannedQuantity,
+            @RequestParam(name = "posX", required = false) Integer posX,
+            @RequestParam(name = "posY", required = false) Integer posY,
+            @RequestParam(name = "posWidth", required = false) Integer posWidth,
+            @RequestParam(name = "posHeight", required = false) Integer posHeight,
             @RequestParam(name = "memo", required = false) String memo,
             RedirectAttributes redirectAttributes) {
         try {
@@ -328,9 +345,14 @@ public class WmsAdminController {
                     warehouseId,
                     productId,
                     plannedQuantity,
+                    posX,
+                    posY,
+                    posWidth,
+                    posHeight,
                     memo);
             success(redirectAttributes, "창고 구역 " + createdBin.getBinCode()
-                    + "을(를) 빈 도면 위치에 자동 등록했습니다.");
+                    + "을(를) " + (posX == null ? "빈 도면 위치에 자동" : "선택한 도면 위치에")
+                    + " 등록했습니다.");
         } catch (RuntimeException exception) {
             error(redirectAttributes, exception);
         }
@@ -378,12 +400,17 @@ public class WmsAdminController {
     public String deleteBin(
             @PathVariable(name = "binId") Long binId,
             @RequestParam(name = "warehouseId") Long warehouseId,
+            @RequestParam(name = "returnView", defaultValue = "bins")
+            String returnView,
             RedirectAttributes redirectAttributes) {
         try {
             wmsOperationsService.deleteBin(binId);
             success(redirectAttributes, "창고 구역을 삭제했습니다.");
         } catch (RuntimeException exception) {
             error(redirectAttributes, exception);
+        }
+        if ("map".equals(returnView)) {
+            return "redirect:/admin/warehouse-map?centerId=" + warehouseId;
         }
         return "redirect:/admin/wms?view=bins&binWarehouseId=" + warehouseId;
     }
@@ -482,6 +509,24 @@ public class WmsAdminController {
                             + " " + result.quantity() + "포를 입고했습니다. LOT "
                             + result.lotNo() + " → "
                             + String.join(", ", result.binCodes()));
+        } catch (RuntimeException exception) {
+            error(redirectAttributes, exception);
+        }
+        return "redirect:/admin/wms?view=inbound";
+    }
+
+    @PostMapping("/admin/wms/inbound/capacity")
+    public String ensureInboundCapacity(
+            @RequestParam(name = "warehouseId") Long warehouseId,
+            @RequestParam(name = "productId") Long productId,
+            @RequestParam(name = "quantity") int quantity,
+            RedirectAttributes redirectAttributes) {
+        try {
+            capacityPlanningService.ensureProductInboundCapacity(
+                    warehouseId, productId, quantity);
+            success(redirectAttributes,
+                    "기존 보관 구역을 " + quantity
+                            + "포 추가 입고가 가능하도록 자동 확장했습니다.");
         } catch (RuntimeException exception) {
             error(redirectAttributes, exception);
         }

@@ -219,6 +219,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const deliveryFilterEmpty =
         document.getElementById("deliveryFilterEmpty");
     const deliveryViewTabs = all("[data-delivery-view]");
+    const deliveryFlowGroups = all("[data-delivery-flow-group]");
+    const deliveryWorkspaceNav = document.querySelector(
+        ".distribution-workspace-nav"
+    );
     const readyDeliveryPanel = document.querySelector(
         '[data-delivery-panel="ready"]'
     );
@@ -541,6 +545,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const isReady = view === "ready";
         const isCancelledOrders = view === "cancelled_orders";
         const isFarmCustomers = view === "farms";
+        const flow = isFarmCustomers
+            ? "customer"
+            : ["cancelled", "returns", "cancelled_orders"].includes(view)
+                ? "exception"
+                : "order";
+
+        deliveryFlowGroups.forEach(group => {
+            group.hidden = group.dataset.deliveryFlowGroup !== flow;
+        });
+        deliveryWorkspaceNav?.classList.add("single-flow");
 
         deliveryViewTabs.forEach(tab => {
             const selected = tab.dataset.deliveryView === view;

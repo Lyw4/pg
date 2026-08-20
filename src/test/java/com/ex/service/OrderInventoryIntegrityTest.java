@@ -70,7 +70,12 @@ class OrderInventoryIntegrityTest {
                                 product.productId(), 2))
                         .toList());
 
-        assertThrows(IllegalStateException.class,
+        // 로트 잔량(1)이 창고 구역 재고(2)보다 적은 불일치 상황입니다.
+        // 판매 가능 수량 검사가 할당 루프와 같은 기준(두 값 중 작은 값)을
+        // 쓰게 되면서, 할당 도중 IllegalStateException으로 터지는 대신
+        // 주문 접수 단계에서 재고 부족으로 거절됩니다. 할당 루프의
+        // remaining > 0 검사는 방어선으로 남아 있습니다.
+        assertThrows(IllegalArgumentException.class,
                 () -> orderService.createOrder(request));
 
         transactionTemplate.executeWithoutResult(status -> {

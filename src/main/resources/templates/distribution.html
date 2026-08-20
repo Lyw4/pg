@@ -72,7 +72,12 @@
 
         <section th:unless="${currentView == 'farms'}"
                  class="distribution-workspace-nav" aria-label="유통 관리 업무 선택">
-            <div class="distribution-workflow-group order-flow-group">
+            <div class="distribution-workflow-group order-flow-group"
+                data-delivery-flow-group="order"
+                th:attr="hidden=${currentView == 'cancelled'
+                    or currentView == 'returns'
+                    or currentView == 'cancelled_orders'
+                    or currentView == 'farms'} ? 'hidden' : null">
                 <div class="distribution-workflow-heading">
                     <span class="distribution-workflow-icon"><i class="bi bi-truck"></i></span>
                     <div><strong>주문·배송 현황</strong><small>출고 준비부터 고객 인도까지 단계별로 관리합니다.</small></div>
@@ -142,7 +147,11 @@
                 </div>
             </div>
 
-            <div class="distribution-workflow-group exception-flow-group">
+            <div class="distribution-workflow-group exception-flow-group"
+                data-delivery-flow-group="exception"
+                th:attr="hidden=${currentView != 'cancelled'
+                    and currentView != 'returns'
+                    and currentView != 'cancelled_orders'} ? 'hidden' : null">
                 <div class="distribution-workflow-heading">
                     <span class="distribution-workflow-icon"><i class="bi bi-arrow-counterclockwise"></i></span>
                     <div><strong>취소·회수 관리</strong><small>취소 사유, 재배송, 회수 검수와 재고 반영을 처리합니다.</small></div>
@@ -181,7 +190,9 @@
                 </div>
             </div>
 
-            <div class="distribution-workflow-group customer-flow-group">
+            <div class="distribution-workflow-group customer-flow-group"
+                data-delivery-flow-group="customer"
+                th:attr="hidden=${currentView != 'farms'} ? 'hidden' : null">
                 <div class="distribution-workflow-heading">
                     <span class="distribution-workflow-icon"><i class="bi bi-buildings"></i></span>
                     <div><strong>고객사 관리</strong><small>거점별 농장과 월간 예상 수요를 확인합니다.</small></div>
@@ -526,6 +537,7 @@
                                     배송지
                                 </span>
                                 <small
+                                    class="distribution-order-recipient"
                                     th:if="${!#strings.isEmpty(order.recipientName)}"
                                     th:text="|${order.recipientName}
                                         · ${order.recipientPhone}|">
@@ -855,7 +867,7 @@
                     <input
                         type="search"
                         id="deliverySearch"
-                        placeholder="배송번호, 주문번호, 운송사, 운송장 검색"
+                        placeholder="고객명, 배송번호, 주문번호, 운송사, 운송장 검색"
                         aria-label="배송 검색">
                 </div>
                 <div class="distribution-filter-group">
@@ -920,6 +932,13 @@
                                 <strong th:text="|#${delivery.order.orderId}|">
                                     주문
                                 </strong>
+                                <small class="delivery-customer-name"
+                                    th:text="|고객: ${delivery.order.customerName == null
+                                        or #strings.isEmpty(delivery.order.customerName)
+                                        ? '이름 미등록'
+                                        : delivery.order.customerName}|">
+                                    고객: 이름 미등록
+                                </small>
                                 <small
                                     th:text="${delivery.order.shippingAddress}">
                                     배송지

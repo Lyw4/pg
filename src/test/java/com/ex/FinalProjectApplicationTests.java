@@ -101,9 +101,9 @@ class FinalProjectApplicationTests {
 				.andExpect(content().string(
 						org.hamcrest.Matchers.containsString("농장 정기 납품 자동화")))
 				.andExpect(content().string(
-						org.hamcrest.Matchers.containsString("선택 날짜 정기 납품 생성")))
+						org.hamcrest.Matchers.containsString("정기 납품·입고 요청 실행")))
 				.andExpect(content().string(
-						org.hamcrest.Matchers.containsString("즉시 입고")));
+						org.hamcrest.Matchers.containsString("입고 승인 요청")));
 	}
 
 	@Test

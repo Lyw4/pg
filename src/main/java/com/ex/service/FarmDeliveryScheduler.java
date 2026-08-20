@@ -22,9 +22,11 @@ public class FarmDeliveryScheduler {
     public void createDueFarmDeliveries() {
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
         var result = automationService.execute(today, "SCHEDULED");
-        if (result.createdCount() > 0 || result.failedCount() > 0) {
-            log.info("농장 정기 납품 자동 처리: date={}, created={}, skipped={}, failed={}",
-                    today, result.createdCount(), result.skippedCount(), result.failedCount());
+        if (result.createdCount() > 0 || result.requestedCount() > 0
+                || result.failedCount() > 0) {
+            log.info("농장 정기 납품 자동 처리: date={}, created={}, requested={}, skipped={}, failed={}",
+                    today, result.createdCount(), result.requestedCount(),
+                    result.skippedCount(), result.failedCount());
         }
     }
 }

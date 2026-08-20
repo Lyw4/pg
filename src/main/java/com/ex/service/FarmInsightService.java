@@ -201,8 +201,8 @@ public class FarmInsightService {
         int quantity = orderItemRepository.findByOrderOrderId(
                 order.getOrderId()).stream()
                 .mapToInt(item -> item.getQuantity()).sum();
-        String deliveryStatus = delivery == null
-                ? "배송 준비 전" : delivery.getStatus().getLabel();
+        String deliveryStatus = recentDeliveryStatus(
+                order.getStatus(), delivery);
         return new RecentOrder(
                 order.getOrderNumber(),
                 order.getCreatedAt(),
@@ -212,7 +212,18 @@ public class FarmInsightService {
                 order.getFinalPrice() == null ? 0
                         : order.getFinalPrice().longValue(),
                 deliveryStatus,
-                delivery != null && delivery.isDelayed());
+                order.getStatus() != CustomerOrder.OrderStatus.CANCELLED
+                        && delivery != null && delivery.isDelayed());
+    }
+
+    static String recentDeliveryStatus(
+            CustomerOrder.OrderStatus orderStatus,
+            Delivery delivery) {
+        if (orderStatus == CustomerOrder.OrderStatus.CANCELLED) {
+            return "주문 취소";
+        }
+        return delivery == null
+                ? "배송 준비 전" : delivery.getStatus().getLabel();
     }
 
     private List<FarmAlert> alerts(

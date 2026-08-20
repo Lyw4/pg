@@ -170,7 +170,12 @@
                     <span class="badge text-bg-dark" th:text="${warehouseMap.warehouse.code}">W01</span>
                 </div>
                 <div class="card-body">
-                    <div class="ff-floor-scroll">
+                    <div class="wms-map-tabs mb-3" role="tablist" aria-label="창고 정보 보기">
+                        <button type="button" class="active" data-wms-map-tab="map" role="tab" aria-selected="true"><i class="bi bi-grid-3x3-gap me-1"></i>2D 도면</button>
+                        <button type="button" data-wms-map-tab="products" role="tab" aria-selected="false"><i class="bi bi-box-seam me-1"></i>제품 확인</button>
+                    </div>
+                    <div data-wms-map-panel="map">
+                      <div class="ff-floor-scroll">
                         <div class="ff-floor" aria-label="창고 구역 도면">
                             <div th:each="zone : ${warehouseMap.zones}"
                                  class="ff-zone-area"
@@ -192,9 +197,9 @@
                                     th:style="'grid-area:' + ${item.gridArea}"
                                     th:data-bin-id="${item.bin.binId}"
                                     th:data-bin-code="${item.bin.binCode}"
-                                    th:aria-label="|${item.bin.binCode} ${item.statusLabel} ${item.quantity}/${item.bin.effectiveMaxCapacity}포대|">
+                                    th:aria-label="|${item.productLabel} (${item.bin.binCode}) ${item.statusLabel} ${item.quantity}/${item.bin.effectiveMaxCapacity}포대|">
                                 <span class="ff-bin-head">
-                                    <span class="ff-bin-code" th:text="${item.bin.binCode}">YS-PL-01</span>
+                                    <span class="ff-bin-code" th:text="${item.productLabel}" title="상품명">조류 사료 보관</span>
                                     <span class="ff-bin-rate" th:if="${item.bin.purpose.name() == 'STORAGE'}" th:text="${item.usageRate} + '%'">0%</span>
                                 </span>
                                 <span class="ff-bin-mid">
@@ -202,6 +207,7 @@
                                     <span class="ff-bin-purpose" th:unless="${item.bin.purpose.name() == 'STORAGE'}" th:text="${item.statusLabel}">입고 대기</span>
                                 </span>
                                 <span class="ff-bin-foot">
+                                    <small class="ff-bin-location-code" th:text="${item.bin.binCode}">YS-PL-01</small>
                                     <span class="ff-bin-qty" th:text="|${#numbers.formatInteger(item.quantity, 1, 'COMMA')}/${#numbers.formatInteger(item.bin.effectiveMaxCapacity, 1, 'COMMA')}|">0/0</span>
                                     <span class="ff-bin-meta">
                                         <b th:if="${item.hasExpiryWarning}" class="badge wms-expiry-chip" th:text="${item.expiryLabel}">D-10</b>
@@ -212,8 +218,34 @@
                                 </span>
                             </button>
                         </div>
+                      </div>
+                      <p class="small text-muted mb-0 mt-3"><i class="bi bi-hand-index me-1"></i>구역을 클릭하면 보관 중인 품목과 LOT를 확인할 수 있습니다. 사각형의 위치와 크기는 실제 창고 배치를 따르며 <a th:href="@{/admin/wms(view='bins')}">창고 구역 관리</a>에서 조정합니다.</p>
                     </div>
-                    <p class="small text-muted mb-0 mt-3"><i class="bi bi-hand-index me-1"></i>구역을 클릭하면 보관 중인 품목과 LOT를 확인할 수 있습니다. 사각형의 위치와 크기는 실제 창고 배치를 따르며 <a th:href="@{/admin/wms(view='bins')}">창고 구역 관리</a>에서 조정합니다.</p>
+                    <div data-wms-map-panel="products" hidden>
+                        <div class="table-responsive wms-map-product-table">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead><tr><th>제품명</th><th>축종</th><th>LOT</th><th>보관 구역</th><th class="text-end">수량</th></tr></thead>
+                                <tbody>
+                                    <th:block th:each="item : ${warehouseMap.binItems}">
+                                        <tr th:each="inventory : ${item.inventories}">
+                                            <td class="fw-semibold" th:text="${inventory.lot.product.name}">제품명</td>
+                                            <td th:text="${inventory.lot.product.animalType}">축종</td>
+                                            <td class="font-monospace" th:text="${inventory.lot.lotNo}">LOT</td>
+                                            <td th:text="${item.bin.binCode}">구역</td>
+                                            <td class="text-end fw-bold" th:text="|${#numbers.formatInteger(inventory.quantity, 1, 'COMMA')}포대|">0포대</td>
+                                        </tr>
+                                        <tr th:if="${item.lotCount == 0}">
+                                            <td class="fw-semibold" th:text="${item.productLabel}">제품명</td>
+                                            <td th:text="${item.bin.zone}">구역</td>
+                                            <td class="text-muted">-</td>
+                                            <td th:text="${item.bin.binCode}">구역</td>
+                                            <td class="text-end text-muted">0포대</td>
+                                        </tr>
+                                    </th:block>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -248,7 +280,18 @@
                             <div id="wmsBinDetailEmpty" class="text-center text-muted py-4 d-none">보관 중인 재고가 없습니다.</div>
                         </div>
                     </div>
-                    <div class="modal-footer"><a id="wmsBinInventoryLink" th:href="@{/inventory(view='stock')}" class="btn btn-outline-primary"><i class="bi bi-stack me-1"></i>재고 현황에서 보기</a><a id="wmsBinMoveLink" th:href="@{/admin/wms(view='move')}" class="btn btn-primary"><i class="bi bi-arrows-move me-1"></i>재고 이동</a><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button></div>
+                    <div class="modal-footer">
+                        <small id="wmsBinDeleteReason" class="me-auto text-muted"></small>
+                        <form id="wmsBinDeleteForm" method="post" class="d-inline" onsubmit="return confirm('이 구역을 삭제할까요? 삭제하면 도면과 창고 구역 관리 목록에서 함께 사라집니다.');">
+                            <input th:if="${_csrf != null}" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                            <input id="wmsBinDeleteWarehouseId" type="hidden" name="warehouseId">
+                            <input type="hidden" name="returnView" value="map">
+                            <button id="wmsBinDeleteButton" type="submit" class="btn btn-outline-danger"><i class="bi bi-trash me-1"></i>구역 삭제</button>
+                        </form>
+                        <a id="wmsBinInventoryLink" th:href="@{/inventory(view='stock')}" class="btn btn-outline-primary"><i class="bi bi-stack me-1"></i>재고 현황에서 보기</a>
+                        <a id="wmsBinMoveLink" th:href="@{/admin/wms(view='move')}" class="btn btn-primary"><i class="bi bi-arrows-move me-1"></i>재고 이동</a>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                    </div>
                 </div></div>
             </div>
         </section>
@@ -264,7 +307,15 @@
                                 <div class="col-12"><label class="form-label">창고</label><select name="warehouseId" class="form-select" required><option th:each="warehouse : ${warehouses}" th:value="${warehouse.warehouseId}" th:text="${warehouse.name}">창고</option></select></div>
                                 <div class="col-12"><label class="form-label">취급 상품</label><select name="productId" class="form-select" required><option value="">상품을 선택하세요</option><option th:each="allocation : ${warehouseAllocations}" th:value="${allocation.product.productId}" th:data-warehouse-id="${allocation.warehouse.warehouseId}" th:data-animal-type="${allocation.product.animalType}" th:text="|${allocation.product.name} · ${allocation.product.animalType}|">상품</option></select><small class="text-muted" data-auto-bin-product-hint>선택한 창고에서 취급 중인 상품만 표시됩니다.</small></div>
                                 <div class="col-12"><label class="form-label">보관 예정 수량</label><div class="input-group"><input type="number" name="plannedQuantity" min="1" value="500" class="form-control" required><span class="input-group-text">포대</span></div></div>
-                                <div class="col-12"><div class="alert alert-light border mb-0 small" data-auto-bin-preview><i class="bi bi-magic me-1 text-success"></i>수량에 맞는 구역 크기와 겹치지 않는 도면 위치를 자동 계산합니다.</div></div>
+                                <div class="col-12"><div class="alert alert-light border mb-0 small" data-auto-bin-preview><i class="bi bi-magic me-1 text-success"></i>수량에 맞는 구역 크기를 계산하고, 구역 간격과 시설을 피해 빈 위치에 자동 배정합니다.</div></div>
+                                <input type="hidden" name="posX">
+                                <input type="hidden" name="posY">
+                                <input type="hidden" name="posWidth">
+                                <input type="hidden" name="posHeight">
+                                <div class="col-12">
+                                    <button type="button" class="btn btn-outline-success w-100" data-bs-toggle="modal" data-bs-target="#wmsBinPlacementModal"><i class="bi bi-grid-3x3-gap me-1"></i>2D 도면에서 위치 선택</button>
+                                    <small class="d-block text-muted mt-2" data-auto-placement-summary>위치를 선택하지 않으면 빈 공간에 자동 배치됩니다.</small>
+                                </div>
                                 <div class="col-12"><label class="form-label">메모</label><textarea name="memo" class="form-control" rows="2"></textarea></div>
                                 <div class="col-12 d-grid"><button class="btn btn-success"><i class="bi bi-magic me-1"></i>자동 구역 생성</button></div>
                             </form>
@@ -288,7 +339,7 @@
                                 <td th:text="|(${bin.posX}, ${bin.posY}) ${bin.posWidth}×${bin.posHeight}|">(1,1)</td>
                                 <td class="text-end" th:text="|${#numbers.formatInteger(binQuantities.getOrDefault(bin.binId, 0), 1, 'COMMA')} / ${bin.purpose.physicalSpace ? #numbers.formatInteger(bin.effectiveMaxCapacity, 1, 'COMMA') : '무제한'}|">0</td>
                                 <td class="text-center"><span class="badge" th:classappend="${bin.active} ? 'text-bg-success' : 'text-bg-secondary'" th:text="${bin.active} ? '사용' : '중지'">사용</span></td>
-                                <td class="text-center wms-bin-actions"><form th:if="${bin.purpose.selectableByUser}" th:action="@{/admin/wms/bins/{binId}/delete(binId=${bin.binId})}" method="post" class="d-inline" onsubmit="return confirm('이 구역을 삭제할까요? 재고가 있으면 삭제할 수 없습니다.')"><input type="hidden" name="warehouseId" th:value="${bin.warehouse.warehouseId}"><button class="btn btn-sm btn-outline-danger" type="submit">삭제</button></form><span th:unless="${bin.purpose.selectableByUser}" class="text-muted small">-</span></td>
+                                <td class="text-center wms-bin-actions"><form th:if="${bin.purpose.selectableByUser}" th:action="@{/admin/wms/bins/{binId}/delete(binId=${bin.binId})}" method="post" class="d-inline" onsubmit="return confirm('이 구역을 삭제할까요? 삭제하면 도면과 구역 목록에서 함께 사라집니다. 재고가 있으면 삭제할 수 없습니다.')"><input type="hidden" name="warehouseId" th:value="${bin.warehouse.warehouseId}"><input type="hidden" name="returnView" value="bins"><button class="btn btn-sm btn-outline-danger" type="submit">삭제</button></form><span th:unless="${bin.purpose.selectableByUser}" class="text-muted small">-</span></td>
                             </tr>
                         </tbody></table></div>
                         <nav th:if="${selectedBinWarehouseId == null and binPageCount > 1}"
@@ -309,6 +360,72 @@
                                th:classappend="${binPage == binPageCount - 1} ? 'disabled'"
                                aria-label="다음 페이지">&raquo;</a>
                         </nav>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="wmsBinPlacementModal" tabindex="-1" aria-labelledby="wmsBinPlacementModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <div><h2 class="modal-title fs-5" id="wmsBinPlacementModalLabel">새 구역 위치 선택</h2><small class="text-muted">빈 칸을 누르면 계산된 크기로 배치됩니다. 기존 구역과 시설에 겹치지 않는 모든 공간을 사용할 수 있습니다.</small></div>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-light border py-2 mb-3" data-placement-status><i class="bi bi-cursor me-1 text-success"></i>빈 공간에서 새 구역의 왼쪽 위 시작점을 선택해 주세요.</div>
+                            <div th:each="summary : ${binPlacementMaps}"
+                                 data-auto-placement-map
+                                 th:data-warehouse-id="${summary.warehouse.warehouseId}"
+                                 hidden>
+                                <div class="d-flex justify-content-between align-items-center mb-2"><strong th:text="${summary.warehouse.name} + ' 2D 도면'">창고 2D 도면</strong><span class="badge text-bg-dark" th:text="${summary.warehouse.code}">W01</span></div>
+                                <div class="wms-placement-scroll">
+                                    <div class="wms-placement-floor" aria-label="새 구역 배치 위치 선택 도면">
+                                        <!--
+                                          셀은 반드시 좌표를 명시 배치해야 합니다.
+                                          구역·시설 장애물이 grid-area로 명시 배치되므로,
+                                          셀을 자동 배치로 두면 그리드 자동 배치 알고리즘이
+                                          장애물이 점유한 트랙을 건너뛰어 셀이 뒤로 밀립니다.
+                                          그러면 data-x/data-y가 실제 표시 위치와 어긋나고
+                                          남은 셀이 15행 이하 암시적 행으로 흘러넘칩니다.
+                                        -->
+                                        <th:block th:each="row : ${#numbers.sequence(1, 14)}">
+                                            <button th:each="column : ${#numbers.sequence(1, 26)}"
+                                                    type="button"
+                                                    class="wms-placement-cell"
+                                                    th:style="|grid-row:${row};grid-column:${column}|"
+                                                    th:data-x="${column}"
+                                                    th:data-y="${row}"
+                                                    th:aria-label="|도면 위치 X ${column}, Y ${row}|">
+                                            </button>
+                                        </th:block>
+                                        <div th:each="facility : ${summary.facilities}"
+                                             class="wms-placement-obstacle is-facility"
+                                             th:style="'grid-area:' + ${facility.gridArea}"
+                                             th:data-x="${facility.posX}"
+                                             th:data-y="${facility.posY}"
+                                             th:data-width="${facility.posWidth}"
+                                             th:data-height="${facility.posHeight}">
+                                            <span th:text="${facility.label}">시설</span>
+                                        </div>
+                                        <div th:each="item : ${summary.binItems}"
+                                             class="wms-placement-obstacle is-bin"
+                                             th:style="'grid-area:' + ${item.gridArea}"
+                                             th:data-x="${item.bin.posX}"
+                                             th:data-y="${item.bin.posY}"
+                                             th:data-width="${item.bin.posWidth}"
+                                             th:data-height="${item.bin.posHeight}">
+                                            <strong th:text="${item.productLabel}">기존 구역</strong>
+                                            <small th:text="${item.bin.binCode}">BIN-01</small>
+                                        </div>
+                                        <div class="wms-placement-candidate" data-placement-candidate hidden><strong>새 구역</strong><small data-placement-candidate-size>1×1</small></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-auto-placement-clear>자동 위치 사용</button>
+                            <button type="button" class="btn btn-success" data-bs-dismiss="modal">선택 완료</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -351,9 +468,12 @@
                                     <form th:id="|demand-row-${warehousePlan.warehouse.warehouseId}-${rowStat.index}|" method="post" th:action="@{/admin/wms/inbound/adjust}" class="d-inline-flex gap-1 align-items-center">
                                         <input type="hidden" name="warehouseId" th:value="${warehousePlan.warehouse.warehouseId}">
                                         <input type="hidden" name="animalType" th:value="${row.animalType}">
+                                        <input type="hidden" name="productId" th:value="${demandProductIds.get(warehousePlan.warehouse.warehouseId + '|' + row.animalType)}">
                                         <button type="submit" class="btn btn-sm btn-primary" onclick="return confirm('입력한 수량으로 자동 입고할까요?')">입고</button>
-                                        <a class="btn btn-sm btn-outline-success" data-demand-bin-link
-                                           th:href="@{/admin/wms(view='bins',binWarehouseId=${warehousePlan.warehouse.warehouseId},autoProductId=${demandProductIds.get(warehousePlan.warehouse.warehouseId + '|' + row.animalType)},autoQuantity=${row.recommendedInboundQuantity()})}">구역 확보</a>
+                                        <button type="submit" class="btn btn-sm btn-outline-success"
+                                                th:formaction="@{/admin/wms/inbound/capacity}"
+                                                th:disabled="${demandProductIds.get(warehousePlan.warehouse.warehouseId + '|' + row.animalType) == null}"
+                                                onclick="return confirm('현재 존재하는 보관 구역의 용량을 입력 수량만큼 자동 확장할까요?');">구역 확보</button>
                                     </form>
                                 </td>
                             </tr>

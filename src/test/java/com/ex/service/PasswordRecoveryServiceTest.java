@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,6 +40,7 @@ class PasswordRecoveryServiceTest {
         memberRepository = mock(MemberRepository.class);
         passwordEncoder = mock(PasswordEncoder.class);
         passwordResetMailSender = mock(PasswordResetMailSender.class);
+        when(passwordResetMailSender.isConfigured()).thenReturn(true);
         properties = new PasswordResetProperties();
         properties.setExposeCode(true);
         properties.setCodeTtl(Duration.ofMinutes(5));
@@ -93,6 +95,18 @@ class PasswordRecoveryServiceTest {
                 eq("farm@example.com"),
                 argThat(code -> code != null && code.matches("\\d{6}")),
                 any());
+    }
+
+    @Test
+    void localModeReturnsCodeWhenNoDeliveryChannelIsConfigured() {
+        when(passwordResetMailSender.isConfigured()).thenReturn(false);
+
+        PasswordResetCodeResponse issued = service.issueCode(
+                new PasswordResetCodeRequest(
+                        "happyfarm", "farm@example.com", "010-1234-5678"));
+
+        assertTrue(issued.debugCode().matches("\\d{6}"));
+        verify(passwordResetMailSender, never()).sendCode(anyString(), anyString(), any());
     }
 
     @Test

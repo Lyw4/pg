@@ -40,12 +40,18 @@ public record ProductResponse(
         int saleStock,
         long saleDaysRemaining,
         LocalDate saleExpirationDate,
-        String saleLabel
+        String saleLabel,
+        // 관리자 화면이 판매 중지 상품을 구분해 표시하고 다시 판매로 되돌릴 수
+        // 있도록 노출합니다. 고객 카탈로그는 판매 중인 상품만 담기므로 항상 true입니다.
+        boolean active
 ) {
     public static ProductResponse from(Product product) {
         LocalDate today = LocalDate.now();
         List<ProductLot> availableLots = product.getLots().stream()
                 .filter(lot -> lot.getLotQuantity() > 0)
+                // 유통기한이 비어 있으면 판매 가능 기간을 계산할 수 없어
+                // 제외합니다. 빼면 아래 날짜 계산에서 NPE가 납니다.
+                .filter(lot -> lot.getExpirationDate() != null)
                 .filter(lot -> ChronoUnit.DAYS.between(
                         today, lot.getExpirationDate())
                         >= ExpirySaleService.MINIMUM_SELLABLE_DAYS)
@@ -91,14 +97,17 @@ public record ProductResponse(
                         ? product.getDisplayShape()
                         : "FF",
                 product.getImageUrl(),
-                product.getManufacturer().getCompanyName(),
+                product.getManufacturer() == null
+                        ? null
+                        : product.getManufacturer().getCompanyName(),
                 availableLots.stream().map(LotResponse::from).toList(),
                 false,
                 0,
                 0,
                 0,
                 null,
-                null
+                null,
+                product.isActive()
         );
     }
 
@@ -137,7 +146,8 @@ public record ProductResponse(
                 offer.saleStock(),
                 offer.daysRemaining(),
                 offer.expirationDate(),
-                offer.label());
+                offer.label(),
+                active);
     }
 
     public ProductResponse withSellableStock(int sellableStock) {
@@ -147,7 +157,7 @@ public record ProductResponse(
                 fiber, calcium, lot, manufacturedDate, expiry,
                 Math.max(0, sellableStock), tone, badge, shape, imageUrl,
                 manufacturer, lots, expirySale, discountRate, saleStock,
-                saleDaysRemaining, saleExpirationDate, saleLabel);
+                saleDaysRemaining, saleExpirationDate, saleLabel, active);
     }
 
     public record LotResponse(
@@ -175,8 +185,10 @@ public record ProductResponse(
 
     public static String animalTypeCode(Product product) {
         String category = product.getAnimalType();
-        String searchable = (product.getName() + " "
-                + product.getDescription()).toLowerCase();
+        // null을 그대로 이어붙이면 "null" 문자열이 검색 대상에 섞여 품종을
+        // 잘못 판정할 수 있습니다.
+        String searchable = (safe(product.getName()) + " "
+                + safe(product.getDescription())).toLowerCase();
         if ("소".equals(category)) {
             return searchable.contains("젖소")
                     || searchable.contains("낙농")
@@ -220,5 +232,9 @@ public record ProductResponse(
 
     private static boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value;
     }
 }

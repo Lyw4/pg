@@ -10,11 +10,13 @@
     const editorEyebrow = document.querySelector("#editor-eyebrow");
     const saveButton = document.querySelector("#save-product");
     const toast = document.querySelector("#toast");
+    const imageFile = document.querySelector("#productImage");
+    let previewObjectUrl = null;
 
     const fieldIds = [
         "manufacturerName", "productName", "animalType", "feedStage", "description",
         "weightKg", "price", "originalPrice", "badge", "proteinPercent", "fatPercent",
-        "fiberPercent", "calciumPercent", "imageUrl", "displayTone", "displayShape",
+        "fiberPercent", "calciumPercent", "imageUrl",
         "lotNumber", "manufacturedDate", "expirationDate", "lotQuantity"
     ];
 
@@ -82,7 +84,9 @@
         table.innerHTML = "<tr><td colspan=\"7\">상품을 불러오는 중입니다.</td></tr>";
 
         try {
-            const response = await fetch("/api/products");
+            // 고객 카탈로그(/api/products)는 판매 중인 상품만 돌려주므로
+            // 판매 중지한 상품이 목록에서 사라져 되돌릴 수 없습니다.
+            const response = await fetch("/api/admin/products");
             if (!response.ok) {
                 throw new Error(await readError(response));
             }
@@ -99,6 +103,9 @@
         document.querySelector("#metric-total").textContent = number(state.products.length);
         document.querySelector("#metric-soldout").textContent = number(state.products.filter((product) => product.stock < 1).length);
         document.querySelector("#metric-low").textContent = number(state.products.filter((product) => product.stock > 0 && product.stock <= 10).length);
+        // lots에는 판매 가능 기간이 남은 LOT만 담기므로, 이미 만료된 LOT은
+        // 이 목록에 없습니다. 만료 LOT까지 세려면 서버가 별도로 내려줘야 합니다.
+        // 현재 값은 "판매 가능하지만 30일 이내 만료" 건수입니다.
         document.querySelector("#metric-expiry").textContent = number(state.products.flatMap((product) => product.lots || []).filter((lot) => lot.daysRemaining <= 30).length);
 
         const query = state.query.toLowerCase();
@@ -124,8 +131,13 @@
         }
 
         table.innerHTML = products.map((product) => {
-            const stockLabel = product.stock < 1 ? "품절" : product.stock <= 10 ? "재고 부족" : "판매 중";
-            const stockClass = product.stock < 1 ? "sold-out" : product.stock <= 10 ? "low-stock" : "available";
+            const stopped = product.active === false;
+            const stockLabel = stopped
+                ? "판매 중지"
+                : product.stock < 1 ? "품절" : product.stock <= 10 ? "재고 부족" : "판매 중";
+            const stockClass = stopped || product.stock < 1
+                ? "sold-out"
+                : product.stock <= 10 ? "low-stock" : "available";
             return `
             <tr>
                 <td>
@@ -139,8 +151,10 @@
                 <td><span class="admin-status ${stockClass}">${stockLabel}</span><small>${number(product.stock)}포</small></td>
                 <td>${product.badge || product.originalPrice ? `<span class="admin-event">${escapeHtml(product.badge || "할인")}</span>` : "-"}</td>
                 <td>
-                    <button type="button" data-action="edit" data-id="${product.id}">수정</button>
-                    <button type="button" class="delete" data-action="delete" data-id="${product.id}">판매 중지</button>
+                    <button type="button" data-action="edit" data-id="${product.id}">${stopped ? "수정 후 재개" : "수정"}</button>
+                    ${stopped
+                        ? ""
+                        : `<button type="button" class="delete" data-action="delete" data-id="${product.id}">판매 중지</button>`}
                 </td>
             </tr>
         `;}).join("");
@@ -162,8 +176,6 @@
             calciumPercent: Number(fields.calciumPercent.value),
             imageUrl: fields.imageUrl.value.trim() || null,
             badge: fields.badge.value.trim() || null,
-            displayTone: fields.displayTone.value.trim(),
-            displayShape: fields.displayShape.value.trim(),
             lotNumber: fields.lotNumber.value.trim(),
             manufacturedDate: fields.manufacturedDate.value,
             expirationDate: fields.expirationDate.value,
@@ -181,8 +193,6 @@
         fields.fatPercent.value = "3";
         fields.fiberPercent.value = "8";
         fields.calciumPercent.value = "1";
-        fields.displayTone.value = "amber";
-        fields.displayShape.value = "pellet";
         fields.lotQuantity.value = "0";
 
         const today = new Date();
@@ -207,29 +217,41 @@
         }
 
         state.editingId = productId;
+        imageFile.value = "";
         fields.manufacturerName.value = product.manufacturer ?? "";
         fields.productName.value = product.name ?? "";
         fields.animalType.value = product.animalType ?? "CATTLE";
         fields.feedStage.value = product.stage ?? "";
         fields.description.value = product.description ?? "";
         fields.weightKg.value = product.weight ?? "";
-        fields.price.value = product.price ?? "";
-        fields.originalPrice.value = product.originalPrice ?? "";
+        // 유통기한 임박 특가 상품은 price에 할인가, originalPrice에 정상가가
+        // 담겨 옵니다. 그대로 되돌려 보내면 할인가가 정상가로 저장됩니다.
+        if (product.expirySale) {
+            fields.price.value = product.originalPrice ?? product.price ?? "";
+            fields.originalPrice.value = "";
+        } else {
+            fields.price.value = product.price ?? "";
+            fields.originalPrice.value = product.originalPrice ?? "";
+        }
         fields.proteinPercent.value = product.protein ?? "";
         fields.fatPercent.value = product.fat ?? "";
         fields.fiberPercent.value = product.fiber ?? "";
         fields.calciumPercent.value = product.calcium ?? "";
         fields.imageUrl.value = product.imageUrl ?? "";
         fields.badge.value = product.badge ?? "";
-        fields.displayTone.value = product.tone ?? "amber";
-        fields.displayShape.value = product.shape ?? "pellet";
         fields.lotNumber.value = product.lot ?? `LOT-${product.id}`;
         fields.manufacturedDate.value = product.manufacturedDate ?? isoDate(new Date());
 
         const defaultExpiry = new Date();
         defaultExpiry.setFullYear(defaultExpiry.getFullYear() + 1);
         fields.expirationDate.value = product.expiry ?? isoDate(defaultExpiry);
-        fields.lotQuantity.value = product.stock ?? 0;
+        // 서버는 이 값을 위 LOT 번호에 해당하는 LOT 하나의 수량으로 씁니다.
+        // 상품 전체 판매가능 재고(product.stock)를 넣으면 예약 차감된 값이
+        // LOT 수량으로 덮어써지면서 재고가 틀어집니다.
+        const editingLot = (product.lots || []).find(
+            (lot) => lot.lotNumber === product.lot
+        );
+        fields.lotQuantity.value = editingLot ? editingLot.quantity : 0;
         updateImagePreview();
 
         editorEyebrow.textContent = `PRODUCT #${product.id}`;
@@ -251,6 +273,19 @@
         saveButton.textContent = editing ? "저장 중..." : "등록 중...";
 
         try {
+            if (imageFile.files.length > 0) {
+                const formData = new FormData();
+                formData.append("image", imageFile.files[0]);
+                const uploadResponse = await fetch("/api/admin/products/image", {
+                    method: "POST",
+                    body: formData
+                });
+                if (!uploadResponse.ok) {
+                    throw new Error(await readError(uploadResponse));
+                }
+                const uploaded = await uploadResponse.json();
+                fields.imageUrl.value = uploaded.imageUrl;
+            }
             const response = await fetch(url, {
                 method: editing ? "PUT" : "POST",
                 headers: {
@@ -300,7 +335,16 @@
 
     function updateImagePreview() {
         const preview = document.querySelector("#admin-preview-image");
-        preview.src = fields.imageUrl.value.trim() || "/images/feed-bag-warehouse.png";
+        if (previewObjectUrl) {
+            URL.revokeObjectURL(previewObjectUrl);
+            previewObjectUrl = null;
+        }
+        if (imageFile.files.length > 0) {
+            previewObjectUrl = URL.createObjectURL(imageFile.files[0]);
+            preview.src = previewObjectUrl;
+        } else {
+            preview.src = fields.imageUrl.value.trim() || "/images/feed-bag-warehouse.png";
+        }
         preview.onerror = () => {
             preview.onerror = null;
             preview.src = "/images/feed-bag-warehouse.png";
@@ -349,7 +393,7 @@
         document.querySelector("#admin-event-filter").value = "ALL";
         renderProducts();
     });
-    fields.imageUrl.addEventListener("input", updateImagePreview);
+    imageFile.addEventListener("change", updateImagePreview);
 
     resetForm();
     loadProducts();

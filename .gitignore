@@ -3,6 +3,7 @@ HELP.md
 build/
 .gradle-user-home*/
 data/
+uploads/
 .metadata/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/

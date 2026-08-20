@@ -835,6 +835,13 @@
                         <p>부족 제품을 선택하면 기존 LOT와 입고 가능 구역을 자동 배정해 권장 보유량까지 입고합니다.</p>
                     </div>
                     <div class="low-stock-panel-actions">
+                        <form method="post"
+                              th:action="@{/inventory/warehouses/stock/rebalance}"
+                              onsubmit="return confirm('거래 중인 모든 협력 농장의 한 달 예상 납품량을 다시 계산하고, 5개 창고 재고를 안전재고 20%가 포함된 적정 수량으로 맞출까요?')">
+                            <button type="submit" class="secondary">
+                                전체 농장 수요 재계산·재고 맞춤
+                            </button>
+                        </form>
                         <span class="summary-count danger-count">
                             <strong th:text="${warehouseLowStockCount}">0</strong>개
                         </span>

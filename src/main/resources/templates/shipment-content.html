@@ -33,6 +33,13 @@
                     <small th:text="${#temporals.format(shipment.createdAt, 'yyyy-MM-dd HH:mm')}"></small></td>
                 <td>
                     <strong th:text="|#${shipment.order.orderId}|">#1</strong>
+                    <small class="shipment-customer-name"
+                        th:text="|고객: ${shipment.order.customerName == null
+                            or #strings.isEmpty(shipment.order.customerName)
+                            ? '이름 미등록'
+                            : shipment.order.customerName}|">
+                        고객: 이름 미등록
+                    </small>
                     <small
                         class="shipment-warehouse"
                         th:if="${shipment.order.fulfillmentWarehouse != null}"

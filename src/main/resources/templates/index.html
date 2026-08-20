@@ -107,7 +107,7 @@
             <button type="submit">관리자 로그아웃</button>
         </form>
 
-        <span>고객센터 1588-0427</span>
+        <span sec:authorize="!hasAnyRole('ADMIN','STAFF')">고객센터 1588-0427</span>
     </div>
 </div>
 
@@ -167,13 +167,6 @@
                 <span>♙</span>
                 <small id="myfarm-label">로그인</small>
             </button>
-
-            <a class="header-operator-link"
-               sec:authorize="hasAnyRole('ADMIN','STAFF')"
-               th:href="@{/admin/dashboard}">
-                <span>▦</span>
-                <small>대시보드</small>
-            </a>
 
             <button
                 id="open-cart"
@@ -632,7 +625,8 @@
             </p>
         </div>
 
-        <section id="consulting" class="storefront-footer-consulting">
+        <section id="consulting" class="storefront-footer-consulting"
+                 sec:authorize="!hasAnyRole('ADMIN','STAFF')">
             <p class="eyebrow">
                 <span></span>
                 FARM CONSULTING

@@ -59,17 +59,6 @@ public class PaymentController {
     }
 
     private Long memberId(HttpSession session) {
-        Object value = session.getAttribute("memberId");
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
-        if (value instanceof String text && !text.isBlank()) {
-            try {
-                return Long.valueOf(text.trim());
-            } catch (NumberFormatException ignored) {
-                // 아래의 공통 로그인 안내 메시지를 사용합니다.
-            }
-        }
-        throw new IllegalArgumentException("로그인이 필요합니다.");
+        return SessionMemberSupport.requireMemberId(session);
     }
 }

@@ -72,9 +72,29 @@ public class PasswordRecoveryService {
         RANDOM.nextBytes(salt);
         Instant expiresAt = now.plus(properties.getCodeTtl());
         Instant resendAvailableAt = now.plus(properties.getResendCooldown());
-        if (!properties.isExposeCode()) {
-            passwordResetMailSender.sendCode(member.getEmail(), code, expiresAt);
-            passwordResetSmsSender.sendCode(member.getPhone(), code);
+        /*
+         * 로컬 발표 환경에서는 SMTP/SENS를 설정하지 않는 경우가 많습니다.
+         * 이때 메일 발송을 무조건 시도하면 인증번호가 생성되기도 전에
+         * "SMTP 설정이 완료되지 않았습니다" 예외가 발생해 비밀번호 찾기를
+         * 사용할 수 없었습니다. 전달 채널이 하나라도 설정되어 있으면 해당
+         * 채널로만 발송하고, 아무 채널도 없을 때만 테스트 코드 반환 모드로
+         * 전환합니다. 운영 환경에서는 반드시 SMTP 또는 SENS를 설정하세요.
+         */
+        boolean mailConfigured = passwordResetMailSender.isConfigured();
+        boolean smsConfigured = passwordResetSmsSender.isEnabled();
+        boolean exposeCode = properties.isExposeCode();
+        if (!exposeCode) {
+            if (mailConfigured) {
+                passwordResetMailSender.sendCode(member.getEmail(), code, expiresAt);
+            }
+            if (smsConfigured) {
+                passwordResetSmsSender.sendCode(member.getPhone(), code);
+            }
+            if (!mailConfigured && !smsConfigured) {
+                exposeCode = true;
+                log.warn("비밀번호 재설정 전달 채널이 없어 로컬 테스트 인증번호를 응답합니다. "
+                        + "운영 환경에서는 SMTP 또는 SENS를 설정하세요.");
+            }
         }
         challenges.put(memberId, new Challenge(
                 salt, hash(salt, code), expiresAt, resendAvailableAt, 0));
@@ -86,7 +106,7 @@ public class PasswordRecoveryService {
                 "인증번호를 발급했습니다. 5분 안에 입력해주세요.",
                 Math.max(0, properties.getCodeTtl().toSeconds()),
                 Math.max(0, properties.getResendCooldown().toSeconds()),
-                properties.isExposeCode() ? code : null);
+                exposeCode ? code : null);
     }
 
     @Transactional

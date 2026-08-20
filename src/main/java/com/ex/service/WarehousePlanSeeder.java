@@ -22,6 +22,18 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class WarehousePlanSeeder {
 
+    /** 한 달 예상 납품량에 더해 확보하는 운영 안전 여유율이다. */
+    public static final int TARGET_STOCK_PERCENT = 120;
+
+    public record DemandRecommendationResult(
+            int activeFarmCount,
+            int monthlyFarmDemand,
+            int monthlySupplementDemand,
+            int monthlyPlannedQuantity,
+            int targetStockQuantity,
+            int allocationCount) {
+    }
+
     private record WarehouseSeed(
             String code,
             String name,
@@ -221,6 +233,95 @@ public class WarehousePlanSeeder {
                                             30));
                     allocation.changePlan(monthlyQuantity, targetQuantity);
                 });
+    }
+
+    /**
+     * 거래 중인 모든 협력 농장의 월 예상 납품량으로 5개 창고의 상품별 계획을
+     * 다시 계산한다. 축종별 수요는 해당 축종의 활성 상품에 고르게 나누고,
+     * 권장 보유량은 한 달 수요에 20%의 안전 여유를 더한다.
+     */
+    @Transactional
+    public DemandRecommendationResult recalculateAllFromFarmDemand() {
+        List<WarehouseAllocation> allocations = allocationRepository
+                .findAllByOrderByWarehouseDisplayOrderAscProductAnimalTypeAscProductNameAsc()
+                .stream()
+                .filter(allocation -> allocation.getWarehouse().isActive())
+                .filter(allocation -> allocation.getProduct().isActive())
+                .toList();
+
+        var activeFarms = farmCustomerRepository
+                .findAllByOrderByAssignedWarehouseDisplayOrderAscFarmNameAsc()
+                .stream()
+                .filter(farm -> farm.getStatus() == CustomerStatus.ACTIVE)
+                // 자동화 검증용 계정은 실제 협력 농장의 납품 수요가 아니다.
+                .filter(farm -> farm.getMember() == null
+                        || farm.getMember().getEmail() == null
+                        || !farm.getMember().getEmail().toLowerCase()
+                                .endsWith("@feedflow.test"))
+                .toList();
+
+        Map<String, Integer> demandByWarehouseAnimal = new LinkedHashMap<>();
+        Map<Long, Integer> totalDemandByWarehouse = new LinkedHashMap<>();
+        activeFarms.forEach(farm -> {
+            Long warehouseId = farm.getAssignedWarehouse().getWarehouseId();
+            demandByWarehouseAnimal.merge(
+                    demandKey(warehouseId, farm.getAnimalType()),
+                    farm.getMonthlyFeedQuantity(),
+                    Integer::sum);
+            totalDemandByWarehouse.merge(
+                    warehouseId,
+                    farm.getMonthlyFeedQuantity(),
+                    Integer::sum);
+        });
+
+        Map<String, List<WarehouseAllocation>> grouped = allocations.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        allocation -> demandKey(
+                                allocation.getWarehouse().getWarehouseId(),
+                                allocation.getProduct().getAnimalType()),
+                        LinkedHashMap::new,
+                        java.util.stream.Collectors.toList()));
+
+        grouped.values().forEach(rows -> {
+            rows.sort(java.util.Comparator.comparing(
+                    allocation -> allocation.getProduct().getProductId()));
+            WarehouseAllocation first = rows.getFirst();
+            Long warehouseId = first.getWarehouse().getWarehouseId();
+            String animalType = normalizeAnimalType(
+                    first.getProduct().getAnimalType());
+            int categoryDemand = "영양제".equals(animalType)
+                    ? ceilPercent(
+                            totalDemandByWarehouse.getOrDefault(warehouseId, 0),
+                            DemandPlanService.SUPPLEMENT_DEMAND_PERCENT)
+                    : demandByWarehouseAnimal.getOrDefault(
+                            demandKey(warehouseId, animalType), 0);
+            int base = categoryDemand / rows.size();
+            int remainder = categoryDemand % rows.size();
+            for (int index = 0; index < rows.size(); index++) {
+                int monthlyQuantity = base + (index < remainder ? 1 : 0);
+                int targetQuantity = ceilPercent(
+                        monthlyQuantity, TARGET_STOCK_PERCENT);
+                rows.get(index).changePlan(monthlyQuantity, targetQuantity);
+            }
+        });
+
+        int farmDemand = activeFarms.stream()
+                .mapToInt(com.ex.entity.FarmCustomer::getMonthlyFeedQuantity)
+                .sum();
+        int supplementDemand = totalDemandByWarehouse.values().stream()
+                .mapToInt(quantity -> ceilPercent(
+                        quantity,
+                        DemandPlanService.SUPPLEMENT_DEMAND_PERCENT))
+                .sum();
+        int planned = allocations.stream()
+                .mapToInt(WarehouseAllocation::getMonthlyPlannedQuantity)
+                .sum();
+        int target = allocations.stream()
+                .mapToInt(WarehouseAllocation::getTargetStockQuantity)
+                .sum();
+        return new DemandRecommendationResult(
+                activeFarms.size(), farmDemand, supplementDemand,
+                planned, target, allocations.size());
     }
 
     private void ensureProductAllocations(

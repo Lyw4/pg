@@ -78,7 +78,10 @@ public class ShipmentService {
 
     @Transactional
     public void create(Long orderId, String worker, String note) {
-        if (shipmentRepository.findByOrderOrderId(orderId).isPresent()) {
+        Shipment existing = shipmentRepository.findByOrderOrderId(orderId)
+                .orElse(null);
+        if (existing != null
+                && existing.getStatus() != ShipmentStatus.CANCELLED) {
             throw new IllegalStateException("이미 출고 지시가 생성된 주문입니다.");
         }
         CustomerOrder order = orderRepository.findById(orderId)
@@ -95,8 +98,19 @@ public class ShipmentService {
             throw new IllegalStateException("출고할 주문 상품이 없습니다.");
         }
         requireText(worker, "출고 담당자를 입력해 주세요.");
-        Shipment shipment = shipmentRepository.save(
-                new Shipment(order, worker.trim(), note));
+        Shipment shipment;
+        if (existing == null) {
+            shipment = shipmentRepository.save(
+                    new Shipment(order, worker.trim(), note));
+        } else {
+            // 취소된 지시를 재사용합니다. 이전 품목은 그때의 LOT 배정 기준이라
+            // 지우고 현재 주문의 배정으로 다시 만듭니다.
+            shipmentItemRepository.deleteAll(
+                    shipmentItemRepository.findByShipmentShipmentId(
+                            existing.getShipmentId()));
+            existing.reopen(worker.trim(), note);
+            shipment = existing;
+        }
         List<ShipmentItem> shipmentItems = orderItems.stream()
                 .flatMap(item -> item.getLotAllocations()
                         .stream()
@@ -149,6 +163,11 @@ public class ShipmentService {
                             < item.getPickedQuantity()) {
                 throw new IllegalStateException(
                         "출고할 LOT 재고가 부족합니다: " + item.getLot().getLotNo());
+            }
+            if (item.getLot().getExpirationDate() == null) {
+                throw new IllegalStateException(
+                        "유통기한이 등록되지 않은 LOT는 출고할 수 없습니다: "
+                                + item.getLot().getLotNo());
             }
             if (item.getLot().getExpirationDate().isBefore(
                     LocalDate.now().plusDays(

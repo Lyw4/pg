@@ -155,9 +155,15 @@
         ].join("");
 
         const payment = detail.payment || {};
+        const paymentMethod = payment.method || order.paymentMethod;
+        const paymentStatus = payment.status || order.paymentStatus;
+        const paymentStatusLabel = paymentStatus === "WAITING_FOR_DEPOSIT"
+            && paymentMethod !== "BANK_TRANSFER"
+            ? "결제 확인 필요"
+            : paymentStatusLabels[paymentStatus] || paymentStatus;
         const paymentRows = [
-            infoRow("결제 수단", paymentLabels[payment.method || order.paymentMethod] || payment.method || order.paymentMethod),
-            infoRow("결제 상태", paymentStatusLabels[payment.status || order.paymentStatus] || payment.status || order.paymentStatus),
+            infoRow("결제 수단", paymentLabels[paymentMethod] || paymentMethod),
+            infoRow("결제 상태", paymentStatusLabel),
             infoRow("결제 승인일", payment.approvedAt ? formatDate(payment.approvedAt) : "미승인")
         ];
         if (payment.transactionId) paymentRows.push(infoRow("거래번호", payment.transactionId));
@@ -171,8 +177,20 @@
         const mockupReceipt = receiptUrl
             && receiptUrl.includes("mockup-pg-web.kakao.com");
         const localReceiptUrl = `/payments/receipt/${encodeURIComponent(order.orderNumber)}`;
-        receipt.innerHTML = `<a href="${localReceiptUrl}" target="_blank" rel="noopener">결제 영수증 보기 ↗</a>`
-            + `<small>${mockupReceipt ? "카카오페이 테스트 전표 주소는 오류가 발생할 수 있어 내부 확인용 영수증만 제공합니다." : "FeedFlow 내부 확인용 영수증입니다."}</small>`;
+        const paymentDone = paymentStatus === "DONE";
+        // 과거 버그로 카드·카카오 주문이 입금 대기로 저장된 경우에도
+        // PortOne의 실제 승인 상태를 다시 조회할 수 있어야 합니다.
+        const invalidDepositState = paymentMethod !== "BANK_TRANSFER"
+            && paymentStatus === "WAITING_FOR_DEPOSIT";
+        const canReconcile = Boolean(payment.transactionId)
+            && (order.status === "PAYMENT_PENDING" || invalidDepositState);
+        receipt.innerHTML = (canReconcile
+            ? `<button type="button" data-reconcile-detail-order="${escapeHtml(order.orderNumber)}">${paymentMethod === "BANK_TRANSFER" ? "입금 여부 확인" : "결제 승인 다시 확인"}</button>`
+            : "")
+            + `<a href="${localReceiptUrl}" target="_blank" rel="noopener">${paymentDone ? "결제 영수증" : "주문 내역서"} 보기 ↗</a>`
+            + `<small>${paymentDone
+                ? (mockupReceipt ? "카카오페이 테스트 전표 주소는 오류가 발생할 수 있어 내부 확인용 영수증만 제공합니다." : "FeedFlow 내부 확인용 영수증입니다.")
+                : "결제 승인 전에는 영수증이 아닌 주문 내역서가 표시됩니다."}</small>`;
 
         const recipient = detail.recipient || {};
         const address = [recipient.postalCode ? `[${recipient.postalCode}]` : "", recipient.roadAddress || recipient.jibunAddress, recipient.detailAddress]
@@ -213,6 +231,21 @@
 
     const orderNumber = document.body.dataset.orderNumber;
     $("#logout-button")?.addEventListener("click", logout);
+    document.addEventListener("click", async (event) => {
+        const button = event.target.closest("[data-reconcile-detail-order]");
+        if (!button) return;
+        button.disabled = true;
+        try {
+            await api(
+                `/api/payments/portone/reconcile/${encodeURIComponent(button.dataset.reconcileDetailOrder)}`,
+                { method: "POST" }
+            );
+            window.location.reload();
+        } catch (error) {
+            button.disabled = false;
+            showToast(error.message, true);
+        }
+    });
     if (!orderNumber || orderNumber.includes("[[")) {
         $("#order-detail-loading").hidden = true;
         $("#order-detail-error").hidden = false;

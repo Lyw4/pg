@@ -257,6 +257,10 @@ public class DistributionService {
 		if (!lot.getProduct().isActive()) {
 			throw new IllegalStateException("운영 중인 상품만 주문할 수 있습니다.");
 		}
+		if (lot.getExpirationDate() == null) {
+			throw new IllegalStateException(
+					"유통기한이 등록되지 않은 LOT는 주문할 수 없습니다.");
+		}
 		if (lot.getExpirationDate().isBefore(
 				java.time.LocalDate.now().plusDays(
 						SellableStockQuery.MINIMUM_SELLABLE_DAYS))) {
@@ -264,8 +268,11 @@ public class DistributionService {
 					"유통기한이 " + SellableStockQuery.MINIMUM_SELLABLE_DAYS
 							+ "일 미만 남은 LOT는 주문할 수 없습니다.");
 		}
+		// 결제 대기(PAYMENT_PENDING) 주문도 재고를 붙잡고 있습니다. 이전에는
+		// PAID·PREPARING만 예약으로 계산해 결제 진행 중인 고객 주문의 물량을
+		// 관리자 주문이 다시 팔 수 있었습니다.
 		int reserved = orderItemRepository.findByOrderStatusIn(
-				List.of(OrderStatus.PAID, OrderStatus.PREPARING))
+				List.copyOf(SellableStockQuery.RESERVING_STATUSES))
 				.stream()
 				.filter(item ->
 						!item.getOrder().isInventoryCommitted())
@@ -582,6 +589,10 @@ public class DistributionService {
 						"고객 회수 정상 재입고 DLV-" + deliveryId
 								+ ": " + note.trim()));
 			}
+			// 물리 재고를 되돌렸으므로 출고 확정 표시도 함께 내려야 합니다.
+			// 남겨 두면 이 주문이 재고를 차감한 상태로 기록되어, 이후 취소·복구
+			// 경로가 이미 복구된 수량을 한 번 더 되돌릴 수 있습니다.
+			delivery.getOrder().releaseInventoryCommit();
 			warehouseFulfillmentService.restoreStock(
 					delivery.getOrder(), items);
 			delivery.completeReturn("정상 재입고 · " + note.trim());

@@ -26,6 +26,7 @@ public class SchemaMigrationConfig {
             normalizeMemberUsernames(jdbcTemplate);
             normalizeCustomerOrderFlags(jdbcTemplate);
             normalizeCustomerOrderEnumColumns(jdbcTemplate);
+            repairInvalidPaymentWaitingStates(jdbcTemplate);
             normalizeLegacyOrderItemLotColumn(jdbcTemplate);
             repairCustomerOrderForeignKeys(jdbcTemplate);
             migrateLegacyPurchaseOrders(jdbcTemplate);
@@ -135,6 +136,42 @@ public class SchemaMigrationConfig {
                 }
             }
         }
+    }
+
+    /**
+     * 과거에는 PortOne의 ready 상태를 결제수단과 관계없이 가상계좌 대기로
+     * 저장했습니다. 카드·간편결제에는 입금 대기 상태가 존재하지 않으므로
+     * 승인 재확인이 가능한 READY 상태로 되돌립니다.
+     */
+    private void repairInvalidPaymentWaitingStates(
+            JdbcTemplate jdbcTemplate) {
+        if (!tableExists(jdbcTemplate, "CUSTOMER_ORDER")
+                || !columnExists(jdbcTemplate, "CUSTOMER_ORDER", "PAYMENT_METHOD")
+                || !columnExists(jdbcTemplate, "CUSTOMER_ORDER", "PAYMENT_STATUS")) {
+            return;
+        }
+        boolean hasVirtualAccountColumns = columnExists(
+                jdbcTemplate, "CUSTOMER_ORDER", "VIRTUAL_ACCOUNT_BANK")
+                && columnExists(jdbcTemplate, "CUSTOMER_ORDER", "VIRTUAL_ACCOUNT_NUMBER")
+                && columnExists(jdbcTemplate, "CUSTOMER_ORDER", "VIRTUAL_ACCOUNT_DUE_DATE");
+        if (hasVirtualAccountColumns) {
+            jdbcTemplate.update("""
+                    update customer_order
+                    set payment_status = 'READY',
+                        virtual_account_bank = null,
+                        virtual_account_number = null,
+                        virtual_account_due_date = null
+                    where payment_status = 'WAITING_FOR_DEPOSIT'
+                      and payment_method <> 'BANK_TRANSFER'
+                    """);
+            return;
+        }
+        jdbcTemplate.update("""
+                update customer_order
+                set payment_status = 'READY'
+                where payment_status = 'WAITING_FOR_DEPOSIT'
+                  and payment_method <> 'BANK_TRANSFER'
+                """);
     }
 
     /**

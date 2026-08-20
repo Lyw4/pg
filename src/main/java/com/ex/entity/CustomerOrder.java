@@ -209,6 +209,11 @@ public class CustomerOrder {
 		order.discountPrice = discountAmount;
 		order.finalPrice = order.totalPrice.subtract(discountAmount);
 		order.orderChannel = OrderChannel.SHOP;
+		// 판매 홈페이지 주문은 항상 결제 전 상태로 생성합니다. 공용 생성자가
+		// 관리자·농장 주문 기준으로 PAID를 넣기 때문에 여기서 되돌리지 않으면
+		// 전자결제 설정이 없는 환경에서 @PrePersist가 결제상태를 DONE으로
+		// 채워 결제 없이 완료된 주문이 만들어집니다.
+		order.status = OrderStatus.PAYMENT_PENDING;
 		return order;
 	}
 

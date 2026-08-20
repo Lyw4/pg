@@ -85,6 +85,7 @@ public class FarmDeliveryAutomationService {
     public record ExecutionResult(
             LocalDate referenceDate,
             int createdCount,
+            int requestedCount,
             int skippedCount,
             int failedCount,
             List<String> messages) {
@@ -97,10 +98,9 @@ public class FarmDeliveryAutomationService {
     private final SellableStockQuery sellableStockQuery;
     private final DistributionService distributionService;
     private final ShipmentService shipmentService;
-    private final RecurringDeliveryService recurringDeliveryService;
+    private final InboundReplenishmentRequestService replenishmentRequestService;
     private final InventoryService inventoryService;
     private final WarehouseCapacityPlanningService capacityPlanningService;
-    private final com.ex.repository.RecurringDeliveryRepository recurringDeliveryRepository;
     private final PlatformTransactionManager transactionManager;
 
     @Transactional(readOnly = true)
@@ -126,6 +126,7 @@ public class FarmDeliveryAutomationService {
                 .toList();
         List<String> messages = new ArrayList<>();
         int created = 0;
+        int requested = 0;
         int skipped = 0;
         int failed = 0;
 
@@ -136,6 +137,9 @@ public class FarmDeliveryAutomationService {
                 if (result != null && result.startsWith("SKIPPED:")) {
                     skipped++;
                     messages.add(result.substring("SKIPPED:".length()));
+                } else if (result != null && result.startsWith("REQUESTED:")) {
+                    requested++;
+                    messages.add(result.substring("REQUESTED:".length()));
                 } else {
                     created++;
                     messages.add(result);
@@ -145,7 +149,7 @@ public class FarmDeliveryAutomationService {
                 messages.add(exception.getMessage());
             }
         }
-        return new ExecutionResult(date, created, skipped, failed, messages);
+        return new ExecutionResult(date, created, requested, skipped, failed, messages);
     }
 
     private String executeFarm(Long farmId, LocalDate date, String trigger) {
@@ -165,6 +169,16 @@ public class FarmDeliveryAutomationService {
                 .orElseThrow(() -> new IllegalStateException(
                         farm.getFarmName() + " · 선호 제품을 찾을 수 없습니다: " + farm.getPreferredFeed()));
         int quantity = farm.getMonthlyFeedQuantity();
+        int available = sellableStockQuery.sellableAtWarehouse(
+                farm.getAssignedWarehouse().getWarehouseId(), product.getProductId());
+        if (available < quantity) {
+            var request = replenishmentRequestService.request(
+                    farm.getAssignedWarehouse(), product, farm, quantity, date,
+                    "정기 납품 예정 수량 부족 · " + farm.getFarmName());
+            return "REQUESTED:" + farm.getFarmName() + " · " + product.getName()
+                    + " 부족분 " + request.getRequestedQuantity()
+                    + "포의 관리자 승인 요청을 자동 생성했습니다.";
+        }
         ProductLot lot = chooseLot(product, farm, quantity)
                 .orElseThrow(() -> new IllegalStateException(
                         farm.getFarmName() + " · " + product.getName()
@@ -189,7 +203,12 @@ public class FarmDeliveryAutomationService {
         order.markScheduledDelivery(date, normalizeTrigger(trigger));
         orderRepository.flush();
         shipmentService.create(orderId, "자동 배차", "농장 정기 납품 " + date);
-        return farm.getFarmName() + " · 주문 #" + orderId + " 및 출고 지시 생성";
+        var request = replenishmentRequestService.request(
+                farm.getAssignedWarehouse(), product, farm, 0, date,
+                "정기 납품 예약 후 권장재고 미달 · 주문 #" + orderId);
+        return farm.getFarmName() + " · 주문 #" + orderId + " 및 출고 지시 생성"
+                + (request == null ? "" : " · 부족분 "
+                        + request.getRequestedQuantity() + "포 입고 승인 대기");
     }
 
     private PreviewRow previewFarm(FarmCustomer farm, LocalDate date) {
@@ -215,8 +234,9 @@ public class FarmDeliveryAutomationService {
                     "월 예상 사료량을 먼저 입력해 주세요.", null);
         }
         if (available < farm.getMonthlyFeedQuantity()
-                && recurringDeliveryRepository.existsByNotes(
-                        inboundRequestKey(farm.getFarmCustomerId(), date))) {
+                && replenishmentRequestService.hasPending(
+                        farm.getAssignedWarehouse().getWarehouseId(),
+                        product.get().getProductId())) {
             return row(farm, product.get().getName(), available, PreviewStatus.REQUESTED,
                     "부족분 정기입고 요청이 생성되었습니다.", null);
         }
@@ -244,18 +264,13 @@ public class FarmDeliveryAutomationService {
     @Transactional
     public String createInboundRequest(Long farmCustomerId, LocalDate referenceDate) {
         ReplenishmentTarget target = replenishmentTarget(farmCustomerId, referenceDate);
-        String requestKey = inboundRequestKey(farmCustomerId, referenceDate);
-        if (recurringDeliveryRepository.existsByNotes(requestKey)) {
-            return target.farm().getFarmName() + " · 이미 생성된 입고 요청입니다.";
-        }
-        recurringDeliveryService.create(
-                target.farm().getAssignedWarehouse().getWarehouseId(),
-                target.product().getProductId(),
-                target.shortageQuantity(),
-                Math.min(28, referenceDate.getDayOfMonth()),
-                requestKey);
+        var request = replenishmentRequestService.request(
+                target.farm().getAssignedWarehouse(), target.product(), target.farm(),
+                target.farm().getMonthlyFeedQuantity(), referenceDate,
+                "관리자 수동 요청 · " + target.farm().getFarmName());
         return target.farm().getFarmName() + " · " + target.product().getName()
-                + " " + target.shortageQuantity() + "포의 정기입고 요청을 생성했습니다.";
+                + " " + request.getRequestedQuantity()
+                + "포의 입고 승인 요청을 생성했습니다.";
     }
 
     @Transactional
@@ -301,9 +316,6 @@ public class FarmDeliveryAutomationService {
             FarmCustomer farm, Product product, int shortageQuantity) {
     }
 
-    private String inboundRequestKey(Long farmCustomerId, LocalDate referenceDate) {
-        return "FARM-INBOUND:" + farmCustomerId + ":" + referenceDate;
-    }
 
     private java.util.Optional<ProductLot> chooseLot(
             Product product, FarmCustomer farm, int quantity) {

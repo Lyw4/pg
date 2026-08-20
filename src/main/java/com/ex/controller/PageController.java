@@ -123,18 +123,9 @@ public class PageController {
     }
 
     private Long sessionMemberId(HttpSession session) {
-        Object value = session.getAttribute("memberId");
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
-        if (value instanceof String text && !text.isBlank()) {
-            try {
-                return Long.valueOf(text.trim());
-            } catch (NumberFormatException ignored) {
-                return null;
-            }
-        }
-        return null;
+        // 화면 컨트롤러는 비로그인 접근 시 로그인 안내로 리다이렉트하므로
+        // 예외를 던지지 않는 쪽을 사용합니다.
+        return SessionMemberSupport.memberIdOrNull(session);
     }
 
     @GetMapping("/admin")

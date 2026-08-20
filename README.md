@@ -46,7 +46,9 @@ PORTONE_VBANK_CHANNEL_KEY
 - 5회 틀리면 인증번호가 폐기됩니다.
 - 외부 문자/메일 발송을 연결하기 전 로컬 시연에서는 PowerShell에
   `$env:FEEDFLOW_PASSWORD_RESET_EXPOSE_CODE="true"`를 설정하면 발급 응답과
-  화면에 테스트용 인증번호가 표시됩니다. 운영 환경에서는 반드시 `false`로 둡니다.
+  화면에 테스트용 인증번호가 표시됩니다. 메일·문자 전달 채널이 모두 비어 있는
+  로컬 환경에서도 자동으로 테스트 코드가 화면에 표시됩니다. 운영 환경에서는
+  반드시 SMTP 또는 SENS를 설정하고 `FEEDFLOW_PASSWORD_RESET_EXPOSE_CODE=false`로 둡니다.
 - 로그인 회원은 `/payments/test-receipt`에서 최근 PortOne 결제의 영수증 URL과
   결제 상태를 확인할 수 있습니다.
 

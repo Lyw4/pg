@@ -1,7 +1,6 @@
 package com.ex.service;
 
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,13 +67,6 @@ public class WarehouseFulfillmentService {
     private final CustomerOrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final SellableStockQuery sellableStockQuery;
-
-    @Transactional
-    public Warehouse assignNearestForProducts(
-            CustomerOrder order,
-            List<ProductRequest> requests) {
-        return assignNearest(order, productNeeds(requests));
-    }
 
     @Transactional
     public Warehouse assignPreferredOrNearestForProducts(
@@ -156,7 +148,7 @@ public class WarehouseFulfillmentService {
         if (order.getFulfillmentWarehouse() == null) {
             assignNearest(order, needs);
         }
-        changeStock(order, needs, false);
+        refreshAllocations(order, needs);
     }
 
     @Transactional
@@ -166,7 +158,7 @@ public class WarehouseFulfillmentService {
         if (order.getFulfillmentWarehouse() == null) {
             return;
         }
-        changeStock(order, needsFromShipmentItems(items), true);
+        refreshAllocations(order, needsFromShipmentItems(items));
     }
 
     private Warehouse assignNearest(
@@ -211,8 +203,11 @@ public class WarehouseFulfillmentService {
                                 .comparingInt(Candidate::regionRank)
                                 .thenComparingInt(item ->
                                         item.warehouse().getDisplayOrder()))
+                // 재고가 모자랄 때도 이 분기를 타므로, 창고 운영 문제로만
+                // 읽히지 않게 재고 부족 가능성을 함께 알려 줍니다.
                 .orElseThrow(() -> new IllegalStateException(
-                        "주문 상품 재고가 충분한 운영 창고가 없습니다."));
+                        "주문 수량만큼 출고할 수 있는 창고가 없습니다. "
+                                + "판매 가능 재고가 부족하거나 운영 중인 창고가 없습니다."));
 
         order.assignFulfillmentWarehouse(
                 candidate.warehouse(),
@@ -245,28 +240,34 @@ public class WarehouseFulfillmentService {
     }
 
 
-    private void changeStock(
+    /**
+     * 창고별 판매 가능 재고를 다시 계산해 {@link WarehouseAllocation} 집계에
+     * 옮겨 적습니다. 로트 잔량을 직접 더하거나 빼지는 않습니다.
+     *
+     * <p>물리 재고 변경은 출고를 확정하는 {@code ShipmentService}가 담당하고,
+     * 이 메서드는 그 결과와 미출고 주문의 예약분을 반영한 값을 집계 테이블에
+     * 반영하는 역할만 합니다. 이전에는 사용되지 않는 {@code restore} 플래그를
+     * 받아 차감과 복구가 구분되는 것처럼 보였으나 실제 동작은 동일했습니다.
+     */
+    private void refreshAllocations(
             CustomerOrder order,
-            Map<Long, ProductNeed> needs,
-            boolean restore) {
+            Map<Long, ProductNeed> needs) {
         Warehouse warehouse = order.getFulfillmentWarehouse();
-        Map<Long, WarehouseAllocation> allocations = new HashMap<>();
+        if (warehouse == null) {
+            throw new IllegalStateException(
+                    "출고 창고가 배정되지 않아 재고 집계를 갱신할 수 없습니다.");
+        }
         Map<String, Integer> sellable = sellableStockQuery
                 .sellableByWarehouseAndProductIds(needs.keySet());
 
         needs.values().forEach(need -> {
+            Long productId = need.product().getProductId();
             WarehouseAllocation allocation = allocationRepository
                     .findByWarehouseWarehouseIdAndProductProductId(
-                            warehouse.getWarehouseId(),
-                            need.product().getProductId())
+                            warehouse.getWarehouseId(), productId)
                     .orElseGet(() -> allocationRepository.save(
                             new WarehouseAllocation(
                                     warehouse, need.product(), 0, 0)));
-            allocations.put(need.product().getProductId(), allocation);
-        });
-
-        needs.forEach((productId, need) -> {
-            WarehouseAllocation allocation = allocations.get(productId);
             allocation.adjustCurrentStock(sellable.getOrDefault(
                     stockKey(warehouse.getWarehouseId(), productId), 0));
         });
@@ -278,7 +279,7 @@ public class WarehouseFulfillmentService {
                 || items == null || items.isEmpty()) {
             return;
         }
-        changeStock(order, needsFromOrderItems(items), false);
+        refreshAllocations(order, needsFromOrderItems(items));
     }
 
     private Map<Long, ProductNeed> needsFromOrderItems(

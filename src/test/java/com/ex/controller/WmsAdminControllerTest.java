@@ -4,6 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
@@ -21,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ex.entity.BinPurpose;
+import com.ex.entity.WarehouseBin;
 import com.ex.repository.BinInventoryRepository;
 import com.ex.repository.ProductLotRepository;
 import com.ex.repository.WarehouseBinRepository;
@@ -83,7 +88,9 @@ class WmsAdminControllerTest {
     @Test
     void allWarehouseBinsArePagedButSingleWarehouseShowsAllBins()
             throws Exception {
-        int totalBins = wmsOperationsService.bins().size();
+        int totalBins = (int) wmsOperationsService.bins().stream()
+                .filter(WarehouseBin::isActive)
+                .count();
         int expectedPageCount = (totalBins + 9) / 10;
 
         mockMvc.perform(get("/admin/wms")
@@ -110,8 +117,10 @@ class WmsAdminControllerTest {
                                 Math.min(10, Math.max(0, totalBins - 10)))));
 
         var warehouse = wmsOperationsService.warehouses().getFirst();
-        int warehouseBinCount = wmsOperationsService
-                .bins(warehouse.getWarehouseId()).size();
+        int warehouseBinCount = (int) wmsOperationsService
+                .bins(warehouse.getWarehouseId()).stream()
+                .filter(WarehouseBin::isActive)
+                .count();
         mockMvc.perform(get("/admin/wms")
                         .queryParam("view", "bins")
                         .queryParam("binWarehouseId",
@@ -189,6 +198,7 @@ class WmsAdminControllerTest {
                 wmsOperationsService.bins(selected.getWarehouseId())
                         .stream()
                         .filter(bin -> bin.getPurpose().isPhysicalSpace())
+                        .filter(WarehouseBin::isActive)
                         .count(),
                 summary.binItems().size());
         assertTrue(summary.storageCapacity() > 0);
@@ -309,6 +319,38 @@ class WmsAdminControllerTest {
         });
     }
 
+    @Test
+    @Transactional
+    void capacityButtonExpandsExistingStorageBins() throws Exception {
+        var allocation = allocationRepository
+                .findAllByOrderByWarehouseDisplayOrderAscProductAnimalTypeAscProductNameAsc()
+                .getFirst();
+
+        mockMvc.perform(post("/admin/wms/inbound/capacity")
+                        .with(csrf())
+                        .param("warehouseId", allocation.getWarehouse().getWarehouseId().toString())
+                        .param("productId", allocation.getProduct().getProductId().toString())
+                        .param("quantity", "500"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/wms?view=inbound"))
+                .andExpect(flash().attributeExists("wmsMessage"));
+
+        String zone = zoneFor(allocation.getProduct().getAnimalType());
+        int capacity = wmsOperationsService.bins(allocation.getWarehouse().getWarehouseId())
+                .stream()
+                .filter(bin -> bin.isActive() && bin.getPurpose() == BinPurpose.STORAGE)
+                .filter(bin -> zone.equalsIgnoreCase(bin.getZone()))
+                .mapToInt(bin -> bin.getEffectiveMaxCapacity())
+                .sum();
+        int current = wmsOperationsService.bins(allocation.getWarehouse().getWarehouseId())
+                .stream()
+                .filter(bin -> bin.isActive() && bin.getPurpose() == BinPurpose.STORAGE)
+                .filter(bin -> zone.equalsIgnoreCase(bin.getZone()))
+                .flatMap(bin -> binInventoryRepository.findByBinBinId(bin.getBinId()).stream())
+                .mapToInt(item -> item.getQuantity()).sum();
+        assertTrue(capacity >= current + 500);
+    }
+
     private String zoneFor(String animalType) {
         return switch (animalType == null ? "" : animalType.trim()) {
             case "소" -> "CT";
@@ -333,10 +375,44 @@ class WmsAdminControllerTest {
                 .andExpect(jsonPath("$.bin.binCode")
                         .value(inventory.getBin().getBinCode()))
                 .andExpect(jsonPath("$.bin.locationLabel").isNotEmpty())
+                .andExpect(jsonPath("$.bin.deletable").value(false))
+                .andExpect(jsonPath("$.bin.deleteBlockedReason").isNotEmpty())
                 .andExpect(jsonPath("$.inventories[0].productName")
                         .isNotEmpty())
                 .andExpect(jsonPath("$.inventories[0].lotNo")
                         .isNotEmpty());
+    }
+
+    @Test
+    @Transactional
+    void emptyBinCanBeDeletedFromWarehouseMapAndDisappearsFromActiveData()
+            throws Exception {
+        var warehouse = wmsOperationsService.warehouses().getFirst();
+        var bin = binRepository.save(new WarehouseBin(
+                warehouse,
+                "DELETE-MAP-TEST",
+                "CT",
+                BinPurpose.STORAGE,
+                21,
+                14,
+                1,
+                1,
+                10,
+                "도면 삭제 연동 테스트"));
+
+        mockMvc.perform(post("/admin/wms/bins/{binId}/delete", bin.getBinId())
+                        .with(csrf())
+                        .param("warehouseId", warehouse.getWarehouseId().toString())
+                        .param("returnView", "map"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl(
+                        "/admin/warehouse-map?centerId="
+                                + warehouse.getWarehouseId()))
+                .andExpect(flash().attributeExists("wmsMessage"));
+
+        assertTrue(!binRepository.findById(bin.getBinId())
+                .orElseThrow()
+                .isActive());
     }
 
     @Test
@@ -473,6 +549,111 @@ class WmsAdminControllerTest {
                 allocation.getWarehouse().getWarehouseId(),
                 allocation.getProduct().getProductId()));
         assertTrue(!result.binCodes().isEmpty());
+    }
+
+    @Test
+    @Transactional
+    void automaticallyCreatedBinAvoidsExistingAreas() {
+        var allocation = allocationRepository
+                .findAllByOrderByWarehouseDisplayOrderAscProductAnimalTypeAscProductNameAsc()
+                .stream()
+                .findFirst()
+                .orElseThrow();
+        var mapBefore = wmsOperationsService.warehouseMap(
+                allocation.getWarehouse().getWarehouseId());
+
+        WarehouseBin created = wmsOperationsService.createAutomaticProductBin(
+                allocation.getWarehouse().getWarehouseId(),
+                allocation.getProduct().getProductId(),
+                500,
+                "자동 정렬 테스트");
+
+        assertTrue(mapBefore.binItems().stream().noneMatch(item ->
+                created.getPosX() < item.bin().getPosX()
+                        + item.bin().getPosWidth()
+                        && created.getPosX() + created.getPosWidth()
+                                > item.bin().getPosX()
+                        && created.getPosY() < item.bin().getPosY()
+                                + item.bin().getPosHeight()
+                        && created.getPosY() + created.getPosHeight()
+                                > item.bin().getPosY()));
+        assertTrue(mapBefore.facilities().stream().noneMatch(facility ->
+                created.getPosX() < facility.posX() + facility.posWidth()
+                        && created.getPosX() + created.getPosWidth()
+                                > facility.posX()
+                        && created.getPosY() < facility.posY()
+                                + facility.posHeight()
+                        && created.getPosY() + created.getPosHeight()
+                                > facility.posY()));
+    }
+
+    @Test
+    @Transactional
+    void userCanChooseAnEmptyPositionForAutomaticBin() {
+        var allocation = allocationRepository
+                .findAllByOrderByWarehouseDisplayOrderAscProductAnimalTypeAscProductNameAsc()
+                .stream()
+                .findFirst()
+                .orElseThrow();
+        var map = wmsOperationsService.warehouseMap(
+                allocation.getWarehouse().getWarehouseId());
+        int selectedX = -1;
+        int selectedY = -1;
+        findPosition:
+        for (int y = 1; y <= 14; y++) {
+            for (int x = 1; x <= 26; x++) {
+                final int candidateX = x;
+                final int candidateY = y;
+                boolean occupied = map.binItems().stream().anyMatch(item ->
+                        candidateX >= item.bin().getPosX()
+                                && candidateX < item.bin().getPosX()
+                                        + item.bin().getPosWidth()
+                                && candidateY >= item.bin().getPosY()
+                                && candidateY < item.bin().getPosY()
+                                        + item.bin().getPosHeight())
+                        || map.facilities().stream().anyMatch(facility ->
+                                candidateX >= facility.posX()
+                                        && candidateX < facility.posX()
+                                                + facility.posWidth()
+                                        && candidateY >= facility.posY()
+                                        && candidateY < facility.posY()
+                                                + facility.posHeight());
+                if (!occupied) {
+                    selectedX = x;
+                    selectedY = y;
+                    break findPosition;
+                }
+            }
+        }
+        assertTrue(selectedX > 0 && selectedY > 0);
+        final int chosenX = selectedX;
+        final int chosenY = selectedY;
+
+        WarehouseBin created = wmsOperationsService.createAutomaticProductBin(
+                allocation.getWarehouse().getWarehouseId(),
+                allocation.getProduct().getProductId(),
+                2000,
+                chosenX,
+                chosenY,
+                1,
+                1,
+                "사용자 위치 선택 테스트");
+
+        assertEquals(chosenX, created.getPosX());
+        assertEquals(chosenY, created.getPosY());
+        assertEquals(1, created.getPosWidth());
+        assertEquals(1, created.getPosHeight());
+        assertTrue(created.getEffectiveMaxCapacity() >= 2000);
+        assertThrows(IllegalArgumentException.class, () ->
+                wmsOperationsService.createAutomaticProductBin(
+                        allocation.getWarehouse().getWarehouseId(),
+                        allocation.getProduct().getProductId(),
+                        2000,
+                        chosenX,
+                        chosenY,
+                        1,
+                        1,
+                        "겹침 방지 테스트"));
     }
 
     @Test

@@ -1,10 +1,10 @@
 package com.ex.service;
 
 import java.time.LocalDate;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,11 +37,12 @@ public class InventoryService {
 	private final WarehouseAllocationRepository allocationRepository;
 	private final SellableStockQuery sellableStockQuery;
 
-	private static final EnumSet<OrderStatus> RESERVING_STATUSES =
-			EnumSet.of(
-					OrderStatus.PAYMENT_PENDING,
-					OrderStatus.PAID,
-					OrderStatus.PREPARING);
+	/**
+	 * 예약 상태 목록은 {@link SellableStockQuery}의 정의를 그대로 씁니다.
+	 * 사본을 두면 한쪽만 수정됐을 때 같은 재고를 두 번 판매할 수 있습니다.
+	 */
+	private static final Set<OrderStatus> RESERVING_STATUSES =
+			SellableStockQuery.RESERVING_STATUSES;
 
 	public List<Product> products() {
 		return productRepository.findAllByOrderByNameAsc()
@@ -200,6 +201,11 @@ public class InventoryService {
 			Warehouse preferredWarehouse) {
 		if (quantity <= 0) throw new IllegalArgumentException("입고 수량은 1개 이상이어야 합니다.");
 		if (lotRepository.existsByLotNo(lotNo)) throw new IllegalArgumentException("이미 존재하는 LOT 번호입니다.");
+		// null이면 아래 비교에서 NullPointerException이 나면서 원인을 알 수 없는
+		// 500으로 이어집니다. 입고를 막는 결과는 같지만 이유를 알려줍니다.
+		if (manufacturedDate == null || expirationDate == null) {
+			throw new IllegalArgumentException("제조일과 유통기한을 모두 입력해 주세요.");
+		}
 		if (!expirationDate.isAfter(manufacturedDate)) {
 			throw new IllegalArgumentException("유통기한은 제조일보다 뒤여야 합니다.");
 		}
@@ -217,6 +223,17 @@ public class InventoryService {
 	public void adjust(Long lotId, int changedQty, String reason) {
 		if (changedQty == 0) throw new IllegalArgumentException("조정 수량은 0일 수 없습니다.");
 		ProductLot lot = findLot(lotId);
+		// 같은 클래스의 실사·입고취소와 달리 예약 검사가 없어, 음수 조정이
+		// 주문이 잡아 둔 재고를 그대로 가져갈 수 있었습니다. 차감은 판매 가능
+		// 수량 안에서만 허용합니다.
+		if (changedQty < 0) {
+			int sellable = sellableStockQuery.sellableByLotIds(List.of(lotId));
+			if (sellable < -changedQty) {
+				throw new IllegalStateException(
+						"주문 예약분을 제외한 조정 가능 재고가 부족합니다. "
+								+ "요청 " + (-changedQty) + "개 / 가능 " + sellable + "개");
+			}
+		}
 		lot.changeQuantity(changedQty);
 		lot.getProduct().changeStock(changedQty);
 		stockLogRepository.save(new StockLog(lot, 1L, ChangeType.ADJUSTMENT, changedQty, reason));

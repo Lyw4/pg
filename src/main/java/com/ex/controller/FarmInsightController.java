@@ -5,6 +5,12 @@ import java.time.YearMonth;
 import java.util.Map;
 
 import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -28,8 +34,15 @@ public class FarmInsightController {
 
     private final FarmInsightService farmInsightService;
 
-    public record UsageRequest(String month, int actualQuantity, String note) {}
-    public record FeedbackRequest(Long productId, boolean suitable, String comment) {}
+    public record UsageRequest(
+            @NotBlank String month,
+            @PositiveOrZero int actualQuantity,
+            @Size(max = 500) String note) {}
+
+    public record FeedbackRequest(
+            @NotNull @Positive Long productId,
+            boolean suitable,
+            @Size(max = 500) String comment) {}
 
     @GetMapping
     public FarmDashboardResponse dashboard(HttpSession session) {
@@ -38,7 +51,7 @@ public class FarmInsightController {
 
     @PostMapping("/usages")
     public FarmDashboardResponse.UsagePoint usage(
-            @RequestBody UsageRequest request,
+            @Valid @RequestBody UsageRequest request,
             HttpSession session) {
         YearMonth month;
         try {
@@ -53,7 +66,7 @@ public class FarmInsightController {
 
     @PostMapping("/feedback")
     public Map<String, String> feedback(
-            @RequestBody FeedbackRequest request,
+            @Valid @RequestBody FeedbackRequest request,
             HttpSession session) {
         farmInsightService.saveFeedback(
                 memberId(session), request.productId(),
@@ -74,8 +87,6 @@ public class FarmInsightController {
     }
 
     private Long memberId(HttpSession session) {
-        Object value = session.getAttribute("memberId");
-        if (value instanceof Number number) return number.longValue();
-        throw new IllegalArgumentException("로그인이 필요합니다.");
+        return SessionMemberSupport.requireMemberId(session);
     }
 }

@@ -30,6 +30,15 @@
     grid-row: 1 / 3;
 }
 
+.distribution-workspace-nav.single-flow {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.distribution-workspace-nav.single-flow
+    .distribution-workflow-group.order-flow-group {
+    grid-row: auto;
+}
+
 .distribution-workflow-heading {
     display: flex;
     align-items: center;
@@ -45,13 +54,15 @@
 
 .distribution-workflow-heading strong {
     color: #263b30;
-    font-size: 13px;
+    font-size: 15px;
+    line-height: 1.35;
 }
 
 .distribution-workflow-heading small {
     margin-top: 2px;
     color: #78867f;
-    font-size: 10px;
+    font-size: 12px;
+    line-height: 1.45;
 }
 
 .distribution-workflow-icon {
@@ -99,6 +110,15 @@
 
 .distribution-workspace-nav .distribution-kpi strong {
     font-size: 23px;
+}
+
+.distribution-workspace-nav .distribution-kpi span {
+    font-size: 13px;
+}
+
+.distribution-workspace-nav .distribution-kpi small {
+    font-size: 11px;
+    line-height: 1.4;
 }
 
 .distribution-process-guide {
@@ -3282,10 +3302,37 @@ label select {
     padding: 22px 24px;
 }
 
+.distribution-panel .panel-title h2 {
+    font-size: 22px;
+    line-height: 1.25;
+    letter-spacing: -.025em;
+}
+
+.distribution-panel .panel-title > div > p:not(.summary-eyebrow) {
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.distribution-panel .summary-eyebrow {
+    font-size: 11px !important;
+}
+
+.distribution-panel .summary-count {
+    font-size: 13px;
+}
+
+.distribution-panel .summary-count strong {
+    font-size: 17px;
+}
+
 .distribution-address {
     display: block;
     max-width: 260px;
     overflow: hidden;
+    color: #26382e;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.45;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -3303,6 +3350,53 @@ label select {
 .distribution-order-table th,
 .distribution-order-table td {
     vertical-align: middle;
+    padding: 15px 12px;
+    line-height: 1.5;
+    word-break: keep-all;
+}
+
+.distribution-order-table {
+    font-size: 13px;
+}
+
+.distribution-order-table th {
+    color: #52625a;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.35;
+    letter-spacing: .01em;
+}
+
+.distribution-order-table td:first-child > strong {
+    color: #183d2b;
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.distribution-order-table td:nth-child(2) {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.distribution-order-table td:nth-child(3) {
+    min-width: 250px;
+}
+
+.distribution-order-table td:nth-child(5) {
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.distribution-order-table .badge {
+    font-size: 12px;
+    letter-spacing: .02em;
+}
+
+.distribution-order-table .shipment-action input,
+.distribution-order-table .shipment-action button,
+.distribution-order-table .delivery-button {
+    font-size: 12px;
+    line-height: 1.35;
 }
 
 .warehouse-assignment-cell {
@@ -3320,19 +3414,21 @@ label select {
     border-radius: 999px;
     background: #e7f4ec;
     color: #27754b;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 900;
 }
 
 .warehouse-assignment strong {
     color: #30473a;
-    font-size: 12px;
+    font-size: 13px;
+    line-height: 1.4;
 }
 
 .warehouse-assignment small,
 .shipment-warehouse {
     color: #708078;
-    font-size: 9px;
+    font-size: 11px;
+    line-height: 1.4;
 }
 
 .shipment-warehouse {
@@ -3351,7 +3447,7 @@ label select {
 .order-management-heading small {
     margin-top: 3px;
     color: #a09192;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 600;
 }
 
@@ -3370,7 +3466,7 @@ label select {
     width: max-content;
     gap: 5px;
     color: #987174;
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 800;
     letter-spacing: 0.02em;
 }
@@ -3442,13 +3538,13 @@ label select {
 
 .ready-order-cancel-copy strong {
     color: #79383d;
-    font-size: 11px;
+    font-size: 12px;
 }
 
 .ready-order-cancel-copy small {
     overflow: hidden;
     color: #a17679;
-    font-size: 9px;
+    font-size: 10px;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -3463,6 +3559,7 @@ label select {
 .delivery-number-link,
 .delivery-lot-link {
     color: #1d7247;
+    font-size: 12px;
     font-weight: 800;
     text-decoration: none;
 }
@@ -3475,7 +3572,8 @@ label select {
 
 .distribution-muted {
     color: #929c96;
-    font-size: 11px;
+    font-size: 12px;
+    line-height: 1.45;
 }
 
 .distribution-table-tools {
@@ -3511,6 +3609,24 @@ label select {
     margin-top: 4px;
     color: #7c8881;
     font-size: 10px;
+}
+
+#deliveryTrackingTable td small.delivery-customer-name,
+table.shipment-table td small.shipment-customer-name {
+    color: #1d7247;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.45;
+}
+
+/* 주문·배송 현황에서 수령인과 연락처가 주소보다 작아 보이지 않게 표시합니다. */
+.distribution-order-recipient {
+    display: block;
+    margin-top: 6px;
+    color: #1f5540;
+    font-size: 13px !important;
+    font-weight: 800;
+    line-height: 1.45;
 }
 
 .delivery-delay-label {

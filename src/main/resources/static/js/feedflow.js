@@ -224,9 +224,16 @@
             state.portOneInitializedCode = config.portOneCustomerCode;
         }
 
-        const orderName = cartRows().length > 1
-            ? `${cartRows()[0].product.name} 외 ${cartRows().length - 1}건`
-            : cartRows()[0].product.name;
+        // 결제창을 열기 전에 장바구니가 비면 rows[0] 접근에서 바로 예외가
+        // 납니다. 호출부에서 가드하고 있지만 이 함수만 따로 쓰이는 경우에도
+        // 안전하도록 여기서도 확인합니다.
+        const rows = cartRows();
+        if (!rows.length) {
+            throw new Error("장바구니가 비어 있어 결제를 진행할 수 없습니다.");
+        }
+        const orderName = rows.length > 1
+            ? `${rows[0].product.name} 외 ${rows.length - 1}건`
+            : rows[0].product.name;
         const callbackToken = encodeURIComponent(order.paymentToken);
 
         const channelKey = method === "CARD"
@@ -2750,7 +2757,7 @@
                             unloadingLocation:
                                 $("#order-unloading").value.trim(),
                             deliveryRequest:
-                                $("#order-request").value,
+                                $("#order-request").value.trim(),
                             paymentMethod:
                                 paymentMethod,
                             regularDelivery: Boolean(

@@ -34,7 +34,7 @@
                     <div class="alert alert-light border small">
                         발표에서는 아래 기준일을 선택해 미리 본 뒤 정기 납품 생성을 사전 실행할 수 있습니다.
                         사전 실행도 자동 스케줄러와 같은 로직을 사용하며, 같은 농장·기준일은 다시 처리되지 않습니다.
-                        실제 재고 차감은 기존과 같이 피킹·검수 후 <strong>출고 완료</strong>할 때 반영됩니다.
+                        재고가 부족하면 실제 재고를 임의로 늘리지 않고 <strong>입고 승인 요청</strong>을 자동 생성합니다.
                     </div>
                     <form method="get" th:action="@{/admin/demand-plan}"
                           class="row g-2 align-items-end mb-3">
@@ -68,11 +68,11 @@
                     <div class="table-responsive border rounded">
                         <table class="table table-sm table-hover align-middle mb-0">
                             <caption class="caption-top px-2 py-1 small text-muted mb-0">
-                                부족분 조치가 필요한 항목만 표시됩니다. 즉시 입고가 완료되면 이 목록에서 자동으로 사라집니다.
+                                부족분 조치가 필요한 항목입니다. 아래 실행 버튼을 누르거나 자동 스케줄러가 실행되면 입고 승인 요청으로 전환됩니다.
                             </caption>
                             <thead class="table-light"><tr>
                                 <th>농장</th><th>담당 창고</th><th>제품</th>
-                                <th class="text-end">납품량</th><th class="text-end">가용 재고</th><th>상태</th><th>안내</th><th class="text-center">부족분 조치</th>
+                                <th class="text-end">납품량</th><th class="text-end">가용 재고</th><th>상태</th><th>안내</th>
                             </tr></thead>
                             <tbody>
                             <tr th:each="row : ${deliveryPreview.actionRows}">
@@ -84,28 +84,9 @@
                                 <td><span class="badge" th:classappend="|bg-${row.status.badgeClass}|"
                                           th:text="${row.status.label}">상태</span></td>
                                 <td class="small" th:text="${row.message}">안내</td>
-                                <td class="text-center" style="min-width:210px">
-                                    <div th:if="${row.canReplenish()}" class="d-inline-flex gap-1">
-                                        <form method="post" th:action="@{/admin/demand-plan/farm-deliveries/inbound-request}">
-                                            <input type="hidden" name="farmCustomerId" th:value="${row.farmCustomerId}">
-                                            <input type="hidden" name="referenceDate" th:value="${referenceDate}">
-                                            <button type="submit" class="btn btn-sm btn-outline-primary"
-                                                    th:title="|부족분 ${row.shortageQuantity()}포의 정기입고 요청 생성|"
-                                                    onclick="return confirm('이 부족분을 정기입고 요청으로 생성할까요?');">입고 요청</button>
-                                        </form>
-                                        <form method="post" th:action="@{/admin/demand-plan/farm-deliveries/immediate-inbound}">
-                                            <input type="hidden" name="farmCustomerId" th:value="${row.farmCustomerId}">
-                                            <input type="hidden" name="referenceDate" th:value="${referenceDate}">
-                                            <button type="submit" class="btn btn-sm btn-danger"
-                                                    th:title="|부족분 ${row.shortageQuantity()}포를 LOT·입고 이력과 함께 즉시 반영|"
-                                                    onclick="return confirm('부족분을 실제 재고에 즉시 입고할까요? LOT와 입고 이력이 생성됩니다.');">즉시 입고</button>
-                                        </form>
-                                    </div>
-                                    <span th:unless="${row.canReplenish()}" class="text-muted small">-</span>
-                                </td>
                             </tr>
                             <tr th:if="${#lists.isEmpty(deliveryPreview.actionRows)}">
-                                <td colspan="8" class="ff-empty">
+                                <td colspan="7" class="ff-empty">
                                     <span th:if="${#lists.isEmpty(deliveryPreview.rows)}">선택한 날짜에 정기 납품 예정인 농장이 없습니다.</span>
                                     <span th:unless="${#lists.isEmpty(deliveryPreview.rows)}">부족분 조치가 필요한 농장이 없습니다.</span>
                                 </td>
@@ -116,16 +97,74 @@
 
                     <form method="post" th:action="@{/admin/demand-plan/farm-deliveries/execute}"
                           class="d-flex justify-content-end mt-3"
-                          onsubmit="return confirm('미리보기의 처리 가능 건에 실제 주문과 출고 지시를 생성할까요?');">
+                          onsubmit="return confirm('정기 납품을 실행할까요? 재고가 충분한 건은 주문·출고 지시를 만들고, 부족한 건은 입고 승인 요청을 자동 생성합니다.');">
                         <input type="hidden" name="referenceDate" th:value="${referenceDate}">
                         <button class="btn btn-success" type="submit"
-                                th:disabled="${deliveryPreview.readyCount == 0}">
-                            <i class="bi bi-play-fill me-1"></i>선택 날짜 정기 납품 생성
+                                th:disabled="${deliveryPreview.readyCount + deliveryPreview.blockedCount == 0}">
+                            <i class="bi bi-play-fill me-1"></i>정기 납품·입고 요청 실행
                         </button>
                     </form>
                     <p class="small text-muted text-end mb-0 mt-2">
-                        처리 가능 농장의 주문·재고 예약·출고 지시를 지금 생성합니다. 피킹과 실제 출고 완료는 별도 단계입니다.
+                        충분한 재고는 배송 흐름으로, 부족한 재고는 아래 관리자 승인 대기 목록으로 자동 분리됩니다.
                     </p>
+                </div>
+            </section>
+
+            <section class="card ff-card mb-3">
+                <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                        <strong><i class="bi bi-clipboard-check me-1 text-primary"></i>입고 승인 요청</strong>
+                        <div class="small text-muted mt-1">승인해야만 LOT와 창고 구역 재고가 실제로 증가합니다.</div>
+                    </div>
+                    <span class="badge bg-primary" th:text="|승인 대기 ${pendingInboundRequestCount}건|">승인 대기 0건</span>
+                </div>
+                <div class="card-body pt-2">
+                    <div class="table-responsive border rounded" th:unless="${#lists.isEmpty(inboundRequests)}">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light"><tr>
+                                <th>요청일시</th><th>창고</th><th>상품</th><th>관련 농장</th>
+                                <th class="text-end">요청 수량</th><th>요청 사유</th><th>상태</th><th class="text-center">관리</th>
+                            </tr></thead>
+                            <tbody>
+                            <tr th:each="request : ${inboundRequests}">
+                                <td class="small" th:text="${#temporals.format(request.requestedAt, 'yyyy-MM-dd HH:mm')}">2026-08-20 00:05</td>
+                                <td>
+                                    <strong th:text="${request.warehouse.name}">창고</strong>
+                                    <small class="d-block text-muted" th:text="${request.warehouse.code}">W01</small>
+                                </td>
+                                <td th:text="${request.product.name}">상품</td>
+                                <td th:text="${request.farmCustomer == null ? '-' : request.farmCustomer.farmName}">농장</td>
+                                <td class="text-end fw-semibold" th:text="|${#numbers.formatInteger(request.requestedQuantity, 0, 'COMMA')}포|">0포</td>
+                                <td class="small" th:text="${request.reason}">요청 사유</td>
+                                <td>
+                                    <span class="badge"
+                                          th:classappend="${request.status.name() == 'PENDING' ? 'bg-warning text-dark' : (request.status.name() == 'APPROVED' ? 'bg-success' : 'bg-secondary')}"
+                                          th:text="${request.status.label}">승인 대기</span>
+                                    <small class="d-block text-muted mt-1" th:if="${request.processedBy != null}"
+                                           th:text="|${request.processedBy} · ${#temporals.format(request.processedAt, 'MM-dd HH:mm')}|">처리자</small>
+                                </td>
+                                <td class="text-center" style="min-width:150px">
+                                    <div class="d-inline-flex gap-1" th:if="${request.status.name() == 'PENDING'}">
+                                        <form method="post" th:action="@{/admin/demand-plan/inbound-requests/{id}/approve(id=${request.requestId})}"
+                                              onsubmit="return confirm('이 입고 요청을 승인할까요? 승인 즉시 LOT와 창고 재고에 반영됩니다.');">
+                                            <input type="hidden" name="referenceDate" th:value="${referenceDate}">
+                                            <button class="btn btn-sm btn-success" type="submit">승인·입고</button>
+                                        </form>
+                                        <form method="post" th:action="@{/admin/demand-plan/inbound-requests/{id}/reject(id=${request.requestId})}"
+                                              onsubmit="return confirm('이 입고 요청을 반려할까요?');">
+                                            <input type="hidden" name="referenceDate" th:value="${referenceDate}">
+                                            <button class="btn btn-sm btn-outline-danger" type="submit">반려</button>
+                                        </form>
+                                    </div>
+                                    <span class="text-muted small" th:unless="${request.status.name() == 'PENDING'}">처리 완료</span>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="ff-empty" th:if="${#lists.isEmpty(inboundRequests)}">
+                        현재 생성된 입고 승인 요청이 없습니다.
+                    </div>
                 </div>
             </section>
 

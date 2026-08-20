@@ -53,6 +53,7 @@
                         <option value="PIG">돼지</option><option value="CHICKEN">닭·오리 · 닭</option>
                         <option value="DUCK">닭·오리 · 오리</option>
                         <option value="SUPPLEMENT">영양제</option>
+                        <option value="PET">반려동물</option>
                     </select>
                 </label>
                 <label>급여 단계<input id="feedStage" required placeholder="비육 후기"></label>
@@ -65,9 +66,11 @@
                 <label>조지방(%)<input id="fatPercent" type="number" min="0" step="0.1" required value="3"></label>
                 <label>조섬유(%)<input id="fiberPercent" type="number" min="0" step="0.1" required value="8"></label>
                 <label>칼슘(%)<input id="calciumPercent" type="number" min="0" step="0.1" required value="1"></label>
-                <label class="span-two">이미지 URL(선택)<input id="imageUrl" type="url" placeholder="https://..."></label>
-                <label>화면 색상 코드<input id="displayTone" required value="amber"></label>
-                <label>사료 모양 코드<input id="displayShape" required value="pellet"></label>
+                <label class="span-two">상품 이미지(선택)
+                    <input id="productImage" type="file" accept="image/jpeg,image/png,image/gif">
+                    <small>JPG, PNG, GIF · 최대 10MB</small>
+                </label>
+                <input id="imageUrl" type="hidden">
             </div>
             <div class="lot-editor">
                 <h3>LOT 재고 정보</h3>
@@ -80,7 +83,7 @@
             </div>
             <div class="admin-image-preview">
                 <img id="admin-preview-image" th:src="@{/images/feed-bag-warehouse.png}" src="/images/feed-bag-warehouse.png" alt="상품 이미지 미리보기">
-                <div><strong>상품 이미지 미리보기</strong><p>이미지 URL을 입력하지 않으면 기본 사료 사진이 사용됩니다.</p></div>
+                <div><strong>상품 이미지 미리보기</strong><p>이미지를 첨부하지 않으면 기본 사료 사진이 사용됩니다.</p></div>
             </div>
             <button id="save-product" class="admin-save" type="submit">새 상품 등록</button>
         </form>

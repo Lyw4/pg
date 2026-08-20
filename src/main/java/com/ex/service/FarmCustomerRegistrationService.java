@@ -120,12 +120,15 @@ public class FarmCustomerRegistrationService {
                 .orElse(null);
         // 상품 마스터가 없는 최소 테스트/초기 구축 상태에서는 가입 자체를 막지 않는다.
         if (product == null) return;
+        // 계획 행이 아직 없는 창고·상품 조합이면 만들어 씁니다. 예외를 던지면
+        // 수요 계획 보정이라는 부가 작업 때문에 회원가입 전체가 실패합니다.
         var allocation = allocationRepository
                 .findByWarehouseWarehouseIdAndProductProductId(
                         farm.getAssignedWarehouse().getWarehouseId(),
                         product.getProductId())
-                .orElseThrow(() -> new IllegalStateException(
-                        "담당 창고의 상품 배치 계획을 찾을 수 없습니다."));
+                .orElseGet(() -> allocationRepository.save(
+                        new com.ex.entity.WarehouseAllocation(
+                                farm.getAssignedWarehouse(), product, 0, 0)));
         int monthlyPlan = Math.addExact(
                 allocation.getMonthlyPlannedQuantity(),
                 farm.getMonthlyFeedQuantity());

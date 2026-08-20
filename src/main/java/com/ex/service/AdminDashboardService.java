@@ -66,7 +66,11 @@ public class AdminDashboardService {
                 .toList();
 
         List<ExpiringLotAlert> expiringLots = activeLots.stream()
-                .filter(lot -> lot.getExpirationDate().isBefore(today))
+                // 같은 클래스의 만료 건수 집계와 동일하게 유통기한이 없는
+                // LOT은 만료로 보지 않습니다. null 검사를 빼면 대시보드
+                // 전체가 500으로 떨어집니다.
+                .filter(lot -> lot.getExpirationDate() != null
+                        && lot.getExpirationDate().isBefore(today))
                 .map(lot -> ExpiringLotAlert.from(lot, today))
                 .toList();
 

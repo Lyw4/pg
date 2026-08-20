@@ -1137,7 +1137,7 @@ body {
     color: #5d6b78;
     background: #f1f5f9;
     border-color: #aab6c2;
-    border-style: dashed;
+    border-style: solid;
 }
 
 .wms-floor-bin.is-inactive {
@@ -1244,7 +1244,7 @@ body {
     height: 12px;
     margin-right: .25rem;
     vertical-align: -.08rem;
-    border: 2px dashed rgba(108, 117, 125, .6);
+    border: 2px solid rgba(108, 117, 125, .45);
     border-radius: 3px;
 }
 
@@ -1256,6 +1256,141 @@ body {
 .ff-floor-scroll {
     overflow-x: auto;
     padding-bottom: .25rem;
+}
+
+.wms-map-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .45rem;
+    border-bottom: 1px solid #dce4e9;
+}
+
+.wms-map-tabs button {
+    padding: .45rem .8rem;
+    color: #526b7f;
+    background: transparent;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    font: inherit;
+    font-size: .9rem;
+    cursor: pointer;
+}
+
+.wms-map-tabs button:hover,
+.wms-map-tabs button.active {
+    color: #177d4d;
+    border-bottom-color: #177d4d;
+}
+
+.wms-map-product-table {
+    max-height: 30rem;
+    overflow: auto;
+}
+
+.wms-map-product-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #f4f8f6;
+}
+
+.wms-placement-scroll {
+    overflow: auto;
+    padding: .25rem;
+    border-radius: .55rem;
+    background: #eef3f0;
+}
+
+.wms-placement-floor {
+    display: grid;
+    position: relative;
+    grid-template-columns: repeat(26, minmax(0, 1fr));
+    grid-template-rows: repeat(14, 34px);
+    gap: 3px;
+    min-width: 1040px;
+    padding: 8px;
+    background: #fff;
+    border: 2px solid #34443c;
+    border-radius: .45rem;
+}
+
+.wms-placement-cell {
+    z-index: 0;
+    min-width: 0;
+    padding: 0;
+    background: #f8fbf9;
+    border: 1px solid #edf2ef;
+    border-radius: 2px;
+    cursor: pointer;
+}
+
+.wms-placement-cell:hover,
+.wms-placement-cell:focus-visible {
+    z-index: 4;
+    background: #dff3e8;
+    border-color: #329464;
+    outline: 2px solid rgba(50, 148, 100, .28);
+}
+
+.wms-placement-cell.is-placement-selected {
+    z-index: 3;
+    background: #a9e2c2;
+    border-color: #16804a;
+    box-shadow: inset 0 0 0 2px #16804a;
+}
+
+.wms-placement-obstacle {
+    z-index: 2;
+    display: flex;
+    min-width: 0;
+    overflow: hidden;
+    flex-direction: column;
+    justify-content: center;
+    padding: .25rem .35rem;
+    border: 1px solid #90a49a;
+    border-radius: .3rem;
+    background: #e7eee9;
+    color: #344b3f;
+    font-size: .72rem;
+    line-height: 1.25;
+    pointer-events: none;
+}
+
+.wms-placement-obstacle strong,
+.wms-placement-obstacle small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wms-placement-obstacle.is-facility {
+    align-items: center;
+    background: #f7dfe1;
+    border-color: #df777d;
+    color: #8f353c;
+    font-weight: 800;
+    text-align: center;
+}
+
+.wms-placement-candidate {
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    min-width: 0;
+    background: rgba(39, 151, 91, .3);
+    border: 3px solid #14814a;
+    border-radius: .35rem;
+    color: #0f5f37;
+    font-size: .8rem;
+    font-weight: 900;
+    line-height: 1.25;
+    pointer-events: none;
+}
+
+.wms-placement-candidate[hidden] {
+    display: none;
 }
 
 .ff-floor {
@@ -1284,12 +1419,12 @@ body {
 
 .ff-zone-area-normal {
     background: rgba(108, 117, 125, .05);
-    border: 2px dashed rgba(108, 117, 125, .55);
+    border: 0;
 }
 
 .ff-zone-area-cold {
     background: rgba(13, 110, 253, .07);
-    border: 2px dashed rgba(13, 110, 253, .7);
+    border: 0;
 }
 
 .ff-facility {
@@ -1375,10 +1510,22 @@ body {
 
 .ff-bin-code {
     overflow: hidden;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: .66rem;
+    font-family: inherit;
+    font-size: .68rem;
     font-weight: 800;
     letter-spacing: -.03em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ff-bin-location-code {
+    display: block;
+    overflow: hidden;
+    color: rgba(24, 53, 79, .68);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .66rem;
+    font-weight: 700;
+    line-height: 1.1;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -1420,7 +1567,9 @@ body {
 .ff-bin-meta {
     min-width: 0;
     overflow: hidden;
-    font-size: .6rem;
+    font-size: .7rem;
+    font-weight: 700;
+    line-height: 1.2;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -1749,7 +1898,7 @@ body {
     .wms-barcode-label {
         min-height: 58mm;
         padding: 4mm 2mm;
-        border: 1px dashed #777;
+        border: 1px solid #777;
         border-radius: 0;
         box-shadow: none;
         break-inside: avoid;

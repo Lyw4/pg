@@ -1,15 +1,169 @@
 (function () {
     "use strict";
 
+    const mapTabs = Array.from(document.querySelectorAll("[data-wms-map-tab]"));
+    const mapPanels = Array.from(document.querySelectorAll("[data-wms-map-panel]"));
+    if (mapTabs.length && mapPanels.length) {
+        const selectMapTab = function (selected) {
+            mapTabs.forEach(function (tab) {
+                const active = tab.dataset.wmsMapTab === selected;
+                tab.classList.toggle("active", active);
+                tab.setAttribute("aria-selected", String(active));
+            });
+            mapPanels.forEach(function (panel) {
+                panel.hidden = panel.dataset.wmsMapPanel !== selected;
+            });
+        };
+        mapTabs.forEach(function (tab) {
+            tab.addEventListener("click", function () {
+                selectMapTab(tab.dataset.wmsMapTab);
+            });
+        });
+        selectMapTab("map");
+    }
+
     const autoBinForm = document.getElementById("wmsAutoBinForm");
     if (autoBinForm) {
         const warehouseSelect = autoBinForm.querySelector("[name='warehouseId']");
         const productSelect = autoBinForm.querySelector("[name='productId']");
         const quantityInput = autoBinForm.querySelector("[name='plannedQuantity']");
+        const posXInput = autoBinForm.querySelector("[name='posX']");
+        const posYInput = autoBinForm.querySelector("[name='posY']");
+        const posWidthInput = autoBinForm.querySelector("[name='posWidth']");
+        const posHeightInput = autoBinForm.querySelector("[name='posHeight']");
         const productHint = autoBinForm.querySelector("[data-auto-bin-product-hint]");
         const preview = autoBinForm.querySelector("[data-auto-bin-preview]");
+        const placementSummary = autoBinForm.querySelector("[data-auto-placement-summary]");
+        const placementMaps = Array.from(document.querySelectorAll("[data-auto-placement-map]"));
+        const placementStatus = document.querySelector("[data-placement-status]");
+        const placementClear = document.querySelector("[data-auto-placement-clear]");
+        let layoutWidth = 1;
+        let layoutHeight = 1;
         const productOptions = Array.from(productSelect.options)
             .filter(function (option) { return option.value; });
+
+        const showPlacementMap = function () {
+            placementMaps.forEach(function (map) {
+                map.hidden = map.dataset.warehouseId !== warehouseSelect.value;
+            });
+        };
+
+        const resetPlacement = function () {
+            posXInput.value = "";
+            posYInput.value = "";
+            posWidthInput.value = "";
+            posHeightInput.value = "";
+            placementMaps.forEach(function (map) {
+                map.querySelectorAll(".wms-placement-cell.is-placement-selected")
+                    .forEach(function (cell) {
+                        cell.classList.remove("is-placement-selected");
+                    });
+                const candidate = map.querySelector("[data-placement-candidate]");
+                if (candidate) candidate.hidden = true;
+            });
+            placementSummary.textContent = "위치를 선택하지 않으면 빈 공간에 자동 배치됩니다.";
+            if (placementStatus) {
+                placementStatus.className = "alert alert-light border py-2 mb-3";
+                placementStatus.textContent = "빈 공간에서 새 구역의 왼쪽 위 시작점을 선택해 주세요.";
+            }
+        };
+
+        const rectanglesOverlap = function (x, y, width, height, obstacle) {
+            const obstacleX = Number(obstacle.dataset.x);
+            const obstacleY = Number(obstacle.dataset.y);
+            const obstacleWidth = Number(obstacle.dataset.width);
+            const obstacleHeight = Number(obstacle.dataset.height);
+            return x < obstacleX + obstacleWidth
+                && x + width > obstacleX
+                && y < obstacleY + obstacleHeight
+                && y + height > obstacleY;
+        };
+
+        const placementAvailable = function (map, x, y, width, height) {
+            const outside = x < 1 || y < 1
+                || x + width - 1 > 26
+                || y + height - 1 > 14;
+            if (outside) return false;
+            const overlaps = Array.from(map.querySelectorAll(".wms-placement-obstacle"))
+                .some(function (obstacle) {
+                    return rectanglesOverlap(
+                        x, y, width, height, obstacle);
+                });
+            return !overlaps;
+        };
+
+        const placementAroundClickedCell = function (map, clickedX, clickedY) {
+            const sizes = [[layoutWidth, layoutHeight]];
+            if (layoutWidth !== layoutHeight) {
+                sizes.push([layoutHeight, layoutWidth]);
+            }
+            // 도면은 위치를 설명하는 개념도이므로 계획 크기가 주변 구역에
+            // 걸리면 클릭한 빈 칸 하나로 축소해도 실제 계획 수용량은 유지한다.
+            sizes.push([1, 1]);
+            for (const size of sizes) {
+                const width = size[0];
+                const height = size[1];
+                for (let offsetY = 0; offsetY < height; offsetY++) {
+                    for (let offsetX = 0; offsetX < width; offsetX++) {
+                        const x = clickedX - offsetX;
+                        const y = clickedY - offsetY;
+                        if (placementAvailable(map, x, y, width, height)) {
+                            return {x: x, y: y, width: width, height: height};
+                        }
+                    }
+                }
+            }
+            return null;
+        };
+
+        const selectPlacement = function (map, clickedX, clickedY) {
+            const placement = placementAroundClickedCell(map, clickedX, clickedY);
+            if (!placement) {
+                resetPlacement();
+                placementStatus.className = "alert alert-danger py-2 mb-3";
+                placementStatus.textContent = "상품이나 시설이 표시되지 않은 빈 칸을 선택해 주세요.";
+                return;
+            }
+
+            const x = placement.x;
+            const y = placement.y;
+            const selectedWidth = placement.width;
+            const selectedHeight = placement.height;
+
+            posXInput.value = String(x);
+            posYInput.value = String(y);
+            posWidthInput.value = String(selectedWidth);
+            posHeightInput.value = String(selectedHeight);
+            placementMaps.forEach(function (panel) {
+                panel.querySelectorAll(".wms-placement-cell.is-placement-selected")
+                    .forEach(function (cell) {
+                        cell.classList.remove("is-placement-selected");
+                    });
+                const candidate = panel.querySelector("[data-placement-candidate]");
+                if (candidate) candidate.hidden = true;
+            });
+            map.querySelectorAll(".wms-placement-cell").forEach(function (cell) {
+                const cellX = Number(cell.dataset.x);
+                const cellY = Number(cell.dataset.y);
+                const selected = cellX >= x && cellX < x + selectedWidth
+                    && cellY >= y && cellY < y + selectedHeight;
+                cell.classList.toggle("is-placement-selected", selected);
+            });
+            const candidate = map.querySelector("[data-placement-candidate]");
+            candidate.style.gridArea = y + " / " + x + " / span "
+                + selectedHeight + " / span " + selectedWidth;
+            candidate.querySelector("[data-placement-candidate-size]").textContent =
+                "X " + x + " · Y " + y + " · "
+                + selectedWidth + "×" + selectedHeight;
+            candidate.hidden = false;
+            placementSummary.textContent = "선택 위치: X " + x + ", Y " + y
+                + " · 도면 크기 " + selectedWidth + "×" + selectedHeight;
+            placementStatus.className = "alert alert-success py-2 mb-3";
+            placementStatus.textContent = selectedWidth === layoutWidth
+                    && selectedHeight === layoutHeight
+                ? "선택한 빈 공간에 새 구역을 생성합니다."
+                : "선택한 빈 칸에 맞춰 도면 표시 크기를 조정했습니다. 계획 수용량은 그대로 유지됩니다.";
+        };
 
         const refreshAutoBinForm = function () {
             const warehouseId = warehouseSelect.value;
@@ -31,17 +185,43 @@
 
             const quantity = Math.max(0, Number(quantityInput.value || 0));
             const cells = Math.max(1, Math.ceil(quantity / 500));
-            const width = Math.ceil(Math.sqrt(cells));
-            const height = Math.ceil(cells / width);
+            layoutWidth = Math.ceil(Math.sqrt(cells));
+            layoutHeight = Math.ceil(cells / layoutWidth);
+            showPlacementMap();
+            const selectedLocation = posXInput.value && posYInput.value
+                ? " 선택 위치는 X " + posXInput.value + ", Y " + posYInput.value
+                    + "이며 도면 크기는 " + posWidthInput.value + "×"
+                    + posHeightInput.value + "입니다."
+                : " 위치를 고르지 않으면 빈 공간에 자동 배정합니다.";
             preview.innerHTML = "<i class='bi bi-magic me-1 text-success'></i>"
                 + quantity.toLocaleString("ko-KR") + "포 기준 약 "
-                + width + "×" + height
-                + " 크기로 계산하며, 실제 좌표는 등록 시 빈 자리에서 자동 배정합니다.";
+                + layoutWidth + "×" + layoutHeight
+                + " 크기로 계산합니다." + selectedLocation;
         };
 
-        warehouseSelect.addEventListener("change", refreshAutoBinForm);
+        warehouseSelect.addEventListener("change", function () {
+            resetPlacement();
+            refreshAutoBinForm();
+        });
         productSelect.addEventListener("change", refreshAutoBinForm);
-        quantityInput.addEventListener("input", refreshAutoBinForm);
+        quantityInput.addEventListener("input", function () {
+            resetPlacement();
+            refreshAutoBinForm();
+        });
+        placementMaps.forEach(function (map) {
+            map.addEventListener("click", function (event) {
+                const cell = event.target.closest("[data-x][data-y].wms-placement-cell");
+                if (!cell) return;
+                selectPlacement(map, Number(cell.dataset.x), Number(cell.dataset.y));
+                refreshAutoBinForm();
+            });
+        });
+        if (placementClear) {
+            placementClear.addEventListener("click", function () {
+                resetPlacement();
+                refreshAutoBinForm();
+            });
+        }
 
         const autoBinParams = new URLSearchParams(window.location.search);
         const requestedWarehouse = autoBinParams.get("binWarehouseId");
@@ -348,17 +528,6 @@
             targets.forEach(function (target) { target.checked = selectAll.checked; });
             refreshBulkSelection();
         });
-        demandActionCard.querySelectorAll("[data-demand-bin-link]")
-            .forEach(function (link) {
-                link.addEventListener("click", function () {
-                    const quantity = link.closest("tr")
-                        ?.querySelector("input[name='quantity']")?.value;
-                    if (!quantity || Number(quantity) < 1) return;
-                    const url = new URL(link.href, window.location.origin);
-                    url.searchParams.set("autoQuantity", quantity);
-                    link.href = url.pathname + url.search;
-                });
-            });
         targets.forEach(function (target) {
             target.addEventListener("change", refreshBulkSelection);
         });
@@ -630,7 +799,11 @@
             rows: document.getElementById("wmsBinDetailRows"),
             empty: document.getElementById("wmsBinDetailEmpty"),
             inventoryLink: document.getElementById("wmsBinInventoryLink"),
-            moveLink: document.getElementById("wmsBinMoveLink")
+            moveLink: document.getElementById("wmsBinMoveLink"),
+            deleteForm: document.getElementById("wmsBinDeleteForm"),
+            deleteWarehouseId: document.getElementById("wmsBinDeleteWarehouseId"),
+            deleteButton: document.getElementById("wmsBinDeleteButton"),
+            deleteReason: document.getElementById("wmsBinDeleteReason")
         };
 
         const comma = function (value) {
@@ -651,6 +824,8 @@
             detailElements.loading.classList.remove("d-none");
             detailElements.error.classList.add("d-none");
             detailElements.body.classList.add("d-none");
+            detailElements.deleteForm.classList.add("d-none");
+            detailElements.deleteReason.textContent = "";
             binModal.show();
         };
 
@@ -659,6 +834,8 @@
             detailElements.body.classList.add("d-none");
             detailElements.error.textContent = message;
             detailElements.error.classList.remove("d-none");
+            detailElements.deleteForm.classList.add("d-none");
+            detailElements.deleteReason.textContent = "";
         };
 
         const renderBinDetail = function (detail) {
@@ -676,6 +853,14 @@
                 + encodeURIComponent(bin.binId);
             detailElements.moveLink.href = "/admin/wms?view=move&binId="
                 + encodeURIComponent(bin.binId);
+            detailElements.deleteForm.action = "/admin/wms/bins/"
+                + encodeURIComponent(bin.binId) + "/delete";
+            detailElements.deleteWarehouseId.value = bin.warehouseId;
+            detailElements.deleteButton.disabled = !bin.deletable;
+            detailElements.deleteForm.classList.remove("d-none");
+            detailElements.deleteReason.textContent = bin.deletable
+                ? "재고가 없는 구역은 안전하게 삭제할 수 있습니다."
+                : (bin.deleteBlockedReason || "현재 이 구역은 삭제할 수 없습니다.");
 
             detailElements.rows.innerHTML = "";
             const inventories = detail.inventories || [];

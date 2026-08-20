@@ -38,6 +38,7 @@ import com.ex.service.RecurringDeliveryService;
 import com.ex.service.ShipmentService;
 import com.ex.service.WarehouseManagementService;
 import com.ex.service.WmsOperationsService;
+import com.ex.service.WarehouseInventoryRebalanceService;
 import com.ex.service.AdminActivityService;
 import com.ex.service.PaymentService;
 
@@ -55,6 +56,7 @@ public class ManagementController {
     private final AdminActivityService adminActivityService;
     private final WmsOperationsService wmsOperationsService;
     private final PaymentService paymentService;
+    private final WarehouseInventoryRebalanceService inventoryRebalanceService;
 
     public ManagementController(
             InventoryService inventoryService,
@@ -67,7 +69,8 @@ public class ManagementController {
             FarmCustomerService farmCustomerService,
             AdminActivityService adminActivityService,
             WmsOperationsService wmsOperationsService,
-            PaymentService paymentService) {
+            PaymentService paymentService,
+            WarehouseInventoryRebalanceService inventoryRebalanceService) {
         this.inventoryService = inventoryService;
         this.distributionService = distributionService;
         this.recurringDeliveryService = recurringDeliveryService;
@@ -79,6 +82,7 @@ public class ManagementController {
         this.adminActivityService = adminActivityService;
         this.wmsOperationsService = wmsOperationsService;
         this.paymentService = paymentService;
+        this.inventoryRebalanceService = inventoryRebalanceService;
     }
 
     @Value("${kakao.maps.javascript-key:}")
@@ -209,6 +213,8 @@ public class ManagementController {
                         lot -> lotExpiryStatus(lot, today)));
 
         long expiredLotCount = activeLots.stream()
+                // 아래 임박 건수 집계와 같은 기준을 사용합니다.
+                .filter(lot -> lot.getExpirationDate() != null)
                 .filter(lot -> lot.getExpirationDate().isBefore(today))
                 .count();
         long expiringSoonLotCount = activeLots.stream()
@@ -360,6 +366,29 @@ public class ManagementController {
                 "stockReplenishResults", successes);
         redirectAttributes.addFlashAttribute(
                 "stockReplenishErrors", failures);
+        return "redirect:/inventory?view=lowStock";
+    }
+
+    @PostMapping("/inventory/warehouses/stock/rebalance")
+    public String rebalanceAllWarehouseStock(
+            Authentication authentication,
+            RedirectAttributes redirectAttributes) {
+        var report = inventoryRebalanceService.rebalanceAll(
+                authentication == null ? "관리자" : authentication.getName());
+        var recommendation = report.recommendation();
+        redirectAttributes.addFlashAttribute(
+                "stockReplenishResults", report.results());
+        redirectAttributes.addFlashAttribute(
+                "stockReplenishErrors", report.failures());
+        redirectAttributes.addFlashAttribute(
+                "message",
+                "거래 중 농장 " + recommendation.activeFarmCount()
+                        + "곳의 월 사료 "
+                        + recommendation.monthlyFarmDemand()
+                        + "포와 영양제 "
+                        + recommendation.monthlySupplementDemand()
+                        + "포를 반영했습니다. 권장 보유량은 "
+                        + recommendation.targetStockQuantity() + "포입니다.");
         return "redirect:/inventory?view=lowStock";
     }
 
@@ -819,9 +848,13 @@ public class ManagementController {
                 .collect(Collectors.toMap(
                         delivery -> delivery.getOrder().getOrderId(),
                         delivery -> delivery));
+        // 출고 지시는 결제 완료 주문만 만들 수 있습니다. 결제 대기 주문까지
+        // 이 목록에 넣으면 담당자가 출고를 시도했다가 실패하게 됩니다.
         var readyDeliveryOrders = orders.stream()
                 .filter(order -> {
                     return !deliveryByOrder.containsKey(order.getOrderId())
+                            && order.getPaymentStatus()
+                                    == com.ex.entity.PaymentStatus.DONE
                             && order.getStatus() != com.ex.entity.CustomerOrder.OrderStatus.DELIVERED
                             && order.getStatus() != com.ex.entity.CustomerOrder.OrderStatus.CANCELLED;
                 })

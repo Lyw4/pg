@@ -99,6 +99,25 @@ public class Shipment {
         this.cancelledAt = LocalDateTime.now();
     }
 
+    /**
+     * 취소된 출고 지시를 다시 엽니다.
+     *
+     * <p>주문 하나에 출고 지시는 하나만 존재할 수 있어(order_id 유니크), 취소된
+     * 지시를 남겨 둔 채로는 새 지시를 만들 수 없습니다. 이 메서드가 없으면 출고를
+     * 한 번 취소한 주문은 결제가 살아 있어도 영구히 출고할 수 없습니다.
+     */
+    public void reopen(String worker, String note) {
+        if (status != ShipmentStatus.CANCELLED) {
+            throw new IllegalStateException(
+                    "취소된 출고 지시만 다시 열 수 있습니다.");
+        }
+        this.worker = worker;
+        this.note = note;
+        this.status = ShipmentStatus.DIRECTED;
+        this.cancelledAt = null;
+        this.shippedAt = null;
+    }
+
     private void requireStatus(ShipmentStatus expected) {
         if (status != expected) {
             throw new IllegalStateException(expected.getLabel() + " 단계에서만 처리할 수 있습니다.");

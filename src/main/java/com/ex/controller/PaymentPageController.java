@@ -46,18 +46,9 @@ public class PaymentPageController {
     }
 
     private Long sessionMemberId(HttpSession session) {
-        Object value = session.getAttribute("memberId");
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
-        if (value instanceof String text && !text.isBlank()) {
-            try {
-                return Long.valueOf(text.trim());
-            } catch (NumberFormatException ignored) {
-                return null;
-            }
-        }
-        return null;
+        // 영수증 화면은 비로그인 상태를 404 안내로 처리하므로 예외를 던지지
+        // 않는 쪽을 사용합니다.
+        return SessionMemberSupport.memberIdOrNull(session);
     }
 
     @GetMapping("/payments/portone/redirect")

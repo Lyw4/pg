@@ -14,6 +14,7 @@ import com.ex.entity.Product;
 import com.ex.repository.BinInventoryRepository;
 import com.ex.repository.WarehouseAllocationRepository;
 import com.ex.repository.WarehouseBinRepository;
+import com.ex.repository.ProductRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -34,6 +35,7 @@ public class WarehouseCapacityPlanningService {
     private final WarehouseBinRepository binRepository;
     private final BinInventoryRepository inventoryRepository;
     private final SellableStockQuery sellableStockQuery;
+    private final ProductRepository productRepository;
 
     @Transactional
     public void resizeForWarehouse(Long warehouseId) {
@@ -154,6 +156,15 @@ public class WarehouseCapacityPlanningService {
         bins.forEach(bin -> bin.changeCapacity(ceilDivide(
                 Math.max(effectivePerBin, quantityInBin(bin)),
                 WarehouseBin.VERTICAL_STACKING_LEVELS)));
+    }
+
+    @Transactional
+    public void ensureProductInboundCapacity(
+            Long warehouseId, Long productId, int inboundQuantity) {
+        Product product = productRepository.findByProductIdAndActiveTrue(productId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "구역을 확보할 상품을 찾을 수 없습니다."));
+        ensureProductInboundCapacity(warehouseId, product, inboundQuantity);
     }
 
     private int quantityInBin(WarehouseBin bin) {

@@ -12,7 +12,6 @@ import com.ex.entity.OrderLotAllocation;
 import com.ex.entity.Product;
 import com.ex.entity.ProductLot;
 import com.ex.entity.Warehouse;
-import com.ex.entity.PaymentStatus;
 import com.ex.entity.Shipment.ShipmentStatus;
 import com.ex.repository.CustomerOrderRepository;
 import com.ex.repository.DeliveryRepository;
@@ -144,28 +143,25 @@ public class OrderService {
         return toResponse(order);
     }
 
-    @Transactional
-    public OrderResponse cancelOrder(
-            String orderNumber,
-            String phone) {
-        CustomerOrder order = findByOrderNumber(orderNumber);
-        if (StringUtils.hasText(order.getProviderTransactionId())
-                && (order.getPaymentStatus() == PaymentStatus.DONE
-                || order.getPaymentStatus() == PaymentStatus.WAITING_FOR_DEPOSIT)) {
-            throw new IllegalStateException(
-                    "전자결제가 시작된 회원 주문은 로그인 후 마이페이지에서 취소해 주세요.");
-        }
-        cancelPendingShipment(order, "고객 주문 취소");
-        order.cancelByCustomer(phone);
-        restoreCommittedInventory(order);
-        return toResponse(order);
-    }
-
+    /**
+     * 주문번호와 전화번호로 주문을 조회합니다.
+     *
+     * <p>전화번호만으로 인증하면 자리수가 정해진 값이라 대조 시도를 반복해
+     * 남의 주문을 열 수 있습니다. 로그인 회원 본인 주문인지 함께 확인합니다.
+     */
     @Transactional(readOnly = true)
     public OrderResponse findOrder(
             String orderNumber,
-            String phone) {
+            String phone,
+            Long memberId) {
+        if (memberId == null) {
+            throw new IllegalArgumentException("로그인이 필요합니다.");
+        }
         CustomerOrder order = findByOrderNumber(orderNumber);
+        if (order.getMember() == null
+                || !memberId.equals(order.getMember().getId())) {
+            throw new IllegalArgumentException("본인 주문만 조회할 수 있습니다.");
+        }
         if (order.getPhone() == null
                 || !order.getPhone().equals(phone)) {
             throw new IllegalArgumentException(
@@ -213,20 +209,6 @@ public class OrderService {
         return OrderDetailResponse.from(order, shipment, delivery, histories);
     }
 
-    @Transactional
-    public OrderResponse cancelMemberOrder(String orderNumber, Long memberId) {
-        if (memberId == null) throw new IllegalArgumentException("로그인이 필요합니다.");
-        CustomerOrder order = findByOrderNumber(orderNumber);
-        if (order.getMember() == null || !memberId.equals(order.getMember().getId())) {
-            throw new IllegalArgumentException("본인 주문만 취소할 수 있습니다.");
-        }
-        cancelPendingShipment(order, "회원 마이페이지 주문 취소");
-        order.cancel("회원 마이페이지 요청", order.getCustomerName());
-        if (order.getPaymentStatus() != null) order.cancelPayment();
-        restoreCommittedInventory(order);
-        return toResponse(order);
-    }
-
     private List<ResolvedLine> resolveLines(
             CreateOrderRequest request) {
         List<ResolvedLine> lines = new ArrayList<>();
@@ -272,6 +254,9 @@ public class OrderService {
                 .findByProductProductIdAndLotQuantityGreaterThanOrderByExpirationDateAsc(
                         line.product().getProductId(), 0)
                 .stream()
+                // 유통기한이 비어 있는 로트는 판매 가능 여부를 판단할 수 없어
+                // 제외합니다. null 검사를 빼면 아래 비교에서 NPE가 납니다.
+                .filter(lot -> lot.getExpirationDate() != null)
                 .filter(lot -> !lot.getExpirationDate().isBefore(
                         LocalDate.now().plusDays(
                                 ExpirySaleService.MINIMUM_SELLABLE_DAYS)))
@@ -281,8 +266,13 @@ public class OrderService {
         Map<Long, Integer> sellableByLot = sellableStockQuery.sellablePerLot(
                 lots.stream().map(ProductLot::getLotId).toList(),
                 fulfillmentWarehouse.getWarehouseId());
-        int available = sellableByLot.values().stream()
-                .mapToInt(Integer::intValue)
+        // 아래 할당 루프와 같은 기준(로트 잔량과 창고 구역 재고 중 작은 값)으로
+        // 계산해야 합니다. 구역 재고 합계만으로 판단하면 로트 잔량이 더 적은
+        // 경우 이 검사를 통과한 뒤 할당 루프에서 재고 부족으로 실패합니다.
+        int available = lots.stream()
+                .mapToInt(lot -> Math.min(
+                        lot.getLotQuantity(),
+                        sellableByLot.getOrDefault(lot.getLotId(), 0)))
                 .sum();
         if (available < line.quantity()) {
             throw new IllegalArgumentException(

@@ -139,8 +139,13 @@
         const waitingForDeposit =
             order.paymentMethod === "BANK_TRANSFER"
             && order.paymentStatus === "WAITING_FOR_DEPOSIT";
+        const invalidCardWaiting =
+            order.paymentMethod !== "BANK_TRANSFER"
+            && order.paymentStatus === "WAITING_FOR_DEPOSIT";
         const statusLabel = waitingForDeposit
             ? "입금 대기"
+            : invalidCardWaiting
+                ? "결제 확인 필요"
             : order.paymentMethod === "BANK_TRANSFER"
                 && order.paymentStatus === "DONE"
                 ? "입금 완료"
@@ -206,25 +211,21 @@
             </div>`;
     }
 
-    function renderFarmAlerts(alerts) {
-        $("#farm-alert-count").textContent = `${alerts?.length || 0}건`;
-        $("#farm-dashboard-alerts").innerHTML = alerts?.length
-            ? alerts.map((alert) => `
-                <a class="farm-dashboard-alert level-${escapeHtml(alert.level)}" href="${escapeHtml(alert.actionUrl)}">
-                    <span>${escapeHtml(alert.title)}</span>
-                    <strong>${escapeHtml(alert.message)}</strong>
-                </a>`).join("")
-            : `<div class="farm-dashboard-clear"><strong>확인할 긴급 알림이 없습니다.</strong><span>재고·유통기한·정기배송·배송 지연을 자동 점검했습니다.</span></div>`;
-    }
-
     function renderFarmRecentOrders(orders) {
         $("#farm-dashboard-orders").innerHTML = orders?.length
-            ? orders.slice(0, 4).map((order) => `
+            ? orders.slice(0, 4).map((order) => {
+                const cancelled = order.status === "CANCELLED";
+                const statusClass = cancelled ? "cancelled" : order.delayed ? "delayed" : "";
+                const statusText = cancelled
+                    ? order.deliveryStatus
+                    : order.delayed ? "배송 지연" : order.deliveryStatus;
+                return `
                 <a href="/mypage/orders/${encodeURIComponent(order.orderNumber)}">
                     <div><strong>${escapeHtml(order.orderNumber)}</strong><span>${escapeHtml(new Date(order.orderedAt).toLocaleDateString("ko-KR"))}</span></div>
                     <span>${order.quantity.toLocaleString("ko-KR")}포 · ${won(order.amount)}</span>
-                    <b class="${order.delayed ? "delayed" : ""}">${escapeHtml(order.delayed ? "배송 지연" : order.deliveryStatus)}</b>
-                </a>`).join("")
+                    <b class="${statusClass}">${escapeHtml(statusText)}</b>
+                </a>`;
+            }).join("")
             : `<p class="mypage-empty">최근 주문 내역이 없습니다.</p>`;
     }
 
@@ -240,11 +241,11 @@
                 ? `${dashboard.feedbackSummary.suitabilityRate}%`
                 : "평가 전";
             $("#farm-feedback-count").textContent = `적합 ${dashboard.feedbackSummary.suitableCount} · 아쉬움 ${dashboard.feedbackSummary.unsuitableCount}`;
-            renderFarmAlerts(dashboard.alerts);
             renderUsageChart(dashboard.usages);
             renderFarmRecentOrders(dashboard.recentOrders);
         } catch (error) {
-            $("#farm-dashboard-alerts").innerHTML = `<p class="mypage-empty">${escapeHtml(error.message)}</p>`;
+            console.error("농장 대시보드 정보를 불러오지 못했습니다.", error);
+            showToast(error.message, true);
         }
     }
 
@@ -363,6 +364,7 @@
                     method: "PATCH"
                 });
                 await loadOrders();
+                await loadFarmDashboard();
                 showToast(
                     cancel.dataset.cancelBeforeDeposit
                         ? "주문 취소가 완료되었습니다. 발급된 가상계좌도 함께 해지되었습니다."

@@ -13,6 +13,7 @@ import com.ex.entity.EmployeeRole;
 import com.ex.service.EmployeeManagementService;
 import com.ex.service.DemandPlanService;
 import com.ex.service.FarmDeliveryAutomationService;
+import com.ex.service.InboundReplenishmentRequestService;
 import com.ex.service.SurplusInventoryControlService;
 
 import java.time.LocalDate;
@@ -29,6 +30,7 @@ public class AdminFeatureController {
     private final EmployeeManagementService employeeManagementService;
     private final DemandPlanService demandPlanService;
     private final FarmDeliveryAutomationService farmDeliveryAutomationService;
+    private final InboundReplenishmentRequestService inboundRequestService;
     private final SurplusInventoryControlService surplusInventoryControlService;
 
     @GetMapping("/admin/employees")
@@ -88,6 +90,8 @@ public class AdminFeatureController {
         LocalDate selectedDate = referenceDate == null ? LocalDate.now() : referenceDate;
         model.addAttribute("plan", demandPlanService.plan(LocalDate.now()));
         model.addAttribute("deliveryPreview", farmDeliveryAutomationService.preview(selectedDate));
+        model.addAttribute("inboundRequests", inboundRequestService.requests());
+        model.addAttribute("pendingInboundRequestCount", inboundRequestService.pendingCount());
         model.addAttribute("referenceDate", selectedDate);
         model.addAttribute("menu", "demandPlan");
         model.addAttribute("pageTitle", "수요 계획");
@@ -101,7 +105,8 @@ public class AdminFeatureController {
         var result = farmDeliveryAutomationService.execute(referenceDate, "MANUAL");
         redirectAttributes.addFlashAttribute(
                 result.failedCount() == 0 ? "deliveryAutomationMessage" : "deliveryAutomationError",
-                "기준일 " + referenceDate + " · 생성 " + result.createdCount()
+                "기준일 " + referenceDate + " · 배송 생성 " + result.createdCount()
+                        + "건, 입고 승인 요청 " + result.requestedCount()
                         + "건, 중복 제외 " + result.skippedCount()
                         + "건, 실패 " + result.failedCount() + "건");
         return "redirect:/admin/demand-plan?referenceDate=" + referenceDate;
@@ -135,6 +140,38 @@ public class AdminFeatureController {
             redirectAttributes.addFlashAttribute("deliveryAutomationError", exception.getMessage());
         }
         return "redirect:/admin/demand-plan?referenceDate=" + referenceDate;
+    }
+
+    @PostMapping("/admin/demand-plan/inbound-requests/{requestId}/approve")
+    public String approveInboundRequest(
+            @PathVariable(name = "requestId") Long requestId,
+            @RequestParam(name = "referenceDate", required = false) LocalDate referenceDate,
+            Authentication authentication,
+            RedirectAttributes redirectAttributes) {
+        try {
+            redirectAttributes.addFlashAttribute("deliveryAutomationMessage",
+                    inboundRequestService.approve(requestId, authentication.getName()));
+        } catch (RuntimeException exception) {
+            redirectAttributes.addFlashAttribute("deliveryAutomationError", exception.getMessage());
+        }
+        return "redirect:/admin/demand-plan?referenceDate="
+                + (referenceDate == null ? LocalDate.now() : referenceDate);
+    }
+
+    @PostMapping("/admin/demand-plan/inbound-requests/{requestId}/reject")
+    public String rejectInboundRequest(
+            @PathVariable(name = "requestId") Long requestId,
+            @RequestParam(name = "referenceDate", required = false) LocalDate referenceDate,
+            Authentication authentication,
+            RedirectAttributes redirectAttributes) {
+        try {
+            redirectAttributes.addFlashAttribute("deliveryAutomationMessage",
+                    inboundRequestService.reject(requestId, authentication.getName()));
+        } catch (RuntimeException exception) {
+            redirectAttributes.addFlashAttribute("deliveryAutomationError", exception.getMessage());
+        }
+        return "redirect:/admin/demand-plan?referenceDate="
+                + (referenceDate == null ? LocalDate.now() : referenceDate);
     }
 
     @PostMapping("/admin/demand-plan/surplus-control")

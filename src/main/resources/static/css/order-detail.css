@@ -39,7 +39,10 @@
 .order-detail-amounts dd, .order-detail-info-list dd { margin: 0; font-weight: 800; text-align: right; }
 .order-detail-amounts div:last-child dd { color: var(--forest); font-size: 17px; }
 .order-detail-receipt { margin-top: 18px; }
+.order-detail-receipt button,
 .order-detail-receipt a { min-height: 42px; padding: 0 14px; display: inline-flex; align-items: center; border: 1px solid var(--forest); color: var(--forest); font-size: 13px; font-weight: 800; text-decoration: none; }
+.order-detail-receipt button { margin-right: 8px; cursor: pointer; background: var(--forest); color: white; }
+.order-detail-receipt button:disabled { cursor: wait; opacity: .6; }
 .order-detail-receipt a.receipt-original-link { margin-left: 8px; border-color: var(--line); color: var(--muted); font-size: 12px; }
 .order-detail-receipt small { display: block; margin-top: 9px; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .order-detail-empty { color: var(--muted); font-size: 13px; }

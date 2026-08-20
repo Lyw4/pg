@@ -20,7 +20,7 @@
               th:action="@{/admin/logout}">
             <button type="submit">관리자 로그아웃</button>
         </form>
-        <span>고객센터 1588-0427</span>
+        <span sec:authorize="!hasAnyRole('ADMIN','STAFF')">고객센터 1588-0427</span>
     </div>
 </div>
 
@@ -135,7 +135,7 @@
 
 <footer>
     <div class="footer-brand"><span>F</span><div><strong>FEED FLOW</strong><p>판매·유통·재고가 하나의 상품 데이터로 연결됩니다.</p></div></div>
-    <p>고객센터 1588-0427 · help@feedflow.kr · © 2026 FEED FLOW</p>
+    <p><span sec:authorize="!hasAnyRole('ADMIN','STAFF')">고객센터 1588-0427 · </span>help@feedflow.kr · © 2026 FEED FLOW</p>
 </footer>
 </body>
 </html>

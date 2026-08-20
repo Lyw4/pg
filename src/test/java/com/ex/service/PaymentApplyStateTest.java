@@ -113,6 +113,11 @@ class PaymentApplyStateTest {
         payment.put("merchant_uid", order.getOrderNumber());
         payment.put("amount", order.getFinalPrice().intValueExact());
         payment.put("status", status);
+        payment.put("pay_method", order.getPaymentMethod() == PaymentMethod.BANK_TRANSFER
+                ? "vbank"
+                : order.getPaymentMethod() == PaymentMethod.KAKAO_PAY
+                        ? "kakaopay"
+                        : "card");
         return payment;
     }
 }

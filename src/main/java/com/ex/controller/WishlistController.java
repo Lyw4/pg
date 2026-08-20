@@ -38,6 +38,6 @@ public class WishlistController {
     }
 
     private Long memberId(HttpSession session) {
-        return (Long) session.getAttribute("memberId");
+        return SessionMemberSupport.requireMemberId(session);
     }
 }

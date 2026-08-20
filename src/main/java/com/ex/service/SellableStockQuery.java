@@ -2,9 +2,11 @@ package com.ex.service;
 
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.EnumSet;
 
 import org.springframework.stereotype.Service;
@@ -27,10 +29,19 @@ public class SellableStockQuery {
 
     private final BinInventoryRepository inventoryRepository;
     private final OrderItemRepository orderItemRepository;
-    private static final EnumSet<OrderStatus> RESERVING_STATUSES = EnumSet.of(
-            OrderStatus.PAYMENT_PENDING,
-            OrderStatus.PAID,
-            OrderStatus.PREPARING);
+
+    /**
+     * 아직 출고되지 않았지만 재고를 붙잡고 있는 주문 상태입니다.
+     *
+     * <p>판매 가능 수량을 계산하는 모든 지점이 같은 기준을 써야 합니다.
+     * 이 목록을 각자 복사해서 쓰면 결제 대기 주문을 예약으로 보지 않는 쪽이
+     * 생겨 같은 재고를 두 번 판매할 수 있습니다.
+     */
+    public static final Set<OrderStatus> RESERVING_STATUSES =
+            Collections.unmodifiableSet(EnumSet.of(
+                    OrderStatus.PAYMENT_PENDING,
+                    OrderStatus.PAID,
+                    OrderStatus.PREPARING));
 
     public int sellable(Long productId) {
         if (productId == null) return 0;
@@ -186,14 +197,20 @@ public class SellableStockQuery {
             Collection<Long> productIds) {
         Map<String, Integer> result = new LinkedHashMap<>();
         if (productIds == null || productIds.isEmpty()) return result;
-        orderItemRepository.sumReservedQuantities(RESERVING_STATUSES)
-                .stream()
-                .filter(row -> productIds.contains(
-                        ((Number) row[1]).longValue()))
-                .forEach(row -> result.put(
-                        stockKey(((Number) row[0]).longValue(),
-                                ((Number) row[1]).longValue()),
-                        normalize(row[2])));
+        orderItemRepository.sumReservedQuantitiesByWarehouseAndProductIds(
+                        RESERVING_STATUSES, productIds)
+                .forEach(row -> {
+                    // 이 클래스의 다른 집계와 같은 방어 수준을 유지합니다.
+                    if (row == null || row.length < 3
+                            || !(row[0] instanceof Number warehouseId)
+                            || !(row[1] instanceof Number productId)) {
+                        return;
+                    }
+                    result.put(
+                            stockKey(warehouseId.longValue(),
+                                    productId.longValue()),
+                            normalize(row[2]));
+                });
         return result;
     }
 }

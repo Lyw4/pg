@@ -130,8 +130,10 @@ class CustomerAccountFeatureTest {
 
         mockMvc.perform(post("/api/members/logout").session(session))
                 .andExpect(status().isNoContent());
+        // 로그아웃 후에는 인증 누락이므로 401입니다. OrderController와
+        // AdminProductController가 이미 401을 반환하고 있어 규약을 통일했습니다.
         mockMvc.perform(get("/api/members/me").session(session))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isUnauthorized());
         mockMvc.perform(post("/api/auth/login")
                         .contentType("application/json")
                         .content("""

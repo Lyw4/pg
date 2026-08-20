@@ -27,6 +27,7 @@ class DefectServiceTest {
     private DefectRecordRepository defectRepository;
     private ProductLotRepository lotRepository;
     private StockLogRepository stockLogRepository;
+    private SellableStockQuery sellableStockQuery;
     private InventoryService inventoryService;
     private WmsStockCoordinator wmsStockCoordinator;
     private DefectService service;
@@ -36,12 +37,14 @@ class DefectServiceTest {
         defectRepository = mock(DefectRecordRepository.class);
         lotRepository = mock(ProductLotRepository.class);
         stockLogRepository = mock(StockLogRepository.class);
+        sellableStockQuery = mock(SellableStockQuery.class);
         inventoryService = mock(InventoryService.class);
 		wmsStockCoordinator = mock(WmsStockCoordinator.class);
         service = new DefectService(
                 defectRepository,
 				lotRepository,
 				stockLogRepository,
+				sellableStockQuery,
 				inventoryService,
 				wmsStockCoordinator);
     }
@@ -49,9 +52,10 @@ class DefectServiceTest {
     @Test
     void registerRejectsQuantityGreaterThanAvailableLotStock() {
         ProductLot lot = mock(ProductLot.class);
-        when(lot.getLotQuantity()).thenReturn(3);
         when(lotRepository.findById(1L)).thenReturn(Optional.of(lot));
-        when(inventoryService.availableLotStock(lot)).thenReturn(3);
+        // 불량 격리는 판매 구역에서 재고를 빼므로 판매 가능 수량이 기준입니다.
+        when(sellableStockQuery.sellableByLotIds(java.util.List.of(1L)))
+                .thenReturn(3);
 
         assertThrows(IllegalStateException.class, () -> service.register(
                 1L, 4, DefectType.DAMAGE, OccurrenceStage.STORAGE,

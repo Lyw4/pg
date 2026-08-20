@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.Base64;
+import org.springframework.mock.web.MockMultipartFile;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -31,6 +32,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 @Transactional
 class AdminProductControllerTest {
+
+    private static final byte[] ONE_PIXEL_PNG = Base64.getDecoder().decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
 
     @Autowired
     private MockMvc mockMvc;
@@ -57,6 +61,8 @@ class AdminProductControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("관리자 등록 사료"))
                 .andExpect(jsonPath("$.lot").value("ADMIN-LOT-001"))
+                .andExpect(jsonPath("$.tone").value("amber"))
+                .andExpect(jsonPath("$.shape").value("pellet"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -77,6 +83,23 @@ class AdminProductControllerTest {
                 .andExpect(status().isNoContent());
 
         assertFalse(productRepository.findById(productId).orElseThrow().isActive());
+    }
+
+    @Test
+    void 상품이미지를파일로첨부한다() throws Exception {
+        MockMultipartFile image = new MockMultipartFile(
+                "image", "feed.png", MediaType.IMAGE_PNG_VALUE, ONE_PIXEL_PNG);
+
+        mockMvc.perform(multipart("/api/admin/products/image").file(image))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(multipart("/api/admin/products/image")
+                        .file(image)
+                        .header(HttpHeaders.AUTHORIZATION, basicAuth()))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.imageUrl")
+                        .value(org.hamcrest.Matchers.startsWith(
+                                "/uploads/product-images/")));
     }
 
     private String basicAuth() {
@@ -103,8 +126,6 @@ class AdminProductControllerTest {
                   "calciumPercent": 1.1,
                   "imageUrl": null,
                   "badge": "관리자",
-                  "displayTone": "amber",
-                  "displayShape": "pellet",
                   "lotNumber": "ADMIN-LOT-001",
                   "manufacturedDate": "%s",
                   "expirationDate": "%s",

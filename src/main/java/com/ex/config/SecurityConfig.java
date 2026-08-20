@@ -46,14 +46,19 @@ public class SecurityConfig {
                                 "/css/**",
                                 "/js/**",
                                 "/images/**",
+                                "/uploads/product-images/**",
                                 "/favicon.ico",
                                 "/api/products/**",
                                 "/api/orders/**",
                                 "/api/members/**",
                                 "/error")
                         .permitAll()
+                        // H2 콘솔은 임의 SQL을 실행할 수 있어 사원 계정에게
+                        // 열어 두면 employee_account.role을 직접 바꾸는 권한
+                        // 상승이 가능합니다. 사원 권한에서 제외합니다.
                         .requestMatchers(
-                                "/admin/employees/**")
+                                "/admin/employees/**",
+                                "/h2-console/**")
                         .hasRole("ADMIN")
                         .requestMatchers(
                                 "/admin/**",
@@ -61,7 +66,6 @@ public class SecurityConfig {
                                 "/distribution/**",
                                 "/shipments/**",
                                 "/products/**",
-                                "/h2-console/**",
                                 "/api/admin/**",
                                 "/api/inventory/**",
                                 "/api/distribution/**",

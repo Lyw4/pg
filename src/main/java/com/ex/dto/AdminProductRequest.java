@@ -21,8 +21,6 @@ public record AdminProductRequest(
         @NotNull @DecimalMin("0.0") BigDecimal calciumPercent,
         @Size(max = 500) String imageUrl,
         @Size(max = 30) String badge,
-        @NotBlank @Size(max = 30) String displayTone,
-        @NotBlank @Size(max = 30) String displayShape,
         @NotBlank @Size(max = 50) String lotNumber,
         @NotNull @PastOrPresent LocalDate manufacturedDate,
         @NotNull @Future LocalDate expirationDate,

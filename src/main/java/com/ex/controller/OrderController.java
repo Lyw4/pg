@@ -10,7 +10,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -33,9 +32,11 @@ public class OrderController {
     @GetMapping("/{orderNumber}")
     public OrderResponse findOrder(
             @PathVariable(name = "orderNumber") String orderNumber,
-            @RequestParam(name = "phone") String phone
+            @RequestParam(name = "phone") String phone,
+            HttpSession session
     ) {
-        return orderService.findOrder(orderNumber, phone);
+        return orderService.findOrder(
+                orderNumber, phone, memberId(session));
     }
 
     @PatchMapping("/{orderNumber}/cancel")
@@ -68,26 +69,6 @@ public class OrderController {
     }
 
     private Long memberId(HttpSession session) {
-        Long memberId = memberIdOrNull(session);
-        if (memberId == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
-        }
-        return memberId;
-    }
-
-    private Long memberIdOrNull(HttpSession session) {
-        Object value = session.getAttribute("memberId");
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
-        if (value instanceof String text && !text.isBlank()) {
-            try {
-                return Long.valueOf(text.trim());
-            } catch (NumberFormatException ignored) {
-                return null;
-            }
-        }
-        return null;
+        return SessionMemberSupport.requireMemberId(session);
     }
 }

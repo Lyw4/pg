@@ -44,6 +44,7 @@ public class DefectService {
     private final DefectRecordRepository defectRepository;
     private final ProductLotRepository lotRepository;
     private final StockLogRepository stockLogRepository;
+    private final SellableStockQuery sellableStockQuery;
     private final InventoryService inventoryService;
 	private final WmsStockCoordinator wmsStockCoordinator;
 
@@ -102,8 +103,14 @@ public class DefectService {
         requireText(reporter, "등록자를 입력해 주세요.");
 
         ProductLot lot = findLot(lotId);
-        if (inventoryService.availableLotStock(lot) < quantity) {
-            throw new IllegalStateException("해당 LOT의 가용 재고보다 불량 수량이 많습니다.");
+        // 아래 재고 차감이 판매 구역에서만 빼기 때문에 검사도 같은 기준이어야
+        // 합니다. LOT 총잔량으로 판단하면 검수·입고 대기 구역 재고까지 포함되어
+        // 주문이 예약한 판매 구역 재고를 불량 격리가 가져갈 수 있습니다.
+        int sellable = sellableStockQuery.sellableByLotIds(List.of(lotId));
+        if (sellable < quantity) {
+            throw new IllegalStateException(
+                    "주문 예약분을 제외한 가용 재고보다 불량 수량이 많습니다. "
+                            + "요청 " + quantity + "개 / 가능 " + sellable + "개");
         }
 
         lot.changeQuantity(-quantity);

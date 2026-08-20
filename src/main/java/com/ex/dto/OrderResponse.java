@@ -53,8 +53,13 @@ public record OrderResponse(
                                 item.getQuantity(),
                                 item.getOrderPrice().intValueExact(),
                                 item.getLineAmount().intValueExact(),
-                                item.getProduct().getWeightKg().doubleValue()
-                                        * item.getQuantity()))
+                                // 중량이 등록되지 않은 상품 때문에 주문 조회
+                                // 전체가 실패하지 않도록 0으로 처리합니다.
+                                item.getProduct().getWeightKg() == null
+                                        ? 0d
+                                        : item.getProduct().getWeightKg()
+                                                .doubleValue()
+                                                * item.getQuantity()))
                         .toList());
     }
 

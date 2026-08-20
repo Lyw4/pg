@@ -105,10 +105,6 @@ public class MemberController {
     }
 
     private Long memberId(HttpSession session) {
-        Long memberId = (Long) session.getAttribute("memberId");
-        if (memberId == null) {
-            throw new IllegalArgumentException("로그인이 필요합니다.");
-        }
-        return memberId;
+        return SessionMemberSupport.requireMemberId(session);
     }
 }

@@ -22,6 +22,11 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
 	})
 	List<OrderItem> findByOrderStatusIn(Collection<OrderStatus> statuses);
 
+	/**
+	 * 창고·상품별 예약 수량입니다. 상품 조건을 쿼리에서 걸러야 주문이 쌓여도
+	 * 필요한 행만 읽습니다. 예전에는 전체 예약을 읽어 애플리케이션에서
+	 * 걸러냈습니다.
+	 */
 	@Query("""
 			select o.fulfillmentWarehouse.warehouseId,
 			       item.product.productId,
@@ -31,11 +36,13 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
 			where o.status in :statuses
 			  and o.fulfillmentWarehouse is not null
 			  and o.inventoryCommitted = false
+			  and item.product.productId in :productIds
 			group by o.fulfillmentWarehouse.warehouseId,
 			         item.product.productId
 			""")
-	List<Object[]> sumReservedQuantities(
-			@Param("statuses") Collection<OrderStatus> statuses);
+	List<Object[]> sumReservedQuantitiesByWarehouseAndProductIds(
+			@Param("statuses") Collection<OrderStatus> statuses,
+			@Param("productIds") Collection<Long> productIds);
 
 	@Query("""
 			select allocation.productLot.lotId, sum(allocation.quantity)
