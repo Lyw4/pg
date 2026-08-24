@@ -23,6 +23,9 @@ import com.ex.repository.WarehouseRepository;
 
 class DemandPlanServiceTest {
 
+    /** application.properties 의 기본값과 같은 값이다. */
+    private static final String TEST_ACCOUNT_DOMAIN = "@feedflow.test";
+
     private final Warehouse warehouse = new Warehouse(
             "W05", "나주 문평 창고", "주소", "전남", "조류",
             35.0, 126.0, 5);
@@ -37,7 +40,40 @@ class DemandPlanServiceTest {
                 "00000", "주소", 35.0, 126.0, "미등록",
                 0, 40, "상담 후 지정", 0, warehouse, 0, "QA");
 
-        assertFalse(DemandPlanService.isOperationalFarm(farm));
+        assertFalse(DemandPlanService.isOperationalFarm(
+                farm, TEST_ACCOUNT_DOMAIN));
+    }
+
+    /** 걸러낼 도메인을 비우면 필터가 꺼져 QA 계정도 집계에 들어간다. */
+    @Test
+    void blankTestAccountDomainDisablesTheFilter() {
+        Member member = Member.builder()
+                .email("QA123@FEEDFLOW.TEST")
+                .build();
+        FarmCustomer farm = FarmCustomer.registeredMember(
+                member, "F-QA", "QA 자동화 농장", "QA", "010",
+                "00000", "주소", 35.0, 126.0, "미등록",
+                0, 40, "상담 후 지정", 0, warehouse, 0, "QA");
+
+        assertTrue(DemandPlanService.isOperationalFarm(farm, ""));
+        assertTrue(DemandPlanService.isOperationalFarm(farm, null));
+    }
+
+    /** 다른 QA 도메인을 쓰면 그 도메인이 걸러진다. */
+    @Test
+    void configuredDomainIsHonoured() {
+        Member member = Member.builder()
+                .email("qa1@qa.example.com")
+                .build();
+        FarmCustomer farm = FarmCustomer.registeredMember(
+                member, "F-QA2", "QA 농장", "QA", "010",
+                "00000", "주소", 35.0, 126.0, "미등록",
+                0, 40, "상담 후 지정", 0, warehouse, 0, "QA");
+
+        assertFalse(DemandPlanService.isOperationalFarm(
+                farm, "@qa.example.com"));
+        assertTrue(DemandPlanService.isOperationalFarm(
+                farm, TEST_ACCOUNT_DOMAIN));
     }
 
     @Test
@@ -47,7 +83,8 @@ class DemandPlanServiceTest {
                 35.0, 126.0, "소", 100, 300, "한우 사료", 10,
                 warehouse, 0, CustomerStatus.ACTIVE, "운영");
 
-        assertTrue(DemandPlanService.isOperationalFarm(farm));
+        assertTrue(DemandPlanService.isOperationalFarm(
+                farm, TEST_ACCOUNT_DOMAIN));
     }
 
     @Test
@@ -57,7 +94,8 @@ class DemandPlanServiceTest {
                 35.0, 126.0, "소", 100, 300, "한우 사료", 10,
                 warehouse, 0, CustomerStatus.PAUSED, "중지");
 
-        assertFalse(DemandPlanService.isOperationalFarm(farm));
+        assertFalse(DemandPlanService.isOperationalFarm(
+                farm, TEST_ACCOUNT_DOMAIN));
     }
 
     @Test

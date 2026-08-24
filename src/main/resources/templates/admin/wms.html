@@ -990,7 +990,6 @@
                     <div class="mt-3 d-flex gap-2 flex-wrap">
                         <a th:if="${scanResult.lotId != null}" th:href="@{/admin/wms(view='traceability',lotId=${scanResult.lotId})}" class="btn btn-sm btn-outline-primary">LOT 전체 이력</a>
                         <a th:if="${scanResult.productId != null}" th:href="@{/inventory(view='stock',productId=${scanResult.productId})}" class="btn btn-sm btn-outline-primary">재고 현황</a>
-                        <a th:if="${scanResult.binId != null}" th:href="@{/admin/warehouse-map}" class="btn btn-sm btn-outline-primary">창고 도면</a>
                     </div>
                 </div>
 

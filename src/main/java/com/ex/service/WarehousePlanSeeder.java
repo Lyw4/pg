@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -99,6 +100,13 @@ public class WarehousePlanSeeder {
     private final WarehouseAllocationRepository allocationRepository;
     private final ProductRepository productRepository;
     private final FarmCustomerRepository farmCustomerRepository;
+
+    /**
+     * 수요 집계에서 제외할 자동화 검증 계정의 이메일 도메인입니다.
+     * DemandPlanService 와 같은 설정을 읽어 두 경로의 판정을 일치시킵니다.
+     */
+    @Value("${feedflow.demo.test-account-email-domain:@feedflow.test}")
+    private String testAccountEmailDomain;
 
     @Transactional
     public void seed() {
@@ -249,15 +257,14 @@ public class WarehousePlanSeeder {
                 .filter(allocation -> allocation.getProduct().isActive())
                 .toList();
 
+        // 운영 농장 판정은 DemandPlanService 의 단일 규칙을 따른다. 예전에는
+        // 같은 QA 제외 조건이 여기에도 복사되어 있어, 걸러낼 도메인을 바꾸면
+        // 수요 계획 화면과 이 재계산의 숫자가 서로 어긋날 수 있었다.
         var activeFarms = farmCustomerRepository
                 .findAllByOrderByAssignedWarehouseDisplayOrderAscFarmNameAsc()
                 .stream()
-                .filter(farm -> farm.getStatus() == CustomerStatus.ACTIVE)
-                // 자동화 검증용 계정은 실제 협력 농장의 납품 수요가 아니다.
-                .filter(farm -> farm.getMember() == null
-                        || farm.getMember().getEmail() == null
-                        || !farm.getMember().getEmail().toLowerCase()
-                                .endsWith("@feedflow.test"))
+                .filter(farm -> DemandPlanService.isOperationalFarm(
+                        farm, testAccountEmailDomain))
                 .toList();
 
         Map<String, Integer> demandByWarehouseAnimal = new LinkedHashMap<>();

@@ -273,6 +273,14 @@ public class CustomerOrder {
 				|| virtualAccountDueDate.isBlank()) {
 			return false;
 		}
+		// TODO: [리팩토링] 향후 LocalDateTime 컬럼으로 마이그레이션 및 파싱 실패 시 예외/로그 처리 필요
+		//
+		// 지금은 기한을 문자열로 저장하고 여기서 다시 파싱한다. 포맷 계약이
+		// PaymentApplyService(쓰기)와 이 메서드(읽기)에 이중으로 존재해서,
+		// 포트원 응답 형식이 바뀌면 조용히 false 가 되어 "입금기한 경과" 경고가
+		// 영원히 뜨지 않는다. 실패가 보이지 않는 것이 가장 위험하다.
+		// 컬럼 타입 변경은 기존 결제 데이터 마이그레이션이 필요해 별도 작업으로
+		// 분리한다.
 		try {
 			return LocalDateTime
 					.parse(virtualAccountDueDate.trim(), VBANK_DUE_FORMAT)

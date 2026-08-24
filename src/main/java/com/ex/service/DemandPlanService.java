@@ -14,9 +14,11 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -152,13 +154,24 @@ public class DemandPlanService {
     private final BinInventoryRepository binInventoryRepository;
     private final SellableStockQuery sellableStockQuery;
 
+    /**
+     * 수요 집계에서 제외할 자동화 검증 계정의 이메일 도메인입니다.
+     *
+     * <p>final 이 아니므로 @RequiredArgsConstructor 가 만드는 생성자에는
+     * 들어가지 않습니다. 기존 호출부와 테스트의 생성자 시그니처가 그대로
+     * 유지됩니다.
+     */
+    @Value("${feedflow.demo.test-account-email-domain:@feedflow.test}")
+    private String testAccountEmailDomain;
+
     public DemandPlan plan(LocalDate today) {
         List<Warehouse> warehouses = warehouseRepository
                 .findAllByActiveTrueOrderByDisplayOrderAsc();
         List<FarmCustomer> farms = farmCustomerRepository
                 .findAllByOrderByAssignedWarehouseDisplayOrderAscFarmNameAsc()
                 .stream()
-                .filter(DemandPlanService::isOperationalFarm)
+                .filter(farm -> isOperationalFarm(
+                        farm, testAccountEmailDomain))
                 .toList();
         List<BinInventory> inventories = binInventoryRepository.findAllByOrderByBinBinCodeAsc();
 
@@ -284,16 +297,31 @@ public class DemandPlanService {
         };
     }
 
-    /** 자동화 검증용 계정은 실제 협력 농장 수요에 포함하지 않는다. */
-    static boolean isOperationalFarm(FarmCustomer farm) {
+    /**
+     * 자동화 검증용 계정은 실제 협력 농장 수요에 포함하지 않는다.
+     *
+     * <p>걸러낼 도메인은 설정으로 받는다. 예전에는 도메인이 코드에 박혀 있어서
+     * 다른 QA 도메인을 쓰면 검증 계정이 조용히 운영 수요에 섞였다.
+     *
+     * <p>설정을 빈 값으로 두면 이 필터를 끄고 모든 활성 농장을 집계한다.
+     */
+    static boolean isOperationalFarm(
+            FarmCustomer farm,
+            String testAccountEmailDomain) {
         if (farm.getStatus() != CustomerStatus.ACTIVE) {
             return false;
+        }
+        if (testAccountEmailDomain == null
+                || testAccountEmailDomain.isBlank()) {
+            return true;
         }
         if (farm.getMember() == null || farm.getMember().getEmail() == null) {
             return true;
         }
-        return !farm.getMember().getEmail().trim().toLowerCase()
-                .endsWith("@feedflow.test");
+        return !farm.getMember().getEmail().trim()
+                .toLowerCase(Locale.ROOT)
+                .endsWith(testAccountEmailDomain.trim()
+                        .toLowerCase(Locale.ROOT));
     }
 
     public static int supplementDemand(int monthlyFeedQuantity) {

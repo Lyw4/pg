@@ -90,13 +90,19 @@ public class WmsOperationsService {
             int locatedQuantity) {
     }
 
+    /**
+     * QR 스캔 조회 결과입니다.
+     *
+     * <p>구역(BIN) 코드 스캔은 지원하지 않습니다. 스캔 입력은 QR 라벨의
+     * LOT·PRODUCT 코드와 제품명으로 한정되어 있어, 예전에 있던 binId 는 항상
+     * null 이 되는 사장 필드였으므로 제거했습니다.
+     */
     public record ScanResult(
             String scanValue,
             String type,
             String title,
             String detail,
             Long lotId,
-            Long binId,
             Long productId,
             String productCode,
             Product product,
@@ -941,7 +947,6 @@ public class WmsOperationsService {
                     found.getLotNo(),
                     "LOT 재고 " + found.getLotQuantity() + "포대",
                     found.getLotId(),
-                    null,
                     found.getProduct().getProductId(),
                     productCode(found.getProduct()),
                     found.getProduct(),
@@ -981,7 +986,6 @@ public class WmsOperationsService {
                 product.getName() + " · 전체 재고 "
                         + product.getTotalStock() + "포대",
                 null,
-                null,
                 product.getProductId(),
                 productCode(product),
                 product,
@@ -1001,7 +1005,6 @@ public class WmsOperationsService {
                 "UNKNOWN",
                 "일치하는 제품 또는 QR 코드 없음",
                 detail,
-                null,
                 null,
                 null,
                 null,
