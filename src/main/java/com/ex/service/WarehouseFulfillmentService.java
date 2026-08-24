@@ -268,7 +268,7 @@ public class WarehouseFulfillmentService {
                     .orElseGet(() -> allocationRepository.save(
                             new WarehouseAllocation(
                                     warehouse, need.product(), 0, 0)));
-            allocation.adjustCurrentStock(sellable.getOrDefault(
+            allocation.refreshCurrentStock(sellable.getOrDefault(
                     stockKey(warehouse.getWarehouseId(), productId), 0));
         });
     }

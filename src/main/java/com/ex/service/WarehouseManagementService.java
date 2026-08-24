@@ -127,15 +127,22 @@ public class WarehouseManagementService {
                 allocation.getWarehouse().getWarehouseId());
     }
 
+    /**
+     * 관리자가 창고에서 직접 센 실사 수량을 기록합니다.
+     *
+     * <p>비관적 락은 동시 수정으로 한쪽이 조용히 덮이는 것만 막습니다. 예전에는
+     * 이 값을 파생 캐시에만 넣어서, 락과 무관하게 다음 자동 재계산이 곧바로
+     * 덮어써 실사 기록이 사라졌습니다. 이제 재계산이 건드리지 않는 컬럼에
+     * 남기므로 장부와 실물의 차이가 보존됩니다.
+     */
     @Transactional
     public void adjustCurrentStock(
             Long allocationId,
             int currentStockQuantity) {
-        // 관리자가 직접 입력한 실사 수량이라 자동 재계산과 경쟁합니다.
         WarehouseAllocation allocation = allocationRepository
                 .findByIdForUpdate(allocationId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "창고 상품 재고를 찾을 수 없습니다."));
-        allocation.adjustCurrentStock(currentStockQuantity);
+        allocation.recordStockAudit(currentStockQuantity);
     }
 }

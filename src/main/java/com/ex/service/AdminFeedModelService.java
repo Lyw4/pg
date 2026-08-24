@@ -153,9 +153,9 @@ public class AdminFeedModelService {
         wmsStockCoordinator.transferProduct(
                 productId, source.getWarehouse(), destination.getWarehouse(),
                 quantity, operatorName == null ? "관리자" : operatorName);
-        source.adjustCurrentStock(sellableStockQuery.sellableAtWarehouse(
+        source.refreshCurrentStock(sellableStockQuery.sellableAtWarehouse(
                 sourceWarehouseId, productId));
-        destination.adjustCurrentStock(sellableStockQuery.sellableAtWarehouse(
+        destination.refreshCurrentStock(sellableStockQuery.sellableAtWarehouse(
                 destinationWarehouseId, productId));
     }
 

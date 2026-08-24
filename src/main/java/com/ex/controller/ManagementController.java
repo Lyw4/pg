@@ -1234,11 +1234,16 @@ public class ManagementController {
             @PathVariable("orderId") Long orderId,
             @RequestParam("manager") String manager,
             RedirectAttributes redirectAttributes) {
-        adminActivityService.record(manager, "ORDER_DEPOSIT_CONFIRMED", "ORDER",
-                String.valueOf(orderId), "무통장 입금 수동 확인", null);
-
+        // 활동 기록은 반드시 입금 확인이 성공한 뒤에 남깁니다. 앞에서 기록하면
+        // 이미 처리된 주문이라 예외가 나도 "입금 수동 확인" 이력이 남아, 금전
+        // 관련 상태 전이의 감사 추적을 신뢰할 수 없게 됩니다.
         return execute(
-                () -> paymentService.confirmManualDeposit(orderId, manager),
+                () -> {
+                    paymentService.confirmManualDeposit(orderId, manager);
+                    adminActivityService.record(
+                            manager, "ORDER_DEPOSIT_CONFIRMED", "ORDER",
+                            String.valueOf(orderId), "무통장 입금 수동 확인", null);
+                },
                 "/distribution?view=payment_pending",
                 "입금이 확인되어 결제 완료로 반영되었습니다. 출고 준비 목록에서 이어서 처리하세요.",
                 redirectAttributes);

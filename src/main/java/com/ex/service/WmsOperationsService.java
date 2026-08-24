@@ -1409,7 +1409,7 @@ public class WmsOperationsService {
         int current = sellableStockQuery.sellableAtWarehouse(
                 warehouse.getWarehouseId(), product.getProductId());
         int target = allocation.getTargetStockQuantity();
-        allocation.adjustCurrentStock(current);
+        allocation.refreshCurrentStock(current);
 
         if (current < target) {
             receiveAllocationReplenishment(
@@ -1422,7 +1422,7 @@ public class WmsOperationsService {
 
         int balanced = sellableStockQuery.sellableAtWarehouse(
                 warehouse.getWarehouseId(), product.getProductId());
-        allocation.adjustCurrentStock(balanced);
+        allocation.refreshCurrentStock(balanced);
         if (balanced != target) {
             throw new IllegalStateException(
                     "재고 조정 후 권장 보유량과 일치하지 않습니다. 현재 "
@@ -1534,7 +1534,7 @@ public class WmsOperationsService {
 
         int current = sellableStockQuery.sellableAtWarehouse(
                 warehouse.getWarehouseId(), product.getProductId());
-        allocation.adjustCurrentStock(current);
+        allocation.refreshCurrentStock(current);
         int quantity = allocation.getTargetStockQuantity() - current;
         if (quantity <= 0) {
             throw new IllegalStateException("이미 권장 재고를 충족한 상품입니다.");
@@ -2397,7 +2397,7 @@ public class WmsOperationsService {
                         new WarehouseAllocation(warehouse, product, 0, 0)));
         int sellable = sellableStockQuery.sellableAtWarehouse(
                 warehouse.getWarehouseId(), product.getProductId());
-        allocation.adjustCurrentStock(sellable);
+        allocation.refreshCurrentStock(sellable);
     }
 
     private void ensureAnimalZone(WarehouseBin bin, Product product) {

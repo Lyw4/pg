@@ -391,7 +391,7 @@ public class InventoryService {
 
 	void synchronizeWarehouseStock(Product product) {
 		allocationRepository.findByProductProductId(product.getProductId())
-				.forEach(allocation -> allocation.adjustCurrentStock(
+				.forEach(allocation -> allocation.refreshCurrentStock(
 						sellableStockQuery.sellableAtWarehouse(
 								allocation.getWarehouse().getWarehouseId(),
 								product.getProductId())));

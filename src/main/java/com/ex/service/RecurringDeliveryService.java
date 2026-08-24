@@ -214,7 +214,7 @@ public class RecurringDeliveryService {
 						+ delivery.getManufacturer().getCompanyName(),
 				delivery.getWarehouse());
 
-		allocation.adjustCurrentStock(sellableStockQuery.sellableAtWarehouse(
+		allocation.refreshCurrentStock(sellableStockQuery.sellableAtWarehouse(
 				delivery.getWarehouse().getWarehouseId(),
 				delivery.getProduct().getProductId()));
 		delivery.recordReceipt(LocalDate.now());
