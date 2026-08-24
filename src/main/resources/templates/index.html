@@ -156,17 +156,11 @@
 
         <div class="header-actions">
 
-            <button
-                id="header-account-button"
-                type="button"
-                data-open-account="login"
-                aria-label="로그인"
-                hidden
-                sec:authorize="!hasAnyRole('ADMIN','STAFF')"
-            >
-                <span>♙</span>
-                <small id="myfarm-label">로그인</small>
-            </button>
+            <!--
+              로그인 진입점은 상단 유틸리티 바의 #utility-login 하나만 둡니다.
+              여기에도 계정 버튼을 두면 같은 화면에 로그인 버튼이 위아래로
+              두 개 노출되어 어느 쪽을 눌러야 하는지 혼란을 줍니다.
+            -->
 
             <button
                 id="open-cart"

@@ -90,6 +90,30 @@ class PageControllerTest {
                 .andExpect(content().string(containsString("상품 상세 정보")));
     }
 
+    /**
+     * 로그인 진입점은 상단 유틸리티 바 하나만 둔다.
+     *
+     * <p>예전에는 유틸리티 바의 '로그인' 링크와 장바구니 옆 계정 버튼이 함께
+     * 노출되어, 같은 화면에 로그인 버튼이 위아래로 두 개 보였다. 비로그인
+     * 상태에서도 계정 버튼이 없어야 하고, 장바구니는 남아 있어야 한다.
+     */
+    @Test
+    void storefrontExposesSingleLoginEntryPointForAnonymousVisitor()
+            throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(
+                        not(containsString("id=\"header-account-button\""))))
+                .andExpect(content().string(
+                        not(containsString("id=\"myfarm-label\""))))
+                .andExpect(content().string(
+                        containsString("id=\"utility-login\"")))
+                .andExpect(content().string(
+                        containsString("id=\"open-cart\"")))
+                .andExpect(content().string(
+                        containsString("id=\"cart-count\"")));
+    }
+
     @Test
     @WithMockUser(username = "admin", roles = "ADMIN")
     void storefrontShowsCurrentAdminSession() throws Exception {

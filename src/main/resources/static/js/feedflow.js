@@ -1589,35 +1589,17 @@
     }
 
     /*
-     * 로그인 상태에 따라 상단 계정 메뉴를 변경합니다.
+     * 로그인 상태에 따라 상단 유틸리티 바의 계정 메뉴를 변경합니다.
      *
-     * 로그인 전: 로그인
-     * 로그인 후: 마이페이지
+     * 로그인 전: 로그인 / 회원가입
+     * 로그인 후: 마이페이지 / 로그아웃
+     *
+     * 장바구니 옆에 있던 계정 버튼(#header-account-button)은 로그인 버튼이
+     * 화면에 두 번 노출되는 문제로 제거했습니다. 그 버튼만 참조하던 코드도
+     * 함께 정리했습니다.
      */
     function updateMemberUi() {
         const loggedIn = Boolean(state.member);
-
-        const myFarmLabel = $("#myfarm-label");
-        const headerAccountButton = $(
-            ".header-actions [data-open-account='login']"
-        );
-
-        if (headerAccountButton) {
-            headerAccountButton.hidden = false;
-        }
-
-        if (myFarmLabel) {
-            myFarmLabel.textContent = loggedIn
-                ? "마이페이지"
-                : "로그인";
-        }
-
-        if (headerAccountButton) {
-            headerAccountButton.setAttribute(
-                "aria-label",
-                loggedIn ? "마이페이지" : "로그인"
-            );
-        }
 
         const utilityLogin = $("#utility-login");
         const utilitySignup = $("#utility-signup");
