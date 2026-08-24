@@ -1,6 +1,6 @@
 package com.ex.config;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -58,19 +58,42 @@ class DemandStockBaselineInitializerTest {
                                 marker.getMarkerKey())));
     }
 
+    /**
+     * 정합화 실패는 기동을 막지 않는다.
+     *
+     * <p>예전에는 예외를 던져 애플리케이션이 아예 뜨지 못했다. 완료 표식은
+     * 성공 시에만 저장하므로, 데이터를 사람이 고치기 전까지 영구히 시작 불가
+     * 상태가 됐다. 기준 데이터 보정 실패로 본업까지 멈추지 않도록 바꿨다.
+     */
     @Test
-    void failedBaselineIsNotMarkedComplete() {
+    void failedBaselineDoesNotBlockStartupAndIsNotMarkedComplete() {
         when(rebalanceService.rebalanceAll(
                 "초기 농장 수요 재고 정합화"))
                 .thenReturn(new WarehouseInventoryRebalanceService
                         .RebalanceReport(
                                 recommendation(), List.of(), List.of("입고 실패")));
 
-        assertThrows(IllegalStateException.class, () -> initializer.run(
+        assertDoesNotThrow(() -> initializer.run(
                 new DefaultApplicationArguments(new String[0])));
 
         verify(markerRepository, never()).save(
                 org.mockito.ArgumentMatchers.any(DataInitializationMarker.class));
+    }
+
+    /** 표식을 남기지 않았으므로 다음 기동에서 다시 시도한다. */
+    @Test
+    void failedBaselineIsRetriedOnNextStartup() throws Exception {
+        when(rebalanceService.rebalanceAll(
+                "초기 농장 수요 재고 정합화"))
+                .thenReturn(new WarehouseInventoryRebalanceService
+                        .RebalanceReport(
+                                recommendation(), List.of(), List.of("입고 실패")));
+
+        initializer.run(new DefaultApplicationArguments(new String[0]));
+        initializer.run(new DefaultApplicationArguments(new String[0]));
+
+        verify(rebalanceService, org.mockito.Mockito.times(2))
+                .rebalanceAll("초기 농장 수요 재고 정합화");
     }
 
     private WarehousePlanSeeder.DemandRecommendationResult recommendation() {

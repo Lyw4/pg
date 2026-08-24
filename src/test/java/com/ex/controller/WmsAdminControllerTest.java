@@ -154,6 +154,30 @@ class WmsAdminControllerTest {
                                 "data-page-size=\"10\"")));
     }
 
+    /**
+     * 화면에 표시하는 이동 가능 수량은 도착 구역이 정해지기 전이라 가장 보수적인
+     * 값, 즉 판매 구역 밖이나 다른 창고로 낼 때의 기준이다. 같은 창고의 보관 →
+     * 출고 대기 피킹은 보유 수량 전부가 허용된다.
+     *
+     * <p>머리글이 그냥 "이동 가능" 이면 담당자가 피킹까지 막힌 것으로 읽는다.
+     * 범위를 머리글에 드러내고, 예약이 걸린 행에는 같은 창고 기준 수량도 함께
+     * 보여 준다.
+     */
+    @Test
+    void moveViewLabelsMovableQuantityWithItsScope() throws Exception {
+        mockMvc.perform(get("/admin/wms")
+                        .queryParam("view", "move"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.containsString(
+                                "구역 밖 이동 가능")))
+                // 예약이 걸린 행에만 나오는 캡션은 시드 데이터에 따라 없을 수
+                // 있으므로, 항상 렌더되는 머리글 설명으로 범위를 확인한다.
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.containsString(
+                                "다른 창고로 보내거나 판매 구역 밖으로 낼 때의 기준 수량입니다.")));
+    }
+
     @Test
     void fieldScanRoutesRenderCameraActionsAndQrLabels() throws Exception {
         mockMvc.perform(get("/admin/scan"))
