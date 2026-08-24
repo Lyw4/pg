@@ -45,9 +45,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    document.querySelector("[data-print-lot-label]")
-        ?.addEventListener("click", () => window.print());
-
     all(".inbound-cancel-button").forEach(button => {
         button.closest("form")?.addEventListener("submit", event => {
             if (!window.confirm(
@@ -228,6 +225,9 @@ document.addEventListener("DOMContentLoaded", () => {
     );
     const cancelledOrderPanel = document.querySelector(
         '[data-delivery-panel="cancelled_orders"]'
+    );
+    const paymentPendingPanel = document.querySelector(
+        '[data-delivery-panel="payment_pending"]'
     );
     const farmCustomerPanel = document.querySelector(
         '[data-delivery-panel="farms"]'
@@ -545,6 +545,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const isReady = view === "ready";
         const isCancelledOrders = view === "cancelled_orders";
         const isFarmCustomers = view === "farms";
+        const isPaymentPending = view === "payment_pending";
         const flow = isFarmCustomers
             ? "customer"
             : ["cancelled", "returns", "cancelled_orders"].includes(view)
@@ -569,14 +570,19 @@ document.addEventListener("DOMContentLoaded", () => {
         if (cancelledOrderPanel) {
             cancelledOrderPanel.hidden = !isCancelledOrders;
         }
+        if (paymentPendingPanel) {
+            paymentPendingPanel.hidden = !isPaymentPending;
+        }
         if (farmCustomerPanel) {
             farmCustomerPanel.hidden = !isFarmCustomers;
         }
         if (deliveryTrackingPanel) {
             deliveryTrackingPanel.hidden =
-                isReady || isCancelledOrders || isFarmCustomers;
+                isReady || isCancelledOrders || isFarmCustomers
+                || isPaymentPending;
         }
-        if (!isReady && !isCancelledOrders && !isFarmCustomers) {
+        if (!isReady && !isCancelledOrders && !isFarmCustomers
+                && !isPaymentPending) {
             const copy = deliveryViewCopy[view] ?? deliveryViewCopy.all;
             if (deliveryPanelTitle) {
                 deliveryPanelTitle.textContent = copy[0];

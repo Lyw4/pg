@@ -172,6 +172,36 @@ public class PaymentApplyService {
         failUnstarted(order);
     }
 
+    /**
+     * 무통장 입금 주문을 관리자가 계좌 입금을 확인한 뒤 수동으로 완료 처리합니다.
+     * 재고는 주문 생성 시 이미 확정되어 있으므로 상태만 전이시킵니다.
+     * 전자결제 거래가 시작된 주문은 포트원 검증 결과가 정답이라 건드리지 않습니다.
+     */
+    @Transactional
+    public void confirmManualDeposit(Long orderId, String manager) {
+        if (!StringUtils.hasText(manager)) {
+            throw new IllegalArgumentException("입금 확인 담당자를 입력해 주세요.");
+        }
+        CustomerOrder order = locked(orderId);
+        if (order.getPaymentMethod() != PaymentMethod.BANK_TRANSFER) {
+            throw new IllegalArgumentException(
+                    "무통장 입금 주문만 수동으로 입금 확인할 수 있습니다.");
+        }
+        if (StringUtils.hasText(order.getProviderTransactionId())) {
+            throw new IllegalStateException(
+                    "전자결제 거래가 시작된 주문은 결제 확인 결과로만 반영됩니다.");
+        }
+        if (order.getStatus() != CustomerOrder.OrderStatus.PAYMENT_PENDING) {
+            throw new IllegalStateException(
+                    "입금 대기 상태의 주문만 입금 확인할 수 있습니다.");
+        }
+        if (order.getPaymentStatus() != PaymentStatus.READY) {
+            throw new IllegalStateException(
+                    "이미 처리된 결제 상태여서 입금 확인할 수 없습니다.");
+        }
+        order.completePayment(null, null);
+    }
+
     @Transactional
     public void expirePending(String orderNumber) {
         CustomerOrder order = locked(orderNumber);

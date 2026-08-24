@@ -321,6 +321,16 @@ class FinalProjectApplicationTests {
 		mockMvc.perform(get("/distribution"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString(
+								"<h1>주문·배송 현황</h1>")))
+				.andExpect(content().string(
+						org.hamcrest.Matchers.containsString(
+								">출고 관리</span>")))
+				.andExpect(content().string(
+						org.hamcrest.Matchers.not(
+								org.hamcrest.Matchers.containsString(
+										"<div><strong>주문·배송 현황</strong>"))))
+				.andExpect(content().string(
 						org.hamcrest.Matchers.containsString("출고 작업")))
 				.andExpect(content().string(
 						org.hamcrest.Matchers.containsString(
@@ -813,7 +823,7 @@ class FinalProjectApplicationTests {
 	}
 
 	@Test
-	void lotDetailRendersTraceabilityAndBarcodeLabel() throws Exception {
+	void lotDetailRendersTraceabilityWithoutLegacyCodeLabel() throws Exception {
 		var lot = inventoryService.lots().stream()
 				.filter(item -> item.getLotQuantity() > 0)
 				.findFirst()
@@ -826,7 +836,11 @@ class FinalProjectApplicationTests {
 				.andExpect(content().string(
 						org.hamcrest.Matchers.containsString("재고 실사")))
 				.andExpect(content().string(
-						org.hamcrest.Matchers.containsString("data:image/svg+xml;base64,")));
+						org.hamcrest.Matchers.not(
+								org.hamcrest.Matchers.containsString("Code 39"))))
+				.andExpect(content().string(
+						org.hamcrest.Matchers.not(
+								org.hamcrest.Matchers.containsString("바코드 라벨 인쇄"))));
 	}
 
 	@Test

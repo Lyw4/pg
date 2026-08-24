@@ -94,9 +94,9 @@
             <a th:href="@{/admin/outbound/direct}"
                th:classappend="${currentView == 'directOutbound'} ? 'active'"><i class="bi bi-box-arrow-up-right"></i>직접 출고</a>
             <a th:href="@{/admin/scan}"
-               th:classappend="${currentView == 'scan'} ? 'active'"><i class="bi bi-upc-scan"></i>스캔</a>
+               th:classappend="${currentView == 'scan'} ? 'active'"><i class="bi bi-qr-code-scan"></i>QR 스캔</a>
             <a th:href="@{/admin/scan/labels}"
-               th:classappend="${currentView == 'labels'} ? 'active'"><i class="bi bi-printer"></i>라벨</a>
+               th:classappend="${currentView == 'labels'} ? 'active'"><i class="bi bi-printer"></i>QR 라벨 출력</a>
         </nav>
 
         <section th:if="${currentView == 'map'}">
@@ -533,7 +533,7 @@
                         </form>
                     </div></div>
                 </div>
-                <div class="col-12 col-xl-7"><div class="card ff-card"><div class="card-header bg-white d-flex justify-content-between align-items-center"><strong>현재 구역별 LOT 재고</strong><span id="wmsLocationInventoryCount" class="badge text-bg-light border" th:text="${#lists.size(inventories)} + '건'">0건</span></div><div class="wms-location-inventory-filters" role="tablist" aria-label="창고별 LOT 재고 필터"><button type="button" class="active" data-location-warehouse="all" aria-selected="true">전체 보기</button><button th:each="warehouse : ${warehouses}" type="button" data-location-warehouse="" th:data-location-warehouse="${warehouse.warehouseId}" th:text="${warehouse.name}" aria-selected="false">창고</button></div><div class="table-responsive"><table id="wmsLocationInventoryTable" class="table table-sm table-hover align-middle mb-0"><thead><tr><th>센터·구역</th><th>상품 / LOT</th><th class="text-end">수량</th></tr></thead><tbody><tr th:each="inventory : ${inventories}" data-location-inventory-row th:data-location-warehouse-id="${inventory.bin.warehouse.warehouseId}"><td th:text="${inventory.bin.displayName}">구역</td><td><span th:text="${inventory.lot.product.name}">상품</span><small class="d-block font-monospace text-muted" th:text="${inventory.lot.lotNo}">LOT</small></td><td class="text-end fw-bold" th:text="${inventory.quantity} + '포대'">0포대</td></tr><tr id="wmsLocationInventoryEmpty" hidden><td colspan="3" class="text-center text-muted py-4">선택한 창고에 보관 중인 LOT 재고가 없습니다.</td></tr></tbody></table></div><nav id="wmsLocationInventoryPagination" class="wms-table-pagination" aria-label="구역별 LOT 재고 페이지"></nav></div></div>
+                <div class="col-12 col-xl-7"><div class="card ff-card"><div class="card-header bg-white d-flex justify-content-between align-items-center"><strong>현재 구역별 LOT 재고</strong><div class="d-flex align-items-center gap-2"><small class="text-muted">페이지당 10건</small><span id="wmsLocationInventoryCount" class="badge text-bg-light border" th:text="${#lists.size(inventories)} + '건'">0건</span></div></div><div class="wms-location-inventory-filters" role="tablist" aria-label="창고별 LOT 재고 필터"><button type="button" class="active" data-location-warehouse="all" aria-selected="true">전체 보기</button><button th:each="warehouse : ${warehouses}" type="button" data-location-warehouse="" th:data-location-warehouse="${warehouse.warehouseId}" th:text="${warehouse.name}" aria-selected="false">창고</button></div><div class="table-responsive"><table id="wmsLocationInventoryTable" class="table table-sm table-hover align-middle mb-0"><thead><tr><th>센터·구역</th><th>상품 / LOT</th><th class="text-end">보유</th><th class="text-end" title="주문 예약분을 제외한 수량입니다. 같은 창고의 보관·출고 대기 구역 사이 이동은 옮긴 뒤에도 판매 가능성이 유지되므로 보유 수량 전부를 옮길 수 있습니다.">이동 가능</th></tr></thead><tbody><tr th:each="inventory : ${inventories}" data-location-inventory-row th:data-location-warehouse-id="${inventory.bin.warehouse.warehouseId}"><td th:text="${inventory.bin.displayName}">구역</td><td><span th:text="${inventory.lot.product.name}">상품</span><small class="d-block font-monospace text-muted" th:text="${inventory.lot.lotNo}">LOT</small></td><td class="text-end fw-bold" th:text="${inventory.quantity} + '포대'">0포대</td><td class="text-end" th:with="movable=${movableQuantities.getOrDefault(inventory.binInventoryId, 0)}"><span class="fw-bold" th:classappend="${movable == 0} ? 'text-danger' : (${movable < inventory.quantity} ? 'text-warning-emphasis' : 'text-success')" th:text="${movable} + '포대'">0포대</span><small class="d-block text-muted" th:if="${movable < inventory.quantity}" th:text="|주문 예약 ${inventory.quantity - movable}포대|">예약</small></td></tr><tr id="wmsLocationInventoryEmpty" hidden><td colspan="4" class="text-center text-muted py-4">선택한 창고에 보관 중인 LOT 재고가 없습니다.</td></tr></tbody></table></div><nav id="wmsLocationInventoryPagination" class="wms-table-pagination" data-page-size="10" aria-label="구역별 LOT 재고 페이지"></nav></div></div>
             </div>
         </section>
 
@@ -810,12 +810,12 @@
 
         <section th:if="${currentView == 'scan'}">
             <div id="wmsScanner"
-                 th:data-result-code="${scanResult != null ? scanResult.rawValue : ''}"
+                 th:data-result-code="${scanResult != null ? scanResult.scanValue : ''}"
                  th:data-result-type="${scanResult != null ? scanResult.type : ''}"
                  th:data-result-found="${scanResult != null ? scanResult.found : false}">
                 <div class="card ff-card wms-scanner-card mb-4">
                     <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                        <strong><i class="bi bi-upc-scan me-2"></i>바코드 / QR 스캔</strong>
+                        <strong><i class="bi bi-qr-code-scan me-2"></i>QR 스캔</strong>
                         <span class="badge rounded-pill"
                               th:classappend="${scanResult == null} ? 'text-bg-secondary' : (${scanResult.found} ? 'text-bg-success' : 'text-bg-danger')"
                               th:text="${scanResult == null} ? '대기' : (${scanResult.found} ? '조회 완료' : '조회 실패')">대기</span>
@@ -857,23 +857,23 @@
                         <form method="get" th:action="@{/admin/scan}" class="input-group input-group-lg">
                             <input id="wmsScanInput" name="scanValue" th:value="${scanValue}"
                                    class="form-control font-monospace"
-                                   aria-label="직접 입력 (LOT 번호, 품목 코드 또는 구역 코드)"
-                                   placeholder="LOT 번호, 품목 코드 또는 창고 구역 코드" autofocus required>
+                                   aria-label="QR 데이터 또는 제품명 입력"
+                                   placeholder="LOT:번호 또는 PRODUCT:품목코드 또는 제품명" autofocus required>
                             <button class="btn btn-primary" aria-label="조회"><i class="bi bi-search"></i></button>
                         </form>
                         <p class="small text-muted mt-2 mb-3">
-                            USB 바코드 리더기는 키보드처럼 입력되므로 이 칸에 포커스를 두면 바로 조회됩니다.
+                            QR 리더기가 키보드 입력 방식이면 이 칸에 포커스를 둔 상태로 바로 조회할 수 있습니다.
                         </p>
                         <div class="d-flex flex-wrap align-items-center gap-2">
                             <span class="small fw-semibold">샘플 코드로 테스트</span>
                             <button th:if="${sampleLotNo != null}" type="button" class="btn btn-sm btn-outline-primary"
-                                    data-scan-sample th:data-code="${sampleLotNo}"
-                                    th:text="|${sampleLotNo} (LOT)|">LOT 샘플</button>
+                                    data-scan-sample th:data-code="|LOT:${sampleLotNo}|"
+                                    th:text="|${sampleLotNo} (LOT QR)|">LOT QR 샘플</button>
                             <button th:if="${sampleProductCode != null}" type="button" class="btn btn-sm btn-outline-success"
-                                    data-scan-sample th:data-code="${sampleProductCode}"
-                                    th:text="|${sampleProductCode} (품목)|">품목 샘플</button>
+                                    data-scan-sample th:data-code="|PRODUCT:${sampleProductCode}|"
+                                    th:text="|${sampleProductCode} (품목 QR)|">품목 QR 샘플</button>
                             <button type="button" class="btn btn-sm btn-outline-danger"
-                                    data-scan-sample data-code="NOT-FOUND-404">없는 코드 (404)</button>
+                                    data-scan-sample data-code="LOT:NOT-FOUND-404">없는 QR 코드 (404)</button>
                         </div>
                     </div>
                 </div>
@@ -892,7 +892,7 @@
                         <div class="tab-content pt-3">
                             <div class="tab-pane fade show active" id="wmsScanInbound">
                                 <form th:action="@{/admin/scan/inbound}" method="post" class="row g-3">
-                                    <input type="hidden" name="scanValue" th:value="${scanResult.rawValue}">
+                                    <input type="hidden" name="scanValue" th:value="${scanResult.scanValue}">
                                     <input th:if="${scanResult.type == 'LOT'}" type="hidden" name="existingLotId" th:value="${scanResult.lotId}">
                                     <input th:if="${scanResult.type == 'PRODUCT'}" type="hidden" name="productId" th:value="${scanResult.productId}">
                                     <div class="col-md-5">
@@ -913,7 +913,7 @@
                                     </div>
                                     <div class="col-md">
                                         <label class="form-label">비고</label>
-                                        <input name="memo" class="form-control" placeholder="바코드 스캔 입고">
+                                        <input name="memo" class="form-control" placeholder="QR 스캔 입고">
                                     </div>
                                     <div class="col-12 d-flex justify-content-end">
                                         <button class="btn btn-primary"><i class="bi bi-box-arrow-in-down me-1"></i>입고 처리</button>
@@ -922,7 +922,7 @@
                             </div>
                             <div class="tab-pane fade" id="wmsScanOutbound">
                                 <form th:action="@{/admin/scan/outbound}" method="post" class="row g-3">
-                                    <input type="hidden" name="scanValue" th:value="${scanResult.rawValue}">
+                                    <input type="hidden" name="scanValue" th:value="${scanResult.scanValue}">
                                     <div class="col-md-6">
                                         <label class="form-label">출고 LOT·구역</label>
                                         <select name="stockLocation" class="form-select" required>
@@ -938,7 +938,7 @@
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label">비고</label>
-                                        <input name="memo" class="form-control" placeholder="바코드 스캔 출고">
+                                        <input name="memo" class="form-control" placeholder="QR 스캔 출고">
                                     </div>
                                     <div class="col-12 d-flex justify-content-end">
                                         <button class="btn btn-danger"><i class="bi bi-box-arrow-up me-1"></i>출고 처리</button>
@@ -956,6 +956,9 @@
                         <div>
                             <span class="badge text-bg-dark" th:text="${scanResult.type}">LOT</span>
                             <h2 class="h5 font-monospace mt-2 mb-1" th:text="${scanResult.title}">결과</h2>
+                            <h3 th:if="${scanResult.type == 'LOT' and scanResult.product != null}"
+                                class="h5 fw-bold text-success mb-1"
+                                th:text="${scanResult.product.name}">제품명</h3>
                             <p class="mb-0" th:text="${scanResult.detail}">상세</p>
                         </div>
                         <div th:if="${scanResult.product != null}" class="d-flex gap-4 text-center">
@@ -1001,7 +1004,7 @@
         <section th:if="${currentView == 'labels'}">
             <div class="alert alert-info wms-print-hidden">
                 <strong><i class="bi bi-info-circle me-1"></i>모바일 스캔 테스트 방법</strong>
-                <span>이 화면을 PC에 띄운 뒤 휴대폰에서 <a th:href="@{/admin/scan}">바코드 스캔</a> 화면을 열고 QR 코드를 비추세요. 실제 파렛트·포대 부착용으로 바로 인쇄할 수도 있습니다.</span>
+                <span>이 화면을 PC에 띄운 뒤 휴대폰에서 <a th:href="@{/admin/scan}">QR 스캔</a> 화면을 열고 QR 코드를 비추세요. 실제 파렛트·포대 부착용으로 바로 인쇄할 수도 있습니다.</span>
             </div>
             <div class="d-flex justify-content-between align-items-center mb-3 wms-print-hidden">
                 <div><h2 class="h5 fw-bold mb-1"><i class="bi bi-qr-code me-2"></i>QR 라벨</h2><p class="small text-muted mb-0" th:text="|LOT ${#lists.size(lotLabels)}건 · 품목 ${#lists.size(productLabels)}건|">라벨 수</p></div>
@@ -1010,7 +1013,7 @@
 
             <h3 class="h6 text-muted mb-3"><i class="bi bi-tag-fill me-1"></i>LOT 라벨 <small>스캔하면 LOT와 구역별 재고가 조회됩니다.</small></h3>
             <div class="wms-label-grid mb-5">
-                <article class="wms-barcode-label" th:each="label : ${lotLabels}">
+                <article class="wms-qr-label" th:each="label : ${lotLabels}">
                     <img class="wms-qr-image" th:src="${label.qrDataUri}" th:alt="${label.code}">
                     <strong class="font-monospace" th:text="${label.code}">LOT</strong>
                     <span class="wms-label-name" th:text="${label.lot.product.name}">상품</span>
@@ -1024,7 +1027,7 @@
 
             <h3 class="h6 text-muted mb-3"><i class="bi bi-box-seam-fill me-1"></i>품목 라벨 <small>스캔 후 입고하면 제조일 기준 신규 LOT가 자동 생성됩니다.</small></h3>
             <div class="wms-label-grid">
-                <article class="wms-barcode-label" th:each="label : ${productLabels}">
+                <article class="wms-qr-label" th:each="label : ${productLabels}">
                     <img class="wms-qr-image" th:src="${label.qrDataUri}" th:alt="${label.code}">
                     <strong class="font-monospace" th:text="${label.code}">CODE</strong>
                     <span class="wms-label-name" th:text="${label.product.name}">상품</span>

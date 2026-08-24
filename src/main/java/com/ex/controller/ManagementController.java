@@ -29,7 +29,6 @@ import com.ex.entity.Product;
 import com.ex.entity.ProductLot;
 import com.ex.entity.StockLog;
 import com.ex.entity.StockLog.ChangeType;
-import com.ex.service.BarcodeService;
 import com.ex.service.DistributionService;
 import com.ex.service.DefectService;
 import com.ex.service.FarmCustomerService;
@@ -50,7 +49,6 @@ public class ManagementController {
     private final RecurringDeliveryService recurringDeliveryService;
     private final DefectService defectService;
     private final ShipmentService shipmentService;
-    private final BarcodeService barcodeService;
     private final WarehouseManagementService warehouseManagementService;
     private final FarmCustomerService farmCustomerService;
     private final AdminActivityService adminActivityService;
@@ -64,7 +62,6 @@ public class ManagementController {
             RecurringDeliveryService recurringDeliveryService,
             DefectService defectService,
             ShipmentService shipmentService,
-            BarcodeService barcodeService,
             WarehouseManagementService warehouseManagementService,
             FarmCustomerService farmCustomerService,
             AdminActivityService adminActivityService,
@@ -76,7 +73,6 @@ public class ManagementController {
         this.recurringDeliveryService = recurringDeliveryService;
         this.defectService = defectService;
         this.shipmentService = shipmentService;
-        this.barcodeService = barcodeService;
         this.warehouseManagementService = warehouseManagementService;
         this.farmCustomerService = farmCustomerService;
         this.adminActivityService = adminActivityService;
@@ -523,9 +519,6 @@ public class ManagementController {
         model.addAttribute("reservedQuantity", reservedQuantity);
         model.addAttribute("availableQuantity",
                 lot.getLotQuantity() - reservedQuantity);
-        model.addAttribute("barcodeDataUri",
-                barcodeService.code39DataUri(lot.getLotNo()));
-
         return "lot-detail";
     }
 
@@ -859,6 +852,13 @@ public class ManagementController {
                             && order.getStatus() != com.ex.entity.CustomerOrder.OrderStatus.CANCELLED;
                 })
                 .toList();
+        // 입금 대기 주문은 위의 결제 완료 조건 때문에 출고 준비 목록에 들어가지
+        // 않습니다. 별도 목록이 없으면 담당자가 입금 확인도, 수동 취소도 할 수
+        // 없어 무통장 주문이 화면에서 완전히 사라집니다.
+        var pendingPaymentOrders = orders.stream()
+                .filter(order -> order.getStatus()
+                        == com.ex.entity.CustomerOrder.OrderStatus.PAYMENT_PENDING)
+                .toList();
         var reservedLotStocks = inventoryService.reservedStockByLot();
         var warehouseOrderableProductIds = warehouseManagementService
                 .allocations()
@@ -893,6 +893,13 @@ public class ManagementController {
         model.addAttribute("shipmentByOrder", shipmentByOrder);
         model.addAttribute("deliveryByOrder", deliveryByOrder);
         model.addAttribute("readyDeliveryOrders", readyDeliveryOrders);
+        model.addAttribute("pendingPaymentOrders", pendingPaymentOrders);
+        model.addAttribute("pendingPaymentCount", pendingPaymentOrders.size());
+        model.addAttribute("pendingPaymentItemCounts", pendingPaymentOrders.stream()
+                .collect(Collectors.toMap(
+                        order -> order.getOrderId(),
+                        order -> distributionService.orderItemCount(
+                                order.getOrderId()))));
         model.addAttribute("cancelledOrders", cancelledOrders);
         model.addAttribute("cancelledOrderTotalAmount", cancelledOrders.stream()
                 .map(order -> order.getFinalPrice())
@@ -1215,6 +1222,25 @@ public class ManagementController {
                         orderId, reason, manager),
                 "/distribution?view=cancelled_orders",
                 "주문이 취소되고 예약 또는 출고 재고가 자동 반영되었습니다.",
+                redirectAttributes);
+    }
+
+    /**
+     * 계좌 입금을 확인한 뒤 무통장 주문을 결제 완료로 올립니다.
+     * 확정되면 출고 준비 목록에 나타나 기존 출고 흐름을 그대로 탑니다.
+     */
+    @PostMapping("/distribution/orders/{orderId}/confirm-deposit")
+    public String confirmOrderDeposit(
+            @PathVariable("orderId") Long orderId,
+            @RequestParam("manager") String manager,
+            RedirectAttributes redirectAttributes) {
+        adminActivityService.record(manager, "ORDER_DEPOSIT_CONFIRMED", "ORDER",
+                String.valueOf(orderId), "무통장 입금 수동 확인", null);
+
+        return execute(
+                () -> paymentService.confirmManualDeposit(orderId, manager),
+                "/distribution?view=payment_pending",
+                "입금이 확인되어 결제 완료로 반영되었습니다. 출고 준비 목록에서 이어서 처리하세요.",
                 redirectAttributes);
     }
 

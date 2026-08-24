@@ -243,6 +243,44 @@
                 : config.virtualAccountChannelKey;
 
         return new Promise((resolve, reject) => {
+            /*
+             * PG SDK가 결제창을 띄우기 전에 비동기로 예외를 던지면 결제
+             * 콜백도, 아래 try/catch도 타지 않습니다. 그러면 이 Promise가
+             * 영원히 끝나지 않아 호출부의 finally가 실행되지 않고 제출
+             * 버튼이 disabled로 남아 화면이 멈춥니다. 주문은 이미
+             * PAYMENT_PENDING으로 만들어져 예약 재고까지 점유한 상태로
+             * 남습니다.
+             *
+             * 새어 나온 예외를 붙잡아 사용자 문구로 정규화하고, 어떤 경로로
+             * 끝나든 Promise가 한 번만 종료되도록 보장합니다.
+             */
+            let settled = false;
+            const settleOnce = (finish) => (value) => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                window.removeEventListener("unhandledrejection", onEscapedError);
+                window.removeEventListener("error", onEscapedError);
+                finish(value);
+            };
+
+            function onEscapedError(event) {
+                const reason = event?.reason ?? event?.error;
+                if (!reason) {
+                    return;
+                }
+                console.error("결제창 처리 중 예외", reason);
+                event.preventDefault?.();
+                fail(normalizePortOneRequestError(reason));
+            }
+
+            const done = settleOnce(resolve);
+            const fail = settleOnce(reject);
+
+            window.addEventListener("unhandledrejection", onEscapedError);
+            window.addEventListener("error", onEscapedError);
+
             try {
                 window.IMP.request_pay(
                     {
@@ -284,7 +322,7 @@
                             response.error_msg || "포트원 결제가 취소되었거나 실패했습니다."
                         );
                         error.orderHandled = true;
-                        reject(error);
+                        fail(error);
                         return;
                     }
 
@@ -321,16 +359,16 @@
                                 ? `&message=${encodeURIComponent(message)}`
                                 : "")
                         );
-                        resolve();
+                        done();
                     } catch (error) {
                         // 결제 자체는 발생했을 수 있으므로 주문과 재고를 자동 취소하지 않습니다.
                         error.paymentMayExist = true;
-                        reject(error);
+                        fail(error);
                     }
                     }
                 );
             } catch (error) {
-                reject(normalizePortOneRequestError(error));
+                fail(normalizePortOneRequestError(error));
             }
         });
     }

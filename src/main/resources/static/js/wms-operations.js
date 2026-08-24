@@ -1,6 +1,21 @@
 (function () {
     "use strict";
 
+    const paginationWindowSize = 10;
+
+    const visiblePageRange = function (currentPage, pageCount) {
+        const firstPage = Math.floor(
+            (currentPage - 1) / paginationWindowSize
+        ) * paginationWindowSize + 1;
+        return {
+            firstPage: firstPage,
+            lastPage: Math.min(
+                firstPage + paginationWindowSize - 1,
+                pageCount
+            )
+        };
+    };
+
     const mapTabs = Array.from(document.querySelectorAll("[data-wms-map-tab]"));
     const mapPanels = Array.from(document.querySelectorAll("[data-wms-map-panel]"));
     if (mapTabs.length && mapPanels.length) {
@@ -322,10 +337,75 @@
     const locationInventoryEmpty = document.getElementById(
         "wmsLocationInventoryEmpty"
     );
+    const locationInventoryTable = document.getElementById(
+        "wmsLocationInventoryTable"
+    );
+    const locationInventoryQuantityHeader = locationInventoryTable
+        ?.querySelector("thead th:nth-child(3)");
     if (locationInventoryRows.length && locationInventoryPagination) {
-        const pageSize = 10;
+        const configuredPageSize = Number(
+            locationInventoryPagination.dataset.pageSize
+        );
+        const pageSize = Number.isInteger(configuredPageSize)
+            && configuredPageSize > 0
+            ? configuredPageSize
+            : 10;
         let currentPage = 1;
         let activeWarehouse = "all";
+        let locationInventorySortDirection = null;
+        if (locationInventoryQuantityHeader) {
+            const sortButton = document.createElement("button");
+            sortButton.type = "button";
+            sortButton.className = "wms-stock-sort-button";
+            sortButton.title = "보유 포대수 내림차순 정렬";
+            sortButton.setAttribute("aria-label", "보유 포대수 내림차순 정렬");
+            sortButton.innerHTML = "보유 <span aria-hidden=\"true\">↓</span>";
+            locationInventoryQuantityHeader.replaceChildren(sortButton);
+            locationInventoryQuantityHeader.setAttribute("aria-sort", "none");
+            sortButton.addEventListener("click", function () {
+                locationInventorySortDirection =
+                    locationInventorySortDirection === "descending"
+                        ? "ascending"
+                        : "descending";
+                locationInventoryRows.sort(function (left, right) {
+                    const leftQuantity = Number.parseInt(
+                        left.cells[2]?.textContent?.replace(/[^0-9]/g, "")
+                            || "0",
+                        10
+                    );
+                    const rightQuantity = Number.parseInt(
+                        right.cells[2]?.textContent?.replace(/[^0-9]/g, "")
+                            || "0",
+                        10
+                    );
+                    return locationInventorySortDirection === "descending"
+                        ? rightQuantity - leftQuantity
+                        : leftQuantity - rightQuantity;
+                });
+                const tableBody = locationInventoryTable.querySelector("tbody");
+                locationInventoryRows.forEach(function (row) {
+                    tableBody.insertBefore(row, locationInventoryEmpty || null);
+                });
+                currentPage = 1;
+                locationInventoryQuantityHeader.setAttribute(
+                    "aria-sort", locationInventorySortDirection
+                );
+                const descending =
+                    locationInventorySortDirection === "descending";
+                sortButton.innerHTML = descending
+                    ? "보유 <span aria-hidden=\"true\">↓</span>"
+                    : "보유 <span aria-hidden=\"true\">↑</span>";
+                const nextDirection = descending ? "오름차순" : "내림차순";
+                sortButton.title = "보유 포대수 " + nextDirection + " 정렬";
+                sortButton.setAttribute(
+                    "aria-label",
+                    "현재 " + (descending ? "내림차순" : "오름차순")
+                        + ", 보유 포대수 " + nextDirection + " 정렬"
+                );
+                sortButton.classList.add("active");
+                renderLocationInventoryPage();
+            });
+        }
         const renderLocationInventoryPage = function () {
             const filteredRows = locationInventoryRows.filter(function (row) {
                 return activeWarehouse === "all"
@@ -366,7 +446,9 @@
                 locationInventoryPagination.appendChild(button);
             };
             addButton("이전", currentPage - 1, currentPage === 1, false);
-            for (let page = 1; page <= pageCount; page++) {
+            const pageRange = visiblePageRange(currentPage, pageCount);
+            for (let page = pageRange.firstPage;
+                page <= pageRange.lastPage; page++) {
                 addButton(String(page), page, false, page === currentPage);
             }
             addButton("다음", currentPage + 1,
@@ -434,7 +516,9 @@
                 movementPagination.appendChild(button);
             };
             addButton("이전", currentPage - 1, currentPage === 1, false);
-            for (let page = 1; page <= pageCount; page++) {
+            const pageRange = visiblePageRange(currentPage, pageCount);
+            for (let page = pageRange.firstPage;
+                page <= pageRange.lastPage; page++) {
                 addButton(String(page), page, false, page === currentPage);
             }
             addButton("다음", currentPage + 1, currentPage === pageCount, false);
@@ -489,7 +573,9 @@
                 directOutboundPagination.appendChild(button);
             };
             addButton("이전", currentPage - 1, currentPage === 1, false);
-            for (let page = 1; page <= pageCount; page++) {
+            const pageRange = visiblePageRange(currentPage, pageCount);
+            for (let page = pageRange.firstPage;
+                page <= pageRange.lastPage; page++) {
                 addButton(String(page), page, false, page === currentPage);
             }
             addButton("다음", currentPage + 1, currentPage === pageCount, false);
@@ -548,7 +634,7 @@
         const scrollOption = document.getElementById("wmsScanScroll");
         const recentList = document.getElementById("wmsRecentScans");
         let cameraStream = null;
-        let detector = null;
+        let qrDetector = null;
         let animationId = null;
         let detecting = false;
         let lastDetectionAt = 0;
@@ -681,14 +767,14 @@
                 detecting = true;
                 lastDetectionAt = timestamp;
                 try {
-                    const results = await detector.detect(video);
+                    const results = await qrDetector.detect(video);
                     if (results.length > 0 && results[0].rawValue) {
                         submitDetectedCode(results[0].rawValue);
                         detecting = false;
                         return;
                     }
                 } catch (error) {
-                    showCameraNotice("코드를 인식하는 중 오류가 발생했습니다. 직접 입력을 사용해 주세요.", true);
+                    showCameraNotice("QR 코드를 인식하는 중 오류가 발생했습니다. 직접 입력을 사용해 주세요.", true);
                 } finally {
                     detecting = false;
                 }
@@ -733,8 +819,8 @@
                 false
             );
         } else {
-            detector = new window.BarcodeDetector({
-                formats: ["qr_code", "code_39", "code_128", "ean_13"]
+            qrDetector = new window.BarcodeDetector({
+                formats: ["qr_code"]
             });
             refreshCameras().catch(function () {
                 showCameraNotice("카메라 목록을 확인할 수 없습니다. 카메라 권한을 허용해 주세요.", false);

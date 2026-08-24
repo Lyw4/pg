@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>유통 관리 | Feed Flow</title>
+    <title>주문·배송 현황 | Feed Flow</title>
     <meta name="_csrf" th:content="${_csrf?.token}">
     <meta name="_csrf_header" th:content="${_csrf?.headerName}">
     <link rel="stylesheet"
@@ -26,15 +26,15 @@
     <div th:replace="~{fragments/admin-layout :: sidebar}"></div>
 
     <div class="ff-content">
-        <div th:replace="~{fragments/admin-layout :: topbar('유통 관리', '유통 관리')}"></div>
+        <div th:replace="~{fragments/admin-layout :: topbar('출고 관리', '주문·배송 현황')}"></div>
 
         <main class="ff-main ff-management-main ff-page-layout">
             <div class="container distribution-page ff-page-inner">
 
         <section th:unless="${currentView == 'farms'}" class="page-head distribution-page-head ff-page-heading">
             <div>
-                <p class="eyebrow">DISTRIBUTION CONTROL</p>
-                <h1>유통 관리</h1>
+                <p class="eyebrow">ORDER &amp; DELIVERY STATUS</p>
+                <h1>주문·배송 현황</h1>
                 <p>주문부터 LOT 출고, 택배 인계와 배송 완료까지 통합 추적합니다.</p>
             </div>
             <div class="distribution-head-actions">
@@ -71,17 +71,13 @@
         <div class="alert error" th:if="${error}" th:text="${error}"></div>
 
         <section th:unless="${currentView == 'farms'}"
-                 class="distribution-workspace-nav" aria-label="유통 관리 업무 선택">
+                 class="distribution-workspace-nav" aria-label="주문·배송 업무 선택">
             <div class="distribution-workflow-group order-flow-group"
                 data-delivery-flow-group="order"
                 th:attr="hidden=${currentView == 'cancelled'
                     or currentView == 'returns'
                     or currentView == 'cancelled_orders'
                     or currentView == 'farms'} ? 'hidden' : null">
-                <div class="distribution-workflow-heading">
-                    <span class="distribution-workflow-icon"><i class="bi bi-truck"></i></span>
-                    <div><strong>주문·배송 현황</strong><small>출고 준비부터 고객 인도까지 단계별로 관리합니다.</small></div>
-                </div>
                 <div class="distribution-dashboard order-flow-dashboard">
             <button
                 type="button"
@@ -92,6 +88,17 @@
                 <strong th:text="|${allProgressCompleted} / ${allProgressTotal}|">0 / 0</strong>
                 <small th:text="|진행 중 ${allProgressTotal - allProgressCompleted}건|">진행 중 0건</small>
                 <i class="kpi-progress"><b th:style="|width: ${allProgressTotal == 0 ? 0 : allProgressCompleted * 100.0 / allProgressTotal}%|"></b></i>
+            </button>
+            <button
+                type="button"
+                class="distribution-kpi payment-pending"
+                data-delivery-view="payment_pending"
+                aria-selected="false"
+                th:classappend="${pendingPaymentCount > 0} ? 'has-alert' : ''">
+                <span>입금 대기</span>
+                <strong th:text="|${pendingPaymentCount}건|">0건</strong>
+                <small>무통장 입금 확인 필요</small>
+                <i class="kpi-progress"><b th:style="|width: ${pendingPaymentCount == 0 ? 0 : 100}%|"></b></i>
             </button>
             <button
                 type="button"
@@ -478,6 +485,142 @@
             <nav id="farmCustomerPagination"
                  class="farm-customer-pagination"
                  aria-label="농장 고객사 목록 페이지"></nav>
+        </section>
+
+        <!--
+          입금 대기 주문은 결제 완료 조건 때문에 아래 "주문 및 출고 준비"
+          목록에 들어오지 않습니다. 이 패널이 없으면 무통장 주문이 관리자
+          화면에서 완전히 사라져 입금 확인도, 수동 취소도 할 수 없습니다.
+        -->
+        <section
+            class="panel distribution-panel"
+            data-delivery-panel="payment_pending"
+            th:if="${currentView != 'farms'}"
+            hidden>
+            <div class="panel-title">
+                <div>
+                    <p class="summary-eyebrow">DEPOSIT CONFIRMATION</p>
+                    <h2>입금 대기 주문</h2>
+                    <p>계좌 입금을 확인해 결제 완료로 올리면 출고 준비 목록에 나타납니다.</p>
+                </div>
+                <span class="summary-count">
+                    <strong th:text="${pendingPaymentCount}">0</strong>건
+                </span>
+            </div>
+
+            <div class="table-wrap">
+                <table class="distribution-order-table">
+                    <thead>
+                        <tr>
+                            <th>주문번호</th>
+                            <th>주문일</th>
+                            <th>배송지</th>
+                            <th>결제수단</th>
+                            <th>결제금액</th>
+                            <th>결제상태</th>
+                            <th>입금 확인</th>
+                            <th class="order-management-heading">
+                                <span>주문 관리</span>
+                                <small>취소·재고 처리</small>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="order : ${pendingPaymentOrders}"
+                            th:id="|distribution-order-${order.orderId}|"
+                            th:classappend="${focusOrder != null and focusOrder == order.orderId} ? 'focus-order' : ''">
+                            <td>
+                                <strong th:text="|#${order.orderId}|">#1</strong>
+                                <small th:text="${order.orderNumber}">FF-00000000-000000</small>
+                            </td>
+                            <td th:text="${#temporals.format(
+                                order.createdAt, 'yyyy-MM-dd HH:mm')}">
+                                주문일
+                            </td>
+                            <td>
+                                <span
+                                    class="distribution-address"
+                                    th:text="${order.shippingAddress}">
+                                    배송지
+                                </span>
+                                <small
+                                    class="distribution-order-recipient"
+                                    th:if="${!#strings.isEmpty(order.recipientName)}"
+                                    th:text="|${order.recipientName}
+                                        · ${order.recipientPhone}|">
+                                    수령인
+                                </small>
+                            </td>
+                            <td th:switch="${order.paymentMethod?.name()}">
+                                <span th:case="'BANK_TRANSFER'">무통장 입금</span>
+                                <span th:case="'CARD'">카드</span>
+                                <span th:case="'KAKAO_PAY'">카카오페이</span>
+                                <span th:case="*">미지정</span>
+                            </td>
+                            <td th:text="|${#numbers.formatInteger(
+                                order.finalPrice, 0, 'COMMA')}원|">
+                                0원
+                            </td>
+                            <td>
+                                <span th:switch="${order.paymentStatus?.name()}">
+                                    <span class="badge" th:case="'READY'">입금 대기</span>
+                                    <span class="badge" th:case="'WAITING_FOR_DEPOSIT'">가상계좌 입금 대기</span>
+                                    <span class="badge" th:case="*"
+                                          th:text="${order.paymentStatus}">기타</span>
+                                </span>
+                                <!--
+                                  입금기한 경과는 경고만 합니다. 가상계좌 취소는
+                                  포트원에 대한 비가역 외부 호출이라 자동 실행하지
+                                  않고 담당자가 판단합니다.
+                                -->
+                                <small
+                                    class="deposit-overdue"
+                                    th:if="${order.depositOverdue}">
+                                    입금기한 경과
+                                </small>
+                                <small
+                                    th:if="${!#strings.isEmpty(order.virtualAccountDueDate)}"
+                                    th:text="|기한 ${order.virtualAccountDueDate}|">
+                                    기한
+                                </small>
+                            </td>
+                            <td>
+                                <form
+                                    method="post"
+                                    class="shipment-action"
+                                    th:if="${order.paymentMethod?.name() == 'BANK_TRANSFER'
+                                        and order.paymentStatus?.name() == 'READY'
+                                        and #strings.isEmpty(order.providerTransactionId)}"
+                                    th:action="@{|/distribution/orders/${order.orderId}/confirm-deposit|}">
+                                    <input name="manager" required placeholder="담당자">
+                                    <button type="submit">입금 확인</button>
+                                </form>
+                                <small
+                                    th:unless="${order.paymentMethod?.name() == 'BANK_TRANSFER'
+                                        and order.paymentStatus?.name() == 'READY'
+                                        and #strings.isEmpty(order.providerTransactionId)}">
+                                    전자결제 확인 결과로 반영됩니다.
+                                </small>
+                            </td>
+                            <td>
+                                <button
+                                    type="button"
+                                    class="order-cancel-button danger"
+                                    th:data-id="${order.orderId}"
+                                    th:data-name="|#${order.orderId} · ${order.orderNumber}|"
+                                    data-stage="예약 재고를 해제합니다.">
+                                    주문 취소
+                                </button>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(pendingPaymentOrders)}">
+                            <td colspan="8" class="empty">
+                                입금 대기 중인 주문이 없습니다.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </section>
 
         <section

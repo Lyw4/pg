@@ -3,6 +3,8 @@ package com.ex.entity;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -51,6 +53,10 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CustomerOrder {
+
+	/** PaymentApplyService가 가상계좌 입금기한을 저장할 때 쓰는 형식입니다. */
+	private static final DateTimeFormatter VBANK_DUE_FORMAT =
+			DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
 	public enum OrderStatus { PAYMENT_PENDING, PAID, PREPARING, SHIPPING, DELIVERED, CANCELLED }
 	public enum OrderChannel { SHOP, FARM, ADMIN, WMS }
@@ -249,6 +255,31 @@ public class CustomerOrder {
 		virtualAccountDueDate = dueDate;
 		paymentStatus = PaymentStatus.WAITING_FOR_DEPOSIT;
 		status = OrderStatus.PAYMENT_PENDING;
+	}
+
+	/**
+	 * 가상계좌 입금기한이 지났는지 알려줍니다.
+	 *
+	 * 자동 취소는 하지 않습니다. 가상계좌 취소는 포트원에 대한 비가역
+	 * 외부 호출이라 스케줄러가 임의로 실행하면 위험합니다. 관리자
+	 * 입금 대기 목록에 경고만 띄워 담당자가 판단하도록 합니다.
+	 *
+	 * 기한 값이 없거나 형식이 다르면 판단하지 않습니다. 형식은
+	 * PaymentApplyService가 저장할 때 쓰는 "yyyy-MM-dd HH:mm"입니다.
+	 */
+	public boolean isDepositOverdue() {
+		if (paymentStatus != PaymentStatus.WAITING_FOR_DEPOSIT
+				|| virtualAccountDueDate == null
+				|| virtualAccountDueDate.isBlank()) {
+			return false;
+		}
+		try {
+			return LocalDateTime
+					.parse(virtualAccountDueDate.trim(), VBANK_DUE_FORMAT)
+					.isBefore(LocalDateTime.now());
+		} catch (DateTimeParseException exception) {
+			return false;
+		}
 	}
 
 	public void failPayment() {

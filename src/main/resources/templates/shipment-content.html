@@ -19,7 +19,7 @@
     <div class="panel-title">
         <div><p class="summary-eyebrow">OUTBOUND WORK</p>
             <h2>출고 작업 관리</h2>
-            <p>유통 관리에서 생성된 출고 지시를 피킹·검수·출고 완료 순서로 처리합니다.</p>
+            <p>주문·배송 현황에서 생성된 출고 지시를 피킹·검수·출고 완료 순서로 처리합니다.</p>
         </div>
         <span class="summary-count"><strong th:text="${activeShipmentCount}">0</strong>건 진행 중</span>
     </div>
@@ -85,7 +85,7 @@
                 </td>
             </tr>
             <tr th:if="${#lists.isEmpty(activeShipments)}"><td colspan="6" class="defect-empty">
-                유통 관리에서 생성된 출고 지시가 없습니다.</td></tr>
+                주문·배송 현황에서 생성된 출고 지시가 없습니다.</td></tr>
             </tbody>
         </table>
     </div>

@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -90,7 +91,7 @@ public class WmsOperationsService {
     }
 
     public record ScanResult(
-            String rawValue,
+            String scanValue,
             String type,
             String title,
             String detail,
@@ -392,7 +393,7 @@ public class WmsOperationsService {
     private final WarehouseAllocationRepository allocationRepository;
     private final StockLogRepository stockLogRepository;
     private final CustomerOrderRepository customerOrderRepository;
-    private final BarcodeService barcodeService;
+    private final QrCodeService qrCodeService;
     private final InventoryService inventoryService;
     private final SellableStockQuery sellableStockQuery;
     private final WarehouseCapacityPlanningService capacityPlanningService;
@@ -844,14 +845,6 @@ public class WmsOperationsService {
                         .sum());
     }
 
-    public Map<Long, String> lotBarcodes() {
-        return lots().stream().collect(Collectors.toMap(
-                ProductLot::getLotId,
-                lot -> barcodeService.code39DataUri(lot.getLotNo()),
-                (left, right) -> left,
-                LinkedHashMap::new));
-    }
-
     public List<LotLabel> lotLabels() {
         LocalDate today = LocalDate.now();
         return lots().stream()
@@ -859,7 +852,7 @@ public class WmsOperationsService {
                         lot,
                         lot.getLotNo(),
                         productCode(lot.getProduct()),
-                        barcodeService.qrCodeDataUri(
+                        qrCodeService.qrCodeDataUri(
                                 "LOT:" + lot.getLotNo()),
                         ChronoUnit.DAYS.between(
                                 today, lot.getExpirationDate())))
@@ -873,7 +866,7 @@ public class WmsOperationsService {
                     return new ProductLabel(
                             product,
                             code,
-                            barcodeService.qrCodeDataUri(
+                            qrCodeService.qrCodeDataUri(
                                     "PRODUCT:" + code));
                 })
                 .toList();
@@ -889,17 +882,52 @@ public class WmsOperationsService {
         return "%s-%03d".formatted(prefix, product.getProductId());
     }
 
-    public ScanResult scan(String rawValue) {
-        if (rawValue == null || rawValue.isBlank()) {
+    public ScanResult lookupScanInput(String scanValue) {
+        if (scanValue == null || scanValue.isBlank()) {
             throw new IllegalArgumentException(
-                    "LOT 번호, 품목 코드 또는 구역 코드를 스캔해 주세요.");
+                    "QR 코드를 스캔하거나 제품명을 입력해 주세요.");
         }
-        String normalized = rawValue.trim().toUpperCase(Locale.ROOT);
-        String value = normalized
-                .replaceFirst("^(LOT|BIN|PRODUCT):", "")
-                .trim();
-        Optional<ProductLot> lot = lotRepository.findByLotNo(value);
-        if (lot.isPresent()) {
+
+        String normalized = scanValue.trim();
+        int separatorIndex = normalized.indexOf(':');
+        if (separatorIndex < 0) {
+            List<Product> nameMatches = products().stream()
+                    .filter(product -> product.getName()
+                            .equalsIgnoreCase(normalized))
+                    .toList();
+            if (nameMatches.size() == 1) {
+                return productScanResult(scanValue, nameMatches.getFirst());
+            }
+            if (nameMatches.size() > 1) {
+                return unknownScan(
+                        scanValue,
+                        "같은 이름의 제품이 여러 개입니다. PRODUCT QR 코드를 이용해 주세요.");
+            }
+            return unknownScan(
+                    scanValue,
+                    "정확한 제품명 또는 QR 라벨의 LOT·PRODUCT 코드를 확인해 주세요.");
+        }
+        if (separatorIndex <= 0
+                || separatorIndex == normalized.length() - 1) {
+            return unknownScan(
+                    scanValue,
+                    "QR 라벨의 LOT 또는 PRODUCT 코드를 확인해 주세요.");
+        }
+
+        String type = normalized.substring(0, separatorIndex)
+                .trim()
+                .toUpperCase(Locale.ROOT);
+        String value = normalized.substring(separatorIndex + 1)
+                .trim()
+                .toUpperCase(Locale.ROOT);
+
+        if ("LOT".equals(type)) {
+            Optional<ProductLot> lot = lotRepository.findByLotNo(value);
+            if (lot.isEmpty()) {
+                return unknownScan(
+                        scanValue,
+                        "QR 라벨의 LOT 번호를 확인해 주세요.");
+            }
             ProductLot found = lot.get();
             List<BinInventory> inventories = binInventoryRepository
                     .findByLotLotIdAndQuantityGreaterThanOrderByBinBinCodeAsc(
@@ -908,12 +936,10 @@ public class WmsOperationsService {
                     .mapToInt(BinInventory::getQuantity)
                     .sum();
             return new ScanResult(
-                    rawValue,
+                    scanValue,
                     "LOT",
                     found.getLotNo(),
-                    found.getProduct().getName()
-                            + " · LOT 재고 " + found.getLotQuantity()
-                            + "포대",
+                    "LOT 재고 " + found.getLotQuantity() + "포대",
                     found.getLotId(),
                     null,
                     found.getProduct().getProductId(),
@@ -925,68 +951,56 @@ public class WmsOperationsService {
                     inventories.size());
         }
 
-        Optional<Product> product = products().stream()
-                .filter(item -> productCode(item).equalsIgnoreCase(value))
-                .findFirst();
-        if (product.isPresent()) {
-            Product found = product.get();
-            List<BinInventory> inventories = binInventoryRepository
-                    .findByLotProductProductIdAndQuantityGreaterThanOrderByBinBinCodeAsc(
-                            found.getProductId(), 0);
-            return new ScanResult(
-                    rawValue,
-                    "PRODUCT",
-                    productCode(found),
-                    found.getName() + " · 전체 재고 "
-                            + found.getTotalStock() + "포대",
-                    null,
-                    null,
-                    found.getProductId(),
-                    productCode(found),
-                    found,
-                    null,
-                    inventories,
-                    found.getTotalStock(),
-                    inventories.stream()
-                            .map(inventory -> inventory.getBin().getBinId())
-                            .distinct()
-                            .toList()
-                            .size());
+        if ("PRODUCT".equals(type)) {
+            Optional<Product> product = products().stream()
+                    .filter(item -> productCode(item).equalsIgnoreCase(value))
+                    .findFirst();
+            if (product.isEmpty()) {
+                return unknownScan(
+                        scanValue,
+                        "QR 라벨의 PRODUCT 품목 코드를 확인해 주세요.");
+            }
+            return productScanResult(scanValue, product.get());
         }
-        Optional<WarehouseBin> bin = bins().stream()
-                .filter(item -> item.getBinCode().equalsIgnoreCase(value)
-                        || (item.getWarehouse().getCode() + "-"
-                                + item.getBinCode()).equalsIgnoreCase(value))
-                .findFirst();
-        if (bin.isPresent()) {
-            WarehouseBin found = bin.get();
-            int quantity = binInventoryRepository
-                    .findByBinBinId(found.getBinId())
-                    .stream()
-                    .mapToInt(BinInventory::getQuantity)
-                    .sum();
-            return new ScanResult(
-                    rawValue,
-                    "BIN",
-                    found.getDisplayName(),
-                    found.getPurpose().getLabel()
-                            + " · 현재 " + quantity + "/"
-                            + found.getEffectiveMaxCapacity() + "포대",
-                    null,
-                    found.getBinId(),
-                    null,
-                    null,
-                    null,
-                    null,
-                    binInventoryRepository.findByBinBinId(found.getBinId()),
-                    quantity,
-                    1);
-        }
+
+        return unknownScan(
+                scanValue,
+                "QR 라벨의 LOT 또는 PRODUCT 코드를 확인해 주세요.");
+    }
+
+    private ScanResult productScanResult(
+            String scanValue,
+            Product product) {
+        List<BinInventory> inventories = binInventoryRepository
+                .findByLotProductProductIdAndQuantityGreaterThanOrderByBinBinCodeAsc(
+                        product.getProductId(), 0);
         return new ScanResult(
-                rawValue,
+                scanValue,
+                "PRODUCT",
+                productCode(product),
+                product.getName() + " · 전체 재고 "
+                        + product.getTotalStock() + "포대",
+                null,
+                null,
+                product.getProductId(),
+                productCode(product),
+                product,
+                null,
+                inventories,
+                product.getTotalStock(),
+                inventories.stream()
+                        .map(inventory -> inventory.getBin().getBinId())
+                        .distinct()
+                        .toList()
+                        .size());
+    }
+
+    private ScanResult unknownScan(String scanValue, String detail) {
+        return new ScanResult(
+                scanValue,
                 "UNKNOWN",
-                "일치하는 데이터 없음",
-                "LOT 번호, 품목 코드와 구역 코드를 확인해 주세요.",
+                "일치하는 제품 또는 QR 코드 없음",
+                detail,
                 null,
                 null,
                 null,
@@ -1799,7 +1813,7 @@ public class WmsOperationsService {
         inventory.subtract(quantity);
         lot.changeQuantity(-quantity);
         lot.getProduct().changeStock(-quantity);
-        String normalizedMemo = normalizedMemo(memo, "바코드 스캔 출고");
+        String normalizedMemo = normalizedMemo(memo, "QR 스캔 출고");
         movementRepository.save(new WarehouseStockMovement(
                 MovementType.OUTBOUND,
                 lot,
@@ -1927,10 +1941,11 @@ public class WmsOperationsService {
         WarehouseBin destination = requiredOperationalBinForUpdate(destinationBinId);
         BinInventory sourceInventory = requiredInventory(lotId, sourceBinId);
         ensureAnimalZone(destination, lot.getProduct());
-        int available = unreservedQuantityInBin(lot, source, sourceInventory);
+        int available = movableQuantity(
+                lot, source, destination, sourceInventory);
         if (quantity <= 0 || available < quantity) {
             throw new IllegalArgumentException(
-                    "주문 예약분을 제외한 이동 가능 재고가 부족합니다. "
+                    "이동 가능 재고가 부족합니다. "
                             + "요청 " + quantity + "포대 / 가능 " + available + "포대");
         }
         ensureCapacity(destination, quantity);
@@ -1955,6 +1970,9 @@ public class WmsOperationsService {
                     normalizedMemo,
                     operator,
                     null));
+            // 같은 창고 안이라도 판매 구역과 그 밖을 넘나들면 판매 가능
+            // 수량이 달라집니다. 갱신하지 않으면 배정 캐시가 낡습니다.
+            adjustAllocation(source.getWarehouse(), lot.getProduct(), 0);
             return;
         }
 
@@ -2269,6 +2287,89 @@ public class WmsOperationsService {
      * <p>반대로 판매 구역이 아닌 곳의 재고는 애초에 예약 대상이 아니므로 그
      * 구역의 실제 수량까지 다룰 수 있습니다.
      */
+    /**
+     * 구역별 재고의 예약 제외 이동 가능 수량을 한 번에 계산합니다.
+     *
+     * <p>화면에 보유 수량만 보이면 관리자가 예약분까지 옮기려 했다가 제출
+     * 후에야 실패를 알게 되고, 화면에는 원인이 없습니다.
+     *
+     * <p>도착 구역은 아직 정해지지 않았으므로 가장 보수적인 값을 계산합니다.
+     * 즉 판매 구역 밖으로 빼거나 다른 창고로 옮길 때 허용되는 수량입니다.
+     * 같은 창고의 판매 구역 사이 이동은 보유 수량 전부가 가능합니다.
+     *
+     * <p>행마다 조회하지 않도록 창고별로 묶어 LOT 판매 가능 수량을 한 번에
+     * 가져옵니다.
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, Integer> movableQuantities(
+            List<BinInventory> inventories) {
+        Map<Long, Integer> movable = new HashMap<>();
+        if (inventories == null || inventories.isEmpty()) {
+            return movable;
+        }
+
+        // 판매 구역이 아닌 곳의 재고는 예약 대상이 아닙니다.
+        inventories.stream()
+                .filter(inventory -> !WmsAllocationPolicy.isAllocatable(
+                        inventory.getBin()))
+                .forEach(inventory -> movable.put(
+                        inventory.getBinInventoryId(),
+                        inventory.getQuantity()));
+
+        inventories.stream()
+                .filter(inventory -> WmsAllocationPolicy.isAllocatable(
+                        inventory.getBin()))
+                .collect(Collectors.groupingBy(inventory -> inventory.getBin()
+                        .getWarehouse().getWarehouseId()))
+                .forEach((warehouseId, rows) -> {
+                    Map<Long, Integer> sellableByLot = sellableStockQuery
+                            .sellablePerLot(
+                                    rows.stream()
+                                            .map(row -> row.getLot().getLotId())
+                                            .distinct()
+                                            .toList(),
+                                    warehouseId);
+                    rows.forEach(row -> movable.put(
+                            row.getBinInventoryId(),
+                            Math.min(
+                                    row.getQuantity(),
+                                    sellableByLot.getOrDefault(
+                                            row.getLot().getLotId(), 0))));
+                });
+        return movable;
+    }
+
+    /**
+     * 구역 간 이동에 쓸 수 있는 수량입니다.
+     *
+     * <p>출발 구역이 판매 구역이 아니면 애초에 예약 대상이 아니므로 실제
+     * 수량 전부를 옮길 수 있습니다.
+     *
+     * <p>출발과 도착이 모두 같은 창고의 판매 구역이면 옮긴 뒤에도 판매
+     * 가능성이 그대로 유지되므로 예약분을 막을 이유가 없습니다. 출고 준비를
+     * 위한 피킹 이동(보관 → 출고 대기)이 여기에 해당합니다. 이전에는 도착
+     * 용도를 보지 않고 예약분을 전면 차단해 정상적인 피킹 이동이 막혔습니다.
+     *
+     * <p>그 밖의 경우, 즉 판매 구역 밖으로 빼거나 다른 창고로 옮기는
+     * 경우에는 배정 창고의 판매 가능 수량이 줄어들기 때문에 예약분을
+     * 보호해야 합니다.
+     */
+    public int movableQuantity(
+            ProductLot lot,
+            WarehouseBin source,
+            WarehouseBin destination,
+            BinInventory sourceInventory) {
+        if (!WmsAllocationPolicy.isAllocatable(source)) {
+            return sourceInventory.getQuantity();
+        }
+        boolean sameWarehouse = source.getWarehouse().getWarehouseId()
+                .equals(destination.getWarehouse().getWarehouseId());
+        if (sameWarehouse && WmsAllocationPolicy.isAllocatable(destination)) {
+            return sourceInventory.getQuantity();
+        }
+        return unreservedQuantityInBin(lot, source, sourceInventory);
+    }
+
     private int unreservedQuantityInBin(
             ProductLot lot,
             WarehouseBin bin,

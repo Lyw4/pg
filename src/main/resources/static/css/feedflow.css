@@ -1,3 +1,5 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
 :root {
     --forest: #123e2f;
     --forest-dark: #0b2e22;
@@ -9,6 +11,9 @@
     --gold: #c5a64f;
     --danger: #a53b34;
     --shadow: 0 24px 70px rgba(18, 45, 34, .18);
+    --store-font: "Pretendard Variable", Pretendard,
+        "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic",
+        -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -17,8 +22,11 @@ body {
     margin: 0;
     color: var(--ink);
     background: var(--paper);
-    font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif;
-    font-size: 14px;
+    font-family: var(--store-font);
+    font-size: 15px;
+    line-height: 1.55;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
 }
 button, input, select, textarea { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
@@ -2408,4 +2416,461 @@ footer { padding: 45px max(30px, calc((100vw - 1180px) / 2)); background: #0d281
 .address-search-button:disabled {
     cursor: not-allowed;
     opacity: .5;
+}
+
+/* =========================================================
+   판매 화면 공통 타이포그래피·정렬
+   상품 탐색부터 상세·주문·마이페이지까지 같은 읽기 기준을 사용한다.
+   ========================================================= */
+body.storefront-body,
+body.storefront-detail-body,
+body.mypage-body,
+body.farm-analysis-body {
+    color: #1c2d24;
+    font-family: var(--store-font);
+    font-size: 16px;
+    line-height: 1.6;
+    letter-spacing: -.01em;
+}
+
+body.storefront-body button,
+body.storefront-body input,
+body.storefront-body select,
+body.storefront-body textarea,
+body.storefront-detail-body button,
+body.storefront-detail-body input,
+body.storefront-detail-body select,
+body.storefront-detail-body textarea,
+body.mypage-body button,
+body.mypage-body input,
+body.mypage-body select,
+body.mypage-body textarea {
+    font-family: var(--store-font);
+}
+
+.storefront-body .notice,
+.storefront-detail-body .notice {
+    min-height: 42px;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.storefront-body .header-main,
+.storefront-body .category-nav,
+.storefront-body .benefits,
+.storefront-body .products-section,
+.storefront-body .storefront-footer-inner {
+    width: min(1200px, calc(100% - 48px));
+    max-width: none;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+.storefront-body .header-main {
+    grid-template-columns: 160px minmax(280px, 1fr) 180px;
+    gap: 32px;
+}
+
+.storefront-body .search-box {
+    height: 52px;
+    border-radius: 10px;
+}
+
+.storefront-body .search-box input {
+    font-size: 15px;
+    line-height: 1.45;
+}
+
+.storefront-body .header-actions small {
+    margin-top: 7px;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.storefront-body .category-nav {
+    min-height: 54px;
+    justify-content: center;
+    gap: clamp(22px, 3vw, 42px);
+}
+
+.storefront-body .category-nav button,
+.storefront-body .category-nav a {
+    min-height: 52px;
+    padding: 15px 2px;
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.storefront-body .hero-copy {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.storefront-body .eyebrow,
+.storefront-detail-body .eyebrow {
+    font-family: var(--store-font);
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.4;
+}
+
+.storefront-body .hero h1,
+.storefront-body .section-heading h2,
+.storefront-body .storefront-footer-consulting h2,
+.storefront-detail-body h1,
+.storefront-detail-body h2,
+.mypage-body h1,
+.mypage-body h2,
+.mypage-body h3 {
+    font-family: var(--store-font);
+    letter-spacing: -.04em;
+    word-break: keep-all;
+}
+
+.storefront-body .hero h1 {
+    max-width: 670px;
+    margin: 20px 0 24px;
+    font-size: clamp(2.65rem, 4.2vw, 4rem);
+    font-weight: 820;
+    line-height: 1.2;
+}
+
+.storefront-body .hero-copy > p:not(.eyebrow) {
+    max-width: 650px;
+    color: #5e6c64;
+    font-size: 16px;
+    line-height: 1.75;
+}
+
+.storefront-body .primary-button,
+.storefront-body .secondary-button,
+.storefront-detail-body .primary-button,
+.storefront-detail-body .secondary-button {
+    min-height: 50px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.storefront-body .hero-stats strong {
+    font-family: var(--store-font);
+    font-size: 22px;
+    font-weight: 800;
+}
+
+.storefront-body .hero-stats span {
+    color: #617068;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.storefront-body .benefits {
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.storefront-body .benefits article {
+    min-height: 126px;
+    padding: 28px 30px;
+}
+
+.storefront-body .benefits strong {
+    margin-bottom: 7px;
+    font-size: 16px;
+    line-height: 1.4;
+}
+
+.storefront-body .benefits p {
+    color: #66736c;
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+.storefront-body .products-section {
+    padding: 84px 0 96px;
+}
+
+.storefront-body .section-heading {
+    margin-bottom: 32px;
+}
+
+.storefront-body .section-heading h2 {
+    margin: 10px 0 9px;
+    font-size: clamp(1.8rem, 3vw, 2.15rem);
+    font-weight: 800;
+    line-height: 1.3;
+}
+
+.storefront-body .section-heading > div > p:last-child {
+    color: #66736c;
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.storefront-body .sort-control {
+    flex: 0 0 auto;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.storefront-body .sort-control select {
+    min-height: 42px;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.storefront-body .product-grid {
+    align-items: stretch;
+    gap: 22px;
+}
+
+.storefront-body .product-card {
+    display: flex;
+    min-width: 0;
+    height: 100%;
+    overflow: hidden;
+    flex-direction: column;
+    border-radius: 15px;
+}
+
+.storefront-body .product-visual {
+    min-height: 250px;
+}
+
+.storefront-body .badge {
+    padding: 6px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.3;
+}
+
+.storefront-body .product-info {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    padding: 20px;
+}
+
+.storefront-body .product-tags {
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.storefront-body .product-tags span {
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.3;
+}
+
+.storefront-body .product-info h3 {
+    margin: 14px 0 8px;
+    color: #1b3025;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.4;
+    letter-spacing: -.025em;
+    word-break: keep-all;
+}
+
+.storefront-body .product-info > p {
+    min-height: 3.2em;
+    color: #657169;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.storefront-body .stock-line {
+    min-height: 30px;
+    margin: 16px 0 10px;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.storefront-body .product-price {
+    min-height: 42px;
+    margin-top: auto;
+    align-items: baseline;
+}
+
+.storefront-body .product-price del {
+    font-size: 13px;
+}
+
+.storefront-body .product-price strong {
+    font-size: 22px;
+    font-weight: 820;
+    letter-spacing: -.025em;
+}
+
+.storefront-body .card-actions {
+    margin-top: 10px;
+    gap: 8px;
+}
+
+.storefront-body .card-actions button {
+    min-height: 46px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.35;
+}
+
+.storefront-body .storefront-footer-inner {
+    gap: clamp(40px, 6vw, 80px);
+}
+
+.storefront-body .footer-company-info,
+.storefront-body .footer-brand p,
+.storefront-body .footer-links a,
+.storefront-body .footer-links button {
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.storefront-body .storefront-footer-consulting h2 {
+    font-size: 26px;
+    font-weight: 750;
+    line-height: 1.4;
+}
+
+.storefront-body .consulting-contact small,
+.storefront-body .consulting-contact p {
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.storefront-detail-body .storefront-product-copy,
+.storefront-detail-body .storefront-spec-section,
+.storefront-detail-body .storefront-related,
+.mypage-body .mypage-page,
+.mypage-body .order-detail-page {
+    font-family: var(--store-font);
+}
+
+.storefront-detail-body .storefront-product-description,
+.storefront-detail-body .storefront-product-facts,
+.storefront-detail-body .storefront-stock-summary,
+.storefront-detail-body .storefront-related-card,
+.mypage-body .mypage-page,
+.mypage-body .order-detail-page {
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.storefront-detail-body .storefront-related-card small,
+.storefront-detail-body .storefront-product-facts span,
+.storefront-detail-body .storefront-stock-summary span,
+.mypage-body small,
+.mypage-body .mypage-heading span,
+.mypage-body .mypage-profile-grid dt,
+.mypage-body .mypage-list p,
+.mypage-body .mypage-order p {
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.mypage-body .mypage-profile-grid dd,
+.mypage-body .mypage-list button span,
+.mypage-body .mypage-list button strong,
+.mypage-body .mypage-order div {
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.storefront-body :focus-visible,
+.storefront-detail-body :focus-visible,
+.mypage-body :focus-visible {
+    outline: 3px solid rgba(31, 107, 69, .28);
+    outline-offset: 3px;
+}
+
+@media (max-width: 1050px) {
+    .storefront-body .header-main,
+    .storefront-body .category-nav,
+    .storefront-body .benefits,
+    .storefront-body .products-section,
+    .storefront-body .storefront-footer-inner {
+        width: min(100% - 40px, 1200px);
+        margin-right: auto;
+        margin-left: auto;
+    }
+}
+
+@media (max-width: 760px) {
+    body.storefront-body,
+    body.storefront-detail-body,
+    body.mypage-body {
+        font-size: 15px;
+    }
+
+    .storefront-body .header-main,
+    .storefront-body .products-section,
+    .storefront-body .storefront-footer-inner {
+        width: calc(100% - 32px);
+        margin-right: auto;
+        margin-left: auto;
+    }
+
+    .storefront-body .header-main {
+        grid-template-columns: 36px minmax(0, 1fr) 108px;
+    }
+
+    .storefront-body .header-actions {
+        min-width: 0;
+    }
+
+    .storefront-body .header-actions small {
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .storefront-body .category-nav {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .storefront-body .hero-copy {
+        padding: 52px 24px 44px;
+    }
+
+    .storefront-body .hero h1 {
+        font-size: clamp(2.25rem, 11vw, 2.8rem);
+        line-height: 1.22;
+    }
+
+    .storefront-body .hero-copy > p:not(.eyebrow) {
+        font-size: 15px;
+    }
+
+    .storefront-body .benefits {
+        width: 100%;
+        border-radius: 0;
+    }
+
+    .storefront-body .section-heading {
+        gap: 20px;
+        margin-bottom: 26px;
+    }
+
+    .storefront-body .sort-control,
+    .storefront-body .sort-control select {
+        width: 100%;
+    }
+
+    .storefront-body .sort-control select {
+        flex: 1;
+    }
+
+    .storefront-body .product-visual {
+        min-height: 280px;
+    }
+
+    .storefront-body .product-info {
+        padding: 20px 18px;
+    }
 }

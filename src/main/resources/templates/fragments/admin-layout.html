@@ -131,16 +131,16 @@
             <li class="nav-item">
                 <a class="nav-link" th:href="@{/admin/scan}"
                    th:classappend="${menu == 'wms' and currentView == 'scan'} ? 'active'">
-                    <i class="bi bi-upc-scan me-2"></i>바코드 스캔
+                    <i class="bi bi-qr-code-scan me-2"></i>QR 스캔
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" th:href="@{/admin/scan/labels}"
                    th:classappend="${menu == 'wms' and currentView == 'labels'} ? 'active'">
-                    <i class="bi bi-printer me-2"></i>QR·바코드 라벨 출력
+                    <i class="bi bi-printer me-2"></i>QR 라벨 출력
                 </a>
             </li>
-            <li class="nav-item mt-3"><span class="ff-nav-title">출고·유통 관리</span></li>
+            <li class="nav-item mt-3"><span class="ff-nav-title">출고 관리</span></li>
             <li class="nav-item">
                 <a class="nav-link" th:href="@{/inventory(view='shipments')}"
                    th:classappend="${menu == 'inventory' and currentView == 'shipments'} ? 'active'">

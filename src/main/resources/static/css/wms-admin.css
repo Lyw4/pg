@@ -13,6 +13,12 @@
     --ff-bg: #f4f6f9;
     --ff-border: #e3e6ea;
     --ff-text: #212529;
+    --ff-text-muted: #607080;
+    --ff-font-sans: "Pretendard Variable", Pretendard,
+        "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic",
+        -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --ff-font-size-base: 15px;
+    --ff-line-height-base: 1.55;
 }
 
 /* 모든 관리자 화면의 헤더와 본문이 같은 기준선에서 시작하도록 고정한다. */
@@ -51,8 +57,11 @@ body {
     margin: 0;
     color: var(--ff-text);
     background: var(--ff-bg);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
-        "Malgun Gothic", sans-serif;
+    font-family: var(--ff-font-sans);
+    font-size: var(--ff-font-size-base);
+    line-height: var(--ff-line-height-base);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
 }
 
 .ff-sidebar {
@@ -78,7 +87,7 @@ body {
 .ff-brand-link {
     color: #fff;
     text-decoration: none;
-    font-size: 1.35rem;
+    font-size: 1.4rem;
     font-weight: 750;
 }
 
@@ -88,17 +97,23 @@ body {
 
 .ff-brand-link small {
     margin: .25rem 0 0 2rem;
-    color: rgba(255, 255, 255, .55);
-    font-size: .73rem;
-    font-weight: 450;
+    color: rgba(255, 255, 255, .68);
+    font-size: .78rem;
+    font-weight: 550;
+    line-height: 1.4;
 }
 
 .ff-nav .nav-link {
-    padding: .6rem .75rem;
+    display: flex;
+    align-items: center;
+    min-height: 42px;
+    padding: .62rem .78rem;
     margin-bottom: .2rem;
     color: rgba(255, 255, 255, .8);
     border-radius: .5rem;
-    font-size: 1rem;
+    font-size: .94rem;
+    font-weight: 550;
+    line-height: 1.4;
 }
 
 .ff-nav .nav-link:hover {
@@ -115,10 +130,11 @@ body {
 .ff-nav-title {
     display: block;
     padding: .38rem .78rem;
-    color: rgba(255, 255, 255, .42);
-    font-size: .7rem;
-    font-weight: 750;
-    letter-spacing: .05em;
+    color: rgba(255, 255, 255, .58);
+    font-size: .76rem;
+    font-weight: 800;
+    letter-spacing: .06em;
+    line-height: 1.4;
 }
 
 .ff-content {
@@ -159,7 +175,7 @@ body {
 .ff-content .ff-page-heading .eyebrow {
     margin: 0 0 .3rem;
     color: #9ed8bd;
-    font-size: .72rem;
+    font-size: .78rem;
     font-weight: 800;
     letter-spacing: .16em;
     line-height: 1.2;
@@ -169,7 +185,7 @@ body {
 .ff-content .ff-page-heading h1 {
     margin: 0 0 .45rem;
     color: #fff;
-    font-size: 1.75rem;
+    font-size: 2rem;
     font-weight: 800;
     letter-spacing: -.025em;
     line-height: 1.2;
@@ -179,7 +195,9 @@ body {
 .ff-content .ff-page-heading > div:first-child > span:last-child {
     margin: 0;
     color: rgba(255, 255, 255, .78);
-    font-size: .86rem;
+    max-width: 920px;
+    font-size: .96rem;
+    line-height: 1.6;
 }
 
 .ff-content .ff-page-heading .primary,
@@ -224,7 +242,8 @@ body {
 }
 
 .ff-topbar-title {
-    font-size: 1.12rem;
+    font-size: 1.18rem;
+    font-weight: 750;
 }
 
 .ff-breadcrumb {
@@ -487,6 +506,33 @@ body {
     border-color: #258057;
     background: #258057;
     color: #fff;
+}
+
+.wms-stock-sort-button {
+    background: transparent;
+    border: 0;
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    padding: 0;
+}
+
+.wms-stock-sort-button span {
+    color: #6b7280;
+    display: inline-block;
+    margin-left: .15rem;
+}
+
+.wms-stock-sort-button:hover,
+.wms-stock-sort-button:focus-visible,
+.wms-stock-sort-button.active {
+    color: #198754;
+    text-decoration: underline;
+    text-underline-offset: .2rem;
+}
+
+.wms-stock-sort-button.active span {
+    color: #198754;
 }
 
 .wms-movement-search {
@@ -1770,7 +1816,7 @@ body {
     gap: 1rem;
 }
 
-.wms-barcode-label {
+.wms-qr-label {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1783,27 +1829,27 @@ body {
     text-align: center;
 }
 
-.wms-barcode-label img {
+.wms-qr-label img {
     max-width: 100%;
     height: 78px;
     object-fit: contain;
 }
 
-.wms-barcode-label .wms-qr-image {
+.wms-qr-label .wms-qr-image {
     width: 124px;
     height: 124px;
     margin-bottom: .65rem;
     image-rendering: pixelated;
 }
 
-.wms-barcode-label .wms-label-name {
+.wms-qr-label .wms-label-name {
     margin-top: .25rem;
     color: #25384a;
     font-size: .82rem;
     font-weight: 600;
 }
 
-.wms-barcode-label span {
+.wms-qr-label span {
     color: #697b8c;
     font-size: .74rem;
 }
@@ -1895,7 +1941,7 @@ body {
         margin-bottom: 5mm !important;
     }
 
-    .wms-barcode-label {
+    .wms-qr-label {
         min-height: 58mm;
         padding: 4mm 2mm;
         border: 1px solid #777;
@@ -1904,7 +1950,7 @@ body {
         break-inside: avoid;
     }
 
-    .wms-barcode-label .wms-qr-image {
+    .wms-qr-label .wms-qr-image {
         width: 28mm;
         height: 28mm;
     }
@@ -2417,3 +2463,258 @@ body {
 .ff-farm-map-legend i.pig { background:#f2b744; }
 .ff-farm-map-legend i.poultry { background:#397bc5; }
 @media(max-width:576px){.ff-farm-leaflet-map{min-height:380px}.ff-farm-map-legend{gap:.7rem;flex-wrap:wrap}}
+.ff-farm-count-toggle {
+    color: var(--bs-body-color);
+    font-weight: 700;
+    padding: .15rem .35rem;
+    text-decoration: none;
+}
+
+.ff-farm-count-toggle:hover,
+.ff-farm-count-toggle:focus-visible {
+    color: var(--bs-primary);
+    text-decoration: underline;
+}
+
+.ff-farm-count-toggle i {
+    display: inline-block;
+    transition: transform .2s ease;
+}
+
+.ff-farm-count-toggle:not(.collapsed) i {
+    transform: rotate(180deg);
+}
+
+.ff-delivery-farm-row > td {
+    background: #f8fafc;
+}
+
+.ff-delivery-farm-list {
+    background: #f8fafc;
+    display: grid;
+    gap: .5rem;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    padding: .75rem 1rem;
+}
+
+.ff-delivery-farm-item {
+    align-items: center;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: .5rem;
+    display: flex;
+    justify-content: space-between;
+    padding: .65rem .75rem;
+}
+
+/* =========================================================
+   관리자 공통 타이포그래피
+   화면별 스타일에서 지나치게 작아진 텍스트를 공통 기준으로 보정한다.
+   ========================================================= */
+.ff-content .ff-main {
+    color: #263645;
+    font-family: var(--ff-font-sans);
+    font-size: .94rem;
+    line-height: var(--ff-line-height-base);
+    letter-spacing: -.008em;
+}
+
+.ff-content .ff-main p,
+.ff-content .ff-main li,
+.ff-content .ff-main dd {
+    line-height: 1.6;
+}
+
+.ff-content .ff-main h2,
+.ff-content .ff-main h3,
+.ff-content .ff-main h4,
+.ff-content .ff-main .card-title,
+.ff-content .ff-main .panel-title {
+    color: #1d3448;
+    font-family: var(--ff-font-sans);
+    font-weight: 750;
+    letter-spacing: -.025em;
+    line-height: 1.35;
+}
+
+.ff-content .ff-main h2 {
+    font-size: 1.35rem;
+}
+
+.ff-content .ff-main h3 {
+    font-size: 1.12rem;
+}
+
+.ff-content .ff-main h4 {
+    font-size: 1rem;
+}
+
+.ff-content .ff-main small,
+.ff-content .ff-main .small {
+    font-size: .81rem;
+    line-height: 1.5;
+}
+
+.ff-content .ff-main .text-muted,
+.ff-content .ff-main .form-text {
+    color: var(--ff-text-muted) !important;
+}
+
+.ff-content .ff-main .card-header,
+.ff-content .ff-main .panel-title {
+    padding-top: .9rem;
+    padding-bottom: .9rem;
+}
+
+.ff-content .ff-main .card-header strong,
+.ff-content .ff-main .panel-title h2,
+.ff-content .ff-main .panel-title strong,
+.ff-content .ff-main .admin-title h2 {
+    font-size: 1.02rem;
+    font-weight: 780;
+    line-height: 1.4;
+}
+
+.ff-content .ff-main table,
+.ff-content .ff-main .table,
+.ff-content .ff-main .ff-dashboard-table {
+    color: #2b3d4d;
+    font-family: var(--ff-font-sans);
+    font-size: .9rem;
+    line-height: 1.5;
+}
+
+.ff-content .ff-main table thead th,
+.ff-content .ff-main .table thead th,
+.ff-content .ff-main .ff-dashboard-table thead th {
+    padding: .72rem .78rem;
+    color: #465b6d;
+    font-size: .84rem;
+    font-weight: 780;
+    line-height: 1.4;
+    letter-spacing: .005em;
+    vertical-align: middle;
+}
+
+.ff-content .ff-main table tbody td,
+.ff-content .ff-main .table tbody td,
+.ff-content .ff-main .ff-dashboard-table tbody td {
+    padding: .72rem .78rem;
+    font-size: .9rem;
+    line-height: 1.5;
+    vertical-align: middle;
+}
+
+.ff-content .ff-main label,
+.ff-content .ff-main .form-label,
+.ff-content .ff-main legend {
+    color: #344a5c;
+    font-size: .88rem;
+    font-weight: 700;
+    line-height: 1.45;
+}
+
+.ff-content .ff-main .form-control,
+.ff-content .ff-main .form-select,
+.ff-content .ff-main input[type="text"],
+.ff-content .ff-main input[type="search"],
+.ff-content .ff-main input[type="number"],
+.ff-content .ff-main input[type="date"],
+.ff-content .ff-main input[type="email"],
+.ff-content .ff-main input[type="tel"],
+.ff-content .ff-main input[type="password"],
+.ff-content .ff-main textarea,
+.ff-content .ff-main select {
+    min-height: 40px;
+    color: #23394b;
+    font-family: var(--ff-font-sans);
+    font-size: .91rem;
+    line-height: 1.45;
+}
+
+.ff-content .ff-main textarea {
+    min-height: 88px;
+}
+
+.ff-content .ff-main input::placeholder,
+.ff-content .ff-main textarea::placeholder {
+    color: #81909d;
+    opacity: 1;
+}
+
+.ff-content .ff-main .btn,
+.ff-content .ff-main .primary,
+.ff-content .ff-main .secondary,
+.ff-content .ff-main .danger-outline {
+    min-height: 38px;
+    font-family: var(--ff-font-sans);
+    font-size: .88rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.ff-content .ff-main .btn-sm {
+    min-height: 34px;
+    font-size: .82rem;
+}
+
+.ff-content .ff-main .badge {
+    padding: .42em .62em;
+    font-family: var(--ff-font-sans);
+    font-size: .78rem;
+    font-weight: 750;
+    line-height: 1.25;
+}
+
+.ff-content .ff-main .alert {
+    font-size: .91rem;
+    line-height: 1.55;
+}
+
+.ff-content .ff-main .nav-link,
+.ff-content .ff-main .category-tab,
+.ff-content .ff-main [role="tab"] {
+    font-size: .88rem;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.ff-topbar-user,
+.ff-topbar .btn {
+    font-family: var(--ff-font-sans);
+    font-size: .84rem;
+    line-height: 1.35;
+}
+
+.ff-content .ff-main :focus-visible {
+    outline: 3px solid rgba(47, 133, 90, .28);
+    outline-offset: 2px;
+}
+
+@media (max-width: 767.98px) {
+    :root {
+        --ff-font-size-base: 14.5px;
+    }
+
+    .ff-content .ff-page-heading h1 {
+        font-size: 1.7rem;
+    }
+
+    .ff-content .ff-page-heading > div:first-child > p:last-child,
+    .ff-content .ff-page-heading > div:first-child > span:last-child {
+        font-size: .9rem;
+    }
+
+    .ff-content .ff-main table,
+    .ff-content .ff-main .table,
+    .ff-content .ff-main .ff-dashboard-table {
+        font-size: .86rem;
+    }
+
+    .ff-content .ff-main table thead th,
+    .ff-content .ff-main .table thead th,
+    .ff-content .ff-main table tbody td,
+    .ff-content .ff-main .table tbody td {
+        padding: .65rem .68rem;
+    }
+}

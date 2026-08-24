@@ -97,38 +97,6 @@
                 </dl>
             </div>
 
-            <aside class="lot-print-label" aria-label="LOT 바코드 라벨">
-                <div class="lot-label-brand">
-                    <strong>FEED FLOW</strong>
-                    <span>PRODUCT TRACE LABEL</span>
-                </div>
-                <p th:text="${lot.product.manufacturer.companyName}">
-                    제조사
-                </p>
-                <h2 th:text="${lot.product.name}">상품명</h2>
-                <img
-                    class="lot-barcode"
-                    th:src="${barcodeDataUri}"
-                    th:alt="|${lot.lotNo} Code 39 바코드|">
-                <div class="lot-label-dates">
-                    <span th:text="|생산 ${lot.manufacturedDate}|">생산일</span>
-                    <span th:text="|기한 ${lot.expirationDate}|">유통기한</span>
-                </div>
-                <strong
-                    class="lot-label-location"
-                    th:text="${#strings.isEmpty(lot.warehouseLocation)
-                        ? 'LOCATION: UNASSIGNED'
-                        : lot.warehouseLocation}">
-                    A창고-01번 선반
-                </strong>
-                <button
-                    type="button"
-                    class="primary lot-label-print-button"
-                    data-print-lot-label>
-                    바코드 라벨 인쇄
-                </button>
-            </aside>
-
         </section>
 
         <section class="detail-stock-cards lot-stock-cards">

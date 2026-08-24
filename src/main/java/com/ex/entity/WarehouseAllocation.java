@@ -9,7 +9,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import jakarta.persistence.Version;
 import jakarta.persistence.Column;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -28,7 +27,24 @@ public class WarehouseAllocation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long allocationId;
 
-    @Version
+    /*
+     * 낙관적 락을 의도적으로 걸지 않습니다.
+     *
+     * 이 엔티티에서 가장 자주 바뀌는 currentStockQuantity는
+     * sellableAtWarehouse()로 매번 다시 계산해 덮어쓰는 파생 캐시입니다.
+     * 값이 유실돼도 다음 갱신에서 정확한 값으로 수렴하므로 락이 지킬 무결성이
+     * 없습니다. 반면 결제 대기 정리 스케줄러와 고객 주문 생성이 같은 행의
+     * 캐시를 동시에 갱신하면 낙관적 락 충돌이 나고, ApiExceptionHandler가
+     * 이를 409로 바꿔 고객 결제를 실패시켰습니다.
+     *
+     * 재계산이 불가능한 관리자 입력값(monthlyPlannedQuantity,
+     * targetStockQuantity)은 WarehouseManagementService가
+     * findByIdForUpdate()로 행을 잠그고 수정해 보호합니다.
+     *
+     * 컬럼 자체는 남겨 둡니다. ddl-auto=update는 컬럼을 삭제하지 않아
+     * 기존 DB에 NOT NULL로 남아 있고, 필드를 없애면 INSERT에서 빠져
+     * 제약 위반이 납니다.
+     */
     @Column(nullable = false)
     private long version;
 

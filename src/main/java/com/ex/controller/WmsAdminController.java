@@ -55,8 +55,8 @@ public class WmsAdminController {
             Map.entry("movements", "입출고·이동 이력"),
             Map.entry("traceability", "LOT 이력 추적"),
             Map.entry("sync", "재고 정합성 점검"),
-            Map.entry("scan", "바코드 스캔"),
-            Map.entry("labels", "QR·바코드 라벨 출력"));
+            Map.entry("scan", "QR 스캔"),
+            Map.entry("labels", "QR 라벨 출력"));
 
     private final WmsOperationsService wmsOperationsService;
     private final DemandPlanService demandPlanService;
@@ -152,12 +152,16 @@ public class WmsAdminController {
         model.addAttribute(
                 "selectableBins",
                 wmsOperationsService.selectableBins());
+        var inventories = wmsOperationsService.inventories(
+                "map".equals(selectedView)
+                        ? selectedWarehouseId
+                        : null);
+        model.addAttribute("inventories", inventories);
+        // 보유 수량만 보여주면 예약분까지 옮기려 했다가 제출 후에야 실패를
+        // 알게 되므로, 이동 가능 수량을 같이 내려줍니다.
         model.addAttribute(
-                "inventories",
-                wmsOperationsService.inventories(
-                        "map".equals(selectedView)
-                                ? selectedWarehouseId
-                                : null));
+                "movableQuantities",
+                wmsOperationsService.movableQuantities(inventories));
         model.addAttribute("products", wmsOperationsService.products());
         model.addAttribute(
                 "warehouseAllocations",
@@ -298,7 +302,7 @@ public class WmsAdminController {
                 && !scanValue.isBlank()) {
             model.addAttribute(
                     "scanResult",
-                    wmsOperationsService.scan(scanValue));
+                    wmsOperationsService.lookupScanInput(scanValue));
             model.addAttribute("scanValue", scanValue);
         }
         return "admin/wms";

@@ -107,10 +107,27 @@ public class DemandPlanService {
         public boolean needsAction() { return actionCount > 0; }
     }
 
+    public record DeliveryFarm(
+            Long farmCustomerId,
+            String farmName,
+            String warehouseName,
+            String animalType,
+            int quantity) {
+        static DeliveryFarm of(FarmCustomer farm) {
+            return new DeliveryFarm(
+                    farm.getFarmCustomerId(),
+                    farm.getFarmName(),
+                    farm.getAssignedWarehouse().getName(),
+                    normalizeAnimal(farm.getAnimalType()),
+                    farm.getMonthlyFeedQuantity());
+        }
+    }
+
     public record DeliverySchedule(
             int day,
             long farmCount,
-            int amount) {
+            int amount,
+            List<DeliveryFarm> farms) {
         public String label() { return "매월 " + day + "일"; }
     }
 
@@ -139,12 +156,14 @@ public class DemandPlanService {
         List<Warehouse> warehouses = warehouseRepository
                 .findAllByActiveTrueOrderByDisplayOrderAsc();
         List<FarmCustomer> farms = farmCustomerRepository
-                .findAllByOrderByAssignedWarehouseDisplayOrderAscFarmNameAsc();
+                .findAllByOrderByAssignedWarehouseDisplayOrderAscFarmNameAsc()
+                .stream()
+                .filter(DemandPlanService::isOperationalFarm)
+                .toList();
         List<BinInventory> inventories = binInventoryRepository.findAllByOrderByBinBinCodeAsc();
 
         Map<CoverageKey, Integer> demand = new LinkedHashMap<>();
         farms.stream()
-                .filter(farm -> farm.getStatus() == CustomerStatus.ACTIVE)
                 .forEach(farm -> {
                     Long warehouseId = farm.getAssignedWarehouse().getWarehouseId();
                     demand.merge(
@@ -213,7 +232,6 @@ public class DemandPlanService {
         }
 
         List<DeliverySchedule> schedule = farms.stream()
-                .filter(farm -> farm.getStatus() == CustomerStatus.ACTIVE)
                 .filter(farm -> farm.getRecurringDeliveryDay() > 0)
                 .collect(java.util.stream.Collectors.groupingBy(
                         FarmCustomer::getRecurringDeliveryDay,
@@ -225,7 +243,12 @@ public class DemandPlanService {
                         entry.getValue().size(),
                         entry.getValue().stream()
                                 .mapToInt(FarmCustomer::getMonthlyFeedQuantity)
-                                .sum()))
+                                .sum(),
+                        entry.getValue().stream()
+                                .sorted(Comparator.comparing(
+                                        FarmCustomer::getFarmName))
+                                .map(DeliveryFarm::of)
+                                .toList()))
                 .toList();
 
         int totalDemand = warehousePlans.stream().mapToInt(WarehousePlan::totalDemand).sum();
@@ -242,7 +265,7 @@ public class DemandPlanService {
                 warehouseActions, animalActions, shortage, peak);
     }
 
-    private String normalizeAnimal(String value) {
+    private static String normalizeAnimal(String value) {
         String animal = value == null ? "기타" : value.trim();
         if (animal.contains("소") || animal.contains("한우")) return "소";
         if (animal.contains("돼지") || animal.contains("양돈")) return "돼지";
@@ -259,6 +282,18 @@ public class DemandPlanService {
             case "영양제" -> 4;
             default -> 9;
         };
+    }
+
+    /** 자동화 검증용 계정은 실제 협력 농장 수요에 포함하지 않는다. */
+    static boolean isOperationalFarm(FarmCustomer farm) {
+        if (farm.getStatus() != CustomerStatus.ACTIVE) {
+            return false;
+        }
+        if (farm.getMember() == null || farm.getMember().getEmail() == null) {
+            return true;
+        }
+        return !farm.getMember().getEmail().trim().toLowerCase()
+                .endsWith("@feedflow.test");
     }
 
     public static int supplementDemand(int monthlyFeedQuantity) {

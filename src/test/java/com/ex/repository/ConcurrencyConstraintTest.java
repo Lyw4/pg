@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Lock;
 import java.lang.reflect.Method;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ConcurrencyConstraintTest {
@@ -48,12 +49,28 @@ class ConcurrencyConstraintTest {
     }
 
     @Test
-    void lotAndWarehouseAllocationUseOptimisticVersions() throws Exception {
+    void productLotKeepsOptimisticVersion() throws Exception {
         assertNotNull(ProductLot.class.getDeclaredField("version")
-                .getAnnotation(jakarta.persistence.Version.class));
-        assertNotNull(WarehouseAllocation.class.getDeclaredField("version")
                 .getAnnotation(jakarta.persistence.Version.class));
         assertTrue(ProductLot.class.getDeclaredField("version")
                 .getAnnotation(jakarta.persistence.Column.class).nullable() == false);
+    }
+
+    /**
+     * WarehouseAllocation은 낙관적 락을 쓰지 않습니다. 가장 자주 바뀌는
+     * currentStockQuantity가 매번 재계산되는 파생 캐시라 락이 지킬 무결성이
+     * 없는데, 결제 대기 정리 스케줄러와 고객 주문 생성이 같은 행을 동시에
+     * 갱신하면 충돌이 409로 새어 나가 고객 결제를 실패시켰습니다.
+     * 재계산이 불가능한 관리자 입력값은 비관적 락으로 보호합니다.
+     */
+    @Test
+    void warehouseAllocationUsesPessimisticLockInsteadOfVersion() throws Exception {
+        assertNull(WarehouseAllocation.class.getDeclaredField("version")
+                .getAnnotation(jakarta.persistence.Version.class));
+
+        Method allocationQuery = WarehouseAllocationRepository.class
+                .getMethod("findByIdForUpdate", Long.class);
+        assertEquals(LockModeType.PESSIMISTIC_WRITE,
+                allocationQuery.getAnnotation(Lock.class).value());
     }
 }

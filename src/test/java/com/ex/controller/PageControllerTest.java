@@ -154,7 +154,7 @@ class PageControllerTest {
                 .andExpect(content().string(
                         containsString("수요·정기입고 계획")))
                 .andExpect(content().string(
-                        containsString("QR·바코드 라벨 출력")));
+                        containsString("QR 라벨 출력")));
     }
 
     @Test

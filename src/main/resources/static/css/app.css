@@ -464,13 +464,12 @@
 
 .lot-trace-hero {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 380px;
+    grid-template-columns: minmax(0, 1fr);
     gap: 22px;
     margin-bottom: 18px;
 }
 
-.lot-trace-main,
-.lot-print-label {
+.lot-trace-main {
     border: 1px solid #dfe8e2;
     border-radius: 20px;
     background: #fff;
@@ -534,80 +533,6 @@
     color: #253c30;
     font-size: 13px;
     font-weight: 800;
-}
-
-.lot-print-label {
-    position: relative;
-    overflow: hidden;
-    padding: 22px;
-}
-
-.lot-print-label::before {
-    position: absolute;
-    inset: 0 0 auto;
-    height: 6px;
-    background: linear-gradient(90deg, #164c31, #41a56f);
-    content: "";
-}
-
-.lot-label-brand {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin: 5px 0 18px;
-}
-
-.lot-label-brand strong {
-    color: #17482f;
-    letter-spacing: 0.08em;
-}
-
-.lot-label-brand span {
-    color: #789087;
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-}
-
-.lot-print-label p {
-    margin: 0;
-    color: #6f7f77;
-    font-size: 11px;
-}
-
-.lot-print-label h2 {
-    margin: 4px 0 11px;
-    font-size: 19px;
-}
-
-.lot-barcode {
-    display: block;
-    width: 100%;
-    height: 84px;
-    object-fit: contain;
-    border: 1px solid #edf0ee;
-    background: #fff;
-}
-
-.lot-label-dates {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    margin-top: 9px;
-    font-size: 11px;
-    font-weight: 700;
-}
-
-.lot-label-location {
-    display: block;
-    margin: 10px 0 14px;
-    color: #365c48;
-    font-size: 12px;
-}
-
-.lot-label-print-button {
-    width: 100%;
 }
 
 .lot-stock-cards {
@@ -738,32 +663,6 @@
 
     .inbound-cancel-controls input {
         width: 100%;
-    }
-}
-
-@media print {
-    body * {
-        visibility: hidden !important;
-    }
-
-    .lot-print-label,
-    .lot-print-label * {
-        visibility: visible !important;
-    }
-
-    .lot-print-label {
-        position: fixed;
-        top: 14mm;
-        left: 14mm;
-        width: 92mm;
-        height: auto;
-        border: 1px solid #222;
-        border-radius: 0;
-        box-shadow: none;
-    }
-
-    .lot-label-print-button {
-        display: none !important;
     }
 }
 
@@ -3290,6 +3189,27 @@ label select {
 .distribution-kpi.delayed.has-alert {
     border-color: #edb6b6;
     background: #fffafa;
+}
+
+.distribution-kpi.payment-pending::before {
+    background: #8a6fb0;
+}
+
+.distribution-kpi.payment-pending.has-alert {
+    border-color: #cdbde4;
+    background: #fdfbff;
+}
+
+/* 가상계좌 입금기한 경과 경고. 자동 취소하지 않으므로 시각적으로만 알립니다. */
+.deposit-overdue {
+    display: inline-block;
+    margin-left: 4px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: #fdecec;
+    color: #b3352f;
+    font-weight: 700;
+    white-space: nowrap;
 }
 
 .distribution-panel {

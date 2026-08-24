@@ -182,6 +182,11 @@ public class PaymentService {
         return paymentApplyService.completeCancellation(orderNumber, memberId);
     }
 
+    /** 무통장 입금 확인은 외부 결제 호출이 없어 그대로 위임합니다. */
+    public void confirmManualDeposit(Long orderId, String manager) {
+        paymentApplyService.confirmManualDeposit(orderId, manager);
+    }
+
     public void cancelOrderByAdmin(
             Long orderId,
             String reason,

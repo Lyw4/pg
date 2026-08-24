@@ -114,8 +114,10 @@ public class WarehouseManagementService {
             Long allocationId,
             int monthlyPlannedQuantity,
             int targetStockQuantity) {
+        // 월 배치량·권장 보유량은 재계산할 수 없는 관리자 입력값이라
+        // 동시 수정 시 한쪽이 조용히 덮이면 안 됩니다. 행을 잠그고 읽습니다.
         WarehouseAllocation allocation = allocationRepository
-                .findById(allocationId)
+                .findByIdForUpdate(allocationId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "창고 상품 배치 계획을 찾을 수 없습니다."));
         allocation.changePlan(
@@ -129,8 +131,9 @@ public class WarehouseManagementService {
     public void adjustCurrentStock(
             Long allocationId,
             int currentStockQuantity) {
+        // 관리자가 직접 입력한 실사 수량이라 자동 재계산과 경쟁합니다.
         WarehouseAllocation allocation = allocationRepository
-                .findById(allocationId)
+                .findByIdForUpdate(allocationId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "창고 상품 재고를 찾을 수 없습니다."));
         allocation.adjustCurrentStock(currentStockQuantity);

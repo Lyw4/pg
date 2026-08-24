@@ -139,15 +139,38 @@ class WmsAdminControllerTest {
     }
 
     @Test
+    void moveViewPagesLocationInventoryByTenItems() throws Exception {
+        mockMvc.perform(get("/admin/wms")
+                        .queryParam("view", "move"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.containsString(
+                                "페이지당 10건")))
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.containsString(
+                                "id=\"wmsLocationInventoryPagination\"")))
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.containsString(
+                                "data-page-size=\"10\"")));
+    }
+
+    @Test
     void fieldScanRoutesRenderCameraActionsAndQrLabels() throws Exception {
         mockMvc.perform(get("/admin/scan"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(
                         org.hamcrest.Matchers.containsString(
+                                "QR 스캔")))
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.containsString(
                                 "카메라 선택")))
                 .andExpect(content().string(
                         org.hamcrest.Matchers.containsString(
-                                "샘플 코드로 테스트")));
+                                "샘플 코드로 테스트")))
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.not(
+                                org.hamcrest.Matchers.containsString(
+                                        "바코드"))));
 
         mockMvc.perform(get("/admin/scan/labels"))
                 .andExpect(status().isOk())
@@ -205,25 +228,37 @@ class WmsAdminControllerTest {
     }
 
     @Test
-    void lotAndProductCodesReturnDetailedScanResults() {
+    void lotAndProductQrCodesReturnDetailedScanResults() {
         var lot = lotRepository.findAllByOrderByExpirationDateAsc()
                 .stream()
                 .findFirst()
                 .orElseThrow();
-        var lotResult = wmsOperationsService.scan(
+        var lotResult = wmsOperationsService.lookupScanInput(
                 "LOT:" + lot.getLotNo());
         var productCode = wmsOperationsService.productCode(
                 lot.getProduct());
-        var productResult = wmsOperationsService.scan(
+        var productResult = wmsOperationsService.lookupScanInput(
                 "PRODUCT:" + productCode);
+        var productNameResult = wmsOperationsService.lookupScanInput(
+                lot.getProduct().getName());
+        var unsupportedResult = wmsOperationsService.lookupScanInput(
+                lot.getLotNo());
 
         assertEquals("LOT", lotResult.type());
         assertEquals(lot.getLotId(), lotResult.lotId());
         assertTrue(lotResult.found());
+        assertEquals(lot.getProduct().getName(),
+                lotResult.product().getName());
+        assertEquals("LOT 재고 " + lot.getLotQuantity() + "포대",
+                lotResult.detail());
         assertEquals("PRODUCT", productResult.type());
         assertEquals(lot.getProduct().getProductId(),
                 productResult.productId());
         assertEquals(productCode, productResult.productCode());
+        assertEquals("PRODUCT", productNameResult.type());
+        assertEquals(lot.getProduct().getProductId(),
+                productNameResult.productId());
+        assertEquals("UNKNOWN", unsupportedResult.type());
     }
 
     @Test
