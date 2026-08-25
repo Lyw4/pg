@@ -2394,13 +2394,8 @@
  * COMPONENTS — 주문 / 결제
  * ═══════════════════════════════════════════════════════════════════════ */
 @layer components {
-    #checkout-form {
-        display: grid;
-        grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-        gap: clamp(var(--sp-5), 2vw, var(--sp-8));
-        align-items: start;
-        margin-top: var(--sp-6);
-    }
+    /* 결제 폼의 2단 배치는 아래쪽 .checkout-layout 블록이 담당한다.
+       (실제 마크업 클래스명에 맞춰 뒤에서 정리했다) */
     .checkout-side {
         display: grid;
         gap: var(--sp-4);
@@ -2498,9 +2493,8 @@
         font-weight: 700;
     }
 
-    /* 결제 모달이 좁아지면 1단 */
-    @container (max-width: 860px) {
-        #checkout-form { grid-template-columns: 1fr; }
+    /* 결제 모달이 좁아지면 사이드바 고정을 푼다 */
+    @container (max-width: 900px) {
         .checkout-side { position: static; }
     }
 }
@@ -2510,8 +2504,12 @@
  * ═══════════════════════════════════════════════════════════════════════ */
 @layer components {
     .success-modal h2 { justify-content: center; }
-    .success-modal::before {
-        content: "✓";
+    /*
+     * 체크 아이콘은 마크업에 <span class="success-icon">✓</span> 로 이미
+     * 들어 있다. 여기에 ::before 로 하나 더 그리면 체크가 두 개 뜬다.
+     * (처음에 그렇게 썼다가 실제 마크업을 확인하고 걷어냈다)
+     */
+    .success-icon {
         display: grid;
         place-items: center;
         width: 64px;
@@ -2780,15 +2778,44 @@
         gap: var(--sp-5);
     }
 
-    /* 입력요소를 직접 품은 label = 세로 스택 필드 */
+    /*
+     * 입력요소를 품은 label = 라벨줄 + 입력칸.
+     *
+     * grid 로 두면 자식마다 행이 생겨서
+     *   <label>이름 <small class="required-text">필수</small> <input></label>
+     * 이 "이름 / 필수 / 입력칸" 세 줄로 쪼개졌다.
+     * block 으로 두면 텍스트와 배지가 한 줄에 흐르고 입력칸만 아래로 간다.
+     */
     .modal label:has(> input:not([type="checkbox"]):not([type="radio"])),
     .modal label:has(> select),
     .modal label:has(> textarea) {
-        display: grid;
-        gap: var(--sp-2);
+        display: block;
         color: var(--navy-700);
         font-size: var(--fs-sm);
         font-weight: 700;
+    }
+    /* 라벨줄 다음에 오는 입력 요소와 보조 영역에 간격을 준다 */
+    .modal label > input:not([type="checkbox"]):not([type="radio"]),
+    .modal label > select,
+    .modal label > textarea,
+    .modal label > .address-search-row,
+    .modal label > .field-with-button {
+        margin-top: var(--sp-2);
+    }
+    .modal label > .validation-message,
+    .modal label > .form-help { margin-top: var(--sp-1); }
+
+    /* 필수 배지는 라벨 텍스트 옆에 붙는다 */
+    .required-text {
+        display: inline-block;
+        margin-left: var(--sp-1);
+        padding: 1px var(--sp-2);
+        border-radius: var(--r-xs);
+        background: var(--danger-tint);
+        color: var(--danger);
+        font-size: var(--fs-2xs);
+        font-weight: 800;
+        vertical-align: 1px;
     }
 
     /* 모달 안의 입력 요소 공통 */
@@ -2839,9 +2866,15 @@
     }
     .modal input[readonly] { background: var(--surface-sunken); color: var(--ink-muted); }
 
-    /* 체크박스 label 은 가로 유지 */
-    .modal label:has(> input[type="checkbox"]),
-    .modal label:has(> input[type="radio"]) {
+    /*
+     * 체크박스 / 라디오 label 은 가로 유지.
+     *
+     * .payment-option 은 제외한다. 그쪽은 3열 그리드 카드인데,
+     * 이 규칙의 특이도가 (0,3,1) 이라 .payment-option (0,1,0) 의
+     * display:grid 를 눌러 버려 체크 표시가 우측으로 밀리지 않았다.
+     */
+    .modal label:has(> input[type="checkbox"]):not(.payment-option),
+    .modal label:has(> input[type="radio"]):not(.payment-option) {
         display: flex;
         align-items: center;
         gap: var(--sp-2);
@@ -3290,5 +3323,339 @@
     @media (max-width: 880px) {
         .pdp-hero { grid-template-columns: 1fr; }
         .pdp-nav { width: 100%; margin-left: 0; }
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * COMPONENTS — 결제 모달 실제 마크업에 맞춘 보완
+ *
+ * 앞에서 CSS 사용량 보고서만 보고 클래스명을 추정해 쓴 탓에
+ * 실제 마크업의 이름들이 비어 있었다. 결제는 돈이 걸린 경로라
+ * 마크업을 직접 읽고 채운다.
+ *   form#checkout-form.checkout-layout
+ *     > div.checkout-main > section.checkout-card.checkout-fields
+ *     > aside.checkout-side
+ * ═══════════════════════════════════════════════════════════════════════ */
+@layer components {
+    .checkout-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+        gap: clamp(var(--sp-5), 2vw, var(--sp-8));
+        align-items: start;
+        margin-top: var(--sp-6);
+    }
+    .checkout-main { display: grid; gap: var(--sp-4); }
+    .checkout-main .checkout-card + .checkout-card { margin-top: 0; }
+
+    /* 번호가 붙은 단계 제목 */
+    .checkout-section-heading {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        gap: var(--sp-4);
+        margin-bottom: var(--sp-5);
+    }
+    .checkout-section-heading > span:first-child {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border-radius: var(--r-sm);
+        background: var(--navy-700);
+        color: #fff;
+        font-family: var(--font-num);
+        font-size: var(--fs-body);
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+    }
+    .checkout-section-heading small {
+        display: block;
+        color: var(--ink-faint);
+        font-size: var(--fs-2xs);
+        font-weight: 800;
+        letter-spacing: var(--tracking-wide);
+    }
+    .checkout-section-heading h3 {
+        margin: 0;
+        color: var(--navy-700);
+        font-size: var(--fs-h3);
+        font-weight: 800;
+        letter-spacing: var(--tracking-tight);
+    }
+    .checkout-section-heading.compact { margin-bottom: var(--sp-4); }
+
+    /* 주문 명세 표 */
+    .checkout-table-wrap {
+        border: 1px solid var(--line);
+        border-radius: var(--r-sm);
+        overflow-x: auto;
+    }
+    .checkout-table { font-size: var(--fs-sm); }
+    .checkout-table th,
+    .checkout-table td {
+        padding: var(--sp-3) var(--sp-4);
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
+    .checkout-table thead th {
+        background: var(--surface-sunken);
+        color: var(--ink-faint);
+        font-size: var(--fs-2xs);
+        font-weight: 800;
+        letter-spacing: var(--tracking-wide);
+    }
+    .checkout-table td:last-child,
+    .checkout-table th:last-child { text-align: right; }
+    .checkout-table tbody tr:last-child td { border-bottom: 0; }
+    .checkout-table tfoot td {
+        border-top: 1px solid var(--line);
+        border-bottom: 0;
+        color: var(--navy-700);
+        font-weight: 800;
+    }
+
+    /* 결제 수단 카드
+     * label > input[radio] + span.payment-option-icon + span(b+small) + i */
+    .payment-options { display: grid; gap: var(--sp-3); }
+
+    .payment-option {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: var(--sp-4);
+        padding: var(--sp-4) var(--sp-5);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--r-md);
+        background: var(--surface);
+        cursor: pointer;
+        transition:
+            border-color var(--dur) var(--ease),
+            background var(--dur) var(--ease),
+            box-shadow var(--dur) var(--ease);
+    }
+    .payment-option:hover { border-color: var(--navy-600); background: var(--navy-50); }
+    /* 라디오는 숨기고 오른쪽 체크 표시로 상태를 보여 준다 */
+    .payment-option > input[type="radio"] {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+    }
+    .payment-option-icon {
+        display: grid;
+        place-items: center;
+        width: 42px;
+        height: 42px;
+        border-radius: var(--r-sm);
+        background: var(--navy-100);
+        color: var(--navy-700);
+        font-size: var(--fs-lead);
+        font-weight: 800;
+    }
+    .payment-option b {
+        display: block;
+        color: var(--ink);
+        font-size: var(--fs-body);
+        font-weight: 700;
+    }
+    .payment-option small {
+        display: block;
+        color: var(--ink-faint);
+        font-size: var(--fs-xs);
+    }
+    .payment-option > i {
+        display: grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        border: 1px solid var(--line-strong);
+        border-radius: 50%;
+        color: transparent;
+        font-size: 13px;
+        font-style: normal;
+        font-weight: 800;
+        transition:
+            background var(--dur) var(--ease),
+            border-color var(--dur) var(--ease),
+            color var(--dur) var(--ease);
+    }
+    /* 선택 상태를 :has() 로 처리. JS 를 늘리지 않는다 */
+    .payment-option:has(input:checked) {
+        border-color: var(--navy-700);
+        background: var(--navy-50);
+        box-shadow: inset 0 0 0 1px var(--navy-700);
+    }
+    .payment-option:has(input:checked) > i {
+        border-color: var(--navy-700);
+        background: var(--navy-700);
+        color: #fff;
+    }
+    .payment-option:has(input:focus-visible) { box-shadow: var(--ring); }
+
+    /* 카카오는 브랜드색을 살짝 반영 */
+    .kakao-pay-option .payment-option-icon { background: #fee500; color: #191600; }
+
+    .payment-help {
+        margin-top: var(--sp-4);
+        color: var(--ink-faint);
+        font-size: var(--fs-xs);
+        line-height: var(--lh-relaxed);
+    }
+
+    /* 주소 검색: 입력 + 버튼 한 줄 */
+    .address-search-row,
+    .field-with-button {
+        display: flex;
+        gap: var(--sp-2);
+        align-items: stretch;
+    }
+    .address-search-row > input,
+    .field-with-button > input { flex: 1 1 auto; min-width: 0; }
+    .address-search-button,
+    .field-with-button > button {
+        flex: none;
+        min-height: 46px;
+        padding: 0 var(--sp-4);
+        border: 1px solid var(--navy-700);
+        border-radius: var(--r-sm);
+        background: var(--surface);
+        color: var(--navy-700);
+        font-size: var(--fs-sm);
+        font-weight: 700;
+        white-space: nowrap;
+        transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+    }
+    .address-search-button:hover,
+    .field-with-button > button:hover {
+        background: var(--navy-700);
+        color: #fff;
+    }
+
+    .address-same-check {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+        color: var(--ink-muted);
+        font-size: var(--fs-sm);
+        cursor: pointer;
+    }
+
+    /* 검증 메시지 / 도움말 */
+    .validation-message {
+        display: block;
+        min-height: 1.1em;
+        color: var(--ink-faint);
+        font-size: var(--fs-xs);
+        font-weight: 600;
+        line-height: var(--lh-snug);
+    }
+    .form-help {
+        display: block;
+        color: var(--ink-faint);
+        font-size: var(--fs-xs);
+        line-height: var(--lh-snug);
+    }
+
+    /* 합계 박스 (id 로도 잡지만 클래스로도 들어온다) */
+    .checkout-summary,
+    .cart-summary {
+        display: grid;
+        gap: var(--sp-2);
+        padding: var(--sp-5);
+        border-radius: var(--r-md);
+        background: var(--surface-sunken);
+    }
+
+    /* 가입 직후 맞춤 결과 */
+    .signup-model-result {
+        padding: var(--sp-5);
+        border: 1px solid var(--green-500);
+        border-radius: var(--r-md);
+        background: var(--signal-tint);
+    }
+    .signup-model-result h3 {
+        margin-bottom: var(--sp-3);
+        color: var(--signal-strong);
+        font-size: var(--fs-body);
+        font-weight: 800;
+    }
+    .signup-model-result strong { color: var(--signal-strong); font-weight: 800; }
+
+    /* 월간 수량 안내 */
+    .monthly-quantity-description {
+        color: var(--ink-muted);
+        line-height: var(--lh-relaxed);
+    }
+    .monthly-quantity-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 1px;
+        margin-block: var(--sp-5);
+        border: 1px solid var(--line);
+        border-radius: var(--r-sm);
+        background: var(--line);
+        overflow: hidden;
+    }
+    .monthly-quantity-summary > * {
+        display: grid;
+        gap: 2px;
+        padding: var(--sp-4);
+        background: var(--surface);
+        text-align: center;
+    }
+    .monthly-quantity-actions {
+        display: flex;
+        gap: var(--sp-3);
+        margin-top: var(--sp-5);
+        flex-wrap: wrap;
+    }
+    .monthly-quantity-actions > * { flex: 1 1 150px; }
+
+    /*
+     * 명세 표 아래 상품 합계 줄.
+     * div.checkout-invoice-total > span + strong#checkout-invoice-total
+     * (같은 이름이 클래스와 id 로 각각 쓰이고 있어 헷갈리기 쉽다)
+     */
+    .checkout-invoice-total {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--sp-4);
+        margin-top: var(--sp-4);
+        padding-top: var(--sp-4);
+        border-top: 1px solid var(--line);
+    }
+    .checkout-invoice-total > span {
+        color: var(--ink-muted);
+        font-size: var(--fs-sm);
+        font-weight: 700;
+    }
+    .checkout-invoice-total > strong {
+        color: var(--navy-700);
+        font-family: var(--font-num);
+        font-size: var(--fs-h3);
+        font-weight: 800;
+        letter-spacing: var(--tracking-tight);
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* 푸터 회사 정보 열 */
+    .storefront-footer-company { min-width: 0; }
+}
+
+@layer responsive {
+    /* 결제 모달이 좁아지면 1단. 컨테이너 기준이라 뷰포트와 무관하다 */
+    @container (max-width: 900px) {
+        .checkout-layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 700px) {
+        .address-search-row,
+        .field-with-button { flex-wrap: wrap; }
+        .address-search-button,
+        .field-with-button > button { width: 100%; }
+        .checkout-section-heading { gap: var(--sp-3); }
     }
 }
