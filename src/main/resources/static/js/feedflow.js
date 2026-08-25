@@ -2146,8 +2146,21 @@
 
         if (button.hasAttribute("data-consult")) {
             showToast(
-                "상담 신청이 접수되었습니다. 평일 중 연락드리겠습니다."
+                "상담 신청이 접수되었습니다."
+                + " 24시간 내에 담당 전문가가 맞춤형 컨설팅으로 연락드립니다."
             );
+        }
+
+        /*
+         * 버튼에 적어 둔 문구를 그대로 띄운다.
+         *
+         * data-consult 는 실제 상담 접수 버튼 전용이라 "접수되었습니다" 문구가
+         * 고정되어 있다. 히어로의 '전문가에게 상담받기' 처럼 접수가 아니라
+         * 안내로 이동하는 버튼은 사실과 다른 문구를 쓰면 안 되므로, 문구를
+         * HTML 에서 지정할 수 있게 별도 훅을 둔다.
+         */
+        if (button.dataset.toast) {
+            showToast(button.dataset.toast);
         }
 
         if (button.dataset.footerMessage) {

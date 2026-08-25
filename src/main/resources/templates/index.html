@@ -285,15 +285,46 @@
                         <span>→</span>
                     </a>
 
+                    <!-- data-scroll-consulting 은 상담 섹션으로 스크롤하는
+                         기존 훅이다. 스크롤만 하고 아무 안내가 없어 반응이
+                         없는 것처럼 보였으므로, 문구를 띄우는 훅을 더했다. -->
                     <button
                         type="button"
                         class="link-button"
                         data-scroll-consulting
+                        data-toast="담당 전문가 상담 안내로 이동합니다. 농장 정보를 남겨주시면 24시간 내에 맞춤형 컨설팅으로 연락드립니다."
                     >
                         전문가에게 상담받기
                     </button>
                 </div>
             </div>
+
+            <!-- 카피 우측이 376px 비어 있어 허전했다. 사료 이미지를 넣어
+                 2단으로 채운다. 이미지는 456x257 이라 이 폭에서 확대되지
+                 않아 선명하다. -->
+            <aside class="hero-aside" id="heroAside">
+
+                <figure class="hero-aside-figure">
+                    <img
+                        class="hero-aside-image"
+                        th:src="@{/images/feed-bag-warehouse.png}"
+                        src="/images/feed-bag-warehouse.png"
+                        alt="물류센터에 보관된 배합사료 포대"
+                        loading="lazy"
+                        decoding="async"
+                    >
+                    <figcaption class="hero-aside-caption">
+                        <strong>보관부터 출고까지</strong>
+                        <span>구역별 적재 상태를 그대로 확인합니다.</span>
+                    </figcaption>
+                </figure>
+
+                <ul class="hero-aside-points">
+                    <li data-aside-point="lot">LOT 단위 유통기한 관리</li>
+                    <li data-aside-point="zone">구역별 실시간 적재량</li>
+                    <li data-aside-point="delivery">농장 하차 위치 지정</li>
+                </ul>
+            </aside>
         </div>
 
         <!-- 사진 배너.
@@ -373,30 +404,9 @@
                     <span>농가 맞춤 상담</span>
                 </div>
 
-                <article class="hero-highlight hero-highlight-step" data-highlight="step">
-                    <span class="hero-step-no">01</span>
-                    <div>
-                        <strong>실시간 재고</strong>
-                        <p>상품과 LOT별 잔여 수량 확인</p>
-                    </div>
-                </article>
-
-                <article class="hero-highlight hero-highlight-step" data-highlight="step">
-                    <span class="hero-step-no">02</span>
-                    <div>
-                        <strong>FEFO 출고</strong>
-                        <p>유통기한이 빠른 LOT부터 출고</p>
-                    </div>
-                </article>
-
-                <article class="hero-highlight hero-highlight-step" data-highlight="step">
-                    <span class="hero-step-no">03</span>
-                    <div>
-                        <strong>농장 배송</strong>
-                        <p>농장 주소와 하차 위치까지 관리</p>
-                    </div>
-                </article>
-
+                <!-- 절차 카드(01 실시간 재고 / 02 FEFO 출고 / 03 농장 배송)는
+                     바로 아래 benefits 섹션의 "LOT 재고 즉시 확인 / 농장까지
+                     안전 배송" 과 의미가 겹쳐 두 벌로 보였다. 여기서 뺀다. -->
             </div>
         </div>
     </section>

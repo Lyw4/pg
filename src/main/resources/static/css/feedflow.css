@@ -3257,13 +3257,23 @@ body.mypage-body textarea {
     position: absolute;
     inset: 0;
     pointer-events: none;
+    /*
+     * 좌측 42% 는 완전 불투명으로 덮는다.
+     *
+     * 처음에는 100deg 로 기울인 반투명 그라데이션(.95)을 썼는데, 기울기 때문에
+     * 좌상단 알파가 낮아져 사진에 그려진 "Reliable Feed..." 글자가 유령처럼
+     * 비쳐 보였다. 알파를 올리는 것만으로는 흰 글자가 완전히 사라지지 않아
+     * 좌측을 불투명 색면으로 처리하고 오른쪽으로 자연스럽게 풀었다.
+     * 그려진 글자와 버튼은 원본 폭의 약 40% 안에 있다.
+     */
     background: linear-gradient(
-        100deg,
-        rgba(11, 46, 34, .95) 0%,
-        rgba(11, 46, 34, .92) 34%,
-        rgba(11, 46, 34, .62) 56%,
-        rgba(11, 46, 34, .18) 78%,
-        rgba(11, 46, 34, .05) 100%
+        90deg,
+        var(--forest-dark) 0%,
+        var(--forest-dark) 42%,
+        rgba(11, 46, 34, .82) 56%,
+        rgba(11, 46, 34, .42) 74%,
+        rgba(11, 46, 34, .12) 90%,
+        rgba(11, 46, 34, 0) 100%
     );
 }
 
@@ -3495,6 +3505,137 @@ body.mypage-body textarea {
     .hero-showcase-cta:hover,
     .hero-showcase-cta span,
     .hero-showcase-cta:hover span {
+        transform: none;
+        transition: none;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════
+ * 히어로 보완
+ *
+ * 실측(1440px 뷰포트)에서 카피 우측에 376px 이 비어 있었다.
+ * 2단으로 바꿔 사료 이미지를 넣고, benefits 와 겹쳐 두 벌로 보였던
+ * 절차 카드를 빼면서 띠를 4개 한 줄로 정리한다.
+ * ═══════════════════════════════════════════════════════════ */
+
+@media (min-width: 1000px) {
+    .hero-unified .hero-inner {
+        display: grid;
+        /* 카피가 주인공이므로 조금 더 넓게 준다. */
+        grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
+        align-items: center;
+        gap: var(--space-7);
+    }
+    /* 2단이 되었으니 카피 폭 제한을 푼다. */
+    .hero-unified .hero-copy { max-width: none; }
+    .hero-unified .hero-copy > p:not(.eyebrow) { max-width: 46ch; }
+}
+
+/* ── 우측 컬럼 ───────────────────────────────────────────── */
+.hero-aside {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.hero-aside-figure {
+    position: relative;
+    margin: 0;
+    border-radius: var(--radius-xl);
+    background: white;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    transition:
+        transform var(--dur) var(--ease),
+        box-shadow var(--dur) var(--ease);
+}
+.hero-aside-figure:hover { transform: translateY(-3px); }
+
+.hero-aside-image {
+    display: block;
+    width: 100%;
+    /* 원본 456x257(1.77:1). 이 폭에서는 확대되지 않아 선명하다. */
+    aspect-ratio: 456 / 257;
+    object-fit: cover;
+}
+
+.hero-aside-caption {
+    padding: var(--space-4) var(--space-5) var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    border-top: 1px solid var(--line);
+}
+.hero-aside-caption strong {
+    font-size: var(--text-md);
+    letter-spacing: -.02em;
+}
+.hero-aside-caption span {
+    color: var(--muted);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+}
+
+/* 이미지 아래 짧은 근거 목록 */
+.hero-aside-points {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: var(--space-2);
+}
+.hero-aside-points li {
+    padding: var(--space-3) var(--space-4);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    border: 1px solid rgba(18, 62, 47, .1);
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, .72);
+    color: var(--ink);
+    font-size: var(--text-sm);
+    transition:
+        background var(--dur) var(--ease),
+        border-color var(--dur) var(--ease),
+        transform var(--dur) var(--ease);
+}
+.hero-aside-points li::before {
+    content: "";
+    flex: 0 0 auto;
+    width: 7px;
+    height: 7px;
+    border-radius: var(--radius-pill);
+    background: var(--forest);
+}
+.hero-aside-points li:hover {
+    background: white;
+    border-color: rgba(18, 62, 47, .24);
+    transform: translateX(2px);
+}
+
+/* ── 하이라이트 띠: 카드 4개 한 줄 ───────────────────────── */
+@media (min-width: 1100px) {
+    /* 특가(3) + 지표 1+1+1 = 6 → 한 줄로 꽉 찬다. */
+    .hero-highlight-inner { grid-template-columns: repeat(6, 1fr); }
+    .hero-highlight-offer { grid-column: span 3; }
+    .hero-highlight-metric { grid-column: span 1; }
+}
+@media (min-width: 700px) and (max-width: 1099px) {
+    .hero-highlight-inner { grid-template-columns: repeat(3, 1fr); }
+    .hero-highlight-offer { grid-column: span 3; }
+}
+
+/* ── 좁은 화면 ───────────────────────────────────────────── */
+@media (max-width: 999px) {
+    .hero-aside { margin-top: var(--space-6); }
+    .hero-aside-points { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hero-aside-figure,
+    .hero-aside-figure:hover,
+    .hero-aside-points li,
+    .hero-aside-points li:hover {
         transform: none;
         transition: none;
     }
