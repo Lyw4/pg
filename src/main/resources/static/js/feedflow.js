@@ -2199,6 +2199,61 @@
         }
     );
 
+    /*
+     * 검색 실행.
+     *
+     * 입력할 때마다 목록은 이미 걸러지지만, 결과 영역이 화면 한참 아래라
+     * 사용자는 아무 일도 없는 것처럼 느꼈다. 큰 쇼핑몰들이 그렇게 하듯
+     * 엔터나 검색 버튼으로 결과 위치까지 데려가고 건수를 알려 준다.
+     *
+     * 건수는 renderProducts() 가 이미 갱신해 둔 #product-result-count 를
+     * 그대로 읽는다. 세는 로직을 두 곳에 두지 않기 위해서다.
+     */
+    function runProductSearch() {
+        const input = $("#search-input");
+        const keyword = (input?.value ?? "").trim();
+
+        state.query = keyword;
+        renderProducts();
+
+        const section = $("#products");
+        const countText = ($("#product-result-count")?.textContent ?? "").trim();
+
+        if (section) {
+            section.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+
+        if (keyword) {
+            showToast(
+                countText
+                    ? `'${keyword}' 검색 결과 ${countText}`
+                    : `'${keyword}' 검색을 실행했습니다.`
+            );
+        } else {
+            showToast(
+                countText
+                    ? `전체 상품 ${countText}`
+                    : "전체 상품을 표시합니다."
+            );
+        }
+    }
+
+    $("#search-input")?.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") {
+            return;
+        }
+        // form 안이 아니라 기본 제출은 없지만, IME 조합 중 엔터는 무시한다.
+        if (event.isComposing) {
+            return;
+        }
+        event.preventDefault();
+        runProductSearch();
+    });
+
+    $("#search-submit")?.addEventListener("click", () => {
+        runProductSearch();
+    });
+
     $("#sort-select")?.addEventListener(
         "change",
         (event) => {

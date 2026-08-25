@@ -3640,3 +3640,135 @@ body.mypage-body textarea {
         transition: none;
     }
 }
+
+/* ═══════════════════════════════════════════════════════════
+ * 검색 실행 버튼 + 우측 배너 플레이스홀더
+ * ═══════════════════════════════════════════════════════════ */
+
+/* ── 검색 버튼 ───────────────────────────────────────────── */
+.search-box { gap: var(--space-3); }
+
+.search-submit {
+    flex: 0 0 auto;
+    height: 38px;
+    padding: 0 var(--space-4);
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--forest);
+    color: white;
+    font-size: var(--text-sm);
+    font-weight: 800;
+    letter-spacing: -.01em;
+    cursor: pointer;
+    transition:
+        background var(--dur) var(--ease),
+        transform var(--dur) var(--ease);
+}
+.search-submit:hover { background: var(--forest-dark); }
+.search-submit:active { transform: translateY(1px); }
+.search-submit:focus-visible {
+    outline: 0;
+    box-shadow: var(--ring);
+}
+
+/* 검색어를 지우는 기본 X 버튼이 버튼과 붙어 보이지 않게 여백을 준다. */
+.search-box input[type="search"]::-webkit-search-cancel-button {
+    margin-right: var(--space-2);
+}
+
+/* ── 우측 배너 플레이스홀더 ──────────────────────────────
+ *
+ * 실제 사진이 준비되면 아래 한 줄만 지정하면 그림이 그대로 바뀐다.
+ *
+ *     .hero-aside-visual {
+ *         --hero-visual-image: url("/images/파일명.png");
+ *     }
+ *
+ * 사진이 없을 때도 빈 칸으로 보이지 않도록, 브랜드 색으로 창고에
+ * 사료가 적재된 장면을 CSS 도형으로 그려 둔다. 래스터가 아니라
+ * 어떤 해상도에서도 선명하고 파일 용량이 0 이다.
+ * ─────────────────────────────────────────────────────── */
+.hero-aside-visual {
+    position: relative;
+    display: block;
+    width: 100%;
+    /* 캡션과 합쳐 카드 비율이 자연스럽도록 약간 납작하게 둔다. */
+    aspect-ratio: 456 / 257;
+    overflow: hidden;
+    isolation: isolate;
+
+    background-color: var(--forest);
+    background-image: var(--hero-visual-image, none);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+/* 바닥과 천장 빛. 사진을 넣으면 이 층은 그 위에 아주 옅게만 남는다. */
+.hero-aside-visual::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(
+            120% 80% at 50% 0%,
+            rgba(255, 253, 247, .22) 0%,
+            rgba(255, 253, 247, 0) 60%
+        ),
+        linear-gradient(
+            180deg,
+            rgba(11, 46, 34, 0) 55%,
+            rgba(11, 46, 34, .55) 100%
+        );
+}
+
+/*
+ * 구역별 적재 지도.
+ *
+ * 처음에는 사료 포대를 사실적으로 그려 봤지만, 크림색 사각형이 포대로
+ * 읽히지 않고 밋밋했다. 사진을 어설프게 흉내내는 대신, 이 제품이 실제로
+ * 다루는 것(창고 구역과 적재량)을 추상 격자로 표현한다. 의도된 그래픽으로
+ * 보이고 브랜드 성격에도 맞는다. 글자나 로고는 넣지 않는다.
+ *
+ * 가로 반복으로 열을 만들고, 세로 반복 마스크로 행을 잘라 격자를 얻는다.
+ * 사진이 지정되면 이 층은 감춘다.
+ */
+.hero-aside-visual::after {
+    content: "";
+    position: absolute;
+    inset: 17% 11% 19%;
+    background-image: repeating-linear-gradient(
+        90deg,
+        rgba(246, 243, 233, .95) 0 21%,
+        rgba(246, 243, 233, 0) 21% 25%
+    );
+    -webkit-mask-image: repeating-linear-gradient(
+        180deg,
+        #000 0 27%,
+        transparent 27% 34%
+    );
+    mask-image: repeating-linear-gradient(
+        180deg,
+        #000 0 27%,
+        transparent 27% 34%
+    );
+    filter: drop-shadow(0 8px 18px rgba(6, 28, 20, .34));
+}
+
+/* 사진이 들어오면 CSS 로 그린 도형은 물러난다. */
+.hero-aside-visual[style*="--hero-visual-image"]::after,
+.hero-aside-visual.has-image::after {
+    display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .search-submit,
+    .search-submit:active { transform: none; transition: none; }
+}
+
+@media (max-width: 700px) {
+    .search-submit {
+        height: 34px;
+        padding: 0 var(--space-3);
+    }
+}
