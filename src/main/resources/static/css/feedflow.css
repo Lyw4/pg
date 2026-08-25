@@ -3692,16 +3692,40 @@ body.mypage-body textarea {
     position: relative;
     display: block;
     width: 100%;
-    /* 캡션과 합쳐 카드 비율이 자연스럽도록 약간 납작하게 둔다. */
-    aspect-ratio: 456 / 257;
+    height: auto;
+    /*
+     * 사진 원본은 1024x572 (1.790) 인데 컨테이너를 16:10 (1.600) 으로
+     * 좁혀 둔다. cover 는 넘치는 쪽만 자르므로, 이렇게 하면 가로로
+     * 10.6% 가 잘린다. 그 여유로 우하단 생성 도구 표식을 화면 밖으로
+     * 밀어낸다. 아래 object-position 과 함께 봐야 한다.
+     */
+    aspect-ratio: 16 / 10;
     overflow: hidden;
     isolation: isolate;
 
+    /* 사진이 로드되기 전/실패했을 때 비어 보이지 않게 브랜드 색을 깐다. */
     background-color: var(--forest);
     background-image: var(--hero-visual-image, none);
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+}
+
+/*
+ * img 로 넣은 사진.
+ *
+ * 처음에는 object-position: 50% 35% 로 아래쪽을 자르려 했지만 효과가
+ * 없었다. 원본(1.790)이 당시 컨테이너(1.774)보다 넓어서 cover 가 좌우만
+ * 자르고 위아래는 넘치지 않았기 때문이다. 넘치지 않는 축의 값은 무시된다.
+ *
+ * 그래서 컨테이너를 16:10 으로 좁혀 가로 여유(10.6%)를 만들고, 가로 기준을
+ * 0% 로 두어 잘리는 몫을 전부 오른쪽에서 가져간다. 결과적으로 원본의
+ * 왼쪽 89.4% 만 보이고 우하단 표식은 잘려 나간다. 주 피사체인 팔레트
+ * 적재는 가운데에 있어 그대로 남는다.
+ */
+img.hero-aside-visual {
+    object-fit: cover;
+    object-position: 0% 50%;
 }
 
 /* 바닥과 천장 빛. 사진을 넣으면 이 층은 그 위에 아주 옅게만 남는다. */
@@ -3756,6 +3780,14 @@ body.mypage-body textarea {
 }
 
 /* 사진이 들어오면 CSS 로 그린 도형은 물러난다. */
+/*
+ * 사진이 들어오면 CSS 로 그린 격자는 물러난다.
+ *
+ * img 요소는 ::before / ::after 를 만들지 않으므로 img 로 전환한 지금은
+ * 격자가 애초에 생기지 않는다. 아래 규칙은 div 로 되돌렸을 때를 위한
+ * 대비책으로 남긴다. 스타일시트에서 변수만 지정하는 경우는 잡지 못하니
+ * 그때는 .has-image 를 함께 붙여야 한다.
+ */
 .hero-aside-visual[style*="--hero-visual-image"]::after,
 .hero-aside-visual.has-image::after {
     display: none;
