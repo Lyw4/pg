@@ -58,6 +58,7 @@
     --text-lg: 19px;
     --text-xl: 23px;
 
+    --leading-tight: 1.35;
     --leading-normal: 1.6;
     --leading-relaxed: 1.8;
 
@@ -3191,3 +3192,310 @@ body.mypage-body textarea {
 .storefront-stock-note { font-size: var(--text-sm); }
 .storefront-spec-grid small { font-size: var(--text-label); }
 .storefront-related-card small { font-size: var(--text-label); }
+
+/* ═══════════════════════════════════════════════════════════
+ * 히어로 재구성
+ *
+ * 문제
+ *  1) 좌우 2분할이라 오른쪽이 비어 보였다.
+ *  2) 사진이 884x213 인데 세로 560px 컬럼에 cover 로 넣어 2.6배
+ *     확대되어 흐렸다.
+ *  3) 사진 안에 "Reliable Feed..." 글자와 "Explore Catalog" 버튼이
+ *     그려져 있어 클릭이 되지 않았다.
+ *
+ * 해결
+ *  1) 세로 적층으로 바꿔 카피 / 사진 배너 / 하이라이트 띠를 쌓았다.
+ *  2) 배너를 전체 폭으로 두어 원본 비율(4.15:1)에 가깝게 만들었다.
+ *  3) 좌측에 짙은 스크림을 덮어 그려진 글자를 가리고, 같은 자리에
+ *     실제 a 태그 버튼을 얹었다. 크롭 위치에 의존하지 않는다.
+ * ═══════════════════════════════════════════════════════════ */
+
+.hero.hero-unified {
+    min-height: 0;
+    display: block;
+    padding-bottom: var(--space-7);
+    background: var(--cream);
+}
+
+.hero-unified .hero-inner {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: var(--space-8) var(--space-5) var(--space-6);
+}
+
+/* 카피는 폭을 제한해 한 줄이 너무 길어지지 않게 한다. */
+.hero-unified .hero-copy {
+    max-width: 780px;
+    padding: 0;
+}
+.hero-unified .hero-copy > p:not(.eyebrow) { max-width: 56ch; }
+
+/* ── 사진 배너 ───────────────────────────────────────────── */
+.hero-showcase {
+    position: relative;
+    width: 100%;
+    /* 원본 4.15:1 에 가깝게 유지해 확대를 줄인다. */
+    height: clamp(260px, 25vw, 360px);
+    overflow: hidden;
+    isolation: isolate;
+}
+.hero-showcase .hero-farm-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* 오른쪽 풍경을 우선 보여준다. */
+    object-position: 72% 50%;
+    /* 사진은 장식이므로 클릭을 받지 않는다. */
+    pointer-events: none;
+    user-select: none;
+}
+
+/* 그려진 글자와 버튼을 덮는 층. 좌측을 충분히 불투명하게 한다. */
+.hero-showcase-scrim {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+        100deg,
+        rgba(11, 46, 34, .95) 0%,
+        rgba(11, 46, 34, .92) 34%,
+        rgba(11, 46, 34, .62) 56%,
+        rgba(11, 46, 34, .18) 78%,
+        rgba(11, 46, 34, .05) 100%
+    );
+}
+
+.hero-showcase-overlay {
+    position: relative;
+    z-index: 1;
+    max-width: 1180px;
+    height: 100%;
+    margin: 0 auto;
+    padding: var(--space-6) var(--space-5);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: var(--space-3);
+    color: white;
+}
+.hero-showcase-eyebrow {
+    margin: 0;
+    color: #9BCDB6;
+    font-size: var(--text-label);
+    font-weight: 800;
+    letter-spacing: .16em;
+}
+.hero-showcase-title {
+    margin: 0;
+    max-width: 20ch;
+    font-family: Georgia, "Malgun Gothic", serif;
+    font-size: clamp(23px, 2.4vw, 34px);
+    font-weight: 600;
+    line-height: var(--leading-tight);
+    letter-spacing: -.03em;
+}
+.hero-showcase-lead {
+    margin: 0;
+    max-width: 46ch;
+    color: rgba(255, 255, 255, .86);
+    font-size: var(--text-body);
+    line-height: var(--leading-normal);
+}
+
+/* 실제로 클릭되는 카탈로그 버튼 */
+.hero-showcase-cta {
+    margin-top: var(--space-2);
+    min-height: 46px;
+    padding: 0 var(--space-5);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--forest);
+    color: white;
+    text-decoration: none;
+    font-size: var(--text-body);
+    font-weight: 800;
+    box-shadow: var(--shadow-md);
+    transition:
+        background var(--dur) var(--ease),
+        transform var(--dur) var(--ease),
+        box-shadow var(--dur) var(--ease);
+}
+.hero-showcase-cta:hover {
+    background: #175040;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+.hero-showcase-cta:active { transform: translateY(0); }
+.hero-showcase-cta:focus-visible {
+    outline: 0;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, .55);
+}
+.hero-showcase-cta span {
+    transition: transform var(--dur) var(--ease);
+}
+.hero-showcase-cta:hover span { transform: translateX(3px); }
+
+/* ── 하이라이트 띠: 특가 + 지표 + 절차를 하나로 ──────────── */
+.hero-highlight-band {
+    max-width: 1180px;
+    margin: calc(var(--space-6) * -1) auto 0;
+    padding: 0 var(--space-5);
+    position: relative;
+    z-index: 2;
+}
+.hero-highlight-inner {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+}
+
+.hero-highlight {
+    padding: var(--space-5);
+    border: 1px solid rgba(18, 62, 47, .1);
+    border-radius: var(--radius-lg);
+    background: white;
+    box-shadow: var(--shadow-sm);
+    text-decoration: none;
+    color: var(--ink);
+    transition:
+        transform var(--dur) var(--ease),
+        box-shadow var(--dur) var(--ease),
+        border-color var(--dur) var(--ease);
+}
+.hero-highlight:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+    border-color: rgba(18, 62, 47, .22);
+}
+
+/* 특가 카드를 띠에서 가장 강한 요소로 둔다. */
+.hero-highlight-offer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    border-color: transparent;
+    background: linear-gradient(135deg, var(--forest) 0%, var(--forest-dark) 100%);
+    color: white;
+    box-shadow: var(--shadow-md);
+}
+.hero-highlight-offer small {
+    color: #9BCDB6;
+    font-size: var(--text-label);
+    font-weight: 800;
+    letter-spacing: .1em;
+}
+.hero-highlight-offer strong {
+    font-size: var(--text-lg);
+    letter-spacing: -.02em;
+}
+.hero-highlight-offer em {
+    margin-top: auto;
+    color: var(--gold);
+    font-style: normal;
+    font-size: var(--text-sm);
+    font-weight: 700;
+}
+.hero-highlight-offer:hover { border-color: transparent; }
+
+/* 지표 카드 */
+.hero-highlight-metric {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+.hero-highlight-metric strong {
+    font-family: Georgia, serif;
+    color: var(--forest);
+    font-size: var(--text-xl);
+    letter-spacing: -.02em;
+}
+.hero-highlight-metric span {
+    color: var(--muted);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+}
+
+/* 절차 카드 */
+.hero-highlight-step {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4);
+}
+.hero-step-no {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-pill);
+    background: rgba(18, 62, 47, .08);
+    color: var(--forest);
+    font-family: Georgia, serif;
+    font-size: var(--text-body);
+    font-weight: 700;
+}
+.hero-highlight-step strong {
+    display: block;
+    margin-bottom: var(--space-1);
+    font-size: var(--text-md);
+    letter-spacing: -.02em;
+}
+.hero-highlight-step p {
+    margin: 0;
+    color: var(--muted);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+}
+
+/* ── 띠 그리드: 넓은 화면에서 2줄로 꽉 채운다 ───────────── */
+@media (min-width: 700px) {
+    .hero-highlight-inner { grid-template-columns: repeat(3, 1fr); }
+    .hero-highlight-offer { grid-column: span 3; }
+}
+@media (min-width: 1100px) {
+    /* 1줄: 특가(3) + 지표 1+1+1 = 6
+       2줄: 절차 2+2+2 = 6 */
+    .hero-highlight-inner { grid-template-columns: repeat(6, 1fr); }
+    .hero-highlight-offer { grid-column: span 3; }
+    .hero-highlight-metric { grid-column: span 1; }
+    .hero-highlight-step { grid-column: span 2; }
+}
+
+/* ── 좁은 화면 ───────────────────────────────────────────── */
+@media (max-width: 700px) {
+    .hero-unified .hero-inner { padding: var(--space-6) var(--space-4) var(--space-5); }
+    .hero-showcase { height: clamp(240px, 52vw, 300px); }
+    .hero-showcase-overlay { padding: var(--space-5) var(--space-4); }
+    .hero-showcase-scrim {
+        /* 좁은 화면에서는 글자가 사진 위에 겹치므로 전체를 더 어둡게 */
+        background: linear-gradient(
+            180deg,
+            rgba(11, 46, 34, .92) 0%,
+            rgba(11, 46, 34, .86) 60%,
+            rgba(11, 46, 34, .72) 100%
+        );
+    }
+    .hero-highlight-band {
+        margin-top: var(--space-5);
+        padding: 0 var(--space-4);
+    }
+    .hero-showcase-cta { width: 100%; justify-content: center; }
+}
+
+/* 움직임 최소화 설정 존중 */
+@media (prefers-reduced-motion: reduce) {
+    .hero-highlight,
+    .hero-highlight:hover,
+    .hero-showcase-cta,
+    .hero-showcase-cta:hover,
+    .hero-showcase-cta span,
+    .hero-showcase-cta:hover span {
+        transform: none;
+        transition: none;
+    }
+}

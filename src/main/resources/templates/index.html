@@ -242,78 +242,68 @@
     <!-- ==================================================
          [수정] 메인 Hero 전체 영역
          ================================================== -->
-    <section class="hero">
+    <!-- ==================================================
+         메인 Hero
 
-        <!-- Hero 왼쪽 소개 영역 -->
-        <div class="hero-copy">
+         좌우 분할을 세로 적층으로 바꿨다. 사진(884x213)이 가로로
+         길어서 세로 컬럼에 넣으면 크게 확대되어 흐려졌고, 남는
+         공간도 비어 보였다. 전체 폭 배너로 두면 원본 비율에 가까워
+         선명하고 화면도 꽉 찬다.
 
-            <p class="eyebrow">
-                <span></span>
-                농가를 위한 투명한 사료 유통
-            </p>
+         사진 안에 글자와 버튼이 그려져 있어 클릭이 안 됐다. 좌측에
+         스크림을 덮어 가리고, 같은 자리에 실제 태그로 다시 얹었다.
+         ================================================== -->
+    <section class="hero hero-unified" id="heroSection">
 
-            <h1>
-                좋은 사료는<br>
-                <em>농장의 내일</em>을<br>
-                바꿉니다.
-            </h1>
+        <div class="hero-inner">
 
-            <p>
-                축종과 성장 단계에 맞는 배합사료를 한눈에 비교하고,<br>
-                LOT별 재고와 유통기한까지 확인해 주문하세요.
-            </p>
+            <div class="hero-copy">
 
-            <div class="hero-buttons">
+                <p class="eyebrow">
+                    <span></span>
+                    농가를 위한 투명한 사료 유통
+                </p>
 
-                <a
-                    class="primary-button"
-                    href="#products"
-                >
-                    맞춤 사료 둘러보기
-                    <span>→</span>
-                </a>
+                <h1>
+                    좋은 사료는<br>
+                    <em>농장의 내일</em>을<br>
+                    바꿉니다.
+                </h1>
 
-                <button
-                    type="button"
-                    class="link-button"
-                    data-scroll-consulting
-                >
-                    전문가에게 상담받기
-                </button>
-            </div>
+                <p>
+                    축종과 성장 단계에 맞는 배합사료를 한눈에 비교하고,<br>
+                    LOT별 재고와 유통기한까지 확인해 주문하세요.
+                </p>
 
-            <div class="hero-stats">
+                <div class="hero-buttons">
 
-                <div>
-                    <strong>48H</strong>
-                    <span>수도권 빠른 배송</span>
+                    <a
+                        class="primary-button"
+                        href="#products"
+                    >
+                        맞춤 사료 둘러보기
+                        <span>→</span>
+                    </a>
+
+                    <button
+                        type="button"
+                        class="link-button"
+                        data-scroll-consulting
+                    >
+                        전문가에게 상담받기
+                    </button>
                 </div>
-
-                <div>
-                    <strong>100%</strong>
-                    <span>LOT 이력 관리</span>
-                </div>
-
-                <div>
-                    <strong>1:1</strong>
-                    <span>농가 맞춤 상담</span>
-                </div>
-
             </div>
         </div>
 
-        <!-- ==================================================
-             [수정] Hero 오른쪽 영역
-
-             농장 사진을 짧은 배너로 표시하고,
-             아래에는 유통 정보를 표시합니다.
-             ================================================== -->
+        <!-- 사진 배너.
+             img 는 시각 레이어로만 두고 클릭 대상은 아래 실제 a 태그다. -->
         <div
-            class="hero-visual"
+            class="hero-showcase"
+            id="heroShowcase"
             aria-label="FEED FLOW 사료 생산·유통 농장"
         >
 
-            <!-- [수정] 크기를 줄이고 선명도를 개선할 농장 이미지 -->
             <img
                 class="hero-farm-image"
                 th:src="@{/images/feedflow-farm-hero.png}"
@@ -321,61 +311,92 @@
                 alt="FEED FLOW 사료 생산·유통 농장 전경"
             >
 
-            <!-- [추가] 농장 사진 아래 유통 정보 -->
-            <div class="hero-visual-info">
+            <!-- 사진에 그려진 글자와 버튼을 덮는 층 -->
+            <div class="hero-showcase-scrim" aria-hidden="true"></div>
 
-                <div class="hero-visual-copy">
-                    <small>FEED FLOW DISTRIBUTION</small>
+            <div class="hero-showcase-overlay" id="heroShowcaseOverlay">
 
-                    <h2>
-                        농장에 도착하기까지<br>
-                        투명하게 관리합니다.
-                    </h2>
+                <p class="hero-showcase-eyebrow">FEED FLOW DISTRIBUTION</p>
 
-                    <p>
-                        상품 재고부터 LOT 유통기한과 배송 정보까지<br>
-                        주문 전에 정확하게 확인할 수 있습니다.
-                    </p>
-                </div>
+                <h2 class="hero-showcase-title">
+                    농장에 도착하기까지<br>
+                    투명하게 관리합니다.
+                </h2>
 
-                <!-- [수정] 특가 카드를 유통 정보 영역 안에 배치 -->
-                <div class="hero-offer">
+                <p class="hero-showcase-lead">
+                    상품 재고부터 LOT 유통기한과 배송 정보까지
+                    주문 전에 정확하게 확인할 수 있습니다.
+                </p>
+
+                <!-- 실제로 클릭되는 카탈로그 버튼.
+                     /products 라우트는 없고 카탈로그는 같은 페이지의
+                     #products 섹션이라 그쪽으로 보낸다. -->
+                <a
+                    class="hero-showcase-cta"
+                    id="heroCatalogLink"
+                    href="#products"
+                    data-hero-action="catalog"
+                >
+                    카탈로그 둘러보기
+                    <span aria-hidden="true">→</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- 흩어져 있던 특가·지표·절차 카드를 하나의 띠로 모았다. -->
+        <div class="hero-highlight-band" id="heroHighlightBand">
+            <div class="hero-highlight-inner">
+
+                <a
+                    class="hero-highlight hero-highlight-offer"
+                    id="heroOfferCard"
+                    href="#products"
+                    data-highlight="offer"
+                >
                     <small>이번 주 농가 특가</small>
                     <strong>3포 이상 10% 할인</strong>
-                    <a href="#products">바로 주문하기 →</a>
+                    <em>바로 주문하기 →</em>
+                </a>
+
+                <div class="hero-highlight hero-highlight-metric" data-highlight="metric">
+                    <strong>48H</strong>
+                    <span>수도권 빠른 배송</span>
                 </div>
 
-                <!-- [추가] 재고·출고·배송 안내 -->
-                <div class="hero-process">
-
-                    <article>
-                        <span>01</span>
-
-                        <div>
-                            <strong>실시간 재고</strong>
-                            <p>상품과 LOT별 잔여 수량 확인</p>
-                        </div>
-                    </article>
-
-                    <article>
-                        <span>02</span>
-
-                        <div>
-                            <strong>FEFO 출고</strong>
-                            <p>유통기한이 빠른 LOT부터 출고</p>
-                        </div>
-                    </article>
-
-                    <article>
-                        <span>03</span>
-
-                        <div>
-                            <strong>농장 배송</strong>
-                            <p>농장 주소와 하차 위치까지 관리</p>
-                        </div>
-                    </article>
-
+                <div class="hero-highlight hero-highlight-metric" data-highlight="metric">
+                    <strong>100%</strong>
+                    <span>LOT 이력 관리</span>
                 </div>
+
+                <div class="hero-highlight hero-highlight-metric" data-highlight="metric">
+                    <strong>1:1</strong>
+                    <span>농가 맞춤 상담</span>
+                </div>
+
+                <article class="hero-highlight hero-highlight-step" data-highlight="step">
+                    <span class="hero-step-no">01</span>
+                    <div>
+                        <strong>실시간 재고</strong>
+                        <p>상품과 LOT별 잔여 수량 확인</p>
+                    </div>
+                </article>
+
+                <article class="hero-highlight hero-highlight-step" data-highlight="step">
+                    <span class="hero-step-no">02</span>
+                    <div>
+                        <strong>FEFO 출고</strong>
+                        <p>유통기한이 빠른 LOT부터 출고</p>
+                    </div>
+                </article>
+
+                <article class="hero-highlight hero-highlight-step" data-highlight="step">
+                    <span class="hero-step-no">03</span>
+                    <div>
+                        <strong>농장 배송</strong>
+                        <p>농장 주소와 하차 위치까지 관리</p>
+                    </div>
+                </article>
+
             </div>
         </div>
     </section>
