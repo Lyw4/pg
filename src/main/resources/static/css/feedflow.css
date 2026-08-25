@@ -3315,40 +3315,6 @@ body.mypage-body textarea {
     line-height: var(--leading-normal);
 }
 
-/* 실제로 클릭되는 카탈로그 버튼 */
-.hero-showcase-cta {
-    margin-top: var(--space-2);
-    min-height: 46px;
-    padding: 0 var(--space-5);
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-    border-radius: var(--radius-md);
-    background: var(--forest);
-    color: white;
-    text-decoration: none;
-    font-size: var(--text-body);
-    font-weight: 800;
-    box-shadow: var(--shadow-md);
-    transition:
-        background var(--dur) var(--ease),
-        transform var(--dur) var(--ease),
-        box-shadow var(--dur) var(--ease);
-}
-.hero-showcase-cta:hover {
-    background: #175040;
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-}
-.hero-showcase-cta:active { transform: translateY(0); }
-.hero-showcase-cta:focus-visible {
-    outline: 0;
-    box-shadow: 0 0 0 3px rgba(255, 255, 255, .55);
-}
-.hero-showcase-cta span {
-    transition: transform var(--dur) var(--ease);
-}
-.hero-showcase-cta:hover span { transform: translateX(3px); }
 
 /* ── 하이라이트 띠: 특가 + 지표 + 절차를 하나로 ──────────── */
 .hero-highlight-band {
@@ -3494,17 +3460,12 @@ body.mypage-body textarea {
         margin-top: var(--space-5);
         padding: 0 var(--space-4);
     }
-    .hero-showcase-cta { width: 100%; justify-content: center; }
 }
 
 /* 움직임 최소화 설정 존중 */
 @media (prefers-reduced-motion: reduce) {
     .hero-highlight,
-    .hero-highlight:hover,
-    .hero-showcase-cta,
-    .hero-showcase-cta:hover,
-    .hero-showcase-cta span,
-    .hero-showcase-cta:hover span {
+    .hero-highlight:hover {
         transform: none;
         transition: none;
     }
