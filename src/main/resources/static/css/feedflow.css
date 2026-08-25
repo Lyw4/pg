@@ -11,6 +11,58 @@
     --gold: #c5a64f;
     --danger: #a53b34;
     --shadow: 0 24px 70px rgba(18, 45, 34, .18);
+
+    /* ─────────────────────────────────────────────────────
+     * 디자인 토큰
+     *
+     * 브랜드 색은 그대로 두고, 흩어져 있던 둥글기·깊이·여백·
+     * 글자 크기만 체계화한다. 기존 --shadow 는 다른 화면에서
+     * 쓰고 있어 지우지 않고 남긴다.
+     * ───────────────────────────────────────────────────── */
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 18px;
+    --radius-xl: 24px;
+    --radius-pill: 999px;
+
+    /* 깊이 3단계. 가까운 그림자와 퍼지는 그림자를 2겹으로 겹친다.
+       한 겹만 쓰면 흐릿하게 번져 보인다. */
+    --shadow-sm:
+        0 1px 2px rgba(18, 45, 34, .06),
+        0 2px 8px rgba(18, 45, 34, .05);
+    --shadow-md:
+        0 2px 4px rgba(18, 45, 34, .05),
+        0 8px 24px rgba(18, 45, 34, .09);
+    --shadow-lg:
+        0 4px 10px rgba(18, 45, 34, .06),
+        0 18px 44px rgba(18, 45, 34, .13);
+    --ring: 0 0 0 3px rgba(18, 62, 47, .16);
+
+    /* 여백 8px 스케일 */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --space-7: 48px;
+    --space-8: 64px;
+
+    /* 글자 크기. 기존 본문이 8~10px 이라 읽기 어려웠다.
+       라벨 12px, 본문 14px 을 하한으로 올린다. */
+    --text-label: 12px;
+    --text-sm: 13px;
+    --text-body: 14px;
+    --text-md: 16px;
+    --text-lg: 19px;
+    --text-xl: 23px;
+
+    --leading-normal: 1.6;
+    --leading-relaxed: 1.8;
+
+    --ease: cubic-bezier(.22, .61, .36, 1);
+    --dur: 200ms;
     --store-font: "Pretendard Variable", Pretendard,
         "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic",
         -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -61,7 +113,8 @@ button { cursor: pointer; }
     z-index: 20;
     top: 0;
     border-bottom: 1px solid var(--line);
-    background: rgba(255, 253, 247, .96);
+    background: rgba(255, 253, 247, .92);
+    box-shadow: var(--shadow-sm);
     backdrop-filter: blur(14px);
 }
 .header-main {
@@ -93,7 +146,8 @@ button { cursor: pointer; }
     transform: rotate(-3deg);
 }
 .brand strong, .brand small { display: block; }
-.brand strong { font-family: Georgia, "Malgun Gothic", serif; font-size: 20px; letter-spacing: .05em; }
+.brand strong { font-family: Georgia, "Malgun Gothic", serif; font-size: 21px; letter-spacing: .04em; }
+.brand small { font-size: 11px; letter-spacing: .06em; }
 .brand small { margin-top: 4px; color: var(--muted); font-size: 9px; }
 .search-box {
     height: 48px;
@@ -106,7 +160,7 @@ button { cursor: pointer; }
 }
 .search-box span { font-size: 22px; }
 .search-box input { width: 100%; border: 0; outline: 0; background: transparent; }
-.header-actions { display: grid; grid-template-columns: 1fr 1fr; }
+.header-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); }
 .header-actions button, .header-actions .header-operator-link {
     position: relative;
     border: 0;
@@ -114,6 +168,18 @@ button { cursor: pointer; }
     color: var(--ink);
     text-align: center;
     text-decoration: none;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    transition: background var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.header-actions button:hover, .header-actions .header-operator-link:hover {
+    background: rgba(18, 62, 47, .06);
+}
+.header-actions button:active { transform: translateY(1px); }
+.header-actions button:focus-visible,
+.header-actions .header-operator-link:focus-visible {
+    outline: 0;
+    box-shadow: var(--ring);
 }
 .header-actions span, .header-actions small { display: block; }
 .header-actions span { font-size: 23px; line-height: 1; }
@@ -194,8 +260,13 @@ button { cursor: pointer; }
     letter-spacing: -.05em;
 }
 .hero h1 em { color: var(--forest); font-style: normal; }
-.hero-copy > p:not(.eyebrow) { color: var(--muted); line-height: 1.9; font-size: 12px; }
-.hero-buttons { margin-top: 28px; display: flex; align-items: center; gap: 24px; }
+.hero-copy > p:not(.eyebrow) {
+    max-width: 48ch;
+    color: var(--muted);
+    line-height: var(--leading-relaxed);
+    font-size: var(--text-md);
+}
+.hero-buttons { margin-top: var(--space-6); display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-4); }
 .primary-button, .secondary-button {
     min-height: 48px;
     padding: 0 24px;
@@ -203,7 +274,13 @@ button { cursor: pointer; }
     align-items: center;
     justify-content: center;
     border: 1px solid var(--forest);
-    border-radius: 2px;
+    border-radius: var(--radius-md);
+    font-size: var(--text-body);
+    letter-spacing: -.01em;
+    cursor: pointer;
+    transition: transform var(--dur) var(--ease),
+        box-shadow var(--dur) var(--ease),
+        background var(--dur) var(--ease);
     text-decoration: none;
     font-weight: 800;
 }
@@ -212,13 +289,24 @@ button { cursor: pointer; }
 .primary-button.full, .secondary-button.full { width: 100%; }
 .link-button { border: 0; border-bottom: 1px solid var(--ink); background: transparent; padding: 8px 0; font-weight: 700; }
 .hero-stats {
-    margin-top: 40px;
-    padding-top: 22px;
-    display: flex;
-    gap: 34px;
-    border-top: 1px solid var(--line);
+    margin-top: var(--space-7);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--space-3);
 }
-.hero-stats div { display: flex; align-items: baseline; gap: 6px; }
+/* 통계를 밑줄 구분에서 카드로 바꿔 시선이 먼저 닿게 한다. */
+.hero-stats div {
+    padding: var(--space-4);
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    border: 1px solid rgba(18, 62, 47, .1);
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, .72);
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.hero-stats div:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 .hero-stats strong { font-family: Georgia, serif; color: var(--forest); font-size: 18px; }
 .hero-stats span { color: var(--muted); font-size: 8px; }
 .hero-visual {
@@ -337,18 +425,59 @@ button { cursor: pointer; }
     color: var(--forest);
 }
 .favorite.active { background: var(--forest); color: white; }
-.product-info { padding: 18px; }
-.product-tags { display: flex; gap: 6px; }
-.product-tags span { padding: 3px 6px; background: #efefe8; color: var(--forest); font-size: 8px; font-weight: 700; }
-.product-info h3 { margin: 13px 0 8px; font-size: 15px; }
-.product-info > p { min-height: 34px; margin: 0; color: var(--muted); font-size: 9px; line-height: 1.7; }
-.stock-line { margin: 16px 0 12px; display: flex; justify-content: space-between; color: var(--muted); font-size: 9px; }
+.product-info { padding: var(--space-5); }
+.product-tags { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+/* 태그를 pill 로 바꿔 상품명과 시각적으로 분리한다. */
+.product-tags span {
+    padding: 4px 10px;
+    border-radius: var(--radius-pill);
+    background: rgba(18, 62, 47, .07);
+    color: var(--forest);
+    font-size: var(--text-label);
+    font-weight: 700;
+    letter-spacing: -.01em;
+}
+.product-info h3 {
+    margin: var(--space-3) 0 var(--space-2);
+    font-size: var(--text-lg);
+    line-height: var(--leading-normal);
+    letter-spacing: -.02em;
+}
+.product-info > p {
+    min-height: 42px;
+    margin: 0;
+    color: var(--muted);
+    font-size: var(--text-body);
+    line-height: var(--leading-normal);
+}
+.stock-line {
+    margin: var(--space-4) 0 var(--space-3);
+    padding-top: var(--space-3);
+    display: flex;
+    justify-content: space-between;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: var(--text-sm);
+}
 .stock-line strong { color: var(--forest); }
 .stock-line.sale-stock strong { color: #c43f2d; }
-.product-price { min-height: 38px; display: flex; align-items: center; gap: 7px; }
-.product-price del { color: #9b9b92; font-size: 9px; }
-.product-price strong { font-size: 16px; }
-.card-add { width: 100%; height: 40px; margin-top: 9px; border: 1px solid var(--forest); background: white; color: var(--forest); font-size: 10px; font-weight: 800; }
+.product-price { min-height: 42px; display: flex; align-items: baseline; gap: var(--space-2); }
+.product-price del { color: #9b9b92; font-size: var(--text-sm); }
+/* 가격이 카드에서 가장 강한 정보가 되도록 크기를 올린다. */
+.product-price strong { font-size: var(--text-xl); letter-spacing: -.03em; }
+.card-add {
+    width: 100%;
+    height: 46px;
+    margin-top: var(--space-3);
+    border: 1px solid var(--forest);
+    border-radius: var(--radius-md);
+    background: white;
+    color: var(--forest);
+    font-size: var(--text-body);
+    font-weight: 800;
+    cursor: pointer;
+    transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
 .card-add:hover { background: var(--forest); color: white; }
 .empty-state { padding: 60px; text-align: center; color: var(--muted); }
 
@@ -2874,3 +3003,191 @@ body.mypage-body textarea {
         padding: 20px 18px;
     }
 }
+
+/* ═══════════════════════════════════════════════════════════
+ * 메인 페이지 소프트 리뉴얼 — 마감 레이어
+ *
+ * 위에서 토큰과 개별 규칙을 정리했고, 여기서는 카드 깊이와 상호작용,
+ * 반응형 여백만 마무리한다. 선택자는 기존 것을 그대로 쓰고 새 클래스를
+ * 만들지 않는다. HTML 을 건드리지 않아야 Thymeleaf 바인딩과 JS 훅이
+ * 온전히 남는다.
+ * ═══════════════════════════════════════════════════════════ */
+
+/* ── 상품 카드: 평평한 테두리에서 얕은 카드로 ────────────── */
+.product-card {
+    border-radius: var(--radius-lg);
+    background: white;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition:
+        transform var(--dur) var(--ease),
+        box-shadow var(--dur) var(--ease);
+}
+.product-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+}
+/* 카드 안의 사진이 모서리를 넘지 않게 한다. */
+.product-photo { border-radius: 0; }
+
+/* ── 버튼 상호작용 ───────────────────────────────────────── */
+.primary-button:hover {
+    background: var(--forest-dark);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+.secondary-button:hover {
+    background: rgba(18, 62, 47, .06);
+    transform: translateY(-1px);
+}
+.primary-button:active,
+.secondary-button:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+}
+.primary-button:focus-visible,
+.secondary-button:focus-visible,
+.card-add:focus-visible {
+    outline: 0;
+    box-shadow: var(--ring);
+}
+
+/* ── 검색창: 두꺼운 사각 테두리를 부드럽게 ───────────────── */
+.search-box {
+    border-width: 1px;
+    border-color: var(--line);
+    border-radius: var(--radius-pill);
+    padding: 0 var(--space-5);
+    box-shadow: var(--shadow-sm);
+    transition:
+        border-color var(--dur) var(--ease),
+        box-shadow var(--dur) var(--ease);
+}
+.search-box:focus-within {
+    border-color: var(--forest);
+    box-shadow: var(--ring);
+}
+.search-box input { font-size: var(--text-body); }
+.search-box input::placeholder { color: #9ba49a; }
+
+/* ── 히어로 여백과 글자 위계 ─────────────────────────────── */
+.hero-copy { padding-top: var(--space-8); padding-bottom: var(--space-8); }
+.hero h1 { letter-spacing: -.04em; }
+.hero-stats strong { font-size: var(--text-xl); }
+.hero-stats span { font-size: var(--text-label); line-height: var(--leading-normal); }
+
+/* eyebrow 라벨이 9px 이라 거의 안 보였다. */
+.eyebrow { font-size: var(--text-label); letter-spacing: .14em; }
+
+/* ── 헤더 라벨 ───────────────────────────────────────────── */
+.header-actions small { margin-top: var(--space-1); font-size: var(--text-label); }
+.header-actions b {
+    border-radius: var(--radius-pill);
+    box-shadow: var(--shadow-sm);
+    font-size: 11px;
+}
+
+/* ── 프로세스 단계 카드 ──────────────────────────────────── */
+.hero-process > * {
+    border-radius: var(--radius-lg);
+    transition:
+        transform var(--dur) var(--ease),
+        box-shadow var(--dur) var(--ease);
+}
+.hero-process > *:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+/* ── 빈 상태 ─────────────────────────────────────────────── */
+.empty-state {
+    border-radius: var(--radius-lg);
+    background: rgba(18, 62, 47, .03);
+    font-size: var(--text-body);
+}
+
+/* ── 반응형 여백 ─────────────────────────────────────────── */
+@media (max-width: 1024px) {
+    .hero { grid-template-columns: 1fr; }
+    .hero-copy {
+        padding: var(--space-7) var(--space-5);
+    }
+    .hero-stats { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+}
+
+@media (max-width: 640px) {
+    .hero-copy { padding: var(--space-6) var(--space-4); }
+    .hero-buttons { gap: var(--space-3); }
+    .hero-buttons .primary-button,
+    .hero-buttons .secondary-button { flex: 1 1 100%; }
+    .product-info { padding: var(--space-4); }
+    .hero-stats { gap: var(--space-2); }
+    .search-box { padding: 0 var(--space-4); }
+}
+
+/* ── 접근성: 움직임을 줄여달라는 설정을 존중한다 ─────────── */
+@media (prefers-reduced-motion: reduce) {
+    .product-card,
+    .product-card:hover,
+    .hero-stats div,
+    .hero-stats div:hover,
+    .hero-process > *,
+    .hero-process > *:hover,
+    .primary-button,
+    .primary-button:hover,
+    .secondary-button,
+    .secondary-button:hover {
+        transform: none;
+        transition: none;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════
+ * 가독성 하한 정리
+ *
+ * 메인 페이지에 8~10px 로 남아 있던 글자를 라벨 11~12px, 본문
+ * 13~14px 로 올린다. 이 블록이 파일 맨 끝인 이유는, 같은 선택자가
+ * 위에 이미 있어서 나중 규칙이어야 적용되기 때문이다.
+ * (앞서 :root 근처에서 .brand small 을 고쳤더니 아래쪽 원본 규칙에
+ *  덮여 효과가 없었다. 그래서 여기로 옮겼다.)
+ *
+ * 마이페이지·주문서·계정 패널은 이번 범위가 아니라 손대지 않았다.
+ * ═══════════════════════════════════════════════════════════ */
+
+/* 브랜드 */
+.brand small { font-size: 11px; letter-spacing: .06em; }
+
+/* 히어로 비주얼의 사료 포대 라벨 */
+.feed-bag small { font-size: 11px; letter-spacing: .16em; }
+.feed-bag span { font-size: 12px; }
+.feed-bag b { font-size: 12px; }
+.hero-offer a { font-size: var(--text-sm); }
+
+/* 섹션 머리말과 정렬 컨트롤 */
+.benefits p { font-size: var(--text-body); line-height: var(--leading-normal); }
+.section-heading > div > p:last-child {
+    font-size: var(--text-body);
+    line-height: var(--leading-normal);
+}
+.sort-control { font-size: var(--text-sm); }
+
+/* 상품 배지 */
+.badge {
+    border-radius: var(--radius-pill);
+    font-size: 11px;
+    letter-spacing: -.01em;
+}
+
+/* 상담 배너 */
+.consulting-contact small { font-size: var(--text-label); }
+.consulting-contact p { font-size: var(--text-sm); line-height: var(--leading-normal); }
+
+/* 푸터 */
+.footer-company-info { font-size: var(--text-label); line-height: var(--leading-relaxed); }
+.footer-brand p, footer > p { font-size: var(--text-label); line-height: var(--leading-relaxed); }
+.footer-links a, .footer-links button { font-size: var(--text-sm); }
+
+/* 상품 상세 영역 */
+.storefront-stock-note { font-size: var(--text-sm); }
+.storefront-spec-grid small { font-size: var(--text-label); }
+.storefront-related-card small { font-size: var(--text-label); }
