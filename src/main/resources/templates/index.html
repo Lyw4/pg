@@ -497,162 +497,175 @@
          ================================================== -->
     <section
         id="products"
-        class="section catalog"
+        class="products-section"
     >
-        <div class="shell">
 
-            <div class="section-head section-head--split">
+        <!--
+            상품 목록은 요청에 따라 예전 모습으로 되돌렸다.
+            .products-section 이 스스로 max-width 와 여백을 가지므로
+            .shell 래퍼를 쓰지 않는다. 제목 줄도 원본의 .section-heading 이다.
 
+            주의: feedflow.js 의 updateProductHeading() 이
+              #products-eyebrow 의 마지막 자식(텍스트 노드)
+              #products-description 의 첫 자식(텍스트 노드)
+            를 직접 갈아 끼운다. 아래 노드 순서를 바꾸면 조용히 깨진다.
+        -->
+        <div class="section-heading">
+
+            <div>
                 <p id="products-eyebrow" class="eyebrow dark">
                     <span></span>
                     FARMER'S CHOICE
                 </p>
 
-                <h2 id="products-heading" class="section-head__title">
-                    지금 농가에서 많이 찾는 사료
-                </h2>
+                <h2 id="products-heading">지금 농가에서 많이 찾는 사료</h2>
 
-                <p id="products-description" class="section-head__desc">
+                <p id="products-description">
                     축종과 성장 단계에 맞춰 엄선한 대표 배합사료입니다.
                     <strong id="product-result-count"></strong>
                 </p>
-
-                <div class="section-head__tools">
-                    <label class="sort-control">
-                        정렬
-
-                        <select id="sort-select">
-                            <option value="recommended">추천순</option>
-                            <option value="low">낮은가격순</option>
-                            <option value="high">높은가격순</option>
-                            <option value="stock">재고많은순</option>
-                        </select>
-                    </label>
-                </div>
             </div>
 
-            <div
-                id="product-grid"
-                class="product-grid"
-            >
-                <article
-                class="product-card"
-                th:each="product : ${products}"
-                th:attr="data-product-id=${product.id}"
-            >
+            <label class="sort-control">
+                정렬
 
-                <div class="product-visual">
+                <select id="sort-select">
+                    <option value="recommended">추천순</option>
+                    <option value="low">낮은가격순</option>
+                    <option value="high">높은가격순</option>
+                    <option value="stock">재고많은순</option>
+                </select>
+            </label>
+        </div>
 
-                    <span
-                        class="badge sale-badge"
-                        th:if="${product.expirySale}"
-                        th:text="${product.saleLabel}"
-                    >
-                        D-14 · 30% 할인
-                    </span>
+        <div
+            id="product-grid"
+            class="product-grid"
+        >
 
-                    <span
-                        class="badge"
-                        th:if="${!product.expirySale and product.badge != null}"
-                        th:text="${product.badge}"
-                    >
-                        추천
-                    </span>
-
-                    <div class="product-photo">
-                        <img
-                            th:src="${product.imageUrl != null ? product.imageUrl : '/images/feed-bag-warehouse.png'}"
-                            src="/images/feed-bag-warehouse.png"
-                            th:alt="${product.name}"
-                            alt="창고에 적재된 FEED FLOW 사료 포대"
+            <!--
+                상품 데이터는 PageController 가 넘긴 ${products} 를
+                Thymeleaf 가 반복 출력한다. 화면에 실제로 보이는 카드는
+                feedflow.js 의 renderProducts() 가 다시 그린다.
+                두 쪽의 클래스명이 같아야 스타일이 유지된다.
+            -->
+            <article
+                    class="product-card"
+                    th:each="product : ${products}"
+                    th:attr="data-product-id=${product.id}"
+                >
+    
+                    <div class="product-visual">
+    
+                        <span
+                            class="badge sale-badge"
+                            th:if="${product.expirySale}"
+                            th:text="${product.saleLabel}"
                         >
-                    </div>
-                </div>
-
-                <div class="product-info">
-
-                    <div class="product-tags">
-                        <span th:text="${product.animal}">소</span>
-                        <span th:text="${product.stage}">비육후기</span>
-                    </div>
-
-                    <h3 th:text="${product.name}">
-                        한우 마스터 700
-                    </h3>
-
-                    <p th:text="${product.description}">
-                        상품 상세설명
-                    </p>
-
-                    <div class="stock-line">
-
-                        <span th:text="${product.weight + 'kg / 포'}">
-                            25kg / 포
+                            D-14 · 30% 할인
                         </span>
-
-                        <strong
-                            th:text="${(product.expirySale ? product.saleStock : product.stock) < 1
-                                ? '품절'
-                                : (product.expirySale
-                                    ? '특가 재고 ' + product.saleStock + '포'
-                                    : (product.stock <= 10
-                                    ? '재고 얼마 남지 않음'
-                                    : '구매 가능'))}"
+    
+                        <span
+                            class="badge"
+                            th:if="${!product.expirySale and product.badge != null}"
+                            th:text="${product.badge}"
                         >
-                            구매 가능
-                        </strong>
+                            추천
+                        </span>
+    
+                        <div class="product-photo">
+                            <img
+                                th:src="${product.imageUrl != null ? product.imageUrl : '/images/feed-bag-warehouse.png'}"
+                                src="/images/feed-bag-warehouse.png"
+                                th:alt="${product.name}"
+                                alt="창고에 적재된 FEED FLOW 사료 포대"
+                            >
+                        </div>
                     </div>
-
-                    <div class="product-price">
-                        <del
-                            th:if="${product.originalPrice != null}"
-                            th:text="${#numbers.formatDecimal(product.originalPrice, 0, 'COMMA', 0, 'POINT') + '원'}"
-                        >
-                            39,000원
-                        </del>
-                        <strong
-                            th:text="${#numbers.formatDecimal(
-                                product.price,
-                                0,
-                                'COMMA',
-                                0,
-                                'POINT'
-                            ) + '원'}"
-                        >
-                            33,800원
-                        </strong>
+    
+                    <div class="product-info">
+    
+                        <div class="product-tags">
+                            <span th:text="${product.animal}">소</span>
+                            <span th:text="${product.stage}">비육후기</span>
+                        </div>
+    
+                        <h3 th:text="${product.name}">
+                            한우 마스터 700
+                        </h3>
+    
+                        <p th:text="${product.description}">
+                            상품 상세설명
+                        </p>
+    
+                        <div class="stock-line">
+    
+                            <span th:text="${product.weight + 'kg / 포'}">
+                                25kg / 포
+                            </span>
+    
+                            <strong
+                                th:text="${(product.expirySale ? product.saleStock : product.stock) < 1
+                                    ? '품절'
+                                    : (product.expirySale
+                                        ? '특가 재고 ' + product.saleStock + '포'
+                                        : (product.stock <= 10
+                                        ? '재고 얼마 남지 않음'
+                                        : '구매 가능'))}"
+                            >
+                                구매 가능
+                            </strong>
+                        </div>
+    
+                        <div class="product-price">
+                            <del
+                                th:if="${product.originalPrice != null}"
+                                th:text="${#numbers.formatDecimal(product.originalPrice, 0, 'COMMA', 0, 'POINT') + '원'}"
+                            >
+                                39,000원
+                            </del>
+                            <strong
+                                th:text="${#numbers.formatDecimal(
+                                    product.price,
+                                    0,
+                                    'COMMA',
+                                    0,
+                                    'POINT'
+                                ) + '원'}"
+                            >
+                                33,800원
+                            </strong>
+                        </div>
+    
+                        <div class="card-actions">
+    
+                            <button
+                                type="button"
+                                class="card-detail"
+                                th:attr="data-detail=${product.id}"
+                            >
+                                상세보기
+                            </button>
+    
+                            <button
+                                type="button"
+                                class="card-add"
+                                th:attr="data-add-cart=${product.id}"
+                                th:disabled="${(product.expirySale ? product.saleStock : product.stock) < 1}"
+                            >
+                                장바구니 ＋
+                            </button>
+                        </div>
                     </div>
+                </article>
+        </div>
 
-                    <div class="card-actions">
-
-                        <button
-                            type="button"
-                            class="card-detail"
-                            th:attr="data-detail=${product.id}"
-                        >
-                            상세보기
-                        </button>
-
-                        <button
-                            type="button"
-                            class="card-add"
-                            th:attr="data-add-cart=${product.id}"
-                            th:disabled="${(product.expirySale ? product.saleStock : product.stock) < 1}"
-                        >
-                            장바구니 ＋
-                        </button>
-                    </div>
-                </div>
-            </article>
-            </div>
-
-            <div
-                id="empty-products"
-                class="empty-state"
-                hidden
-            >
-                조건에 맞는 상품이 없습니다.
-            </div>
+        <div
+            id="empty-products"
+            class="empty-state"
+            hidden
+        >
+            조건에 맞는 상품이 없습니다.
         </div>
     </section>
 
