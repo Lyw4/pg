@@ -23,8 +23,8 @@
 
     <link
         rel="stylesheet"
-        th:href="@{/css/feedflow.css}"
-        href="/css/feedflow.css"
+        th:href="@{/css/storefront.css}"
+        href="/css/storefront.css"
     >
 </head>
 
@@ -44,380 +44,248 @@
      데이터베이스 연결은 application.properties에서 유지되며,
      화면에는 쇼핑몰 안내만 표시됩니다.
      ====================================================== -->
-<div class="notice">
-
-    <span>
-        농가 맞춤 배합사료 · LOT별 재고 및 유통기한 확인 · 안전한 농장 배송
-    </span>
-
-    <div>
-        <!-- 로그인하지 않은 경우 표시 -->
-        <button
-            id="utility-login"
-            type="button"
-            data-open-account="login"
-            hidden
-            sec:authorize="!hasAnyRole('ADMIN','STAFF')"
-        >
-            로그인
-        </button>
-
-        <button
-            id="utility-signup"
-            type="button"
-            data-open-account="signup"
-            hidden
-            sec:authorize="!hasAnyRole('ADMIN','STAFF')"
-        >
-            회원가입
-        </button>
-
-        <!-- 로그인한 경우 표시 -->
-        <a
-            id="utility-mypage"
-            href="/mypage"
-            hidden
-            sec:authorize="!hasAnyRole('ADMIN','STAFF')"
-        >
-            마이페이지
-        </a>
-
-        <button
-            id="utility-logout"
-            type="button"
-            hidden
-            sec:authorize="!hasAnyRole('ADMIN','STAFF')"
-        >
-            로그아웃
-        </button>
-
-        <a sec:authorize="hasAnyRole('ADMIN','STAFF')"
-           th:href="@{/admin/dashboard}">관리자 대시보드</a>
-
-        <span sec:authorize="hasAnyRole('ADMIN','STAFF')"
-              class="admin-login-state">
-            <strong sec:authentication="name">관리자</strong> 로그인 유지 중
+<div class="storefront-header">
+<div class="topbar">
+    <div class="shell topbar__inner">
+        <span class="topbar__tagline">
+            농가 맞춤 배합사료 · LOT별 재고 및 유통기한 확인 · 안전한 농장 배송
         </span>
 
-        <form sec:authorize="hasAnyRole('ADMIN','STAFF')"
-              id="header-admin-logout"
-              class="notice-admin-logout"
-              method="post"
-              th:action="@{/admin/logout}">
-            <button type="submit">관리자 로그아웃</button>
-        </form>
+        <div class="topbar__links">
+            <button
+                id="utility-login"
+                class="topbar__link"
+                type="button"
+                data-open-account="login"
+                hidden
+                sec:authorize="!hasAnyRole('ADMIN','STAFF')"
+            >로그인</button>
 
-        <span sec:authorize="!hasAnyRole('ADMIN','STAFF')">고객센터 1588-0427</span>
+            <button
+                id="utility-signup"
+                class="topbar__link"
+                type="button"
+                data-open-account="signup"
+                hidden
+                sec:authorize="!hasAnyRole('ADMIN','STAFF')"
+            >회원가입</button>
+
+            <a
+                id="utility-mypage"
+                class="topbar__link"
+                href="/mypage"
+                hidden
+                sec:authorize="!hasAnyRole('ADMIN','STAFF')"
+            >마이페이지</a>
+
+            <button
+                id="utility-logout"
+                class="topbar__link"
+                type="button"
+                hidden
+                sec:authorize="!hasAnyRole('ADMIN','STAFF')"
+            >로그아웃</button>
+
+            <a
+                class="topbar__link"
+                sec:authorize="hasAnyRole('ADMIN','STAFF')"
+                th:href="@{/admin/dashboard}"
+            >관리자 대시보드</a>
+
+            <span
+                sec:authorize="hasAnyRole('ADMIN','STAFF')"
+                class="admin-login-state"
+            ><strong sec:authentication="name">관리자</strong> 로그인 유지 중</span>
+
+            <form
+                sec:authorize="hasAnyRole('ADMIN','STAFF')"
+                id="header-admin-logout"
+                class="topbar__admin-logout"
+                method="post"
+                th:action="@{/admin/logout}"
+            ><button class="topbar__link" type="submit">관리자 로그아웃</button></form>
+
+            <span class="topbar__divider" aria-hidden="true"></span>
+            <span class="topbar__contact">고객센터 1588-0427</span>
+        </div>
     </div>
 </div>
 
-<!-- ======================================================
-     헤더
-     ====================================================== -->
-<header class="site-header">
-
-    <div class="header-main">
-
-        <button
-            id="mobile-menu"
-            class="mobile-menu"
-            type="button"
-            aria-label="카테고리 메뉴 열기"
-        >
-            ☰
+<header class="masthead">
+    <div class="shell masthead__inner">
+        <button id="mobile-menu" class="menu-toggle" type="button" aria-label="카테고리 메뉴 열기">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <path d="M3 6h18M3 12h18M3 18h18"></path>
+            </svg>
         </button>
 
-        <!--
-            [수정] 로고는 이미지 자체만 표시합니다.
-            흰색 배경 제거는 feedflow.css에서 처리합니다.
-        -->
-        <a class="brand" href="/">
-            <span class="brand-logo">
-                <img
-                    th:src="@{/images/feedflow-logo.png}"
-                    src="/images/feedflow-logo.png"
-                    alt="FEED FLOW"
-                >
-            </span>
-
+        <a class="logo" href="/">
+            <img th:src="@{/images/feedflow-logo.png}" src="/images/feedflow-logo.png" alt="FEED FLOW" width="180" height="171" decoding="async">
             <small class="sr-only">바른 사료의 흐름</small>
         </a>
 
-        <label class="search-box">
-            <span>⌕</span>
+        <div class="searchbar">
+            <svg class="searchbar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7"></circle>
+                <path d="m20 20-3.5-3.5"></path>
+            </svg>
 
-            <input
-                id="search-input"
-                type="search"
-                placeholder="사료명, 축종, 성장단계를 검색해보세요"
-                aria-label="상품 검색"
-            >
-        </label>
+            <input id="search-input" type="search" placeholder="사료명, 축종, 성장단계를 검색해보세요" aria-label="상품 검색" autocomplete="off" enterkeyhint="search">
+            <button type="button" id="search-submit" class="searchbar__submit" data-search-submit>검색</button>
+        </div>
 
-        <div class="header-actions">
-
-            <button
-                id="header-account-button"
-                type="button"
-                data-open-account="login"
-                aria-label="로그인"
-                hidden
-                sec:authorize="!hasAnyRole('ADMIN','STAFF')"
-            >
-                <span>♙</span>
-                <small id="myfarm-label">로그인</small>
+        <div class="masthead__actions">
+            <button id="open-cart" class="cart-btn" type="button">
+                <svg class="cart-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3 4h2.2l2.3 12h10.2l2.1-8H7"></path>
+                    <circle cx="9.5" cy="20" r="1.4"></circle>
+                    <circle cx="17.5" cy="20" r="1.4"></circle>
+                </svg>
+                <small class="cart-btn__label">장바구니</small>
+                <b class="cart-btn__count" id="cart-count">0</b>
             </button>
-
-            <button
-                id="open-cart"
-                type="button"
-            >
-                <span>▱</span>
-                <small>장바구니</small>
-                <b id="cart-count">0</b>
-            </button>
-
         </div>
     </div>
-
-    <!--
-        [수정] 카테고리를
-        소 / 돼지 / 닭·오리 / 영양제로 구성했습니다.
-    -->
-    <nav
-        id="category-nav"
-        class="category-nav"
-        aria-label="상품 분류"
-    >
-        <button
-            type="button"
-            class="active"
-            data-category="ALL"
-        >
-            전체
-        </button>
-
-        <button
-            type="button"
-            data-category="EVENT"
-        >
-            이벤트
-        </button>
-
-        <button
-            type="button"
-            data-category="SALE"
-        >
-            세일상품
-        </button>
-
-        <button
-            type="button"
-            data-category="CATTLE_GROUP"
-        >
-            소
-        </button>
-
-        <button
-            type="button"
-            data-category="PIG"
-        >
-            돼지
-        </button>
-
-        <button
-            type="button"
-            data-category="POULTRY_GROUP"
-        >
-            닭·오리
-        </button>
-
-        <button
-            type="button"
-            data-category="SUPPLEMENT"
-        >
-            영양제
-        </button>
-
-        <a href="#consulting">사료 상담</a>
-    </nav>
 </header>
+
+<nav id="category-nav" class="catnav" aria-label="상품 분류">
+    <div class="shell catnav__inner">
+        <div class="catnav__list">
+            <button type="button" class="catnav__item active" data-category="ALL" aria-pressed="true">전체</button>
+            <button type="button" class="catnav__item" data-category="SALE" aria-pressed="false">세일상품</button>
+            <button type="button" class="catnav__item" data-category="CATTLE_GROUP" aria-pressed="false">소</button>
+            <button type="button" class="catnav__item" data-category="PIG" aria-pressed="false">돼지</button>
+            <button type="button" class="catnav__item" data-category="POULTRY_GROUP" aria-pressed="false">닭·오리</button>
+            <button type="button" class="catnav__item" data-category="SUPPLEMENT" aria-pressed="false">영양제</button>
+        </div>
+        <div class="catnav__aside">
+            <a class="btn btn--ghost" href="#consulting">사료 상담</a>
+        </div>
+    </div>
+</nav>
+</div>
 
 <main>
 
     <!-- ==================================================
          [수정] 메인 Hero 전체 영역
          ================================================== -->
-    <section class="hero">
+    <section class="hero" id="heroSection">
+    <div class="shell hero__grid">
+        <div class="hero__copy">
+            <p class="hero__eyebrow">농가를 위한 투명한 사료 유통</p>
 
-        <!-- Hero 왼쪽 소개 영역 -->
-        <div class="hero-copy">
-
-            <p class="eyebrow">
-                <span></span>
-                농가를 위한 투명한 사료 유통
-            </p>
-
-            <h1>
+            <h1 class="hero__title">
                 좋은 사료는<br>
-                <em>농장의 내일</em>을<br>
-                바꿉니다.
+                <em>농장의 내일</em>을 바꿉니다.
             </h1>
 
-            <p>
-                축종과 성장 단계에 맞는 배합사료를 한눈에 비교하고,<br>
+            <p class="hero__lead">
+                축종과 성장 단계에 맞는 배합사료를 한눈에 비교하고,
                 LOT별 재고와 유통기한까지 확인해 주문하세요.
             </p>
 
-            <div class="hero-buttons">
-
-                <a
-                    class="primary-button"
-                    href="#products"
-                >
+            <div class="hero__actions">
+                <a class="btn btn--primary btn--lg" href="#products">
                     맞춤 사료 둘러보기
-                    <span>→</span>
+                    <span class="btn__arrow" aria-hidden="true">→</span>
                 </a>
 
-                <button
-                    type="button"
-                    class="link-button"
-                    data-scroll-consulting
-                >
-                    전문가에게 상담받기
+                <button type="button" class="btn btn--link" data-scroll-consulting>
+                    전문가 상담 안내 보기
                 </button>
             </div>
 
-            <div class="hero-stats">
-
-                <div>
-                    <strong>48H</strong>
-                    <span>수도권 빠른 배송</span>
+            <div class="hero__proof">
+                <div class="hero__proof-item">
+                    <span class="hero__proof-value">48H</span>
+                    <span class="hero__proof-label">수도권 빠른 배송</span>
                 </div>
-
-                <div>
-                    <strong>100%</strong>
-                    <span>LOT 이력 관리</span>
+                <div class="hero__proof-item">
+                    <span class="hero__proof-value">100%</span>
+                    <span class="hero__proof-label">LOT 이력 관리</span>
                 </div>
-
-                <div>
-                    <strong>1:1</strong>
-                    <span>농가 맞춤 상담</span>
-                </div>
-
-            </div>
-        </div>
-
-        <!-- ==================================================
-             [수정] Hero 오른쪽 영역
-
-             농장 사진을 짧은 배너로 표시하고,
-             아래에는 유통 정보를 표시합니다.
-             ================================================== -->
-        <div
-            class="hero-visual"
-            aria-label="FEED FLOW 사료 생산·유통 농장"
-        >
-
-            <!-- [수정] 크기를 줄이고 선명도를 개선할 농장 이미지 -->
-            <img
-                class="hero-farm-image"
-                th:src="@{/images/feedflow-farm-hero.png}"
-                src="/images/feedflow-farm-hero.png"
-                alt="FEED FLOW 사료 생산·유통 농장 전경"
-            >
-
-            <!-- [추가] 농장 사진 아래 유통 정보 -->
-            <div class="hero-visual-info">
-
-                <div class="hero-visual-copy">
-                    <small>FEED FLOW DISTRIBUTION</small>
-
-                    <h2>
-                        농장에 도착하기까지<br>
-                        투명하게 관리합니다.
-                    </h2>
-
-                    <p>
-                        상품 재고부터 LOT 유통기한과 배송 정보까지<br>
-                        주문 전에 정확하게 확인할 수 있습니다.
-                    </p>
-                </div>
-
-                <!-- [수정] 특가 카드를 유통 정보 영역 안에 배치 -->
-                <div class="hero-offer">
-                    <small>이번 주 농가 특가</small>
-                    <strong>3포 이상 10% 할인</strong>
-                    <a href="#products">바로 주문하기 →</a>
-                </div>
-
-                <!-- [추가] 재고·출고·배송 안내 -->
-                <div class="hero-process">
-
-                    <article>
-                        <span>01</span>
-
-                        <div>
-                            <strong>실시간 재고</strong>
-                            <p>상품과 LOT별 잔여 수량 확인</p>
-                        </div>
-                    </article>
-
-                    <article>
-                        <span>02</span>
-
-                        <div>
-                            <strong>FEFO 출고</strong>
-                            <p>유통기한이 빠른 LOT부터 출고</p>
-                        </div>
-                    </article>
-
-                    <article>
-                        <span>03</span>
-
-                        <div>
-                            <strong>농장 배송</strong>
-                            <p>농장 주소와 하차 위치까지 관리</p>
-                        </div>
-                    </article>
-
+                <div class="hero__proof-item">
+                    <span class="hero__proof-value">1:1</span>
+                    <span class="hero__proof-label">농가 맞춤 상담</span>
                 </div>
             </div>
         </div>
-    </section>
 
-    <!-- 구매 안내 -->
-    <section
-        class="benefits"
-        aria-label="구매 안내"
-    >
-        <article>
-            <span>01</span>
+        <div class="hero__visual">
+            <figure class="hero__figure">
+                <img
+                    th:src="@{/images/hero-feed-warehouse.jpg}"
+                    src="/images/hero-feed-warehouse.jpg"
+                    alt="물류센터 선반에 팔레트 단위로 적재된 배합사료 포대"
+                    width="1024"
+                    height="572"
+                    decoding="async"
+                    fetchpriority="high"
+                >
 
-            <div>
-                <strong>축종별 맞춤 탐색</strong>
-                <p>소부터 닭·오리까지 간편하게</p>
+                <figcaption class="hero__caption">
+                    <strong class="hero__caption-title">보관부터 출고까지</strong>
+                    <ul class="hero__caption-list">
+                        <li>LOT 단위 유통기한 관리</li>
+                        <li>구역별 실시간 적재량</li>
+                        <li>농장 하차 위치 지정</li>
+                    </ul>
+                </figcaption>
+            </figure>
+
+            <a class="hero__promo" href="#products">
+                <small>이번 주 농가 특가</small>
+                <strong>3포 이상 10% 할인</strong>
+            </a>
+        </div>
+    </div>
+</section>
+
+<section class="trustbar" aria-label="구매 안내">
+    <div class="shell">
+        <div class="trustbar__list">
+            <div class="trustbar__item">
+                <span class="trustbar__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 7h18M3 12h18M3 17h10"></path>
+                    </svg>
+                </span>
+                <span class="trustbar__text">
+                    <strong class="trustbar__title">축종별 맞춤 탐색</strong>
+                    <span class="trustbar__desc">소부터 닭·오리까지 간편하게</span>
+                </span>
             </div>
-        </article>
 
-        <article>
-            <span>02</span>
-
-            <div>
-                <strong>LOT 재고 즉시 확인</strong>
-                <p>잔여수량과 유통기한을 투명하게</p>
+            <div class="trustbar__item">
+                <span class="trustbar__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 3 4 7v6c0 4.4 3.4 7.6 8 8 4.6-.4 8-3.6 8-8V7z"></path>
+                        <path d="m9 12 2 2 4-4"></path>
+                    </svg>
+                </span>
+                <span class="trustbar__text">
+                    <strong class="trustbar__title">LOT 재고 즉시 확인</strong>
+                    <span class="trustbar__desc">잔여수량과 유통기한을 투명하게</span>
+                </span>
             </div>
-        </article>
 
-        <article>
-            <span>03</span>
-
-            <div>
-                <strong>농장까지 안전 배송</strong>
-                <p>배송 주소와 하차 위치까지 정확하게</p>
+            <div class="trustbar__item">
+                <span class="trustbar__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 8h11v9H2zM13 11h5l3 3v3h-8z"></path>
+                        <circle cx="6" cy="18.5" r="1.5"></circle>
+                        <circle cx="17" cy="18.5" r="1.5"></circle>
+                    </svg>
+                </span>
+                <span class="trustbar__text">
+                    <strong class="trustbar__title">농장까지 안전 배송</strong>
+                    <span class="trustbar__desc">배송 주소와 하차 위치까지 정확하게</span>
+                </span>
             </div>
-        </article>
-    </section>
+        </div>
+    </div>
+</section>
 
     <!-- ==================================================
          상품 목록
@@ -709,6 +577,107 @@
         <div class="farm-model-modal-actions">
             <a class="primary-button" href="/mypage/farm-model">추천 근거 상세보기</a>
             <button type="button" class="secondary-button" data-close-modal>닫기</button>
+        </div>
+    </section>
+
+    <!-- 전문가 상담 안내 및 신청 팝업 -->
+    <section
+        id="consultation-modal"
+        class="modal consultation-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="consultation-modal-title"
+        hidden
+    >
+        <button type="button" class="close-button" data-close-modal aria-label="닫기">×</button>
+
+        <div id="consultation-guide-view">
+            <p class="eyebrow dark"><span></span> FARM CONSULTING</p>
+            <h2 id="consultation-modal-title">우리 농장 맞춤 사료 상담</h2>
+            <p class="consultation-modal-intro">
+                축종과 성장 단계, 사육 환경을 확인하여 적합한 배합사료를 안내해 드립니다.
+            </p>
+
+            <ul class="consultation-topics">
+                <li>축종 및 성장 단계별 사료 추천</li>
+                <li>급여량과 제품 선택 안내</li>
+                <li>LOT별 재고 및 유통기한 확인</li>
+                <li>주문·배송 및 하차 위치 상담</li>
+            </ul>
+
+            <div class="consultation-hours">
+                <span>상담 가능 시간</span>
+                <strong>평일 08:30–17:30</strong>
+                <span>대표번호 1588-0427</span>
+            </div>
+
+            <div class="consultation-choice-actions">
+                <a class="secondary-button" href="tel:15880427">전화 상담 1588-0427</a>
+                <button type="button" class="primary-button" data-open-consult-form>
+                    상담 요청 남기기
+                </button>
+            </div>
+        </div>
+
+        <div id="consultation-form-view" hidden>
+            <button type="button" class="consultation-back-button" data-consult-back>← 상담 안내로 돌아가기</button>
+            <p class="eyebrow dark"><span></span> CONSULTATION REQUEST</p>
+            <h2>상담 요청 남기기</h2>
+            <p class="consultation-modal-intro">
+                아래 정보를 남겨주시면 담당자가 확인 후 영업시간 내에 연락드리겠습니다.
+            </p>
+
+            <form id="consultation-form">
+                <div class="form-grid consultation-form-grid">
+                    <label>
+                        이름 또는 농장명
+                        <input id="consultation-name" type="text" maxlength="40" required
+                               autocomplete="name" placeholder="예: 김농부 또는 행복농장">
+                    </label>
+                    <label>
+                        연락처
+                        <input id="consultation-phone" type="tel" maxlength="13" required
+                               autocomplete="tel" inputmode="numeric" placeholder="010-1234-5678">
+                    </label>
+                    <label>
+                        사육 축종
+                        <select id="consultation-animal" required>
+                            <option value="">선택해 주세요</option>
+                            <option value="소">소</option>
+                            <option value="돼지">돼지</option>
+                            <option value="닭·오리">닭·오리</option>
+                            <option value="기타">기타</option>
+                        </select>
+                    </label>
+                    <label class="consultation-message-field">
+                        상담 내용
+                        <textarea id="consultation-message" maxlength="1000" required
+                                  placeholder="현재 사용 중인 사료, 사육 규모, 상담받고 싶은 내용을 작성해 주세요."></textarea>
+                    </label>
+                </div>
+
+                <label class="consultation-consent">
+                    <input id="consultation-consent" type="checkbox" required>
+                    <span>상담 연락을 위한 개인정보 수집·이용에 동의합니다.</span>
+                </label>
+
+                <div class="consultation-form-actions">
+                    <button type="button" class="secondary-button" data-consult-back>이전</button>
+                    <button id="consultation-submit" type="submit" class="primary-button">상담 요청 접수</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="consultation-success-view" class="consultation-success-view" aria-live="polite" hidden>
+            <span class="consultation-success-icon">✓</span>
+            <p class="eyebrow dark">REQUEST COMPLETE</p>
+            <h2>상담 요청이 접수되었습니다.</h2>
+            <p>담당자가 확인 후 영업시간 내에 입력하신 연락처로 연락드리겠습니다.</p>
+            <dl>
+                <div><dt>접수번호</dt><dd id="consultation-request-id">-</dd></div>
+                <div><dt>접수시간</dt><dd id="consultation-request-time">-</dd></div>
+            </dl>
+            <button type="button" class="primary-button full" data-close-modal>확인</button>
         </div>
     </section>
 

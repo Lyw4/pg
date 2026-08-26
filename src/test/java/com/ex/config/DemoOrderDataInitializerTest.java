@@ -2,34 +2,41 @@ package com.ex.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.time.YearMonth;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
+import java.time.YearMonth;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.ex.entity.CustomerOrder;
+import com.ex.entity.FarmCustomer;
+import com.ex.entity.FarmCustomer.CustomerStatus;
+import com.ex.entity.Shipment.ShipmentStatus;
 import com.ex.repository.CustomerOrderRepository;
+import com.ex.repository.FarmCustomerRepository;
+import com.ex.repository.ShipmentRepository;
 import com.ex.service.AdminFeedModelService;
 
-@SpringBootTest(properties = "feedflow.demo.monthly-orders-enabled=true")
+@SpringBootTest(properties = "feedflow.demo.farm-deliveries-enabled=true")
 @ActiveProfiles("test")
+@Transactional
 class DemoOrderDataInitializerTest {
-
-    private static final List<Long> EXPECTED_COUNTS =
-            List.of(9L, 14L, 12L, 18L, 23L, 21L);
 
     @Autowired
     private CustomerOrderRepository orderRepository;
+
+    @Autowired
+    private FarmCustomerRepository farmCustomerRepository;
+
+    @Autowired
+    private ShipmentRepository shipmentRepository;
 
     @Autowired
     private AdminFeedModelService adminFeedModelService;
@@ -38,53 +45,94 @@ class DemoOrderDataInitializerTest {
     private DemoOrderDataInitializer initializer;
 
     @Test
-    void seedsSixMonthsOfIdempotentDemoOrdersForAnalytics() throws Exception {
-        List<CustomerOrder> demoOrders = demoOrders();
-        assertThat(demoOrders).hasSize(97);
+    void seedsIdempotentCompletedDeliveriesFromActiveDemoFarms()
+            throws Exception {
+        List<FarmCustomer> farms = activeDemoFarms();
+        Map<YearMonth, Long> expected = expectedMonthlyQuantities(farms);
+        List<CustomerOrder> seededOrders = seededOrders();
 
-        Map<YearMonth, Long> countsByMonth = demoOrders.stream()
-                .collect(Collectors.groupingBy(
-                        order -> YearMonth.from(order.getCreatedAt()),
-                        TreeMap::new,
-                        Collectors.counting()));
-        assertThat(countsByMonth.values()).containsExactlyElementsOf(
-                EXPECTED_COUNTS);
+        assertThat(farms).hasSize(40);
+        for (String warehouseCode : List.of("W01", "W02", "W03", "W04", "W05")) {
+            assertThat(farms.stream()
+                    .filter(farm -> farm.getAssignedWarehouse().getCode()
+                            .equals(warehouseCode)))
+                    .hasSize(8);
+        }
+        assertThat(seededOrders).hasSize((int) expectedDeliveryCount(farms));
+        assertThat(seededOrders).allSatisfy(order -> {
+            assertThat(order.getFarmCustomer()).isNotNull();
+            assertThat(order.getFarmCustomer().getStatus())
+                    .isEqualTo(CustomerStatus.ACTIVE);
+            assertThat(order.getStatus())
+                    .isEqualTo(CustomerOrder.OrderStatus.DELIVERED);
+            assertThat(shipmentRepository
+                    .findByOrderOrderId(order.getOrderId())
+                    .orElseThrow()
+                    .getStatus()).isEqualTo(ShipmentStatus.SHIPPED);
+        });
 
-        List<Long> analyticsCounts = adminFeedModelService.analytics()
-                .monthlyOrders().stream()
+        List<Long> analyticsQuantities = adminFeedModelService.analytics()
+                .monthlyDeliveries().stream()
                 .map(AdminFeedModelService.ChartPoint::value)
                 .toList();
-        for (int index = 0; index < EXPECTED_COUNTS.size(); index++) {
-            assertThat(analyticsCounts.get(index))
-                    .isGreaterThanOrEqualTo(EXPECTED_COUNTS.get(index));
-        }
+        assertThat(analyticsQuantities)
+                .containsExactlyElementsOf(expected.values());
 
         initializer.run(new DefaultApplicationArguments(new String[0]));
-        assertThat(demoOrders()).hasSize(97);
+        assertThat(seededOrders()).hasSameSizeAs(seededOrders);
     }
 
-    private List<CustomerOrder> demoOrders() {
-        YearMonth currentMonth = YearMonth.now();
+    private List<FarmCustomer> activeDemoFarms() {
+        return farmCustomerRepository
+                .findAllByOrderByAssignedWarehouseDisplayOrderAscFarmNameAsc()
+                .stream()
+                .filter(FarmCustomer::isDemoData)
+                .filter(farm -> farm.getStatus() == CustomerStatus.ACTIVE)
+                .filter(farm -> farm.getMonthlyFeedQuantity() > 0)
+                .toList();
+    }
+
+    private Map<YearMonth, Long> expectedMonthlyQuantities(
+            List<FarmCustomer> farms) {
+        Map<YearMonth, Long> result = new LinkedHashMap<>();
+        YearMonth current = YearMonth.now();
         LocalDate today = LocalDate.now();
-        List<CustomerOrder> result = new ArrayList<>();
-        for (int monthIndex = 0;
-                monthIndex < EXPECTED_COUNTS.size();
-                monthIndex++) {
-            YearMonth month = currentMonth.minusMonths(
-                    EXPECTED_COUNTS.size() - 1L - monthIndex);
-            int count = EXPECTED_COUNTS.get(monthIndex).intValue();
-            int availableDays = month.equals(currentMonth)
-                    ? today.getDayOfMonth()
-                    : month.lengthOfMonth();
-            for (int orderIndex = 0; orderIndex < count; orderIndex++) {
-                LocalDateTime orderedAt = DemoOrderDataInitializer.orderedAt(
-                        month, availableDays, orderIndex, count);
-                String orderNumber = DemoOrderDataInitializer.orderNumber(
-                        orderedAt, month, orderIndex);
-                result.add(orderRepository.findByOrderNumber(orderNumber)
-                        .orElseThrow());
+        for (int monthIndex = 0; monthIndex < 6; monthIndex++) {
+            YearMonth month = current.minusMonths(5L - monthIndex);
+            long quantity = 0;
+            for (int farmIndex = 0; farmIndex < farms.size(); farmIndex++) {
+                FarmCustomer farm = farms.get(farmIndex);
+                if (!DemoOrderDataInitializer.deliveryDate(month, farm)
+                        .isAfter(today)) {
+                    quantity += DemoOrderDataInitializer.deliveredQuantity(
+                            farm.getMonthlyFeedQuantity(),
+                            monthIndex,
+                            farmIndex);
+                }
             }
+            result.put(month, quantity);
         }
         return result;
+    }
+
+    private long expectedDeliveryCount(List<FarmCustomer> farms) {
+        YearMonth current = YearMonth.now();
+        LocalDate today = LocalDate.now();
+        long count = 0;
+        for (int monthIndex = 0; monthIndex < 6; monthIndex++) {
+            YearMonth month = current.minusMonths(5L - monthIndex);
+            count += farms.stream()
+                    .filter(farm -> !DemoOrderDataInitializer
+                            .deliveryDate(month, farm).isAfter(today))
+                    .count();
+        }
+        return count;
+    }
+
+    private List<CustomerOrder> seededOrders() {
+        return orderRepository.findAllByOrderByCreatedAtDesc().stream()
+                .filter(order -> order.getOrderNumber() != null)
+                .filter(order -> order.getOrderNumber().startsWith("FF-FARM-"))
+                .toList();
     }
 }

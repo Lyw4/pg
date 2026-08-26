@@ -719,11 +719,10 @@
                 state.category === "ALL"
                 || (
                     state.category === "SALE"
-                    && Boolean(product.expirySale)
-                )
-                || (
-                    state.category === "EVENT"
-                    && Boolean(product.badge || product.originalPrice)
+                    && Boolean(
+                        product.expirySale
+                        || product.originalPrice
+                    )
                 )
                 || (
                     state.category === "CATTLE_GROUP"
@@ -896,11 +895,29 @@
             ? " LIMITED SALE"
             : " FARMER'S CHOICE";
         if (heading) heading.textContent = sale
-            ? "유통기한 임박 세일 상품"
+            ? "할인·유통기한 임박 세일 상품"
             : "지금 농가에서 많이 찾는 사료";
         if (description) description.firstChild.textContent = sale
-            ? "빠른 출고가 가능한 임박 LOT를 할인된 가격으로 만나보세요."
+            ? "할인 상품과 빠른 출고가 가능한 임박 LOT를 한곳에서 만나보세요."
             : "축종과 성장 단계에 맞춰 엄선한 대표 배합사료입니다.";
+    }
+
+    function runProductSearch() {
+        const input = $("#search-input");
+        state.query = input?.value || "";
+        renderProducts();
+
+        const resultCount = filteredProducts().length;
+        $("#products")?.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+
+        showToast(
+            state.query.trim()
+                ? `검색 결과 ${resultCount.toLocaleString("ko-KR")}개입니다.`
+                : `전체 상품 ${resultCount.toLocaleString("ko-KR")}개를 표시합니다.`
+        );
     }
 
     async function loadProducts() {
@@ -968,6 +985,37 @@
         }
 
         document.body.style.overflow = "";
+    }
+
+    function showConsultationView(view) {
+        const guide = $("#consultation-guide-view");
+        const form = $("#consultation-form-view");
+        const success = $("#consultation-success-view");
+
+        if (guide) guide.hidden = view !== "guide";
+        if (form) form.hidden = view !== "form";
+        if (success) success.hidden = view !== "success";
+    }
+
+    function openConsultationGuide() {
+        const form = $("#consultation-form");
+        form?.reset();
+
+        if ($("#consultation-name")) {
+            $("#consultation-name").value =
+                state.member?.farmName || state.member?.name || "";
+        }
+        if ($("#consultation-phone")) {
+            $("#consultation-phone").value = state.member?.phone || "";
+        }
+
+        showConsultationView("guide");
+        openModal("consultation-modal");
+    }
+
+    function openConsultationForm() {
+        showConsultationView("form");
+        window.setTimeout(() => $("#consultation-name")?.focus(), 0);
     }
 
     function showProduct(product) {
@@ -1588,36 +1636,9 @@
         renderCartCount();
     }
 
-    /*
-     * 로그인 상태에 따라 상단 계정 메뉴를 변경합니다.
-     *
-     * 로그인 전: 로그인
-     * 로그인 후: 마이페이지
-     */
+    /* 로그인 상태에 따라 최상단 로그인·마이페이지 메뉴를 변경합니다. */
     function updateMemberUi() {
         const loggedIn = Boolean(state.member);
-
-        const myFarmLabel = $("#myfarm-label");
-        const headerAccountButton = $(
-            ".header-actions [data-open-account='login']"
-        );
-
-        if (headerAccountButton) {
-            headerAccountButton.hidden = false;
-        }
-
-        if (myFarmLabel) {
-            myFarmLabel.textContent = loggedIn
-                ? "마이페이지"
-                : "로그인";
-        }
-
-        if (headerAccountButton) {
-            headerAccountButton.setAttribute(
-                "aria-label",
-                loggedIn ? "마이페이지" : "로그인"
-            );
-        }
 
         const utilityLogin = $("#utility-login");
         const utilitySignup = $("#utility-signup");
@@ -2044,6 +2065,10 @@
                     "active",
                     item === button
                 );
+                item.setAttribute(
+                    "aria-pressed",
+                    String(item === button)
+                );
             });
 
             renderProducts();
@@ -2157,15 +2182,19 @@
         }
 
         if (button.hasAttribute("data-scroll-consulting")) {
-            $("#consulting")?.scrollIntoView({
-                behavior: "smooth"
-            });
+            openConsultationGuide();
         }
 
         if (button.hasAttribute("data-consult")) {
-            showToast(
-                "상담 신청이 접수되었습니다. 평일 중 연락드리겠습니다."
-            );
+            openConsultationGuide();
+        }
+
+        if (button.hasAttribute("data-open-consult-form")) {
+            openConsultationForm();
+        }
+
+        if (button.hasAttribute("data-consult-back")) {
+            showConsultationView("guide");
         }
 
         if (button.dataset.footerMessage) {
@@ -2204,6 +2233,21 @@
         }
     );
 
+    $("#search-input")?.addEventListener(
+        "keydown",
+        (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                runProductSearch();
+            }
+        }
+    );
+
+    $("#search-submit")?.addEventListener(
+        "click",
+        runProductSearch
+    );
+
     $("#sort-select")?.addEventListener(
         "change",
         (event) => {
@@ -2237,6 +2281,55 @@
         (event) => {
             if (event.target === event.currentTarget) {
                 closeModal();
+            }
+        }
+    );
+
+    $("#consultation-phone")?.addEventListener("input", (event) => {
+        event.target.value = formatMobilePhone(event.target.value);
+    });
+
+    $("#consultation-form")?.addEventListener(
+        "submit",
+        async (event) => {
+            event.preventDefault();
+
+            const submitButton = $("#consultation-submit");
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = "접수 중...";
+            }
+
+            try {
+                const result = await api("/api/consultations", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        requesterName: $("#consultation-name").value.trim(),
+                        phone: $("#consultation-phone").value.trim(),
+                        animalType: $("#consultation-animal").value,
+                        message: $("#consultation-message").value.trim()
+                    })
+                });
+
+                $("#consultation-request-id").textContent =
+                    `FF-${String(result.requestId).padStart(6, "0")}`;
+                $("#consultation-request-time").textContent =
+                    new Intl.DateTimeFormat("ko-KR", {
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit"
+                    }).format(new Date(result.requestedAt));
+                showConsultationView("success");
+            } catch (error) {
+                showToast(error.message);
+            } finally {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = "상담 요청 접수";
+                }
             }
         }
     );

@@ -54,6 +54,10 @@ class PageControllerTest {
                 .andExpect(content().string(
                         containsString("회원가입")))
                 .andExpect(content().string(
+                        containsString("id=\"open-cart\"")))
+                .andExpect(content().string(
+                        not(containsString("id=\"header-account-button\""))))
+                .andExpect(content().string(
                         containsString("id=\"login-username\"")));
     }
 

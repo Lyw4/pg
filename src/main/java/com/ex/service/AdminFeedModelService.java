@@ -2,7 +2,9 @@ package com.ex.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -13,13 +15,14 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.ex.entity.CustomerOrder;
+import com.ex.entity.FarmCustomer.CustomerStatus;
 import com.ex.entity.FeedModelPolicy;
+import com.ex.entity.Shipment.ShipmentStatus;
 import com.ex.entity.Warehouse;
 import com.ex.entity.WarehouseAllocation;
-import com.ex.repository.CustomerOrderRepository;
 import com.ex.repository.FarmCustomerRepository;
 import com.ex.repository.FeedModelPolicyRepository;
+import com.ex.repository.ShipmentItemRepository;
 import com.ex.repository.WarehouseAllocationRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -27,6 +30,9 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class AdminFeedModelService {
+
+    private static final DateTimeFormatter MONTH_LABEL =
+            DateTimeFormatter.ofPattern("M월");
 
     public record TransferRecommendation(
             Long productId,
@@ -64,14 +70,14 @@ public class AdminFeedModelService {
             List<FarmMapPoint> farmMapPoints,
             List<ChartPoint> animalDistribution,
             List<ChartPoint> warehouseDemand,
-            List<ChartPoint> monthlyOrders,
+            List<ChartPoint> monthlyDeliveries,
             List<InventoryImpact> inventoryImpacts) {
     }
 
     private final FeedModelPolicyRepository policyRepository;
     private final WarehouseAllocationRepository allocationRepository;
     private final FarmCustomerRepository farmCustomerRepository;
-    private final CustomerOrderRepository orderRepository;
+    private final ShipmentItemRepository shipmentItemRepository;
     private final WmsStockCoordinator wmsStockCoordinator;
     private final SellableStockQuery sellableStockQuery;
 
@@ -178,13 +184,18 @@ public class AdminFeedModelService {
         for (int index = 5; index >= 0; index--) {
             monthly.put(current.minusMonths(index), 0L);
         }
-        orderRepository.findAllByOrderByCreatedAtDesc().stream()
-                .filter(order -> order.getCreatedAt() != null)
-                .filter(order -> order.getStatus()
-                        != CustomerOrder.OrderStatus.CANCELLED)
-                .forEach(order -> monthly.computeIfPresent(
-                        YearMonth.from(order.getCreatedAt()),
-                        (key, value) -> value + 1));
+        LocalDateTime fromInclusive = current.minusMonths(5)
+                .atDay(1).atStartOfDay();
+        LocalDateTime toExclusive = current.plusMonths(1)
+                .atDay(1).atStartOfDay();
+        shipmentItemRepository.findFarmDeliveryItems(
+                        ShipmentStatus.SHIPPED,
+                        CustomerStatus.ACTIVE,
+                        fromInclusive,
+                        toExclusive)
+                .forEach(item -> monthly.computeIfPresent(
+                        YearMonth.from(item.getShipment().getShippedAt()),
+                        (key, value) -> value + item.getPickedQuantity()));
         List<WarehouseAllocation> allocations = allocationRepository
                 .findAllByOrderByWarehouseDisplayOrderAscProductAnimalTypeAscProductNameAsc();
         Map<String, List<WarehouseAllocation>> byWarehouse = allocations.stream()
@@ -222,7 +233,7 @@ public class AdminFeedModelService {
                 chartPoints(demand),
                 chartPoints(monthly.entrySet().stream().collect(
                         Collectors.toMap(
-                                entry -> entry.getKey().toString(),
+                                entry -> entry.getKey().format(MONTH_LABEL),
                                 Map.Entry::getValue,
                                 (left, right) -> left,
                                 LinkedHashMap::new))),

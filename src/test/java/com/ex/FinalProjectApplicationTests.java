@@ -135,18 +135,24 @@ class FinalProjectApplicationTests {
 
 	@Test
 	void farmCustomersAreSeededAcrossAllFiveWarehouses() {
-		assertEquals(20, farmCustomerService.customers().size());
-		assertEquals(18, farmCustomerService.activeCount());
+		assertEquals(42, farmCustomerService.customers().size());
+		assertEquals(40, farmCustomerService.activeCount());
 		assertEquals(
-				32740,
+				73330,
 				farmCustomerService.totalMonthlyFeedQuantity());
 
 		var summaries = farmCustomerService.warehouseSummaries();
 		assertEquals(5, summaries.size());
-		assertEquals(4, summaries.get("W01").customerCount());
-		assertEquals(7050, summaries.get("W01").monthlyFeedQuantity());
-		assertEquals(4, summaries.get("W05").customerCount());
-		assertEquals(5470, summaries.get("W05").monthlyFeedQuantity());
+		assertEquals(8, summaries.get("W01").activeCustomerCount());
+		assertEquals(14550, summaries.get("W01").monthlyFeedQuantity());
+		assertEquals(8, summaries.get("W02").activeCustomerCount());
+		assertEquals(15650, summaries.get("W02").monthlyFeedQuantity());
+		assertEquals(8, summaries.get("W03").activeCustomerCount());
+		assertEquals(12630, summaries.get("W03").monthlyFeedQuantity());
+		assertEquals(8, summaries.get("W04").activeCustomerCount());
+		assertEquals(15100, summaries.get("W04").monthlyFeedQuantity());
+		assertEquals(8, summaries.get("W05").activeCustomerCount());
+		assertEquals(15400, summaries.get("W05").monthlyFeedQuantity());
 	}
 
 	@Test
