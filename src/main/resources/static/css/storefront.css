@@ -1405,7 +1405,8 @@
 
     .product-price { min-height: 38px; display: flex; align-items: center; gap: 7px; }
 
-    .product-price del { color: #9b9b92; font-size: 9px; }
+    /* 할인 전 가격. #9b9b92 는 흰 카드 위 2.80:1 로 WCAG AA 미달이었다 (→ 5.37:1) */
+    .product-price del { color: #6b6b64; font-size: 9px; }
 
     .product-price strong { font-size: 16px; }
 

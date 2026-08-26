@@ -2225,6 +2225,66 @@
         }
     });
 
+    /*
+     * 수량 입력칸 직접 입력 보정.
+     *
+     * +/- 버튼은 Math.min/Math.max 로 범위를 지키지만, 키보드로 0·음수·
+     * 재고 초과값을 직접 넣으면 그 값이 그대로 남아 있었다. 담기 단계에
+     * Math.max(1, ...) 가 있어 장바구니가 망가지지는 않았지만, 화면에는
+     * "-5" 가 보이니 사용자는 그 수량으로 담긴다고 오해한다.
+     *
+     * 타이핑 중간값을 함부로 고치면 방해가 되므로 단계를 나눈다.
+     *   input  : 확실히 잘못된 값(음수 / 재고 초과)만 즉시 고친다
+     *   change : 확정 시점이므로 빈 값과 0 까지 1 로 올린다
+     */
+    function clampDetailQuantity(input, commit) {
+        if (!input) {
+            return;
+        }
+
+        const max = Number(input.max) || Number.POSITIVE_INFINITY;
+        const raw = String(input.value).trim();
+
+        if (raw === "") {
+            if (commit) {
+                input.value = 1;
+            }
+            return;
+        }
+
+        const value = Number(raw);
+
+        if (!Number.isFinite(value)) {
+            input.value = 1;
+            return;
+        }
+
+        if (value > max) {
+            input.value = max;
+            return;
+        }
+
+        if (value < 1 && (commit || value < 0)) {
+            input.value = 1;
+        }
+    }
+
+    /*
+     * #detail-quantity 는 상품 모달을 열 때 innerHTML 로 새로 만들어진다.
+     * 그래서 요소에 직접 걸지 못하고 document 에 위임한다.
+     */
+    document.addEventListener("input", (event) => {
+        if (event.target?.id === "detail-quantity") {
+            clampDetailQuantity(event.target, false);
+        }
+    });
+
+    document.addEventListener("change", (event) => {
+        if (event.target?.id === "detail-quantity") {
+            clampDetailQuantity(event.target, true);
+        }
+    });
+
     $("#search-input")?.addEventListener(
         "input",
         (event) => {
@@ -2236,10 +2296,23 @@
     $("#search-input")?.addEventListener(
         "keydown",
         (event) => {
-            if (event.key === "Enter") {
-                event.preventDefault();
-                runProductSearch();
+            if (event.key !== "Enter") {
+                return;
             }
+
+            /*
+             * 한글은 Enter 로 조합을 확정한다. 그래서 "한우" 를 치고
+             * Enter 를 누르면 조합 확정 Enter 와 검색 Enter 가 각각
+             * 들어와 검색이 두 번 돌았다. 그때마다 renderProducts 와
+             * scrollIntoView, 토스트가 다시 실행돼 화면이 두 번 튄다.
+             * 조합 중인 Enter 는 검색으로 보지 않는다.
+             */
+            if (event.isComposing) {
+                return;
+            }
+
+            event.preventDefault();
+            runProductSearch();
         }
     );
 
