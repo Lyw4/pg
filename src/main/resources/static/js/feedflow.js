@@ -902,9 +902,59 @@
             : "축종과 성장 단계에 맞춰 엄선한 대표 배합사료입니다.";
     }
 
+    /*
+     * 타이핑 중 스크롤 튐 방지.
+     *
+     * 원인은 스크롤 API 가 아니었다. (scrollIntoView / scrollTo / focus 를
+     * 후킹해 확인했더니 타이핑 중 호출은 0건이었다)
+     * 실시간 필터로 카드가 줄면 #product-grid 가 짧아지고 문서 전체 높이가
+     * 함께 줄어든다. 그러면 브라우저가 현재 scrollY 를 새 최대값으로
+     * 잘라내는데, 사용자에게는 화면이 위로 튀는 것으로 보인다.
+     * 실측: 목록 깊은 곳(scrollY 5151)에서 세 글자를 치는 동안
+     *       5151 → 2729 → 2067 → 911 로 총 4,240px 이 잘렸다.
+     *
+     * 그래서 타이핑이 시작되면 그리드의 그때 높이를 min-height 로 묶어
+     * 문서가 짧아지지 않게 한다. 스크롤을 건드리지 않고 잘릴 이유 자체를
+     * 없애는 방식이다.
+     *
+     * 잠금을 푸는 시점은 스크롤이 튀어도 이상하지 않은 때로 한정한다.
+     *   - 검색 확정 (Enter / 검색 버튼) : 어차피 결과 위치로 이동한다
+     *   - 카테고리 변경               : 어차피 결과 위치로 이동한다
+     *   - 검색어를 다 지웠을 때        : 목록이 원래 길이로 돌아온다
+     * blur 에서는 풀지 않는다. 그 순간 문서가 줄어 같은 튐이 생긴다.
+     */
+    let gridHeightLocked = false;
+
+    function lockGridHeight() {
+        if (gridHeightLocked) {
+            return;
+        }
+        const grid = $("#product-grid");
+        if (!grid) {
+            return;
+        }
+        const height = Math.round(grid.getBoundingClientRect().height);
+        if (height <= 0) {
+            return;
+        }
+        grid.style.minHeight = `${height}px`;
+        gridHeightLocked = true;
+    }
+
+    function releaseGridHeight() {
+        const grid = $("#product-grid");
+        if (grid) {
+            grid.style.minHeight = "";
+        }
+        gridHeightLocked = false;
+    }
+
     function runProductSearch() {
         const input = $("#search-input");
         state.query = input?.value || "";
+
+        /* 확정 검색은 결과 위치로 데려가므로 높이 잠금을 먼저 푼다 */
+        releaseGridHeight();
         renderProducts();
 
         const resultCount = filteredProducts().length;
@@ -2071,6 +2121,8 @@
                 );
             });
 
+            /* 카테고리 변경도 결과 위치로 이동하므로 높이 잠금을 푼다 */
+            releaseGridHeight();
             renderProducts();
 
             $("#products")?.scrollIntoView({
@@ -2288,8 +2340,19 @@
     $("#search-input")?.addEventListener(
         "input",
         (event) => {
+            /*
+             * 다시 그리기 전에 지금 높이를 묶는다. 렌더 뒤에 묶으면
+             * 이미 줄어든 높이를 재게 되어 의미가 없다.
+             */
+            lockGridHeight();
+
             state.query = event.target.value;
             renderProducts();
+
+            /* 검색어를 다 지웠으면 목록이 원래 길이로 돌아오니 풀어 준다 */
+            if (!event.target.value.trim()) {
+                releaseGridHeight();
+            }
         }
     );
 
