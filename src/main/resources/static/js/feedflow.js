@@ -1533,6 +1533,55 @@
         }
     }
 
+    /*
+     * 게스트 장바구니를 회원 장바구니로 합친다.
+     *
+     * 장바구니는 신분마다 저장 키가 다르다.
+     *   비회원 feedflow-cart-guest / 회원 feedflow-cart-member-{id}
+     * 그래서 로그인하면 loadCartForCurrentIdentity() 가 회원 키로 다시 읽고,
+     * 비회원으로 담아 둔 것이 화면에서 사라진다(헤더 배지가 0 이 된다).
+     * 데이터가 지워진 것도 예약 재고가 풀린 것도 아니지만, 사용자에게는
+     * 담은 게 없어진 것으로 보인다. 실측: 3개 담고 로그인 → 배지 0.
+     *
+     * 합치는 규칙
+     *   - 같은 상품이 양쪽에 있으면 더 많은 쪽을 남긴다. 합친 결과가
+     *     로그인 전보다 줄어드는 일은 없어야 한다.
+     *   - 재고를 넘는 수량은 구매 가능 수량까지 깎는다.
+     *   - 상품 목록을 아직 받지 못한 화면에서는 재고를 알 수 없다.
+     *     그때는 수량을 그대로 살린다. 여기서 버리면 같은 결함이 된다.
+     */
+    function mergeGuestCartInto(guestCart) {
+        if (!guestCart || guestCart.size === 0) {
+            return 0;
+        }
+
+        const productsLoaded = Boolean(state.products?.length);
+        let merged = 0;
+
+        guestCart.forEach((quantity, productId) => {
+            const id = Number(productId);
+            if (!Number.isFinite(id)) {
+                return;
+            }
+
+            let next = Math.max(1, Number(quantity) || 1);
+
+            if (productsLoaded) {
+                const stock = purchasableStock(productById(id));
+                if (!(stock > 0)) {
+                    return;
+                }
+                next = Math.min(stock, next);
+            }
+
+            const current = Number(state.cart.get(id) || 0);
+            state.cart.set(id, Math.max(current, next));
+            merged += 1;
+        });
+
+        return merged;
+    }
+
     function openRequestedCartOrCheckout() {
         const query = new URLSearchParams(window.location.search);
         const requestedProductId = Number(query.get("buy"));
@@ -1716,10 +1765,29 @@
         }
     }
 
+    /*
+     * 로그인 직후 농장 맞춤 분석 팝업을 자동으로 띄울지 여부.
+     *
+     * 끈 이유: 가입 1주일 이내 회원이 로그인하면 홈 진입 250ms 뒤에
+     * #farm-model-modal 이 저절로 열린다. 이 모달의 백드롭이 화면 전체를
+     * 덮어 그 순간 다른 조작이 전부 막힌다. 자동화 검증에서도 푸터의
+     * 상담 버튼 클릭이 백드롭에 가려 12초 타임아웃이 났고, 시연 중이라면
+     * 화면이 멈춘 것처럼 보인다.
+     *
+     * 팝업을 만드는 코드는 그대로 두고 자동 노출만 끈다. 다시 켤 때는
+     * 이 값을 true 로 바꾸면 된다. 그때는 백드롭이 조작을 막는 문제를
+     * 먼저 해결해야 한다.
+     */
+    const AUTO_OPEN_FARM_MODEL_POPUP = false;
+
     function showFarmModelPopup(force = false) {
         const model = state.member?.farmModel;
         const assignment = state.member?.farmAssignment;
         if (!model || !assignment || !model.recommendedFeeds?.length) {
+            return;
+        }
+
+        if (!AUTO_OPEN_FARM_MODEL_POPUP) {
             return;
         }
 
@@ -2651,9 +2719,15 @@
             event.preventDefault();
 
             try {
-                const pendingCart = state.pendingCheckout
-                    ? new Map(state.cart)
-                    : null;
+                /*
+                 * 로그인 전 화면에 담겨 있던 장바구니를 먼저 붙잡아 둔다.
+                 * 아래에서 loadCartForCurrentIdentity() 가 회원 키로 다시
+                 * 읽는 순간 게스트 장바구니는 화면에서 사라진다.
+                 * 예전에는 '주문하기'로 들어온 경우(state.pendingCheckout)에만
+                 * 이걸 챙겼는데, 찜이나 그냥 로그인으로 들어오면 그대로
+                 * 잃어버렸다.
+                 */
+                const guestCart = new Map(state.cart);
                 const login = await api(
                     "/api/auth/login",
                     {
@@ -2683,18 +2757,14 @@
                 state.member = member;
 
                 loadCartForCurrentIdentity();
-                if (pendingCart) {
-                    pendingCart.forEach((quantity, productId) => {
-                        const product = productById(productId);
-                        const stock = purchasableStock(product);
-                        if (product && stock > 0) {
-                            state.cart.set(
-                                Number(productId),
-                                Math.min(stock, Math.max(1, Number(quantity)))
-                            );
-                        }
-                    });
+                if (mergeGuestCartInto(guestCart)) {
                     saveCart();
+                    /*
+                     * 합친 뒤에는 게스트 장바구니를 비운다. 남겨 두면
+                     * 다음에 다른 계정으로 로그인했을 때 같은 상품이
+                     * 그 계정 장바구니에 다시 붙는다.
+                     */
+                    window.localStorage.removeItem("feedflow-cart-guest");
                 }
                 renderCartCount();
 
