@@ -170,6 +170,23 @@
         return $("input[name='payment']:checked")?.value || "CARD";
     }
 
+    /*
+     * 무통장입금 안내 계좌.
+     *
+     * 무통장입금은 포트원을 거치지 않는다. 예전에는 가상계좌(vbank)로
+     * 넘겨 PG 결제창을 띄웠는데, B2B 주문은 담당자가 입금을 확인해 승인하는
+     * 흐름이라 결제창이 낄 자리가 없다. 채널 설정에 묶여 주문 자체가
+     * 막히기도 했다.
+     * 그래서 고정 계좌를 안내하고 주문을 입금 대기로 남긴다.
+     * 서버의 미결제 정리 정책도 BANK_TRANSFER 에는 3일(4320분)을 주므로
+     * (PendingPaymentCleanupService.timeoutFor) 담당자가 확인할 시간이 있다.
+     */
+    const DEPOSIT_ACCOUNT = {
+        bank: "농협",
+        number: "302-8849-1234-51",
+        holder: "(주)피드플로우"
+    };
+
     function ensurePaymentAvailable(method, config) {
         if (!config.portOneEnabled) {
             throw new Error(
@@ -182,9 +199,11 @@
         if (method === "KAKAO_PAY" && !config.kakaoEnabled) {
             throw new Error("포트원 카카오페이 채널 키가 설정되지 않았습니다.");
         }
-        if (method === "BANK_TRANSFER" && !config.virtualAccountEnabled) {
-            throw new Error("포트원 가상계좌 채널 키가 설정되지 않았습니다.");
-        }
+        /*
+         * 무통장입금은 이 함수를 타지 않는다. 결제창 없이 주문만 만들고
+         * 고정 계좌를 안내한다. 예전에는 여기서 가상계좌 채널키를 요구해
+         * 채널 설정이 없으면 무통장 주문까지 막혔다.
+         */
     }
 
     async function markPortOneOrderFailed(order) {
@@ -408,7 +427,18 @@
             $("#success-order-number").textContent =
                 `주문번호 ${order.orderNumber}`;
 
-            if (paymentResult === "waiting") {
+            if (paymentResult === "deposit") {
+                /*
+                 * 무통장입금은 PG 를 거치지 않아 발급된 가상계좌가 없다.
+                 * 고정 입금 계좌와 입금할 금액을 안내한다.
+                 */
+                $("#success-title").textContent =
+                    "주문이 접수되었습니다. 입금을 확인하면 출고를 준비합니다.";
+                $("#success-payment-detail").textContent =
+                    `${DEPOSIT_ACCOUNT.bank} ${DEPOSIT_ACCOUNT.number} `
+                    + `(${DEPOSIT_ACCOUNT.holder}) · `
+                    + `입금액 ${won(order.totalAmount)}`;
+            } else if (paymentResult === "waiting") {
                 $("#success-title").textContent =
                     "가상계좌가 발급되었습니다.";
                 $("#success-payment-detail").textContent =
@@ -3071,8 +3101,17 @@
             let createdOrder = null;
 
             try {
-                const paymentConfig = await loadPaymentConfig();
-                ensurePaymentAvailable(paymentMethod, paymentConfig);
+                /*
+                 * 무통장입금은 외부 PG 를 쓰지 않으므로 결제 설정 조회와
+                 * 채널 확인 단계를 건너뛴다. 카드·카카오페이만 포트원을 탄다.
+                 */
+                const usesPortOne = paymentMethod !== "BANK_TRANSFER";
+                let paymentConfig = null;
+
+                if (usesPortOne) {
+                    paymentConfig = await loadPaymentConfig();
+                    ensurePaymentAvailable(paymentMethod, paymentConfig);
+                }
 
                 createdOrder = await api(
                     "/api/orders",
@@ -3109,6 +3148,23 @@
                         })
                     }
                 );
+
+                if (!usesPortOne) {
+                    /*
+                     * 주문은 만들어졌고 예약 재고도 잡혔다(PAYMENT_PENDING).
+                     * 장바구니를 비우고 입금 안내 화면으로 보낸다.
+                     * 결제창은 열지 않는다.
+                     */
+                    state.cart.clear();
+                    saveCart();
+                    renderCartCount();
+
+                    window.location.assign(
+                        "/?payment=deposit&orderNumber="
+                        + encodeURIComponent(createdOrder.orderNumber)
+                    );
+                    return;
+                }
 
                 window.sessionStorage.setItem(
                     "feedflow-pending-order",
