@@ -4,10 +4,14 @@
 유통기한이 있는 사료를 다루기 때문에 "재고가 몇 개인가" 만으로는 부족하고,
 **어느 로트가 어느 구역에 얼마나 있고 언제 만료되는지**를 항상 알 수 있어야 합니다.
 
-> 이 저장소는 **관리자 시스템(WMS) 모듈**입니다.
-> 고객용 B2C 쇼핑몰은 팀원이 담당하며 하나의 DB 를 공유합니다.
+> 이 저장소는 **관리자 시스템(WMS) 모듈**입니다. 고객 주문 화면은 팀원이 담당합니다.
 > `Product.imageUrl` · `description` 처럼 쇼핑몰 전용 컬럼은 엔티티에는 두되
 > 관리자 화면에는 노출하지 않습니다.
+>
+> **농장 고객사(`farmCustomers`)는 팀원 모듈에서 옮겨온 것**입니다. 옮기면서 담당 창고를
+> `centers` 참조로, 축종을 `AnimalType` enum 으로 바꾸고 거리를 우리 좌표 기준으로
+> 다시 계산했습니다. 두 프로젝트를 실제로 합치기 전에 정해야 할 것은
+> [`INTEGRATION-NOTES.md`](INTEGRATION-NOTES.md) 에 정리해 두었습니다.
 
 ---
 
@@ -23,8 +27,8 @@
 | 시각화 | Chart.js (매출 · 재고 분포), **Leaflet 1.9.4 + OpenStreetMap** (전국 거점 지도) |
 | Test | JUnit 5, Mockito, AssertJ, `@DataJpaTest` |
 
-**규모** — 프로덕션 클래스 132개(엔티티 17 · DTO 62 · 컨트롤러 20 · 서비스 13 · 리포지토리 8),
-Thymeleaf 템플릿 26개, 테스트 **242개 / 18개 클래스**, 테이블 9개 / 컬럼 90개.
+**규모** — 프로덕션 클래스 165개(도메인 26 · DTO 77 · 컨트롤러 23 · 서비스 16 · 리포지토리 11),
+Thymeleaf 템플릿 29개, 테스트 **315개 / 24개 클래스**, 테이블 12개 / 컬럼 132개.
 
 ---
 
@@ -68,7 +72,11 @@ H2 콘솔은 `/h2-console` (JDBC URL `jdbc:h2:mem:feedflow`, 사용자 `sa`, 비
      P4a ───────┤  전국 5거점 시드 + 물류망 대시보드
                 │  센터별 분포 · 실적 · 경보를 한 화면에서 비교
                 │
-     P4c ───────┘  전국 거점 지도 + 2D 도면 양방향 연동  ← 어필 포인트 ③
+     P4c ───────┤  전국 거점 지도 + 2D 도면 양방향 연동  ← 어필 포인트 ③
+                │
+     P5 ────────┘  팀원 고객 농장 모듈 통합 + 수요 계획
+                   농장의 축종과 품목의 축종을 같은 enum 으로 통일하니
+                   "담당 농장 수요 vs 센터 재고" 를 축종별로 대조할 수 있게 된다
 ```
 
 전 단계에서 지킨 **재고 3계층 불변식**이 이 확장의 기준선입니다.
@@ -274,6 +282,9 @@ Leaflet(BSD-2) + OSM 타일은 **키 없이 즉시 동작**하고 마커 · 팝�
 | `/admin/traceability` | 로트 생애주기 타임라인 (입고 → 보관 → 출고 / 취소 / 폐기), 거쳐 간 센터 |
 | `/admin/outbound` | 주문 기반 FEFO 출고 · 출고 취소, 직접 출고 |
 | `/admin/scan` | 바코드 스캔 입출고 · QR 라벨 출력 |
+| `/admin/farm-customers` | **농장 고객사 관리.** 센터별 담당 농장 · 월 예상 사료량 · 사육 규모, 축종 · 거래 상태 · 키워드 필터. 담당 센터가 그 축종을 취급하지 않는 농장을 경고 (거래 상태 변경은 ADMIN) |
+| `/admin/demand-plan` | **수요 계획.** 담당 농장의 월 예상 사료량과 센터의 출고 가능 재고를 **축종별로** 대조해 부족·빠듯·적정·과다를 판정한다. 정기 배송일별 필요 물량도 함께 본다 |
+| `/admin/defects` | **불량 관리.** 검수 · 보관 · 출고 · 이관 중 발견한 불량을 격리 → 검사 → 처리 흐름으로 기록한다. 유형별 · 발견 단계별 · 제조사별 집계와 입고 검사 적발률, 7일 넘게 방치된 건 경고 (등록 · 검사 착수는 STAFF, 처리 완료는 ADMIN) |
 | `/admin/products` · `/admin/bins` · `/admin/employees` | 기준 정보 · 사원 권한 관리 (사원 관리는 ADMIN) |
 
 ---
@@ -296,13 +307,23 @@ Leaflet(BSD-2) + OSM 타일은 **키 없이 즉시 동작**하고 마커 · 팝�
 
 ### 테스트
 
-**242개 / 18개 클래스.** 서비스 단위 테스트(Mockito)가 중심이고,
+**315개 / 24개 클래스.** 서비스 단위 테스트(Mockito)가 중심이고,
 JPQL 안에만 존재하는 조건은 `@DataJpaTest` 로 실제 H2 에 데이터를 넣어 검증합니다.
 
 - `AllocatableStockRepositoryTest` — 다섯 용도의 구역을 만들어 **보관 · 출고 대기만**
   출고 후보로 나오는지, 단건 조회와 미리보기용 일괄 조회의 조건이 같은지
 - `WarehouseMapRepositoryTest` — 재고가 없는 구역도 도면에 남는지(outer join 유지)
 - `DashboardAlertRepositoryTest` — 안전재고 · 유통기한 경보 집계
+- `FarmCustomerRepositoryTest` — **세는 기준이 컬럼마다 다른** 집계
+  (농장 수는 거래 보류 포함, 월 사료량은 거래 중만), 담당 농장이 없는 센터가
+  `group by` 결과에서 빠지는지, 담당 센터가 취급하지 않는 축종 검출(`not exists`)
+- `DemandPlanRepositoryTest` — 공급이 **출고 가능 구역만** 세는지(보관·출고 대기 150 vs
+  전체 1,050), 수요가 **거래 중 농장만** 세는지(1,570 vs 3,950), 두 집계가 같은
+  `(센터, 축종)` 축으로 나오는지
+- `DefectRecordRepositoryTest` — **제조사가 등록되지 않은 품목의 불량이 사라지지 않는지**
+  (`left join` 하나만 잘못 써도 에러 없이 결과가 조용히 줄어든다), 정렬이 미처리 우선 +
+  오래된 것부터인지, 제조사별 집계 합계가 전체 건수와 맞는지(`coalesce` 로 '미등록' 묶음),
+  관리번호 최댓값을 같은 월 접두어 안에서만 찾는지
 
 ### 시드 데이터 (`data.sql`)
 
@@ -322,15 +343,34 @@ JPQL 안에만 존재하는 조건은 `@DataJpaTest` 로 실제 H2 에 데이터
 > 의존성을 받을 수 없습니다. **컴파일 · 테스트 실행은 로컬에서만 가능**하며,
 > 샌드박스에서는 정적 검사로 대체했습니다.
 
+검사 스크립트는 [`tools/`](tools/) 에 있습니다. Python 3 만 있으면 실행됩니다.
+
+```bash
+cd feedflow
+python3 ../tools/static_check.py          # 정적 검사 14종
+python3 ../tools/compile_risk_check.py    # 컴파일 리스크 7종
+python3 ../tools/stub_check.py            # Mockito STRICT_STUBS
+python3 ../tools/verify_seed.py           # 시드 정합성 5규칙 + 표시 품질
+python3 ../tools/verify_farm_seed.py      # 농장 시드
+python3 ../tools/verify_defect_seed.py    # 불량 · 제조사 시드
+python3 ../tools/verify_test_expectations.py   # 테스트 기대값 ↔ 프로덕션 계산
+```
+
 import 누락/미사용 · 괄호 균형 · enum `switch` 망라성 ·
 JPQL `select new` 인자 수 ↔ record 컴포넌트 수 · 테스트 스텁 ↔ 리포지토리 메서드 ·
-템플릿 태그 중첩 · 템플릿 `${}` ↔ 컨트롤러 모델 키 · 템플릿 프로퍼티 ↔ DTO 게터 ·
-JS 가 읽는 JSON 필드 ↔ record 컴포넌트 · 인라인/정적 JS 문법(`node --check`) ·
-CSS 괄호 균형 · **Mockito `STRICT_STUBS` 안전성** ·
-모델 키 ↔ 특정 DTO 프로퍼티 정밀 대조 · 같은 파일 내 메서드 호출 인자 수
+템플릿 `${}` ↔ 컨트롤러 모델 키 · 템플릿 프로퍼티 ↔ DTO 게터 ·
+JS 가 읽는 JSON 필드 ↔ record 컴포넌트 · `node --check` · CSS 괄호 균형 ·
+**Lombok 빌더 체인 ↔ 실제 필드** · **enum 상수 참조(JPQL 문자열 안까지)** ·
+**JPQL `:param` ↔ `@Param`** · 타입 해석(import · 같은 패키지 · `java.lang`) ·
+**주입 필드를 통한 리포지토리 메서드 호출 존재 여부**(Lombok 접근자까지 재현해 비교)
 
 검사기를 만들 때마다 **일부러 오류를 심어 검출되는지 확인한 뒤 원복**했습니다.
 검사기가 조용히 통과만 하고 있는 것과 실제로 잡는 것은 다릅니다.
+
+> 실제로 `compile_risk_check.py` 는 첫 실행에서 **503건을 실패로 보고했는데 전부
+> 오탐**이었습니다. 빌더 체인 파싱에서 괄호 깊이를 세지 않아 인자 안의 메서드 호출을
+> 빌더 메서드로 오인한 것입니다. 그 결과를 믿었다면 정상 코드를 잘못 고쳤을 것입니다.
+> 과정은 [`docs/retrospective.md`](docs/retrospective.md) 6장에 적었습니다.
 
 ---
 
@@ -341,7 +381,7 @@ CSS 괄호 균형 · **Mockito `STRICT_STUBS` 안전성** ·
 | B2C 쇼핑몰 | 팀원 담당. DB 만 공유 |
 | 반품 절차 | 배송 완료 주문은 취소 대상이 아니다. 실물이 고객에게 있어 창고 재고를 되돌리면 실물과 장부가 어긋난다 |
 | 이관 전표 엔티티 (P3b) | 두 구간이 이미 분리되어 있어 나중에 두 번째를 즉시 호출하지 않으면 된다. 구조를 다시 짜지 않는다 |
-| 스마트 주문 할당 (P4b) | 좌표는 확보했지만 **배송지 좌표와 권역 우선순위가 없다.** 게다가 최단 거리 센터가 그 축종을 취급하지 않을 수 있다 — 나주는 가금 전용이다 |
+| 스마트 주문 할당 (P4b) | 농장 고객사를 통합해 **좌표 · 거리 · 축종 · 담당 센터가 갖춰졌다.** 남은 것은 주문 시점에 어느 센터에서 낼지 고르는 규칙이다. 최단 거리 센터가 그 축종을 취급하지 않을 수 있어(나주는 가금 전용) 거리만으로 정할 수 없고, 그 경우를 `/admin/farm-customers` 가 경고로 보여준다 |
 | 재고 실사 | `ADJUST` 유형만 정의되어 있고 실물 카운트 입력 절차는 없다 |
 
 ---
@@ -350,9 +390,14 @@ CSS 괄호 균형 · **Mockito `STRICT_STUBS` 안전성** ·
 
 | 파일 | 내용 |
 |---|---|
+| [`HANDOFF.md`](HANDOFF.md) | **인계 문서 — 환경 제약 · 실행 명령어 · 코드 규칙 · 되돌리면 안 되는 결정** |
 | [`docs/retrospective.md`](docs/retrospective.md) | **회고 — 기술적 난제와 극복 과정** |
 | [`docs/architecture-notes.md`](docs/architecture-notes.md) | 확장 단계별 설계 결정과 근거 |
 | [`docs/requirements.md`](docs/requirements.md) | 요구사항 정의서 (Must / Should / Could), 제외 범위와 이유 |
 | [`docs/epic-p3-design.md`](docs/epic-p3-design.md) | 센터 간 이관 설계 (`IN_TRANSIT` 가상 구역) |
 | [`docs/erd.md`](docs/erd.md) | ERD (Mermaid) + 재고 3계층 구조도 |
 | `docs/erd-columns.tsv` · `erd-relations.tsv` · `erd-enums.tsv` | 컬럼 · 관계 · enum 정의서 |
+| `docs/table-definition.tsv` · `table-catalog.tsv` | 테이블 정의서 (제출 양식용) |
+| `docs/unit-work-report.tsv` · `sql-definition.tsv` | 단위업무보고서 · SQL 정의서 |
+| [`INTEGRATION-NOTES.md`](INTEGRATION-NOTES.md) | 팀원 프로젝트와의 통합 논의 — 결정할 것 4가지 |
+| [`tools/README.md`](tools/README.md) | 검증 스크립트 7종 — 실행 방법과 한계 |

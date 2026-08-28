@@ -4,9 +4,12 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -48,6 +51,20 @@ public class Product {
 
     @Column(name = "name", nullable = false, length = 200)
     private String name;
+
+    /**
+     * 제조사 (공급업체).
+     * <p>
+     * <b>선택(nullable)이다.</b> 이미 등록된 품목에는 제조사 정보가 없고, 실제로도
+     * 제조사를 모르는 상태로 품목을 먼저 등록하는 일이 있다(샘플 입고, 자사 생산).
+     * 필수로 만들면 기존 품목을 모두 손대야 한다.
+     * <p>
+     * 불량 처리에서 {@link DefectResolution#SUPPLIER_RETURN}(공급업체 반품)을 할 때
+     * 이 값이 필요하다. 없으면 반품 대상을 알 수 없으므로 화면에서 안내한다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "manufacturerId")
+    private Manufacturer manufacturer;
 
     /** 축종 (소 / 돼지 / 조류) - 취급 범위를 고정하기 위해 enum 으로 관리 */
     @Enumerated(EnumType.STRING)

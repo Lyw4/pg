@@ -28,3 +28,27 @@ DisposalReason	stockMovements.reason	WET	WET	습기/침수
 DisposalReason	stockMovements.reason	SAMPLE	SAMPLE	샘플 사용	
 DisposalReason	stockMovements.reason	LOSS	LOSS	분실	
 DisposalReason	stockMovements.reason	OTHER	OTHER	기타	
+AnimalType	farmCustomers.animalType	CATTLE	CATTLE	소	농장 사육 축종 / products.animalType 과 같은 enum 을 공유해 센터 취급 축종과 비교 가능
+AnimalType	farmCustomers.animalType	PIG	PIG	돼지	
+AnimalType	farmCustomers.animalType	POULTRY	POULTRY	조류	팀원 원본의 자유 문자열 '조류(닭/오리)' 를 이 상수로 변환했다
+CustomerStatus	farmCustomers.status	ACTIVE	ACTIVE	거래 중	월 예상 사료량 합산 대상 / 뱃지 bg-primary
+CustomerStatus	farmCustomers.status	PAUSED	PAUSED	거래 보류	합산에서 제외하되 담당 농장 수에는 포함 / 뱃지 bg-secondary / '해지' 를 두지 않은 이유는 과거 이력의 상대로 남아야 하고 재개가 흔하기 때문
+
+DefectType	defectRecords.defectType	DAMAGE	DAMAGE	파손 / 포장 손상	DisposalReason.DAMAGED 로 매핑 / 공급업체 반품 검토 대상
+DefectType	defectRecords.defectType	CONTAMINATION	CONTAMINATION	변질 / 오염	DisposalReason.CONTAMINATED 로 매핑
+DefectType	defectRecords.defectType	WET	WET	침수 / 습기	DisposalReason.WET 로 매핑
+DefectType	defectRecords.defectType	SPECIFICATION	SPECIFICATION	규격 미달	공급업체 반품 검토 대상 / 성적서 불일치 등
+DefectType	defectRecords.defectType	FOREIGN_MATTER	FOREIGN_MATTER	이물 혼입	공급업체 반품 검토 대상
+DefectType	defectRecords.defectType	EXPIRED	EXPIRED	유통기한 경과	DisposalReason.EXPIRED 로 매핑
+DefectType	defectRecords.defectType	OTHER	OTHER	기타	
+DefectStage	defectRecords.stage	RECEIVING	RECEIVING	입고 검사	BinPurpose.RECEIVING · INSPECTION 에 대응 / 이 단계 비중이 높아야 좋다
+DefectStage	defectRecords.stage	STORAGE	STORAGE	보관 중	BinPurpose.STORAGE 에 대응
+DefectStage	defectRecords.stage	SHIPPING	SHIPPING	출고 검사	BinPurpose.SHIPPING 에 대응 / 가장 늦게 잡힌 경우
+DefectStage	defectRecords.stage	TRANSFER	TRANSFER	센터 간 이관 중	BinPurpose.IN_TRANSIT 에 대응 / 구역을 특정할 수 없다
+DefectStatus	defectRecords.status	QUARANTINED	QUARANTINED	격리	기본값 / 출고 차단은 이 상태가 아니라 구역 용도가 한다
+DefectStatus	defectRecords.status	INSPECTING	INSPECTING	검사 중	담당자가 들여다보고 있는 상태
+DefectStatus	defectRecords.status	RESOLVED	RESOLVED	처리 완료	되돌릴 수 없음 / 재발은 새 건으로 등록
+DefectResolution	defectRecords.resolution	REWORK	REWORK	재작업 후 정상 복귀	재고 차감 없음 / 구역 간 이동으로 보관 구역에 넣어야 출고 가능
+DefectResolution	defectRecords.resolution	CONCESSION	CONCESSION	특채 사용	재고 차감 없음 / 품질 기준을 낮춰 사용
+DefectResolution	defectRecords.resolution	SUPPLIER_RETURN	SUPPLIER_RETURN	공급업체 반품	재고 차감 필요(폐기 화면) / 제조사 정보 필요
+DefectResolution	defectRecords.resolution	DISPOSAL	DISPOSAL	폐기	재고 차감 필요(폐기 화면)

@@ -59,6 +59,12 @@
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/farm-customers}"
+               th:classappend="${menu == 'farmCustomers'} ? 'active'">
+                <i class="bi bi-house-heart me-2"></i>농장 고객사
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link" th:href="@{/admin/warehouse-map}"
                th:classappend="${menu == 'warehouseMap'} ? 'active'">
                 <i class="bi bi-bounding-box me-2"></i>창고 2D 도면
@@ -82,6 +88,12 @@
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/demand-plan}"
+               th:classappend="${menu == 'demandPlan'} ? 'active'">
+                <i class="bi bi-clipboard-data me-2"></i>수요 계획
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link" th:href="@{/admin/inventory/inbound}"
                th:classappend="${menu == 'inventory' and subMenu == 'inbound'} ? 'active'">
                 <i class="bi bi-box-arrow-in-down me-2"></i>입고 등록
@@ -91,6 +103,12 @@
             <a class="nav-link" th:href="@{/admin/inventory/move}"
                th:classappend="${menu == 'inventory' and subMenu == 'move'} ? 'active'">
                 <i class="bi bi-arrows-move me-2"></i>구역 간 이동
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" th:href="@{/admin/defects}"
+               th:classappend="${menu == 'defects'} ? 'active'">
+                <i class="bi bi-exclamation-octagon me-2"></i>불량 관리
             </a>
         </li>
         <li class="nav-item">
