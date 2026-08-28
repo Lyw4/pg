@@ -170,6 +170,23 @@
         return $("input[name='payment']:checked")?.value || "CARD";
     }
 
+    /*
+     * 무통장입금 안내 계좌.
+     *
+     * 무통장입금은 포트원을 거치지 않는다. 예전에는 가상계좌(vbank)로
+     * 넘겨 PG 결제창을 띄웠는데, B2B 주문은 담당자가 입금을 확인해 승인하는
+     * 흐름이라 결제창이 낄 자리가 없다. 채널 설정에 묶여 주문 자체가
+     * 막히기도 했다.
+     * 그래서 고정 계좌를 안내하고 주문을 입금 대기로 남긴다.
+     * 서버의 미결제 정리 정책도 BANK_TRANSFER 에는 3일(4320분)을 주므로
+     * (PendingPaymentCleanupService.timeoutFor) 담당자가 확인할 시간이 있다.
+     */
+    const DEPOSIT_ACCOUNT = {
+        bank: "농협",
+        number: "302-8849-1234-51",
+        holder: "(주)피드플로우"
+    };
+
     function ensurePaymentAvailable(method, config) {
         if (!config.portOneEnabled) {
             throw new Error(
@@ -182,9 +199,11 @@
         if (method === "KAKAO_PAY" && !config.kakaoEnabled) {
             throw new Error("포트원 카카오페이 채널 키가 설정되지 않았습니다.");
         }
-        if (method === "BANK_TRANSFER" && !config.virtualAccountEnabled) {
-            throw new Error("포트원 가상계좌 채널 키가 설정되지 않았습니다.");
-        }
+        /*
+         * 무통장입금은 이 함수를 타지 않는다. 결제창 없이 주문만 만들고
+         * 고정 계좌를 안내한다. 예전에는 여기서 가상계좌 채널키를 요구해
+         * 채널 설정이 없으면 무통장 주문까지 막혔다.
+         */
     }
 
     async function markPortOneOrderFailed(order) {
@@ -408,7 +427,18 @@
             $("#success-order-number").textContent =
                 `주문번호 ${order.orderNumber}`;
 
-            if (paymentResult === "waiting") {
+            if (paymentResult === "deposit") {
+                /*
+                 * 무통장입금은 PG 를 거치지 않아 발급된 가상계좌가 없다.
+                 * 고정 입금 계좌와 입금할 금액을 안내한다.
+                 */
+                $("#success-title").textContent =
+                    "주문이 접수되었습니다. 입금을 확인하면 출고를 준비합니다.";
+                $("#success-payment-detail").textContent =
+                    `${DEPOSIT_ACCOUNT.bank} ${DEPOSIT_ACCOUNT.number} `
+                    + `(${DEPOSIT_ACCOUNT.holder}) · `
+                    + `입금액 ${won(order.totalAmount)}`;
+            } else if (paymentResult === "waiting") {
                 $("#success-title").textContent =
                     "가상계좌가 발급되었습니다.";
                 $("#success-payment-detail").textContent =
@@ -902,9 +932,59 @@
             : "축종과 성장 단계에 맞춰 엄선한 대표 배합사료입니다.";
     }
 
+    /*
+     * 타이핑 중 스크롤 튐 방지.
+     *
+     * 원인은 스크롤 API 가 아니었다. (scrollIntoView / scrollTo / focus 를
+     * 후킹해 확인했더니 타이핑 중 호출은 0건이었다)
+     * 실시간 필터로 카드가 줄면 #product-grid 가 짧아지고 문서 전체 높이가
+     * 함께 줄어든다. 그러면 브라우저가 현재 scrollY 를 새 최대값으로
+     * 잘라내는데, 사용자에게는 화면이 위로 튀는 것으로 보인다.
+     * 실측: 목록 깊은 곳(scrollY 5151)에서 세 글자를 치는 동안
+     *       5151 → 2729 → 2067 → 911 로 총 4,240px 이 잘렸다.
+     *
+     * 그래서 타이핑이 시작되면 그리드의 그때 높이를 min-height 로 묶어
+     * 문서가 짧아지지 않게 한다. 스크롤을 건드리지 않고 잘릴 이유 자체를
+     * 없애는 방식이다.
+     *
+     * 잠금을 푸는 시점은 스크롤이 튀어도 이상하지 않은 때로 한정한다.
+     *   - 검색 확정 (Enter / 검색 버튼) : 어차피 결과 위치로 이동한다
+     *   - 카테고리 변경               : 어차피 결과 위치로 이동한다
+     *   - 검색어를 다 지웠을 때        : 목록이 원래 길이로 돌아온다
+     * blur 에서는 풀지 않는다. 그 순간 문서가 줄어 같은 튐이 생긴다.
+     */
+    let gridHeightLocked = false;
+
+    function lockGridHeight() {
+        if (gridHeightLocked) {
+            return;
+        }
+        const grid = $("#product-grid");
+        if (!grid) {
+            return;
+        }
+        const height = Math.round(grid.getBoundingClientRect().height);
+        if (height <= 0) {
+            return;
+        }
+        grid.style.minHeight = `${height}px`;
+        gridHeightLocked = true;
+    }
+
+    function releaseGridHeight() {
+        const grid = $("#product-grid");
+        if (grid) {
+            grid.style.minHeight = "";
+        }
+        gridHeightLocked = false;
+    }
+
     function runProductSearch() {
         const input = $("#search-input");
         state.query = input?.value || "";
+
+        /* 확정 검색은 결과 위치로 데려가므로 높이 잠금을 먼저 푼다 */
+        releaseGridHeight();
         renderProducts();
 
         const resultCount = filteredProducts().length;
@@ -1483,6 +1563,55 @@
         }
     }
 
+    /*
+     * 게스트 장바구니를 회원 장바구니로 합친다.
+     *
+     * 장바구니는 신분마다 저장 키가 다르다.
+     *   비회원 feedflow-cart-guest / 회원 feedflow-cart-member-{id}
+     * 그래서 로그인하면 loadCartForCurrentIdentity() 가 회원 키로 다시 읽고,
+     * 비회원으로 담아 둔 것이 화면에서 사라진다(헤더 배지가 0 이 된다).
+     * 데이터가 지워진 것도 예약 재고가 풀린 것도 아니지만, 사용자에게는
+     * 담은 게 없어진 것으로 보인다. 실측: 3개 담고 로그인 → 배지 0.
+     *
+     * 합치는 규칙
+     *   - 같은 상품이 양쪽에 있으면 더 많은 쪽을 남긴다. 합친 결과가
+     *     로그인 전보다 줄어드는 일은 없어야 한다.
+     *   - 재고를 넘는 수량은 구매 가능 수량까지 깎는다.
+     *   - 상품 목록을 아직 받지 못한 화면에서는 재고를 알 수 없다.
+     *     그때는 수량을 그대로 살린다. 여기서 버리면 같은 결함이 된다.
+     */
+    function mergeGuestCartInto(guestCart) {
+        if (!guestCart || guestCart.size === 0) {
+            return 0;
+        }
+
+        const productsLoaded = Boolean(state.products?.length);
+        let merged = 0;
+
+        guestCart.forEach((quantity, productId) => {
+            const id = Number(productId);
+            if (!Number.isFinite(id)) {
+                return;
+            }
+
+            let next = Math.max(1, Number(quantity) || 1);
+
+            if (productsLoaded) {
+                const stock = purchasableStock(productById(id));
+                if (!(stock > 0)) {
+                    return;
+                }
+                next = Math.min(stock, next);
+            }
+
+            const current = Number(state.cart.get(id) || 0);
+            state.cart.set(id, Math.max(current, next));
+            merged += 1;
+        });
+
+        return merged;
+    }
+
     function openRequestedCartOrCheckout() {
         const query = new URLSearchParams(window.location.search);
         const requestedProductId = Number(query.get("buy"));
@@ -1666,10 +1795,29 @@
         }
     }
 
+    /*
+     * 로그인 직후 농장 맞춤 분석 팝업을 자동으로 띄울지 여부.
+     *
+     * 끈 이유: 가입 1주일 이내 회원이 로그인하면 홈 진입 250ms 뒤에
+     * #farm-model-modal 이 저절로 열린다. 이 모달의 백드롭이 화면 전체를
+     * 덮어 그 순간 다른 조작이 전부 막힌다. 자동화 검증에서도 푸터의
+     * 상담 버튼 클릭이 백드롭에 가려 12초 타임아웃이 났고, 시연 중이라면
+     * 화면이 멈춘 것처럼 보인다.
+     *
+     * 팝업을 만드는 코드는 그대로 두고 자동 노출만 끈다. 다시 켤 때는
+     * 이 값을 true 로 바꾸면 된다. 그때는 백드롭이 조작을 막는 문제를
+     * 먼저 해결해야 한다.
+     */
+    const AUTO_OPEN_FARM_MODEL_POPUP = false;
+
     function showFarmModelPopup(force = false) {
         const model = state.member?.farmModel;
         const assignment = state.member?.farmAssignment;
         if (!model || !assignment || !model.recommendedFeeds?.length) {
+            return;
+        }
+
+        if (!AUTO_OPEN_FARM_MODEL_POPUP) {
             return;
         }
 
@@ -2071,6 +2219,8 @@
                 );
             });
 
+            /* 카테고리 변경도 결과 위치로 이동하므로 높이 잠금을 푼다 */
+            releaseGridHeight();
             renderProducts();
 
             $("#products")?.scrollIntoView({
@@ -2225,21 +2375,105 @@
         }
     });
 
+    /*
+     * 수량 입력칸 직접 입력 보정.
+     *
+     * +/- 버튼은 Math.min/Math.max 로 범위를 지키지만, 키보드로 0·음수·
+     * 재고 초과값을 직접 넣으면 그 값이 그대로 남아 있었다. 담기 단계에
+     * Math.max(1, ...) 가 있어 장바구니가 망가지지는 않았지만, 화면에는
+     * "-5" 가 보이니 사용자는 그 수량으로 담긴다고 오해한다.
+     *
+     * 타이핑 중간값을 함부로 고치면 방해가 되므로 단계를 나눈다.
+     *   input  : 확실히 잘못된 값(음수 / 재고 초과)만 즉시 고친다
+     *   change : 확정 시점이므로 빈 값과 0 까지 1 로 올린다
+     */
+    function clampDetailQuantity(input, commit) {
+        if (!input) {
+            return;
+        }
+
+        const max = Number(input.max) || Number.POSITIVE_INFINITY;
+        const raw = String(input.value).trim();
+
+        if (raw === "") {
+            if (commit) {
+                input.value = 1;
+            }
+            return;
+        }
+
+        const value = Number(raw);
+
+        if (!Number.isFinite(value)) {
+            input.value = 1;
+            return;
+        }
+
+        if (value > max) {
+            input.value = max;
+            return;
+        }
+
+        if (value < 1 && (commit || value < 0)) {
+            input.value = 1;
+        }
+    }
+
+    /*
+     * #detail-quantity 는 상품 모달을 열 때 innerHTML 로 새로 만들어진다.
+     * 그래서 요소에 직접 걸지 못하고 document 에 위임한다.
+     */
+    document.addEventListener("input", (event) => {
+        if (event.target?.id === "detail-quantity") {
+            clampDetailQuantity(event.target, false);
+        }
+    });
+
+    document.addEventListener("change", (event) => {
+        if (event.target?.id === "detail-quantity") {
+            clampDetailQuantity(event.target, true);
+        }
+    });
+
     $("#search-input")?.addEventListener(
         "input",
         (event) => {
+            /*
+             * 다시 그리기 전에 지금 높이를 묶는다. 렌더 뒤에 묶으면
+             * 이미 줄어든 높이를 재게 되어 의미가 없다.
+             */
+            lockGridHeight();
+
             state.query = event.target.value;
             renderProducts();
+
+            /* 검색어를 다 지웠으면 목록이 원래 길이로 돌아오니 풀어 준다 */
+            if (!event.target.value.trim()) {
+                releaseGridHeight();
+            }
         }
     );
 
     $("#search-input")?.addEventListener(
         "keydown",
         (event) => {
-            if (event.key === "Enter") {
-                event.preventDefault();
-                runProductSearch();
+            if (event.key !== "Enter") {
+                return;
             }
+
+            /*
+             * 한글은 Enter 로 조합을 확정한다. 그래서 "한우" 를 치고
+             * Enter 를 누르면 조합 확정 Enter 와 검색 Enter 가 각각
+             * 들어와 검색이 두 번 돌았다. 그때마다 renderProducts 와
+             * scrollIntoView, 토스트가 다시 실행돼 화면이 두 번 튄다.
+             * 조합 중인 Enter 는 검색으로 보지 않는다.
+             */
+            if (event.isComposing) {
+                return;
+            }
+
+            event.preventDefault();
+            runProductSearch();
         }
     );
 
@@ -2515,9 +2749,15 @@
             event.preventDefault();
 
             try {
-                const pendingCart = state.pendingCheckout
-                    ? new Map(state.cart)
-                    : null;
+                /*
+                 * 로그인 전 화면에 담겨 있던 장바구니를 먼저 붙잡아 둔다.
+                 * 아래에서 loadCartForCurrentIdentity() 가 회원 키로 다시
+                 * 읽는 순간 게스트 장바구니는 화면에서 사라진다.
+                 * 예전에는 '주문하기'로 들어온 경우(state.pendingCheckout)에만
+                 * 이걸 챙겼는데, 찜이나 그냥 로그인으로 들어오면 그대로
+                 * 잃어버렸다.
+                 */
+                const guestCart = new Map(state.cart);
                 const login = await api(
                     "/api/auth/login",
                     {
@@ -2547,18 +2787,14 @@
                 state.member = member;
 
                 loadCartForCurrentIdentity();
-                if (pendingCart) {
-                    pendingCart.forEach((quantity, productId) => {
-                        const product = productById(productId);
-                        const stock = purchasableStock(product);
-                        if (product && stock > 0) {
-                            state.cart.set(
-                                Number(productId),
-                                Math.min(stock, Math.max(1, Number(quantity)))
-                            );
-                        }
-                    });
+                if (mergeGuestCartInto(guestCart)) {
                     saveCart();
+                    /*
+                     * 합친 뒤에는 게스트 장바구니를 비운다. 남겨 두면
+                     * 다음에 다른 계정으로 로그인했을 때 같은 상품이
+                     * 그 계정 장바구니에 다시 붙는다.
+                     */
+                    window.localStorage.removeItem("feedflow-cart-guest");
                 }
                 renderCartCount();
 
@@ -2865,8 +3101,17 @@
             let createdOrder = null;
 
             try {
-                const paymentConfig = await loadPaymentConfig();
-                ensurePaymentAvailable(paymentMethod, paymentConfig);
+                /*
+                 * 무통장입금은 외부 PG 를 쓰지 않으므로 결제 설정 조회와
+                 * 채널 확인 단계를 건너뛴다. 카드·카카오페이만 포트원을 탄다.
+                 */
+                const usesPortOne = paymentMethod !== "BANK_TRANSFER";
+                let paymentConfig = null;
+
+                if (usesPortOne) {
+                    paymentConfig = await loadPaymentConfig();
+                    ensurePaymentAvailable(paymentMethod, paymentConfig);
+                }
 
                 createdOrder = await api(
                     "/api/orders",
@@ -2903,6 +3148,23 @@
                         })
                     }
                 );
+
+                if (!usesPortOne) {
+                    /*
+                     * 주문은 만들어졌고 예약 재고도 잡혔다(PAYMENT_PENDING).
+                     * 장바구니를 비우고 입금 안내 화면으로 보낸다.
+                     * 결제창은 열지 않는다.
+                     */
+                    state.cart.clear();
+                    saveCart();
+                    renderCartCount();
+
+                    window.location.assign(
+                        "/?payment=deposit&orderNumber="
+                        + encodeURIComponent(createdOrder.orderNumber)
+                    );
+                    return;
+                }
 
                 window.sessionStorage.setItem(
                     "feedflow-pending-order",

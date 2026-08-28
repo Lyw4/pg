@@ -1,23 +1,43 @@
 plugins {
-	id 'java'
-	id 'org.springframework.boot' version '3.5.16'
-	id 'io.spring.dependency-management' version '1.1.7'
+   id 'java'
+   id 'org.springframework.boot' version '3.5.16'
+   id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'com.ex'
-version = '0.0.1-SNAPSHOT'
+version = '0.0.1'   // 간단하게 버전 번호만
 
 java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
-	}
+   toolchain {
+      languageVersion = JavaLanguageVersion.of(21)
+   }
 }
 
 repositories {
-	mavenCentral()
+   mavenCentral()
 }
 
 dependencies {
+   // 운영/배포는 MySQL RDS
+   runtimeOnly 'com.mysql:mysql-connector-j'
+
+   /*
+    * H2 는 로컬 실행과 테스트에만 쓴다. 배포 산출물에는 넣지 않는다.
+    *
+    * testRuntimeOnly : src/test/resources/application-test.properties 가
+    *   spring.datasource.url=jdbc:h2:mem:feedflow-...;MODE=PostgreSQL
+    *   을 쓰기 때문에 필요하다. 빼면 @ActiveProfiles("test") 를 쓰는
+    *   17개 테스트 클래스가 전부 "Cannot load driver class: org.h2.Driver" 로
+    *   컨텍스트 로딩부터 실패한다(실측 125건 중 95건 실패).
+    *
+    * developmentOnly : gradlew bootRun 으로 로컬에서 띄울 때 필요하다.
+    *   testRuntimeOnly 만 두면 테스트는 통과하지만 로컬 실행이 같은 오류로
+    *   죽는다. developmentOnly 는 bootRun 클래스패스에는 들어가고
+    *   bootJar 산출물에서는 빠지므로 배포에는 MySQL 만 남는다.
+    */
+   developmentOnly 'com.h2database:h2'
+   testRuntimeOnly 'com.h2database:h2'
+
     implementation 'org.springframework.boot:spring-boot-starter-web'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
@@ -39,9 +59,6 @@ dependencies {
     // JPA (Entity, Repository 등)
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 
-    // H2 DB
-    runtimeOnly 'com.h2database:h2'
-
     // 유효성 검증 (@NotEmpty @Size 등 폼 데이터 검증)
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-mail'
@@ -57,11 +74,11 @@ dependencies {
 }
 
 tasks.withType(JavaCompile).configureEach {
-	// STS와 Gradle 어느 쪽에서 실행해도 Spring이 메서드 파라미터 이름을
-	// 동일하게 인식하도록 컴파일 결과에 이름 정보를 보존합니다.
-	options.compilerArgs += '-parameters'
+   // STS와 Gradle 어느 쪽에서 실행해도 Spring이 메서드 파라미터 이름을
+   // 동일하게 인식하도록 컴파일 결과에 이름 정보를 보존합니다.
+   options.compilerArgs += '-parameters'
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+   useJUnitPlatform()
 }

@@ -831,18 +831,75 @@ public class WmsOperationsService {
                 .toList();
     }
 
+    /**
+     * LOT 이력 추적 자료.
+     *
+     * LOT 을 찾지 못하면 예외 대신 null 을 돌려준다. 관리자 화면에서 잘못된
+     * lotId 하나 때문에 페이지 전체가 오류로 바뀌지 않게 하기 위함이다.
+     *
+     * 돌려주기 전에 화면이 읽는 연관을 모두 초기화한다. 이 클래스는
+     * @Transactional(readOnly = true) 라서 메서드가 끝나면 세션이 닫히고,
+     * spring.jpa.open-in-view=false 이므로 렌더링 시점에는 세션이 없다.
+     * 그 상태에서 지연 로딩 대상을 템플릿이 처음 만지면 그 자리에서 예외가 나고
+     * 화면 전체가 500 이 된다.
+     */
     public Traceability traceability(Long lotId) {
-        ProductLot lot = requiredLot(lotId);
+        if (lotId == null) {
+            return null;
+        }
+
+        ProductLot lot = lotRepository.findDetailByLotId(lotId).orElse(null);
+        if (lot == null) {
+            return null;
+        }
+
         List<BinInventory> locations = binInventoryRepository
                 .findByLotLotIdAndQuantityGreaterThanOrderByBinBinCodeAsc(
                         lotId, 0);
+        List<WarehouseStockMovement> movements = movementRepository
+                .findByLotLotIdOrderByCreatedAtDesc(lotId);
+
+        initializeTraceabilityForView(lot, locations, movements);
+
         return new Traceability(
                 lot,
                 locations,
-                movementRepository.findByLotLotIdOrderByCreatedAtDesc(lotId),
+                movements,
                 locations.stream()
                         .mapToInt(BinInventory::getQuantity)
                         .sum());
+    }
+
+    /**
+     * 템플릿이 읽는 연관을 세션이 살아 있는 동안 미리 로딩한다.
+     * 값을 쓰지 않고 접근만 해도 프록시가 초기화된다.
+     */
+    private void initializeTraceabilityForView(
+            ProductLot lot,
+            List<BinInventory> locations,
+            List<WarehouseStockMovement> movements) {
+
+        if (lot.getProduct() != null) {
+            lot.getProduct().getName();
+        }
+
+        locations.forEach(inventory -> {
+            ProductLot inventoryLot = inventory.getLot();
+            if (inventoryLot != null && inventoryLot.getProduct() != null) {
+                inventoryLot.getProduct().getName();
+            }
+            WarehouseBin bin = inventory.getBin();
+            if (bin != null) {
+                bin.getBinCode();
+                bin.getPurpose();
+                if (bin.getWarehouse() != null) {
+                    bin.getWarehouse().getName();
+                }
+            }
+        });
+
+        // getRouteLabel 이 sourceBin·destinationBin 을 함께 초기화한다.
+        movements.forEach(WarehouseStockMovement::getRouteLabel);
     }
 
     public List<LotLabel> lotLabels() {

@@ -1,12 +1,22 @@
 package com.ex.controller;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.ErrorResponse;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import jakarta.persistence.PessimisticLockException;
@@ -70,6 +80,41 @@ public class ApiExceptionHandler {
                 .body(errorBody(reason == null
                         ? "요청을 처리하지 못했습니다."
                         : reason));
+    }
+
+    /**
+     * Spring MVC 가 요청 자체를 거절한 경우입니다.
+     *
+     * 이 핸들러가 없으면 아래 최종 핸들러가 전부 삼켜 500 으로 나갔습니다.
+     * 예를 들어 POST 전용인 GET /api/consultations 가 405 대신 500 을,
+     * 없는 경로나 깨진 JSON 도 404·400 대신 500 을 반환했습니다.
+     * 서버 잘못이 아닌데 5xx 로 나가면 모니터링에서 장애로 잡히고,
+     * 클라이언트도 재시도할지 요청을 고칠지 판단할 수 없습니다.
+     *
+     * 이 예외들은 모두 ErrorResponse 를 구현해 각자 올바른 상태 코드를
+     * 알고 있으므로 그 값을 그대로 사용합니다.
+     */
+    @ExceptionHandler({
+            HttpRequestMethodNotSupportedException.class,
+            HttpMediaTypeNotSupportedException.class,
+            HttpMediaTypeNotAcceptableException.class,
+            MissingServletRequestParameterException.class,
+            HttpMessageNotReadableException.class,
+            MethodArgumentTypeMismatchException.class,
+            NoResourceFoundException.class,
+            NoHandlerFoundException.class
+    })
+    public ResponseEntity<Map<String, Object>> handleRequestRejected(
+            Exception exception) {
+        HttpStatusCode status = exception instanceof ErrorResponse errorResponse
+                ? errorResponse.getStatusCode()
+                : HttpStatus.BAD_REQUEST;
+        log.debug("요청 거절 status={} reason={}",
+                status.value(), exception.getMessage());
+        return ResponseEntity.status(status).body(errorBody(
+                status.value() == 405
+                        ? "지원하지 않는 요청 방식입니다."
+                        : "요청 형식을 확인해주세요."));
     }
 
     /**

@@ -34,9 +34,8 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf
                         .csrfTokenRequestHandler(csrfRequestHandler)
-                        .ignoringRequestMatchers(
-                                "/api/**",
-                                "/h2-console/**"))
+                        // /api/** 는 fetch 기반 JSON 호출이라 CSRF 토큰을 쓰지 않습니다.
+                        .ignoringRequestMatchers("/api/**"))
                 .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
@@ -53,12 +52,10 @@ public class SecurityConfig {
                                 "/api/members/**",
                                 "/error")
                         .permitAll()
-                        // H2 콘솔은 임의 SQL을 실행할 수 있어 사원 계정에게
-                        // 열어 두면 employee_account.role을 직접 바꾸는 권한
-                        // 상승이 가능합니다. 사원 권한에서 제외합니다.
-                        .requestMatchers(
-                                "/admin/employees/**",
-                                "/h2-console/**")
+                        // 사원 계정 관리는 employee_account.role 을 직접 바꿀 수
+                        // 있어 권한 상승 경로가 됩니다. 사원(STAFF) 권한에서
+                        // 제외하고 관리자에게만 허용합니다.
+                        .requestMatchers("/admin/employees/**")
                         .hasRole("ADMIN")
                         .requestMatchers(
                                 "/admin/**",

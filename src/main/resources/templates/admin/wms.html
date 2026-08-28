@@ -638,6 +638,16 @@
         </section>
 
         <section th:if="${currentView == 'traceability'}" class="wms-traceability-page">
+            <!--
+              이력 조회가 실패하거나 LOT 을 찾지 못하면 화면을 500 으로 떨어뜨리지 않고
+              여기에 이유를 표시한다. 아래 상세 영역은 traceability != null 로 이미 가려진다.
+            -->
+            <div th:if="${traceabilityError != null}"
+                 class="alert alert-warning d-flex align-items-center gap-2">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <span th:text="${traceabilityError}">이력을 불러오지 못했습니다.</span>
+            </div>
+
             <nav class="wms-trace-warehouse-tabs mb-4" aria-label="이력 추적 창고 선택">
                 <a class="wms-trace-warehouse-tab"
                    th:href="@{/admin/wms(view='traceability',lotId=${selectedLotId})}"
@@ -689,19 +699,23 @@
                             <tr><th>상품</th><th>LOT</th><th>구역</th><th>용도</th><th class="text-end">수량</th><th>유통기한</th></tr>
                         </thead>
                         <tbody>
+                            <!--
+                              연관은 지연 로딩이라 렌더링 시점에 비어 있을 수 있다.
+                              한 칸이 깨져도 화면 전체가 500 이 되지 않게 안전 접근으로 읽는다.
+                            -->
                             <tr th:each="inventory : ${traceInventories}"
-                                th:classappend="${inventory.lot.lotId == selectedLotId} ? 'is-selected'">
-                                <td class="fw-semibold" th:text="${inventory.lot.product.name}">상품</td>
+                                th:classappend="${inventory.lot?.lotId == selectedLotId} ? 'is-selected'">
+                                <td class="fw-semibold" th:text="${inventory.lot?.product?.name} ?: '-'">상품</td>
                                 <td>
                                     <a class="wms-trace-lot-link font-monospace small"
-                                       th:href="@{/admin/wms(view='traceability',lotId=${inventory.lot.lotId},traceWarehouseId=${selectedTraceWarehouseId},tracePage=${tracePage})} + '#lotTraceability'"
-                                       th:text="${inventory.lot.lotNo}">LOT</a>
-                                    <span th:if="${inventory.lot.lotId == selectedLotId}" class="wms-trace-selected-label">선택됨</span>
+                                       th:href="@{/admin/wms(view='traceability',lotId=${inventory.lot?.lotId},traceWarehouseId=${selectedTraceWarehouseId},tracePage=${tracePage})} + '#lotTraceability'"
+                                       th:text="${inventory.lot?.lotNo} ?: '-'">LOT</a>
+                                    <span th:if="${inventory.lot?.lotId == selectedLotId}" class="wms-trace-selected-label">선택됨</span>
                                 </td>
-                                <td th:text="${inventory.bin.binCode}">구역</td>
-                                <td th:text="${inventory.bin.purpose.label}">용도</td>
+                                <td th:text="${inventory.bin?.binCode} ?: '-'">구역</td>
+                                <td th:text="${inventory.bin?.purpose?.label} ?: '-'">용도</td>
                                 <td class="text-end fw-bold" th:text="${inventory.quantity} + '포대'">0포대</td>
-                                <td class="text-nowrap" th:text="${inventory.lot.expirationDate}">날짜</td>
+                                <td class="text-nowrap" th:text="${inventory.lot?.expirationDate} ?: '-'">날짜</td>
                             </tr>
                             <tr th:if="${#lists.isEmpty(traceInventories)}">
                                 <td colspan="6" class="text-center text-muted py-4">선택한 창고에 보관 중인 상품이 없습니다.</td>
@@ -745,11 +759,11 @@
                         <article class="card ff-card h-100 wms-trace-summary-card">
                             <div class="card-body">
                                 <span class="badge text-bg-primary mb-2">LOT TRACEABILITY</span>
-                                <h3 class="h5 font-monospace" th:text="${traceability.lot.lotNo}">LOT</h3>
-                                <p class="wms-trace-product-name" th:text="${traceability.lot.product.name}">상품</p>
+                                <h3 class="h5 font-monospace" th:text="${traceability.lot?.lotNo} ?: '-'">LOT</h3>
+                                <p class="wms-trace-product-name" th:text="${traceability.lot?.product?.name} ?: '-'">상품</p>
                                 <dl class="row small mb-0">
-                                    <dt class="col-5">제조일</dt><dd class="col-7" th:text="${traceability.lot.manufacturedDate}">날짜</dd>
-                                    <dt class="col-5">유통기한</dt><dd class="col-7" th:text="${traceability.lot.expirationDate}">날짜</dd>
+                                    <dt class="col-5">제조일</dt><dd class="col-7" th:text="${traceability.lot?.manufacturedDate} ?: '-'">날짜</dd>
+                                    <dt class="col-5">유통기한</dt><dd class="col-7" th:text="${traceability.lot?.expirationDate} ?: '-'">날짜</dd>
                                     <dt class="col-5">LOT 실재고</dt><dd class="col-7 fw-bold" th:text="${#numbers.formatInteger(traceability.lot.lotQuantity, 1, 'COMMA')} + '포대'">0</dd>
                                     <dt class="col-5">위치 합계</dt><dd class="col-7 fw-bold" th:classappend="${traceability.lot.lotQuantity == traceability.locatedQuantity} ? 'text-success' : 'text-danger'" th:text="${#numbers.formatInteger(traceability.locatedQuantity, 1, 'COMMA')} + '포대'">0</dd>
                                 </dl>
@@ -766,7 +780,7 @@
                                 <table class="table mb-0">
                                     <thead><tr><th>센터</th><th>구역</th><th>용도</th><th class="text-end">수량</th></tr></thead>
                                     <tbody>
-                                        <tr th:each="inventory : ${traceability.inventories}"><td th:text="${inventory.bin.warehouse.name}">센터</td><td><span class="wms-trace-bin-code" th:text="${inventory.bin.binCode}">구역</span></td><td th:text="${inventory.bin.purpose.label}">용도</td><td class="text-end fw-bold" th:text="${#numbers.formatInteger(inventory.quantity, 1, 'COMMA')} + '포대'">0</td></tr>
+                                        <tr th:each="inventory : ${traceability.inventories}"><td th:text="${inventory.bin?.warehouse?.name} ?: '-'">센터</td><td><span class="wms-trace-bin-code" th:text="${inventory.bin?.binCode} ?: '-'">구역</span></td><td th:text="${inventory.bin?.purpose?.label} ?: '-'">용도</td><td class="text-end fw-bold" th:text="${#numbers.formatInteger(inventory.quantity, 1, 'COMMA')} + '포대'">0</td></tr>
                                         <tr th:if="${#lists.isEmpty(traceability.inventories)}"><td colspan="4" class="text-center text-muted py-5">현재 선택한 창고에는 이 LOT의 보관 재고가 없습니다.</td></tr>
                                     </tbody>
                                 </table>
@@ -788,13 +802,18 @@
                     </div>
                     <div class="card-body">
                         <ol class="wms-timeline" data-timeline-list>
+                            <!--
+                              #temporals.format 과 #numbers.formatInteger 는 인자가 null 이면
+                              그 자리에서 예외를 던진다. 한 건의 빈 값이 타임라인 전체를
+                              날리지 않도록 넘기기 전에 확인한다.
+                            -->
                             <li th:each="movement : ${traceability.movements}" th:attr="data-timestamp=${movement.createdAt}">
                                 <div class="wms-trace-movement-title">
-                                    <i th:class="${movement.movementType.sign > 0} ? 'bi bi-box-arrow-in-down' : (${movement.movementType.sign < 0} ? 'bi bi-box-arrow-up-right' : 'bi bi-arrow-left-right')"></i>
-                                    <strong th:text="${movement.movementType.label}">이동</strong>
+                                    <i th:class="${movement.movementType == null} ? 'bi bi-arrow-left-right' : (${movement.movementType.sign > 0} ? 'bi bi-box-arrow-in-down' : (${movement.movementType.sign < 0} ? 'bi bi-box-arrow-up-right' : 'bi bi-arrow-left-right'))"></i>
+                                    <strong th:text="${movement.movementType?.label} ?: '이동'">이동</strong>
                                 </div>
-                                <span th:text="|${#numbers.formatInteger(movement.quantity, 1, 'COMMA')}포대 · ${movement.routeLabel}|">상세</span>
-                                <small th:text="|${#temporals.format(movement.createdAt, 'yyyy-MM-dd HH:mm')} · ${movement.operatorName}|">일시</small>
+                                <span th:text="|${#numbers.formatInteger(movement.quantity, 1, 'COMMA')}포대 · ${movement.routeLabel} ?: '-'|">상세</span>
+                                <small th:text="|${movement.createdAt != null ? #temporals.format(movement.createdAt, 'yyyy-MM-dd HH:mm') : '-'} · ${movement.operatorName} ?: '-'|">일시</small>
                             </li>
                             <li th:if="${#lists.isEmpty(traceability.movements)}" class="text-muted" data-timeline-empty>아직 기록된 WMS 이력이 없습니다.</li>
                         </ol>
