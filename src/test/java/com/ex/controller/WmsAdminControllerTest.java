@@ -85,6 +85,57 @@ class WmsAdminControllerTest {
         }
     }
 
+    /*
+     * 이력 추적 화면 방어 검증.
+     *
+     * 배포 환경에서 이 화면만 500 이 났고 형제 화면은 정상이었다. 원인이
+     * 무엇이든 관리자 페이지가 통째로 죽지 않아야 하므로, 로컬에서 만들 수 있는
+     * 악조건(구역 재고 없음 / 위치 없는 LOT / 없는 lotId)에서 200 을 확인한다.
+     */
+    @Test
+    @Transactional
+    void traceabilityViewRendersWhenNoLocationDataExists() throws Exception {
+        binInventoryRepository.deleteAll();
+
+        mockMvc.perform(get("/admin/wms").queryParam("view", "traceability"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.containsString(
+                                "보관 중인 상품이 없습니다")));
+    }
+
+    @Test
+    @Transactional
+    void traceabilityViewRendersForLotWithoutLocatedStock() throws Exception {
+        var lot = lotRepository.findAllByOrderByExpirationDateAsc()
+                .stream()
+                .findFirst()
+                .orElseThrow();
+        binInventoryRepository.deleteAll();
+
+        mockMvc.perform(get("/admin/wms")
+                        .queryParam("view", "traceability")
+                        .queryParam("lotId", lot.getLotId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(model().attributeExists("traceability"))
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.containsString(
+                                "보관 재고가 없습니다")));
+    }
+
+    @Test
+    void traceabilityViewRendersGuideWhenLotIdIsUnknown() throws Exception {
+        mockMvc.perform(get("/admin/wms")
+                        .queryParam("view", "traceability")
+                        .queryParam("lotId", "999999999"))
+                .andExpect(status().isOk())
+                .andExpect(model().attributeDoesNotExist("traceability"))
+                .andExpect(model().attributeExists("traceabilityError"))
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.containsString(
+                                "LOT 정보를 찾을 수 없습니다")));
+    }
+
     @Test
     void allWarehouseBinsArePagedButSingleWarehouseShowsAllBins()
             throws Exception {

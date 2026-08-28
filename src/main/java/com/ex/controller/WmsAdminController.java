@@ -24,9 +24,11 @@ import com.ex.service.DemandPlanService;
 import com.ex.service.WarehouseCapacityPlanningService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Controller
 @RequiredArgsConstructor
+@Slf4j
 public class WmsAdminController {
 
     private static final int BIN_PAGE_SIZE = 10;
@@ -275,19 +277,48 @@ public class WmsAdminController {
         }
         if ("traceability".equals(selectedView)
                 && selectedLotId != null) {
-            var traceability = wmsOperationsService.traceability(selectedLotId);
-            if (selectedTraceWarehouseId != null) {
-                traceability = new WmsOperationsService.Traceability(
-                        traceability.lot(),
-                        traceability.inventories().stream()
-                                .filter(inventory -> inventory.getBin()
-                                        .getWarehouse().getWarehouseId()
-                                        .equals(selectedTraceWarehouseId))
-                                .toList(),
-                        traceability.movements(),
-                        traceability.locatedQuantity());
+            /*
+             * 이력 추적 한 화면 때문에 관리자 페이지 전체가 500 이 되지 않게 한다.
+             * 배포 환경에서 이 화면만 500 이 났고 형제 화면(bins·movements·map)은
+             * 정상이었다. 원인이 무엇이든 화면은 안내 문구와 함께 떠야 하고,
+             * 실패는 로그로 남겨 추적할 수 있어야 한다.
+             */
+            try {
+                var traceability =
+                        wmsOperationsService.traceability(selectedLotId);
+
+                if (traceability == null) {
+                    model.addAttribute(
+                            "traceabilityError",
+                            "선택한 LOT 정보를 찾을 수 없습니다."
+                                    + " 목록에서 다른 LOT 를 선택해 주세요.");
+                } else {
+                    if (selectedTraceWarehouseId != null) {
+                        traceability = new WmsOperationsService.Traceability(
+                                traceability.lot(),
+                                traceability.inventories().stream()
+                                        .filter(inventory ->
+                                                inventory.getBin() != null
+                                                && inventory.getBin()
+                                                        .getWarehouse() != null
+                                                && selectedTraceWarehouseId.equals(
+                                                        inventory.getBin()
+                                                                .getWarehouse()
+                                                                .getWarehouseId()))
+                                        .toList(),
+                                traceability.movements(),
+                                traceability.locatedQuantity());
+                    }
+                    model.addAttribute("traceability", traceability);
+                }
+            } catch (RuntimeException exception) {
+                log.warn("LOT 이력 추적 조회 실패 lotId={} reason={}",
+                        selectedLotId, exception.getMessage(), exception);
+                model.addAttribute(
+                        "traceabilityError",
+                        "LOT 이력을 불러오지 못했습니다."
+                                + " 잠시 후 다시 시도해 주세요.");
             }
-            model.addAttribute("traceability", traceability);
         }
         if ("labels".equals(selectedView)) {
             model.addAttribute(
