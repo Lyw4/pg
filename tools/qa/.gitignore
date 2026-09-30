@@ -1,0 +1,13 @@
+# Playwright 의존성은 저장소에 넣지 않는다. npm run setup 으로 복원한다.
+node_modules/
+
+# 실행 결과물(리포트·스크린샷)은 환경마다 달라 추적하지 않는다.
+report/
+
+# 검증 실행 산출물. run-e2e.ps1 이나 개별 *.mjs 를 돌리면 새로 생성된다.
+out-*.txt
+*.png
+snapshots/
+
+# BcryptHash 등 임시 컴파일 결과
+bc-out/

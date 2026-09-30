@@ -38,33 +38,50 @@ INSERT INTO users (userId, email, password, name, phone, role, createdAt) VALUES
 (5, 'farm3@example.com',    '{noop}user123',  '행복한계농장', '010-5555-5005', 'USER', DATEADD('DAY', -60, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
--- 2. 품목 13종  ※ 기준 정보(Master Data)
+-- 2. 제조사 5곳  ※ 기준 정보(Master Data)
+--    품목(products)이 FK 로 참조하므로 품목보다 먼저 넣는다.
+--    · manufacturerId 5 는 거래 중지(active FALSE) → 품목 등록 선택 목록에서 빠진다
+--      (단종 품목 productId 12 와 짝을 이룬다. 거래를 끊은 곳의 사료가 단종된 상황)
+-- ---------------------------------------------------------------------
+INSERT INTO manufacturers (manufacturerId, name, businessNumber, phone, contactName, active, createdAt) VALUES
+(1, '대한사료(주)',     '312-81-40021', '041-330-7001', '박영수', TRUE,  DATEADD('DAY', -320, CURRENT_TIMESTAMP)),
+(2, '한신축산영양(주)', '404-81-55172', '063-540-7002', '최미경', TRUE,  DATEADD('DAY', -300, CURRENT_TIMESTAMP)),
+(3, '정우피드텍(주)',   '511-81-27384', '054-830-7003', '이건우', TRUE,  DATEADD('DAY', -280, CURRENT_TIMESTAMP)),
+(4, '그린바이오영양',   '128-81-63095', '031-670-7004', '정하늘', TRUE,  DATEADD('DAY', -240, CURRENT_TIMESTAMP)),
+(5, '세종사료공업',     '307-81-11846', '044-850-7005', '한동식', FALSE, DATEADD('DAY', -380, CURRENT_TIMESTAMP));
+
+-- ---------------------------------------------------------------------
+-- 3. 품목 13종  ※ 기준 정보(Master Data)
 --    · 취급 축종은 CATTLE(소) / PIG(돼지) / POULTRY(조류: 닭·오리) 3종으로 고정
 --    · 취급 품목 구분은 FEED(사료) / SUPPLEMENT(영양제) 2종으로 고정
 --    · productId 1, 3 은 안전재고 미달 → 대시보드 '안전재고 알림' 노출
 --    · productId 12 는 사용 중지(단종) → 미달이지만 알림에서 제외
 --    · 10건 초과라서 품목 목록 화면의 페이징을 바로 확인할 수 있다
+--    · productId 10 의 manufacturerId 는 일부러 NULL 이다.
+--      제조사를 모르는 상태로 등록된 품목이 실제로 있고(샘플 · 자사생산 · 등록 누락),
+--      이 로트에서 불량이 나면 "반품할 곳을 특정할 수 없다" 는 상황이 화면에 드러난다.
+--      불량 관리 화면의 제조사별 집계에서 '미등록' 으로 묶여 표시된다.
 -- ---------------------------------------------------------------------
-INSERT INTO products (productId, productCode, name, animalType, productType, weightKg, price, totalStock, safetyStock, shelfLifeDays, active, imageUrl, description, version) VALUES
-(1,  'FD-CT-001', '프리미엄 육성우 배합사료', 'CATTLE',  'FEED',       25, 32000,  40,  50, 180, TRUE,  '/images/feed-cattle.png',  '육성기 한우의 골격 형성을 돕는 고단백 배합사료입니다.', 0),
-(2,  'FD-PG-001', '자돈용 배합사료',         'PIG',     'FEED',       20, 28000, 690, 100, 180, TRUE,  '/images/feed-pig.png',     '이유 후 자돈의 소화 흡수율을 높인 프리스타터 사료입니다.', 0),
+INSERT INTO products (productId, productCode, name, manufacturerId, animalType, productType, weightKg, price, totalStock, safetyStock, shelfLifeDays, active, imageUrl, description, version) VALUES
+(1,  'FD-CT-001', '프리미엄 육성우 배합사료', 1, 'CATTLE',  'FEED',       25, 32000,  40,  50, 180, TRUE,  '/images/feed-cattle.png',  '육성기 한우의 골격 형성을 돕는 고단백 배합사료입니다.', 0),
+(2,  'FD-PG-001', '자돈용 배합사료',         2, 'PIG',     'FEED',       20, 28000, 690, 100, 180, TRUE,  '/images/feed-pig.png',     '이유 후 자돈의 소화 흡수율을 높인 프리스타터 사료입니다.', 0),
 -- productId 3 : 정상 로트 80 + 만료 로트 20 = 100 (안전재고 120 미달 유지)
-(3,  'FD-PL-001', '산란계 전용 배합사료',     'POULTRY', 'FEED',       25, 24000, 100, 120,  90, TRUE,  '/images/feed-chicken.png', '산란율 향상을 위한 칼슘 강화 배합사료입니다.', 0),
-(4,  'FD-CT-002', '번식우 유지 배합사료',     'CATTLE',  'FEED',       25, 30000, 530,  80, 180, TRUE,  NULL, NULL, 0),
-(5,  'FD-CT-003', '비육후기 고에너지 사료',   'CATTLE',  'FEED',       25, 34000, 350,  60, 150, TRUE,  NULL, NULL, 0),
-(6,  'FD-PG-002', '육성돈 배합사료',         'PIG',     'FEED',       25, 26000, 680,  90, 180, TRUE,  NULL, NULL, 0),
-(7,  'FD-PG-003', '임신돈 전용 사료',        'PIG',     'FEED',       25, 27000, 300,  70, 180, TRUE,  NULL, NULL, 0),
-(8,  'FD-PL-002', '육계 초기 사료',          'POULTRY', 'FEED',       20, 25000, 240,  50,  90, TRUE,  NULL, NULL, 0),
-(9,  'FD-PL-003', '육계 후기 사료',          'POULTRY', 'FEED',       20, 23000, 720,  60,  90, TRUE,  NULL, NULL, 0),
-(10, 'FD-PL-004', '산란오리 배합사료',       'POULTRY', 'FEED',       25, 26000,  230,  40, 120, TRUE,  NULL, NULL, 0),
+(3,  'FD-PL-001', '산란계 전용 배합사료',     3, 'POULTRY', 'FEED',       25, 24000, 100, 120,  90, TRUE,  '/images/feed-chicken.png', '산란율 향상을 위한 칼슘 강화 배합사료입니다.', 0),
+(4,  'FD-CT-002', '번식우 유지 배합사료',     1, 'CATTLE',  'FEED',       25, 30000, 530,  80, 180, TRUE,  NULL, NULL, 0),
+(5,  'FD-CT-003', '비육후기 고에너지 사료',   1, 'CATTLE',  'FEED',       25, 34000, 350,  60, 150, TRUE,  NULL, NULL, 0),
+(6,  'FD-PG-002', '육성돈 배합사료',         2, 'PIG',     'FEED',       25, 26000, 680,  90, 180, TRUE,  NULL, NULL, 0),
+(7,  'FD-PG-003', '임신돈 전용 사료',        2, 'PIG',     'FEED',       25, 27000, 300,  70, 180, TRUE,  NULL, NULL, 0),
+(8,  'FD-PL-002', '육계 초기 사료',          3, 'POULTRY', 'FEED',       20, 25000, 240,  50,  90, TRUE,  NULL, NULL, 0),
+(9,  'FD-PL-003', '육계 후기 사료',          3, 'POULTRY', 'FEED',       20, 23000, 720,  60,  90, TRUE,  NULL, NULL, 0),
+(10, 'FD-PL-004', '산란오리 배합사료',       NULL, 'POULTRY', 'FEED',       25, 26000,  230,  40, 120, TRUE,  NULL, NULL, 0),
 -- 영양제(보조제) : 포장 단위가 작고 유통기한이 길다
-(11, 'SP-CT-001', '한우 비타민 영양제',      'CATTLE',  'SUPPLEMENT',  5, 45000,  560,  30, 365, TRUE,  NULL, NULL, 0),
-(13, 'SP-PG-001', '자돈 정장 영양제',        'PIG',     'SUPPLEMENT',  5, 38000,  240,  20, 365, TRUE,  NULL, NULL, 0),
+(11, 'SP-CT-001', '한우 비타민 영양제',      4, 'CATTLE',  'SUPPLEMENT',  5, 45000,  560,  30, 365, TRUE,  NULL, NULL, 0),
+(13, 'SP-PG-001', '자돈 정장 영양제',        4, 'PIG',     'SUPPLEMENT',  5, 38000,  240,  20, 365, TRUE,  NULL, NULL, 0),
 -- 단종(사용 중지) 품목: 재고가 안전재고보다 적지만 대시보드 알림에서 제외된다
-(12, 'FD-CT-900', '구형 육성우 사료(단종)',  'CATTLE',  'FEED',       25, 29000,  10,  50, 180, FALSE, NULL, NULL, 0);
+(12, 'FD-CT-900', '구형 육성우 사료(단종)',  5, 'CATTLE',  'FEED',       25, 29000,  10,  50, 180, FALSE, NULL, NULL, 0);
 
 -- ---------------------------------------------------------------------
--- 3. 로트 34건
+-- 4. 로트 34건
 --    lotId 1(D-5), 2(D-25), 5(D-18) → 대시보드 '유통기한 임박 알림'(30일 이내) 노출
 -- ---------------------------------------------------------------------
 --    ※ manufacturedDate = expirationDate - 품목의 shelfLifeDays 로 맞춰 두었다
@@ -115,7 +132,7 @@ INSERT INTO productLots (lotId, productId, lotNo, manufacturedDate, expirationDa
 (34,  9, 'LOT-PL-2626', DATEADD('DAY',  -18, CURRENT_DATE), DATEADD('DAY',  72, CURRENT_DATE), 180, 0);
 
 -- ---------------------------------------------------------------------
--- 4. 최근 7일치 주문 15건
+-- 5. 최근 7일치 주문 15건
 --    · PAID(오늘 2건)            → '신규 주문'
 --    · READY(2건)                → '출고 대기'
 --    · CANCELED(1건)             → 매출 집계에서 제외됨 (출고 전 취소)
@@ -151,7 +168,7 @@ SET canceledAt     = DATEADD('DAY', -3, CURRENT_TIMESTAMP),
 WHERE orderId = 10;
 
 -- ---------------------------------------------------------------------
--- 5. 주문 상세 (orderPrice = 주문 당시 단가)
+-- 6. 주문 상세 (orderPrice = 주문 당시 단가)
 -- ---------------------------------------------------------------------
 INSERT INTO orderItems (orderItemId, orderId, productId, lotId, quantity, orderPrice) VALUES
 (1,   1, 1, 1, 10, 32000),
@@ -172,7 +189,7 @@ INSERT INTO orderItems (orderItemId, orderId, productId, lotId, quantity, orderP
 (16, 15, 1, 1, 10, 32000);
 
 -- ---------------------------------------------------------------------
--- 6. 창고 구역(Bin)  ※ 기준 정보(Master Data)
+-- 7. 창고 구역(Bin)  ※ 기준 정보(Master Data)
 --    센터 5곳 × (보관 구역 + 입고/출고 대기 + 운송 중 가상 구역) = 51칸.
 --    zone 코드가 축종을 뜻하므로 2D 도면만 봐도 그 센터의 운영 방향이 드러난다.
 --      CT 소 · PG 돼지 · PL 가금 · COLD 영양제 · R 입고대기 · S 출고대기 · TRANSIT 운송중
@@ -252,7 +269,7 @@ INSERT INTO warehouseBins (binId, binCode, centerId, zone, binPurpose, rack, bin
 (51, 'TRANSIT-C5-NJ', 5, 'TRANSIT', 'IN_TRANSIT', NULL, NULL, 0, 1, 1, 1, 1, TRUE, '센터 간 이관 중인 재고가 머무는 가상 구역 (시스템 자동 생성)', DATEADD('DAY', -140, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
--- 7. 재고 (로트 × 구역)
+-- 8. 재고 (로트 × 구역)
 --    ★ 정합성 규칙 (반드시 지켜야 함)
 --      · products.totalStock = 해당 품목 모든 로트의 inventories.quantity 합계
 --      · productLots.lotQuantity = 해당 로트의 inventories.quantity 합계
@@ -339,7 +356,7 @@ INSERT INTO inventories (inventoryId, lotId, binId, quantity, updatedAt, version
 (59, 11, 10, 120, DATEADD('DAY', -1, CURRENT_TIMESTAMP), 0);   -- YS-R-01 (120/300) ※ 적재율 제외
 
 -- ---------------------------------------------------------------------
--- 8. 재고 이력 83건
+-- 9. 재고 이력 83건
 --    ★ 이 목록을 위에서부터 그대로 재생하면 inventories 가 정확히 나온다.
 --      (로트 단위뿐 아니라 '로트 × 구역' 단위까지 맞춰 두었다. 그래서 이력 추적
 --       화면에서 "이력상 수량과 실제 재고가 다르다" 는 경고가 뜨지 않는다)
@@ -449,7 +466,166 @@ INSERT INTO stockMovements (movementId, movementType, productId, lotId, binId, f
 (85, 'INBOUND', 9, 11, 10, NULL, 120, NULL, '정기 발주 입고 - 검수 대기', 2, '이사원', DATEADD('DAY', -1, CURRENT_TIMESTAMP));
 
 -- ---------------------------------------------------------------------
--- 9. IDENTITY 시퀀스 재시작
+-- 10. 농장 고객사 20곳  ※ 기준 정보(Master Data)
+--    B2C 담당 팀원의 고객 농장 모듈에서 옮겨온 데이터다.
+--    옮기면서 이 프로젝트의 기준에 맞춰 세 가지를 바꿨다.
+--
+--      1) 담당 창고를 centers 로 참조한다.
+--         원본은 별도 warehouse 테이블(W01~W05)을 참조했다. 같은 물류 거점이
+--         두 테이블로 갈라지면 구역 · 재고 · 이력 · 이관 · 2D 도면이 모두
+--         매달린 centers 와 어긋난다.
+--      2) 축종을 AnimalType enum 으로 바꿨다.
+--         원본은 '조류(닭/오리)' 같은 자유 문자열이라 products.animalType 과
+--         맞춰볼 수 없었다. 두 축이 같은 값 체계를 써야 비교가 성립한다.
+--      3) distanceKm 을 centers 좌표 기준으로 다시 계산했다(하버사인).
+--         원본은 팀원 쪽 창고 좌표 기준이어서 최대 17km 차이가 났다(나주).
+--
+--    farmCode 의 W01~W05 는 팀원 창고 코드 체계지만 그대로 둔다.
+--    팀원 모듈이 farmCode 를 자연 키로 삼아 데이터를 병합하므로 코드를 고치면
+--    같은 농장이 두 건으로 늘어난다. 센터를 가리키는 일은 centerId 가 한다.
+--
+--    ■ 거래 보류(PAUSED) 2곳을 일부러 심는다
+--      원본 데이터는 20곳이 전부 ACTIVE 였다. 그러면 거래 상태 필터가 한 번도
+--      걸러내지 못하고, 월 사료량 합산이 '거래 중만' 세는지 확인할 수 없다
+--      (전부 ACTIVE 라 필터가 있으나 없으나 결과가 같다).
+--      대기 구역 재고가 0 이어서 관련 UI 가 한 번도 렌더링되지 않았던 것과
+--      같은 문제다. 규칙을 어긴 데이터는 아니지만 기능을 보여주지 못한다.
+--
+--      전체 20곳 / 거래 중 18곳 / 거래 보류 2곳
+--      월 예상 사료량 : 전체 35,970  ·  거래 중만 31,140  (차이 4,830)
+--      사육 규모 합계 : 450,940 마리
+-- ---------------------------------------------------------------------
+INSERT INTO farmCustomers (farmCustomerId, farmCode, farmName, representativeName, phone,
+                           postalCode, address, latitude, longitude, animalType,
+                           livestockCount, monthlyFeedQuantity, preferredFeed,
+                           recurringDeliveryDay, centerId, distanceKm, status, notes, createdAt) VALUES
+-- 충남 예산 센터 (C1-YS) 담당 농장
+(1, 'F-W01-01', '예산 고덕 한우농장', '김한우', '010-0000-1001',
+ '32400', '충남 예산군 고덕면 농장권역', 36.742, 126.704, 'CATTLE',
+ 180, 720, '한우 성장 플러스', 1, 1, 6.8, 'ACTIVE', '송아지·육성우 혼합 사육', DATEADD('DAY', -280, CURRENT_TIMESTAMP)),
+(2, 'F-W01-02', '당진 합덕 양돈농장', '이양돈', '010-0000-1002',
+ '31800', '충남 당진시 합덕읍 농장권역', 36.79, 126.76, 'PIG',
+ 2400, 1850, '육성돈 그로우', 15, 1, 2.2, 'ACTIVE', '육성돈 중심 월 2회 공급', DATEADD('DAY', -274, CURRENT_TIMESTAMP)),
+(3, 'F-W01-03', '홍성 광천 산란계농장', '박산란', '010-0000-1003',
+ '32290', '충남 홍성군 광천읍 농장권역', 36.5, 126.62, 'POULTRY',
+ 60000, 2380, '산란계 산란 피크', 1, 1, 33.1, 'PAUSED', '사료 단가 재협상 중 · 공급 일시 보류', DATEADD('DAY', -268, CURRENT_TIMESTAMP)),
+(4, 'F-W01-04', '아산 둔포 육계농장', '최육계', '010-0000-1004',
+ '31400', '충남 아산시 둔포면 농장권역', 36.93, 127.04, 'POULTRY',
+ 42000, 2100, '육계 후기 사료', 15, 1, 29.7, 'ACTIVE', '출하 주기별 분할 배송', DATEADD('DAY', -262, CURRENT_TIMESTAMP)),
+-- 전북 김제 센터 (C2-GJ) 담당 농장
+(5, 'F-W02-01', '김제 백산 육계농장', '정백산', '010-0000-2001',
+ '54320', '전북 김제시 백산면 농장권역', 35.84, 126.89, 'POULTRY',
+ 72000, 3100, '육계 전기 사료', 3, 2, 3.5, 'ACTIVE', '육계 전기·후기 혼합 공급', DATEADD('DAY', -250, CURRENT_TIMESTAMP)),
+(6, 'F-W02-02', '익산 왕궁 양돈농장', '강왕궁', '010-0000-2002',
+ '54570', '전북 익산시 왕궁면 농장권역', 35.97, 127.08, 'PIG',
+ 3100, 2200, '비육돈 피니셔', 17, 2, 25.6, 'ACTIVE', '비육돈 대량 수요 고객', DATEADD('DAY', -244, CURRENT_TIMESTAMP)),
+(7, 'F-W02-03', '정읍 태인 한우농장', '윤태인', '010-0000-2003',
+ '56110', '전북 정읍시 태인면 농장권역', 35.65, 126.93, 'CATTLE',
+ 230, 850, '한우 비육 후기', 3, 2, 18.7, 'ACTIVE', '비육 후기 사료 비중 높음', DATEADD('DAY', -238, CURRENT_TIMESTAMP)),
+(8, 'F-W02-04', '부안 계화 오리농장', '한계화', '010-0000-2004',
+ '56300', '전북 부안군 계화면 농장권역', 35.76, 126.7, 'POULTRY',
+ 28000, 1980, '육용오리 그로워', 17, 2, 16.6, 'ACTIVE', '오리 그로워 정기 공급', DATEADD('DAY', -232, CURRENT_TIMESTAMP)),
+-- 경북 의성 센터 (C3-US) 담당 농장
+(9, 'F-W03-01', '의성 단촌 한우농장', '신단촌', '010-0000-3001',
+ '37320', '경북 의성군 단촌면 농장권역', 36.42, 128.7, 'CATTLE',
+ 260, 940, '한우 비육 전기', 5, 3, 5.8, 'ACTIVE', '거점 인접 우선 배송', DATEADD('DAY', -220, CURRENT_TIMESTAMP)),
+(10, 'F-W03-02', '안동 풍산 양돈농장', '조풍산', '010-0000-3002',
+ '36620', '경북 안동시 풍산읍 농장권역', 36.58, 128.58, 'PIG',
+ 2700, 1960, '양돈 장건강 프로', 19, 3, 18.7, 'ACTIVE', '장건강 사료 고정 거래', DATEADD('DAY', -214, CURRENT_TIMESTAMP)),
+(11, 'F-W03-03', '영주 안정 산란계농장', '배안정', '010-0000-3003',
+ '36050', '경북 영주시 안정면 농장권역', 36.83, 128.56, 'POULTRY',
+ 52000, 2260, '산란계 육성 사료', 5, 3, 46.3, 'ACTIVE', '육성·산란 전환 수요', DATEADD('DAY', -208, CURRENT_TIMESTAMP)),
+(12, 'F-W03-04', '상주 함창 육계농장', '오함창', '010-0000-3004',
+ '37110', '경북 상주시 함창읍 농장권역', 36.57, 128.18, 'POULTRY',
+ 36000, 1720, '육계 후기 사료', 19, 3, 44.0, 'ACTIVE', '계약 갱신 대기 시연 데이터', DATEADD('DAY', -202, CURRENT_TIMESTAMP)),
+-- 경기 안성 센터 (C4-AS) 담당 농장
+(13, 'F-W04-01', '안성 미양 낙농목장', '서미양', '010-0000-4001',
+ '17590', '경기 안성시 미양면 농장권역', 36.97, 127.21, 'CATTLE',
+ 190, 780, '젖소 착유우 밸런스', 8, 4, 3.7, 'ACTIVE', '착유우 전용 사료 정기 공급', DATEADD('DAY', -190, CURRENT_TIMESTAMP)),
+(14, 'F-W04-02', '이천 설성 양돈농장', '임설성', '010-0000-4002',
+ '17410', '경기 이천시 설성면 농장권역', 37.13, 127.52, 'PIG',
+ 3400, 2450, '비육돈 프리미엄 골드', 22, 4, 29.8, 'PAUSED', '축사 증축 공사로 납품 일시 중단', DATEADD('DAY', -184, CURRENT_TIMESTAMP)),
+(15, 'F-W04-03', '평택 청북 육계농장', '문청북', '010-0000-4003',
+ '17790', '경기 평택시 청북읍 농장권역', 37.02, 126.92, 'POULTRY',
+ 68000, 2880, '육계 전기 사료', 8, 4, 27.2, 'ACTIVE', '주 단위 출하 일정 연계', DATEADD('DAY', -178, CURRENT_TIMESTAMP)),
+(16, 'F-W04-04', '음성 금왕 한우농장', '유금왕', '010-0000-4004',
+ '27630', '충북 음성군 금왕읍 농장권역', 37.0, 127.59, 'CATTLE',
+ 210, 820, '한우 프리미엄 마블', 22, 4, 32.4, 'ACTIVE', '비육 후기 집중 관리', DATEADD('DAY', -172, CURRENT_TIMESTAMP)),
+-- 전남 나주 센터 (C5-NJ) 담당 농장
+(17, 'F-W05-01', '나주 문평 오리농장', '남문평', '010-0000-5001',
+ '58200', '전남 나주시 문평면 농장권역', 35.05, 126.85, 'POULTRY',
+ 45000, 3200, '육용오리 그로워', 10, 5, 17.9, 'ACTIVE', '거점 인접 최우선 배송', DATEADD('DAY', -160, CURRENT_TIMESTAMP)),
+(18, 'F-W05-02', '영암 신북 한우농장', '고신북', '010-0000-5002',
+ '58400', '전남 영암군 신북면 농장권역', 34.89, 126.69, 'CATTLE',
+ 170, 690, '한우 성장 플러스', 24, 5, 23.3, 'ACTIVE', '육성우 중심 고객', DATEADD('DAY', -148, CURRENT_TIMESTAMP)),
+(19, 'F-W05-03', '함평 학교 양돈농장', '송학교', '010-0000-5003',
+ '57160', '전남 함평군 학교면 농장권역', 35.03, 126.54, 'PIG',
+ 2100, 1580, '자돈 스타터 2호', 10, 5, 13.4, 'ACTIVE', '자돈·육성돈 혼합 공급', DATEADD('DAY', -130, CURRENT_TIMESTAMP)),
+(20, 'F-W05-04', '장흥 부산 육계농장', '장부산', '010-0000-5004',
+ '59300', '전남 장흥군 부산면 농장권역', 34.72, 126.9, 'POULTRY',
+ 33000, 1510, '가금 프리미엄 믹스', 24, 5, 47.3, 'ACTIVE', '계절 계약 보류 시연 데이터', DATEADD('DAY', -106, CURRENT_TIMESTAMP));
+
+-- ---------------------------------------------------------------------
+-- 11. 불량 기록 7건
+--    "검수에서 불량이 나오면 그 다음" 을 보여주는 데이터.
+--
+--    관리번호(defectNo)는 로트번호와 같이 고정 문자열로 둔다. 상대 날짜로 만들면
+--    실행 월에 따라 접두어가 바뀌어 문서 · 테스트에서 이 번호를 가리킬 수 없다.
+--    (운영 중 등록되는 번호는 DefectService 가 그 달 최댓값 +1 로 발급한다)
+--
+--    상태를 섞어 둔 이유 — 화면이 세 상태를 모두 렌더링해야 확인이 된다.
+--      · 격리(QUARANTINED)   3건 : #1 #3 #7
+--      · 검사 중(INSPECTING) 2건 : #2 #6
+--      · 처리 완료(RESOLVED) 2건 : #4 #5
+--
+--    #1(12일 전) · #2(9일 전) 는 7일이 지난 미처리 건이다 →
+--    목록 위쪽 '방치된 불량' 경고와 행 강조(table-warning)가 이 두 건으로 보인다.
+--
+--    #5 는 제조사가 없는 품목(productId 10)의 로트다 → 제조사별 집계에 '미등록' 이 뜬다.
+--    #6 은 센터 간 이관 중 파손이라 binId 가 NULL 이다 → 구역을 특정할 수 없는 경우.
+--      (이때는 구역으로 단계를 추정할 수 없으므로 stage 를 TRANSFER 로 직접 지정한다)
+--
+--    발견 단계 분포: 입고 검사 4 / 보관 1 / 출고 검사 1 / 이관 1 → 입고 적발률 57%
+--    (입고에서 잡는 비중이 높아야 좋다. 늦게 발견될수록 보관 자리와 시간을 낭비한 것)
+--
+--    ※ 이 표는 재고 수량을 바꾸지 않는다. #4 는 공급업체 반품으로 처리했지만
+--      inventories 는 그대로다 — 실제 차감은 재고 폐기 화면에서 해야 한다.
+--      불량 관리 화면의 '재고 차감 대기' 카드가 이 1건을 센다.
+-- ---------------------------------------------------------------------
+INSERT INTO defectRecords (defectId, defectNo, lotId, binId, quantity, defectType, stage, status, resolution, memo, resolutionMemo, reportedByName, resolvedByName, createdAt, resolvedAt) VALUES
+-- 방치 1 : 김제 센터 입고 검수 구역, 12일째 격리 상태
+(1, 'DF-2607-001',  3, 19, 12, 'DAMAGE',         'RECEIVING', 'QUARANTINED', NULL,
+ '하차 중 파렛트 하단 12포대 포장 찢어짐. 내용물 일부 유출.', NULL,
+ '이사원', NULL, DATEADD('DAY', -12, CURRENT_TIMESTAMP), NULL),
+-- 방치 2 : 예산 센터 입고 검수 구역, 9일째 검사 중
+(2, 'DF-2607-002',  5, 10,  8, 'FOREIGN_MATTER', 'RECEIVING', 'INSPECTING',  NULL,
+ '개봉 검사 중 이물(비닐 조각) 확인. 동일 파렛트 전량 재검사 중.', NULL,
+ '이사원', NULL, DATEADD('DAY',  -9, CURRENT_TIMESTAMP), NULL),
+-- 보관 중 발견 : 입고 검수는 통과했는데 나중에 문제가 드러난 경우
+(3, 'DF-2607-003',  8,  5, 20, 'WET',            'STORAGE',   'QUARANTINED', NULL,
+ '천장 누수로 하단 2단에 습기 유입. 보관 위치 변경 필요.', NULL,
+ '이사원', NULL, DATEADD('DAY',  -5, CURRENT_TIMESTAMP), NULL),
+-- 처리 완료 1 : 공급업체 반품 → 재고 차감이 아직 남아 있다
+(4, 'DF-2607-004', 10, 28, 15, 'SPECIFICATION',  'RECEIVING', 'RESOLVED',    'SUPPLIER_RETURN',
+ '표기 조단백 함량과 시험성적서 수치가 맞지 않음.',
+ '반품 접수번호 R-2607-08 · 제조사 회수 차량 배차 완료.',
+ '이사원', '김책임', DATEADD('DAY',  -3, CURRENT_TIMESTAMP), DATEADD('DAY', -2, CURRENT_TIMESTAMP)),
+-- 처리 완료 2 : 재작업 후 정상 복귀 (제조사 미등록 품목)
+(5, 'DF-2607-005', 12, 45,  6, 'DAMAGE',         'RECEIVING', 'RESOLVED',    'REWORK',
+ '외포장만 손상. 내부 포장과 내용물은 이상 없음.',
+ '외포장 교체 후 보관 구역으로 이동 완료.',
+ '이사원', '김책임', DATEADD('DAY',  -2, CURRENT_TIMESTAMP), DATEADD('DAY', -1, CURRENT_TIMESTAMP)),
+-- 이관 중 파손 : 어느 구역에서 났다고 말할 수 없어 binId 가 NULL
+(6, 'DF-2607-006',  6, NULL, 10, 'DAMAGE',        'TRANSFER',  'INSPECTING',  NULL,
+ '예산 → 안성 이관 차량 적재 붕괴. 도착 후 수량 · 상태 확인 중.', NULL,
+ '이사원', NULL, DATEADD('DAY',  -1, CURRENT_TIMESTAMP), NULL),
+-- 출고 검사에서 발견 : 가장 늦게 잡힌 경우 (보관 기간을 이미 낭비했다)
+(7, 'DF-2607-007', 11, 11,  4, 'CONTAMINATION',  'SHIPPING',  'QUARANTINED', NULL,
+ '출고 적재 중 변색 확인. 해당 파렛트 출고 보류.', NULL,
+ '이사원', NULL, DATEADD('HOUR', -4, CURRENT_TIMESTAMP), NULL);
+
+-- ---------------------------------------------------------------------
+-- 12. IDENTITY 시퀀스 재시작
 --    (명시적 ID 로 INSERT 했으므로, 이후 JPA 저장 시 PK 충돌을 막는다)
 -- ---------------------------------------------------------------------
 ALTER TABLE centers ALTER COLUMN centerId RESTART WITH 6;
@@ -461,3 +637,6 @@ ALTER TABLE orderItems ALTER COLUMN orderItemId RESTART WITH 17;
 ALTER TABLE warehouseBins ALTER COLUMN binId RESTART WITH 52;
 ALTER TABLE inventories ALTER COLUMN inventoryId RESTART WITH 60;
 ALTER TABLE stockMovements ALTER COLUMN movementId RESTART WITH 86;
+ALTER TABLE farmCustomers ALTER COLUMN farmCustomerId RESTART WITH 21;
+ALTER TABLE manufacturers ALTER COLUMN manufacturerId RESTART WITH 6;
+ALTER TABLE defectRecords ALTER COLUMN defectId RESTART WITH 8;

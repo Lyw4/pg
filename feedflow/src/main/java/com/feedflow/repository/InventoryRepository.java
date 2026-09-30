@@ -2,6 +2,7 @@ package com.feedflow.repository;
 
 import com.feedflow.admin.dto.CenterAlertRow;
 import com.feedflow.admin.dto.CenterAnimalMixRow;
+import com.feedflow.admin.dto.CenterAnimalQuantityRow;
 import com.feedflow.admin.dto.CenterStockRow;
 import com.feedflow.domain.Inventory;
 
@@ -331,4 +332,41 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     /** 전체 보관 수량 */
     @Query("select sum(i.quantity) from Inventory i")
     Long sumAllQuantity();
+
+    /**
+     * 센터 × 축종별 <b>출고 가능</b> 재고 집계 (수요 계획 화면의 공급 측).
+     *
+     * <h3>왜 전체 재고가 아니라 출고 가능 재고인가</h3>
+     * 담당 농장의 수요는 <b>실제로 내보내야 하는 물량</b>이다. 검수를 통과하지 않은
+     * 입고 대기 재고나 트럭 위의 운송 중 재고로는 그 수요를 채울 수 없다.
+     * 전체 재고와 비교하면 "재고가 충분한데 왜 못 보내나" 를 설명할 수 없게 된다.
+     * <p>
+     * 그래서 조건을 {@link #findAllocatableByProductId} 와 <b>같게</b> 맞춘다 —
+     * 보관 · 출고 대기 구역, 사용 중인 구역, 유통기한이 남은 로트.
+     * 한쪽만 바뀌면 "출고 가능하다고 나오는데 계획 화면에서는 부족" 같은 어긋남이 생긴다.
+     *
+     * <h3>담당 농장이 없는 축종도 나온다</h3>
+     * 재고는 있는데 그 축종 담당 농장이 없는 경우다. 호출부가 수요 쪽 결과와
+     * 합집합으로 순회해 양쪽 어디에만 있는 조합도 빠뜨리지 않는다.
+     *
+     * @param today 기준일 (이 날짜 이전에 만료된 로트는 공급에서 제외)
+     */
+    @Query("""
+            select new com.feedflow.admin.dto.CenterAnimalQuantityRow(
+                       c.centerId, p.animalType, sum(i.quantity))
+            from Inventory i
+                join i.bin b
+                join b.center c
+                join i.lot l
+                join l.product p
+            where i.quantity > 0
+              and l.expirationDate >= :today
+              and b.active = true
+              and b.binPurpose in (com.feedflow.domain.BinPurpose.STORAGE,
+                                   com.feedflow.domain.BinPurpose.SHIPPING)
+            group by c.centerId, p.animalType
+            order by c.centerId asc, p.animalType asc
+            """)
+    List<CenterAnimalQuantityRow> findAllocatableStockByCenterAndAnimalType(
+            @Param("today") LocalDate today);
 }
